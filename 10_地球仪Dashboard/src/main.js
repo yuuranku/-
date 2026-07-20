@@ -290,6 +290,20 @@ onScroll();
 onResize();
 requestAnimationFrame(animate);
 
+// Dev deep link: /?dir=entrances#archive-section jumps straight into a directory.
+{
+  const devDirectory = new URLSearchParams(location.search).get('dir');
+  if (devDirectory) {
+    const target = ARCHIVE_ROOTS.find((root) => root.id === devDirectory);
+    if (target) {
+      setTimeout(() => {
+        document.querySelector('#archive-section')?.scrollIntoView({ behavior: 'instant' });
+        transitionArchiveDirectory(target, { force: true });
+      }, 400);
+    }
+  }
+}
+
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('wheel', onPageWheel, { passive: false });
 window.addEventListener('resize', onResize);
@@ -1135,8 +1149,8 @@ function entryIconMarkup(archive, isFolder, index, mode) {
   if (mode === 'case-chronology') {
     const evidence = archive.image
       ? `<img src="${archive.image}" alt="" loading="lazy">`
-      : `<span>${archive.code}<br>NO IMAGE</span>`;
-    return `<span class="case-file-mark"><i>${evidence}</i><b>${archive.year || '19--'}</b><em>${archive.code}</em></span>`;
+      : `<span class="hanging-photo-missing">${archive.code}</span>`;
+    return `<span class="hanging-file"><i class="hanging-tab" data-tab-pos="${index % 3}"><b>${(archive.year || '19--').slice(0, 4)}</b></i><span class="hanging-photo">${evidence}</span></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1553,41 +1567,91 @@ function splitExhibitList(value = '') {
 
 function buildEventChronology(orbit, entries, appendArchiveEntry) {
   const chronology = document.createElement('section');
-  chronology.className = 'event-case-file';
+  chronology.className = 'event-cabinet';
   chronology.innerHTML = `
-    <header class="event-case-file-header"><span>PALIS / CASE DOSSIER SPINE</span><b>16 CASE FILES · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <div class="event-case-file-body">
-      <nav class="event-case-spine" role="list" aria-label="按时间顺序排列的十六份案卷"></nav>
-      <section class="event-case-dossier" aria-live="polite">
-        <div class="event-dossier-image" data-event-image></div>
-        <div class="event-dossier-copy">
-          <p><b data-event-code>--</b><span data-event-year>----</span></p>
-          <h3 data-event-name>未选择</h3>
-          <strong data-event-status>--</strong>
-          <dl data-event-fields class="event-dossier-fields"></dl>
-          <div class="event-dossier-exhibits">
-            <span class="event-dossier-section-label">证据清单</span>
-            <div data-event-exhibits class="event-exhibit-tags"></div>
-          </div>
-          <div class="event-dossier-crossref" data-event-crossref hidden>
-            <span class="event-dossier-section-label">交叉引用</span>
-            <div data-event-crossref-list class="event-crossref-chips"></div>
-          </div>
-          <span data-event-summary></span>
-          <button type="button" class="directory-open-button">打开调查卷 →</button>
-        </div>
-      </section>
+    <header class="event-cabinet-header"><span>PALIS / SUSPENSION FILE DRAWER</span><b>16 CASE FILES · SOURCE CONFLICTS CROSS-INDEXED</b></header>
+    <div class="event-drawer">
+      <nav class="event-drawer-files" role="list" aria-label="按时间悬挂的十六份案卷"></nav>
     </div>
+    <section class="event-desk" aria-live="polite">
+      <div class="event-dossier-image" data-event-image></div>
+      <div class="event-dossier-copy">
+        <p><b data-event-code>--</b><span data-event-year>----</span></p>
+        <h3 data-event-name>未选择</h3>
+        <strong data-event-status>--</strong>
+        <dl data-event-fields class="event-dossier-fields"></dl>
+        <div class="event-dossier-exhibits">
+          <span class="event-dossier-section-label">证据清单</span>
+          <div data-event-exhibits class="event-exhibit-tags"></div>
+        </div>
+        <div class="event-dossier-crossref" data-event-crossref hidden>
+          <span class="event-dossier-section-label">交叉引用 · 红线连至同源案卷</span>
+          <div data-event-crossref-list class="event-crossref-chips"></div>
+        </div>
+        <span data-event-summary></span>
+        <button type="button" class="directory-open-button">打开调查卷 →</button>
+      </div>
+    </section>
+    <svg class="event-thread-layer" aria-hidden="true"></svg>
   `;
-  const spine = chronology.querySelector('.event-case-spine');
-  const buttons = entries.map((archive, index) => appendArchiveEntry(archive, index, spine).button);
+  const drawer = chronology.querySelector('.event-drawer-files');
+  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, drawer));
+  const buttons = results.map((result) => result.button);
+  const items = results.map((result) => result.item);
+  results.forEach((result, index) => {
+    const nameEl = result.button.querySelector('.folder-name');
+    if (nameEl) nameEl.textContent = entries[index].name.replace(`${entries[index].year} / `, '');
+  });
   orbit.appendChild(chronology);
   const crossRefs = buildEventCrossReferences(entries);
-  eventChronologyState = { entries, chronology, buttons, crossRefs, previewAnimation: null };
+  eventChronologyState = { entries, chronology, buttons, items, crossRefs, previewAnimation: null, threadAnimations: null };
   chronology.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
+  drawer.addEventListener('scroll', () => renderEventThreads(false), { passive: true });
   renderEventChronology(false);
+}
+
+function renderEventThreads(animate = true) {
+  const state = eventChronologyState;
+  if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
+  const svg = state.chronology.querySelector('.event-thread-layer');
+  const cabinetRect = state.chronology.getBoundingClientRect();
+  if (!cabinetRect.width) return;
+  svg.setAttribute('viewBox', `0 0 ${Math.round(cabinetRect.width)} ${Math.round(cabinetRect.height)}`);
+  const crossref = state.crossRefs[archiveSelection] || [];
+  const originEl = state.chronology.querySelector('[data-event-crossref]');
+  const paths = [];
+  if (crossref.length && !originEl.hidden) {
+    const originRect = originEl.getBoundingClientRect();
+    const x0 = originRect.left - cabinetRect.left + 14;
+    const y0 = originRect.top - cabinetRect.top + 8;
+    crossref.forEach(({ index }) => {
+      const tab = state.items[index]?.querySelector('.hanging-tab');
+      if (!tab) return;
+      const tabRect = tab.getBoundingClientRect();
+      if (tabRect.right < cabinetRect.left || tabRect.left > cabinetRect.right) return;
+      const x1 = tabRect.left - cabinetRect.left + tabRect.width / 2;
+      const y1 = tabRect.top - cabinetRect.top + tabRect.height;
+      const sagX = (x0 + x1) / 2;
+      const sagY = Math.max(y0, y1) + 46;
+      paths.push(`<path class="event-thread" pathLength="1" d="M${x0} ${y0}Q${sagX} ${sagY} ${x1} ${y1}"/><circle class="event-thread-pin" cx="${x1}" cy="${y1}" r="3"/>`);
+    });
+  }
+  svg.innerHTML = paths.join('');
+  state.items.forEach((item, index) => {
+    item.classList.toggle('is-thread-target', crossref.some((ref) => ref.index === index));
+  });
+  if (animate && !reducedMotion) {
+    state.threadAnimations?.forEach((animation) => animation.cancel());
+    state.threadAnimations = [...svg.querySelectorAll('.event-thread')].map((thread, index) => {
+      thread.style.strokeDasharray = '1';
+      thread.style.strokeDashoffset = '1';
+      return thread.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], {
+        duration: 520, delay: 420 + index * 120, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards',
+      });
+    });
+  }
 }
 
 function renderEventChronology(animate = true) {
@@ -1597,18 +1661,25 @@ function renderEventChronology(animate = true) {
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
+    const item = state.items[index];
+    item.classList.toggle('is-lifted', index === archiveSelection);
+    item.classList.toggle('is-pushed-left', index === archiveSelection - 1);
+    item.classList.toggle('is-pushed-right', index === archiveSelection + 1);
   });
+  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
   const image = state.chronology.querySelector('[data-event-image]');
   image.classList.toggle('is-withheld', !archive.image);
   image.innerHTML = archive.image
     ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)} 的档案影像" loading="eager">`
     : `<span class="event-redacted-stamp"><b>${archive.code}</b>SOURCE<br>WITHHELD</span>`;
-  state.chronology.querySelector('[data-event-code]').textContent = archive.code;
+  const codeChip = state.chronology.querySelector('[data-event-code]');
+  codeChip.textContent = archive.code;
   state.chronology.querySelector('[data-event-year]').textContent = archive.year;
   state.chronology.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
   state.chronology.querySelector('[data-event-status]').textContent = archive.meta;
-  const fields = (archive.fields || []).filter(([label]) => label !== '证据');
+  const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
   state.chronology.querySelector('[data-event-fields]').innerHTML = fields
+    .slice(0, 3)
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   const evidenceField = (archive.fields || []).find(([label]) => label === '证据');
   const exhibits = evidenceField ? splitExhibitList(evidenceField[1]) : [];
@@ -1626,13 +1697,25 @@ function renderEventChronology(animate = true) {
   });
   state.chronology.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
   if (animate && !reducedMotion) {
-    const dossier = state.chronology.querySelector('.event-case-dossier');
-    state.previewAnimation?.cancel();
-    state.previewAnimation = dossier.animate([
-      { opacity: .55, transform: 'translate3d(0, 9px, 0) scale(.996)' },
-      { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
-    ], { duration: 440, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    const desk = state.chronology.querySelector('.event-desk');
+    state.previewAnimation?.forEach((animation) => animation.cancel());
+    state.previewAnimation = [
+      desk.animate([
+        { opacity: .5, transform: 'translate3d(0, -8px, 0)' },
+        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+      ], { duration: 360, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
+      codeChip.animate([
+        { opacity: 0, transform: 'scale(1.6) rotate(-6deg)' },
+        { opacity: 1, transform: 'scale(1) rotate(0deg)' },
+      ], { duration: 220, delay: 110, easing: 'steps(3, end)', fill: 'backwards' }),
+      image.animate([
+        { filter: 'contrast(0) brightness(2.2)' },
+        { filter: 'contrast(.4) brightness(1.5)', offset: .4 },
+        { filter: 'contrast(1) brightness(1)' },
+      ], { duration: 520, easing: 'steps(5, end)' }),
+    ];
   }
+  requestAnimationFrame(() => renderEventThreads(animate));
 }
 
 const ENTRANCE_PROFILE_SHAPES = {
@@ -1689,51 +1772,377 @@ function entranceDepthMeters(archive) {
 
 function entranceCallouts(archive) {
   const fields = archive.fields || [];
-  const pick = (labels) => fields.find(([label]) => labels.some((candidate) => label.includes(candidate)));
+  const pick = (labels) => {
+    for (const candidate of labels) {
+      const field = fields.find(([label]) => label.includes(candidate));
+      if (field) return field;
+    }
+    return undefined;
+  };
   return [
-    pick(['地表开口', '井径']),
-    pick(['最窄断面', '通行']),
-    pick(['落点生态', '生态', '探索']),
+    pick(['地表开口', '井径', '井口', '开口', '套管', '设施']),
+    pick(['最窄断面', '井筒', '通行']),
+    pick(['落点生态', '生态', '探索', '作用']),
   ];
+}
+
+/* --- Engineering section-drawing generator: one 1964 survey sheet per entrance. --- */
+
+const ENTRANCE_CN_DIGITS = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 两: 2 };
+
+function entranceCnCount(text, pattern) {
+  const match = text.match(pattern);
+  if (!match) return 0;
+  return ENTRANCE_CN_DIGITS[match[1]] ?? (parseInt(match[1], 10) || 1);
+}
+
+function entranceDrawingNumber(archive) {
+  const raw = archiveField(archive, ['地图'], '');
+  const token = raw.match(/`([^`]+)`/);
+  return token ? token[1].slice(0, 16) : '无正式图号';
+}
+
+function entranceSheetFigure(archive) {
+  const profile = entranceProfileType(archive);
+  const descent = archiveField(archive, ['下降'], '');
+  const depth = entranceDepthMeters(archive);
+  const cut = [];      // structural excavation lines, draw order 1
+  const detail = [];   // secondary marks, draw order 2
+  const route = [];    // red survey route, revealed by clip
+  const water = [];    // hydrology lines
+  const uncertain = [];// red conflict marks
+  const voids = [];    // fill polygons that cut the ice hatch
+  const anchors = [];  // callout anchor points {x, y}
+  const cx = 340;
+  const TOP = 110;
+  const BOT = 452;
+  const line = (x1, y1, x2, y2) => `M${x1} ${y1}L${x2} ${y2}`;
+
+  const caveFloor = (fx, spread = 150) => {
+    cut.push(`M${fx - 17} ${BOT - 16}Q${fx - spread * 0.55} ${BOT - 8} ${fx - spread} ${BOT}`);
+    cut.push(`M${fx + 17} ${BOT - 16}Q${fx + spread * 0.55} ${BOT - 8} ${fx + spread} ${BOT}`);
+    voids.push(`M${fx - 17} ${BOT - 16}Q${fx - spread * 0.55} ${BOT - 8} ${fx - spread} ${BOT}H${fx + spread}Q${fx + spread * 0.55} ${BOT - 8} ${fx + 17} ${BOT - 16}Z`);
+    // Sparse black-needle trees on the landing floor.
+    [-spread * 0.62, -spread * 0.2, spread * 0.34, spread * 0.72].forEach((dx) => {
+      const tx = fx + dx;
+      detail.push(`M${tx} ${BOT}L${tx} ${BOT - 12}M${tx - 4} ${BOT - 4}L${tx} ${BOT - 9}L${tx + 4} ${BOT - 4}M${tx - 3} ${BOT - 8}L${tx} ${BOT - 12}L${tx + 3} ${BOT - 8}`);
+    });
+  };
+
+  const shed = (sx, w = 30) => {
+    cut.push(`M${sx - w} ${TOP}V${TOP - 22}H${sx + w}V${TOP}`);
+    cut.push(`M${sx - w - 8} ${TOP - 22}H${sx + w + 8}`);
+    detail.push(line(sx - w + 8, TOP - 22, sx - w + 8, TOP), line(sx + w - 8, TOP - 22, sx + w - 8, TOP));
+  };
+
+  if (profile === 'cargo-shaft' || profile === 'capsule' || profile === 'disputed-shaft' || profile === 'fissure') {
+    const shafts = Math.max(1, entranceCnCount(descent, /([一二三四五六七八九十两\d]+)段竖井/));
+    const chambers = entranceCnCount(descent, /([一二三四五六七八九十两\d]+)处换装室/);
+    const hasFissure = /岩缝|裂缝/.test(descent) || profile === 'fissure';
+    const hasIncline = /斜井/.test(descent);
+    const segs = [];
+    for (let i = 0; i < shafts; i += 1) {
+      segs.push({ kind: 'shaft', w: 2 });
+      if (i < chambers) segs.push({ kind: 'chamber', w: 1 });
+    }
+    if (hasIncline) segs.push({ kind: 'incline', w: 2 });
+    if (hasFissure) segs.push({ kind: 'fissure', w: 2 });
+    if (profile === 'disputed-shaft') segs.splice(Math.max(1, segs.length - 1), 0, { kind: 'gap', w: 1.2 });
+    const total = segs.reduce((sum, seg) => sum + seg.w, 0);
+    const scale = (BOT - 16 - TOP) / total;
+    shed(cx);
+    let y = TOP;
+    let x = cx;
+    const routePts = [[x, TOP - 14]];
+    let narrowMarked = false;
+    segs.forEach((seg, index) => {
+      const h = seg.w * scale;
+      const y1 = y + h;
+      if (seg.kind === 'shaft') {
+        voids.push(`M${x - 17} ${y}H${x + 17}V${y1}H${x - 17}Z`);
+        cut.push(line(x - 17, y, x - 17, y1), line(x + 17, y, x + 17, y1));
+        for (let by = y + 18; by < y1 - 6; by += 26) detail.push(line(x - 13, by, x + 13, by));
+        routePts.push([x, y1]);
+        if (!narrowMarked && index > 0) { anchors[1] = { x: x + 17, y: y + h / 2 }; narrowMarked = true; }
+      } else if (seg.kind === 'chamber') {
+        voids.push(`M${x - 44} ${y}H${x + 44}V${y1}H${x - 44}Z`);
+        cut.push(`M${x - 17} ${y}H${x - 44}V${y1}H${x - 17}`, `M${x + 17} ${y}H${x + 44}V${y1}H${x + 17}`);
+        detail.push(line(x - 44, y + h / 2, x - 30, y + h / 2), line(x + 30, y + h / 2, x + 44, y + h / 2));
+        detail.push(`M${x - 26} ${y + 4}h7v7h-7zM${x + 19} ${y1 - 11}h7v7h-7z`);
+        routePts.push([x, y1]);
+      } else if (seg.kind === 'incline') {
+        const x1 = x + 74;
+        voids.push(`M${x - 15} ${y}L${x1 - 15} ${y1}H${x1 + 15}L${x + 15} ${y}Z`);
+        cut.push(line(x - 15, y, x1 - 15, y1), line(x + 15, y, x1 + 15, y1));
+        routePts.push([x1, y1]);
+        x = x1;
+      } else if (seg.kind === 'fissure') {
+        const kinks = 4;
+        let px = x;
+        const left = [`M${px - 7} ${y}`];
+        const right = [`M${px + 7} ${y}`];
+        const voidPts = [[px - 7, y]];
+        const voidRight = [[px + 7, y]];
+        for (let k = 1; k <= kinks; k += 1) {
+          const ky = y + (h / kinks) * k;
+          const kx = x + (k % 2 === 0 ? -8 : 8);
+          left.push(`L${kx - 7} ${ky}`);
+          right.push(`L${kx + 7} ${ky}`);
+          voidPts.push([kx - 7, ky]);
+          voidRight.push([kx + 7, ky]);
+          routePts.push([kx, ky]);
+          px = kx;
+        }
+        cut.push(left.join(''), right.join(''));
+        voids.push(`M${voidPts.map((p) => p.join(' ')).join('L')}L${voidRight.reverse().map((p) => p.join(' ')).join('L')}Z`);
+        x = px;
+      } else if (seg.kind === 'gap') {
+        // Disputed span: the two surveys disagree here.
+        uncertain.push(line(x - 30, y + h * 0.3, x + 30, y + h * 0.3), line(x - 30, y + h * 0.7, x + 30, y + h * 0.7));
+        detail.push(`M${x - 24} ${y + 4}L${x + 24} ${y1 - 4}M${x + 24} ${y + 4}L${x - 24} ${y1 - 4}`);
+        routePts.push([x, y1]);
+      }
+      y = y1;
+    });
+    if (profile === 'capsule') {
+      cut.push(`M${cx - 26} ${TOP - 22}L${cx} ${TOP - 52}L${cx + 26} ${TOP - 22}`);
+      detail.push(`M${cx} ${TOP - 46}a7 7 0 1 0 .1 0`);
+      const cageY = TOP + (BOT - TOP) * 0.42;
+      cut.push(`M${cx - 10} ${cageY}h20v30h-20z`);
+      detail.push(line(cx - 10, cageY + 10, cx + 10, cageY + 10), line(cx - 10, cageY + 20, cx + 10, cageY + 20), line(cx, TOP - 44, cx, cageY));
+    }
+    caveFloor(x);
+    routePts.push([x, BOT - 10]);
+    route.push(`M${routePts.map((p) => p.join(' ')).join('L')}`);
+    anchors[0] = { x: cx + 38, y: TOP - 12 };
+    if (!anchors[1]) anchors[1] = { x: cx + 17, y: TOP + (BOT - TOP) * 0.45 };
+    anchors[2] = { x: x + 110, y: BOT - 6 };
+  } else if (profile === 'heavy-ramp' || profile === 'ice-ramp' || profile === 'stepped') {
+    const x0 = 150; const y0 = TOP; const x1 = 700; const y1 = BOT - 14;
+    cut.push(`M${x0 - 26} ${TOP - 20}H${x0 + 14}V${TOP}`);
+    if (profile === 'stepped') {
+      const steps = 9;
+      const stepPts = [[x0, y0]];
+      for (let i = 1; i <= steps; i += 1) {
+        const sx = x0 + ((x1 - x0) / steps) * i;
+        const sy = y0 + ((y1 - y0) / steps) * i;
+        stepPts.push([sx, stepPts[stepPts.length - 1][1]], [sx, sy]);
+      }
+      cut.push(`M${stepPts.map((p) => p.join(' ')).join('L')}`);
+      const off = 24;
+      cut.push(`M${stepPts.map((p) => `${p[0]} ${p[1] - off}`).join('L')}`);
+      voids.push(`M${stepPts.map((p) => p.join(' ')).join('L')}L${[...stepPts].reverse().map((p) => `${p[0]} ${p[1] - off}`).join('L')}Z`);
+      route.push(`M${x0} ${y0 - 10}L${stepPts.map((p) => `${p[0]} ${p[1] - 8}`).join('L')}`);
+    } else {
+      const dx = x1 - x0; const dy = y1 - y0;
+      const len = Math.hypot(dx, dy);
+      const nx = (-dy / len) * 11; const ny = (dx / len) * 11;
+      voids.push(`M${x0 + nx} ${y0 + ny}L${x1 + nx} ${y1 + ny}L${x1 - nx} ${y1 - ny}L${x0 - nx} ${y0 - ny}Z`);
+      cut.push(line(x0 + nx, y0 + ny, x1 + nx, y1 + ny), line(x0 - nx, y0 - ny, x1 - nx, y1 - ny));
+      [0.22, 0.5, 0.76].forEach((t) => {
+        const px = x0 + dx * t; const py = y0 + dy * t;
+        detail.push(line(px + nx * 1.5, py + ny * 1.5, px - nx * 1.5, py - ny * 1.5));
+      });
+      [0.36, 0.64, 0.9].forEach((t) => {
+        const px = x0 + dx * t; const py = y0 + dy * t;
+        detail.push(`M${px - 14} ${py + 12}h28`);
+      });
+      route.push(line(x0, y0 - 8, x1, y1 - 6));
+    }
+    caveFloor(x1, 120);
+    anchors[0] = { x: x0 + 30, y: TOP - 12 };
+    anchors[1] = { x: (x0 + x1) / 2 + 20, y: (y0 + y1) / 2 - 16 };
+    anchors[2] = { x: x1 + 90, y: BOT - 6 };
+  } else if (profile === 'probe') {
+    shed(cx, 20);
+    cut.push(line(cx - 4, TOP, cx - 4, BOT - 40), line(cx + 4, TOP, cx + 4, BOT - 40));
+    for (let jy = TOP + 30; jy < BOT - 46; jy += 34) detail.push(line(cx - 7, jy, cx + 7, jy));
+    detail.push(`M${cx - 3} ${TOP + (BOT - TOP) * 0.52}h6v12h-6z`);
+    route.push(line(cx, TOP - 12, cx, BOT - 44));
+    const wy = BOT - 34;
+    water.push(`M${cx - 90} ${wy}q12 -6 24 0t24 0t24 0t24 0t24 0t24 0`, `M${cx - 90} ${wy + 12}q12 -6 24 0t24 0t24 0t24 0t24 0t24 0`);
+    uncertain.push(line(cx - 90, wy - 12, cx + 90, wy - 12));
+    [-40, 0, 40].forEach((deg) => {
+      const rad = ((deg + 90) * Math.PI) / 180;
+      detail.push(line(cx, wy + 18, cx + Math.cos(rad) * 70, wy + 18 + Math.sin(rad) * 46));
+    });
+    anchors[0] = { x: cx + 26, y: TOP - 10 };
+    anchors[1] = { x: cx + 8, y: TOP + (BOT - TOP) * 0.4 };
+    anchors[2] = { x: cx + 96, y: wy + 4 };
+  } else if (profile === 'vent') {
+    shed(cx, 16);
+    let y = TOP; let x = cx;
+    const routePts = [[x, TOP - 12]];
+    for (let k = 0; k < 6; k += 1) {
+      const y1 = y + (BOT - 30 - TOP) / 6;
+      const x1 = cx + (k % 2 === 0 ? 16 : -16);
+      if (k === 2 || k === 4) {
+        uncertain.push(line(x, y, x1, y1));
+        detail.push(line(x - 12, y + 6, x + 12, y + 6));
+      } else {
+        cut.push(line(x - 5, y, x1 - 5, y1), line(x + 5, y, x1 + 5, y1));
+        voids.push(`M${x - 5} ${y}L${x1 - 5} ${y1}L${x1 + 5} ${y1}L${x + 5} ${y}Z`);
+      }
+      routePts.push([x1, y1]);
+      x = x1; y = y1;
+    }
+    [0.3, 0.55, 0.8].forEach((t) => {
+      const ay = TOP + (BOT - TOP) * t;
+      detail.push(`M${cx - 46} ${ay}l7 -9l7 9M${cx - 46} ${ay + 14}l7 -9l7 9`);
+    });
+    caveFloor(x, 90);
+    routePts.push([x, BOT - 10]);
+    route.push(`M${routePts.map((p) => p.join(' ')).join('L')}`);
+    anchors[0] = { x: cx + 24, y: TOP - 10 };
+    anchors[1] = { x: cx + 26, y: TOP + (BOT - TOP) * 0.5 };
+    anchors[2] = { x: x + 70, y: BOT - 6 };
+  } else if (profile === 'funnel') {
+    cut.push(`M${cx - 120} ${TOP}L${cx - 15} ${TOP + 128}`, `M${cx + 120} ${TOP}L${cx + 15} ${TOP + 128}`);
+    detail.push(`M${cx - 84} ${TOP + 34}L${cx - 30} ${TOP + 96}`, `M${cx + 84} ${TOP + 34}L${cx + 30} ${TOP + 96}`);
+    voids.push(`M${cx - 120} ${TOP}L${cx - 15} ${TOP + 128}H${cx + 15}L${cx + 120} ${TOP}Z`);
+    voids.push(`M${cx - 15} ${TOP + 128}H${cx + 15}V${BOT - 16}H${cx - 15}Z`);
+    cut.push(line(cx - 15, TOP + 128, cx - 15, BOT - 16), line(cx + 15, TOP + 128, cx + 15, BOT - 16));
+    route.push(`M${cx - 80} ${TOP - 6}L${cx} ${TOP + 120}V${BOT - 10}`);
+    caveFloor(cx);
+    anchors[0] = { x: cx + 90, y: TOP - 10 };
+    anchors[1] = { x: cx + 17, y: TOP + 170 };
+    anchors[2] = { x: cx + 110, y: BOT - 6 };
+  } else if (profile === 'wet-cave' || profile === 'river') {
+    const x0 = 170;
+    cut.push(`M${x0 - 24} ${TOP - 18}H${x0 + 16}V${TOP}`);
+    const midY = profile === 'river' ? 286 : 330;
+    cut.push(`M${x0 - 9} ${TOP}V${midY - 20}`, `M${x0 + 9} ${TOP}V${midY}`);
+    voids.push(`M${x0 - 9} ${TOP}H${x0 + 9}V${midY}H${x0 - 9}Z`);
+    const tx = 660;
+    cut.push(`M${x0 - 9} ${midY - 20}Q${(x0 + tx) / 2} ${midY - 66} ${tx} ${midY - 24}`);
+    cut.push(`M${x0 + 9} ${midY}Q${(x0 + tx) / 2} ${midY - 44} ${tx} ${midY}`);
+    voids.push(`M${x0 - 9} ${midY - 20}Q${(x0 + tx) / 2} ${midY - 66} ${tx} ${midY - 24}V${midY}Q${(x0 + tx) / 2} ${midY - 44} ${x0 + 9} ${midY}Z`);
+    if (profile === 'wet-cave') {
+      water.push(`M${x0 + 60} ${midY - 12}h420`, `M${x0 + 90} ${midY - 4}h360`);
+      detail.push(`M${tx - 130} ${midY - 30}h8v-8h8v8`);
+    } else {
+      [0.3, 0.5, 0.7].forEach((t) => {
+        const fx = x0 + (tx - x0) * t;
+        detail.push(`M${fx} ${midY - 20}l10 -6M${fx} ${midY - 28}l10 -6`);
+      });
+    }
+    route.push(`M${x0} ${TOP - 10}V${midY - 26}Q${(x0 + tx) / 2} ${midY - 56} ${tx - 20} ${midY - 20}`);
+    anchors[0] = { x: x0 + 22, y: TOP - 10 };
+    anchors[1] = { x: (x0 + tx) / 2, y: midY - 60 };
+    anchors[2] = { x: tx + 14, y: midY - 12 };
+  } else {
+    // Surface support node: mast, dugout, cache — no descent.
+    cut.push(line(cx, TOP, cx, TOP - 74));
+    detail.push(line(cx, TOP - 70, cx - 52, TOP), line(cx, TOP - 70, cx + 52, TOP), `M${cx} ${TOP - 66}h20v10h-20z`);
+    voids.push(`M${cx - 64} ${TOP}H${cx + 64}V${TOP + 34}H${cx - 64}Z`);
+    cut.push(`M${cx - 64} ${TOP}V${TOP + 34}H${cx + 64}V${TOP}`);
+    detail.push(`M${cx + 84} ${TOP - 10}h16v10h-16zM${cx + 104} ${TOP - 10}h16v10h-16z`);
+    route.push(line(cx - 130, TOP - 6, cx + 130, TOP - 6));
+    anchors[0] = { x: cx + 24, y: TOP - 60 };
+    anchors[1] = { x: cx + 66, y: TOP + 18 };
+    anchors[2] = { x: cx + 130, y: TOP - 6 };
+  }
+
+  const scaleKind = ['heavy-ramp', 'ice-ramp', 'stepped', 'river', 'wet-cave'].includes(profile) ? 'distance' : 'depth';
+  return { profile, depth, cut, detail, route, water, uncertain, voids, anchors, scaleKind };
+}
+
+const ENTRANCE_CALLOUT_SLOTS = [252, 333, 414];
+
+function entranceSheetMarkup(archive) {
+  const fig = entranceSheetFigure(archive);
+  const isSurface = fig.profile === 'surface';
+  const depthLabel = fig.depth
+    ? (fig.depth >= 1000 ? `${(fig.depth / 1000).toFixed(1)} km` : `${fig.depth} m`)
+    : '未标定';
+  const scaleTicks = [];
+  if (!isSurface) {
+    for (let i = 0; i <= 5; i += 1) {
+      const y = 110 + ((452 - 110) / 5) * i;
+      scaleTicks.push(`<path class="es-print" d="M64 ${y}h8"/>`);
+      if (i > 0 && i < 5 && fig.depth) {
+        scaleTicks.push(`<text class="es-scale-text" x="58" y="${y + 2}" text-anchor="end">${Math.round((fig.depth / 5) * i)}</text>`);
+      }
+    }
+  }
+  const calloutFields = entranceCallouts(archive);
+  const leaders = fig.anchors.map((anchor, index) => {
+    if (!anchor || !calloutFields[index]) return '';
+    const slotY = ENTRANCE_CALLOUT_SLOTS[index];
+    return `<path class="es-leader" data-draw="3" pathLength="1" d="M${anchor.x} ${anchor.y}L${Math.max(anchor.x + 40, 730)} ${slotY}H796"/><circle class="es-anchor" cx="${anchor.x}" cy="${anchor.y}" r="2.6"/>`;
+  }).join('');
+  const anomaly = (archive.body || []).some((paragraph) => paragraph.includes('异常')) || (archive.fields || []).some(([, value]) => value.includes('异常'));
+
+  return `
+    <defs>
+      <pattern id="es-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="rgba(148,163,150,.09)" stroke-width="1"/></pattern>
+      <pattern id="es-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" stroke="rgba(148,163,150,.16)" stroke-width="1"/></pattern>
+      <pattern id="es-rock" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 8L8 0M-2 2L2 -2M6 10L10 6" stroke="rgba(148,163,150,.22)" stroke-width="1"/></pattern>
+      <clipPath id="es-route-clip"><rect class="es-route-clip-rect" x="0" y="0" width="1160" height="560"/></clipPath>
+    </defs>
+    <rect class="es-frame" x="8" y="8" width="1144" height="544"/>
+    <rect class="es-frame es-frame--inner" x="18" y="18" width="1124" height="524"/>
+    <rect x="19" y="19" width="1122" height="522" fill="url(#es-grid)"/>
+    <text class="es-print-text" x="30" y="38">PALIS FORM 64-E · DESCENT SECTION</text>
+    <text class="es-print-text" x="30" y="52">SHEET ${archive.code}</text>
+    ${isSurface ? '' : `
+    <rect x="96" y="110" width="640" height="342" fill="url(#es-hatch)"/>
+    <rect x="96" y="452" width="640" height="34" fill="url(#es-rock)"/>
+    <path class="es-print" d="M96 452H736"/>
+    <path class="es-print" d="M64 110V452"/>
+    ${scaleTicks.join('')}
+    <text class="es-scale-text" x="58" y="96" text-anchor="end">${fig.scaleKind === 'distance' ? '里程' : '垂距'}</text>
+    <text class="es-scale-text" x="58" y="110" text-anchor="end">0 m</text>
+    <text class="es-scale-text" x="58" y="470" text-anchor="end">${depthLabel}</text>`}
+    <path class="es-print" d="M76 110H760" stroke-dasharray="1 0"/>
+    ${Array.from({ length: 22 }, (_, i) => `<path class="es-print" d="M${86 + i * 31} 110l6 -7"/>`).join('')}
+    <g class="es-void-layer">${fig.voids.map((d) => `<path class="es-void" d="${d}"/>`).join('')}</g>
+    ${fig.cut.map((d) => `<path class="es-cut" data-draw="1" pathLength="1" d="${d}"/>`).join('')}
+    ${fig.detail.map((d) => `<path class="es-detail" data-draw="2" pathLength="1" d="${d}"/>`).join('')}
+    ${fig.water.map((d) => `<path class="es-water" data-draw="2" pathLength="1" d="${d}"/>`).join('')}
+    ${fig.uncertain.map((d) => `<path class="es-uncertain" d="${d}"/>`).join('')}
+    <g clip-path="url(#es-route-clip)" class="es-route-group">${fig.route.map((d) => `<path class="es-route" d="${d}"/>`).join('')}</g>
+    ${leaders}
+    <g class="es-titleblock">
+      <rect class="es-frame" x="880" y="474" width="262" height="68"/>
+      <path class="es-print" d="M880 496H1142M880 518H1142M1010 474V542"/>
+      <text class="es-print-text" x="888" y="489">${archive.code} / 纵剖面</text>
+      <text class="es-print-text" x="1018" y="489">1964 核定</text>
+      <text class="es-print-text" x="888" y="511">图号 ${entranceDrawingNumber(archive)}</text>
+      <text class="es-print-text" x="1018" y="511">深度 ${depthLabel}</text>
+      <text class="es-print-text" x="888" y="533">垂距非等比</text>
+      ${anomaly ? '<text class="es-anomaly-text" x="1018" y="533">见异常附页</text>' : '<text class="es-print-text" x="1018" y="533">无异常登记</text>'}
+    </g>
+  `;
 }
 
 function buildEntranceElevation(orbit, entries, appendArchiveEntry) {
   const board = document.createElement('section');
-  board.className = 'entrance-elevation-console';
+  board.className = 'entrance-sheet-console';
   board.innerHTML = `
-    <header class="entrance-elevation-header">
-      <span>PALIS / DESCENT ELEVATION DRAWING</span><b>18 ENTRANCES · CROSS-SECTION ON FILE</b>
+    <header class="entrance-sheet-header">
+      <span>PALIS / DESCENT SECTION DRAWINGS</span><b>18 SHEETS · ONE ON TABLE</b>
     </header>
-    <div class="entrance-elevation-sheet">
-      <div class="entrance-elevation-drawing">
-        <div class="entrance-elevation-ruler" aria-hidden="true">
-          <span>地表 0 m</span>
-          <div class="entrance-elevation-ruler-track"><i data-elevation-fill></i></div>
-          <span data-elevation-max>-- m</span>
-        </div>
-        <div class="entrance-elevation-figure">
-          <svg class="entrance-elevation-svg" viewBox="0 0 64 40" aria-hidden="true"></svg>
-        </div>
-        <div class="entrance-elevation-callouts">
-          <div class="elevation-callout elevation-callout--top"><i></i><b data-callout-0-label></b><span data-callout-0-value></span></div>
-          <div class="elevation-callout elevation-callout--mid"><i></i><b data-callout-1-label></b><span data-callout-1-value></span></div>
-          <div class="elevation-callout elevation-callout--bottom"><i></i><b data-callout-2-label></b><span data-callout-2-value></span></div>
-        </div>
+    <div class="entrance-sheet-table">
+      <div class="entrance-sheet-stage">
+        <svg class="entrance-sheet-svg" viewBox="0 0 1160 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+        <div class="sheet-callout" data-callout="0" style="--slot: 45%"><b data-callout-0-label></b><span data-callout-0-value></span></div>
+        <div class="sheet-callout" data-callout="1" style="--slot: 59.5%"><b data-callout-1-label></b><span data-callout-1-value></span></div>
+        <div class="sheet-callout" data-callout="2" style="--slot: 74%"><b data-callout-2-label></b><span data-callout-2-value></span></div>
+        <aside class="entrance-sheet-review" aria-live="polite">
+          <p><b data-entrance-code>--</b><span data-entrance-network>--</span></p>
+          <h3 data-entrance-name>未选择</h3>
+          <span class="entrance-sheet-type" data-entrance-type></span>
+          <p class="entrance-sheet-summary" data-entrance-summary></p>
+          <button type="button" class="directory-open-button">打开完整入口档案 →</button>
+        </aside>
       </div>
-      <aside class="entrance-elevation-readout" aria-live="polite">
-        <p><b data-entrance-code>--</b><span data-entrance-network>--</span></p>
-        <h3 data-entrance-name>未选择</h3>
-        <span class="entrance-elevation-type" data-entrance-type></span>
-        <dl data-entrance-fields class="entrance-elevation-fields"></dl>
-        <span data-entrance-summary></span>
-        <button type="button" class="directory-open-button">打开完整入口档案 →</button>
-      </aside>
     </div>
-    <nav class="entrance-elevation-index" aria-label="全部十八个白渊入口"></nav>
+    <nav class="entrance-sheet-drawer" aria-label="全部十八张剖面图纸"></nav>
   `;
   orbit.appendChild(board);
 
-  const indexNav = board.querySelector('.entrance-elevation-index');
+  const indexNav = board.querySelector('.entrance-sheet-drawer');
   const buttons = new Array(entries.length);
   const indexGroups = new Map();
   entries.forEach((archive, index) => {
@@ -1767,18 +2176,13 @@ function renderEntranceElevation(animate = true) {
   const state = entranceElevationState;
   if (!state || folderOrbit.dataset.mode !== 'entrance-network') return;
   const archive = state.entries[archiveSelection];
-  const profile = entranceProfileType(archive);
-  const svg = state.board.querySelector('.entrance-elevation-svg');
-  svg.dataset.profile = profile;
-  svg.innerHTML = ENTRANCE_PROFILE_SHAPES[profile];
-
-  const depth = entranceDepthMeters(archive);
-  state.board.querySelector('[data-elevation-max]').textContent = depth ? `${depth.toLocaleString('en-US')} m` : '深度未标定';
-  state.board.querySelector('[data-elevation-fill]').style.setProperty('--fill', `${depth ? Math.min(100, Math.max(6, Math.round((depth / 3200) * 100))) : 6}%`);
+  const svg = state.board.querySelector('.entrance-sheet-svg');
+  svg.dataset.profile = entranceProfileType(archive);
+  svg.innerHTML = entranceSheetMarkup(archive);
 
   entranceCallouts(archive).forEach((entry, index) => {
     const labelEl = state.board.querySelector(`[data-callout-${index}-label]`);
-    const wrap = labelEl.closest('.elevation-callout');
+    const wrap = labelEl.closest('.sheet-callout');
     if (entry) {
       labelEl.textContent = entry[0];
       state.board.querySelector(`[data-callout-${index}-value]`).textContent = entry[1];
@@ -1793,76 +2197,203 @@ function renderEntranceElevation(animate = true) {
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
   });
 
-  state.board.querySelector('[data-entrance-code]').textContent = archive.code;
+  const codeChip = state.board.querySelector('[data-entrance-code]');
+  codeChip.textContent = archive.code;
   state.board.querySelector('[data-entrance-network]').textContent = (archive.network || 'UNFILED').toUpperCase();
   state.board.querySelector('[data-entrance-name]').textContent = archive.name;
   state.board.querySelector('[data-entrance-type]').textContent = archive.type;
-  state.board.querySelector('[data-entrance-fields]').innerHTML = (archive.fields || [])
-    .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   state.board.querySelector('[data-entrance-summary]').textContent = archive.body?.[0] || '该入口卷尚无摘要。';
 
+  state.drawingAnimation?.forEach((animation) => animation.cancel());
+  state.drawingAnimation = [];
   if (animate && !reducedMotion) {
-    const figure = state.board.querySelector('.entrance-elevation-figure');
-    state.drawingAnimation?.cancel();
-    state.drawingAnimation = figure.animate([
-      { opacity: .45, transform: 'translate3d(0, 10px, 0)' },
-      { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-    ], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    // Draft the excavation like a surveyor tracing the sheet: structure, then
+    // detail marks, then the red route ink, then the margin leaders.
+    const groups = { 1: 0, 2: 0, 3: 0 };
+    svg.querySelectorAll('[data-draw]').forEach((path) => {
+      const order = Number(path.dataset.draw);
+      const delay = order === 1 ? 40 * groups[1]++
+        : order === 2 ? 320 + 30 * groups[2]++
+          : 1080 + 90 * groups[3]++;
+      path.style.strokeDasharray = '1';
+      path.style.strokeDashoffset = '1';
+      state.drawingAnimation.push(path.animate(
+        [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
+        { duration: order === 1 ? 460 : 340, delay, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards' },
+      ));
+    });
+    const clipRect = svg.querySelector('.es-route-clip-rect');
+    if (clipRect) {
+      clipRect.style.transformOrigin = '0 0';
+      clipRect.style.transform = 'scaleY(0)';
+      state.drawingAnimation.push(clipRect.animate(
+        [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }],
+        { duration: 720, delay: 700, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards' },
+      ));
+    }
+    const callouts = state.board.querySelectorAll('.sheet-callout:not([hidden])');
+    callouts.forEach((callout, index) => {
+      state.drawingAnimation.push(callout.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: 260, delay: 1140 + index * 110, easing: 'steps(3, end)', fill: 'backwards' },
+      ));
+    });
+    state.drawingAnimation.push(codeChip.animate([
+      { opacity: 0, transform: 'scale(1.7) rotate(-7deg)' },
+      { opacity: 1, transform: 'scale(1) rotate(0deg)' },
+    ], { duration: 220, delay: 120, easing: 'steps(3, end)', fill: 'backwards' }));
   }
 }
 
-function ecologyMaterialTexture(material = '') {
-  if (/滤膜|滤芯/.test(material)) return 'membrane';
-  if (/菌|根|叶|鳞|骨/.test(material)) return 'biological';
-  if (/结晶|盐|硫化物/.test(material)) return 'mineral';
-  if (/水|泥/.test(material)) return 'fluid';
-  return 'sediment';
+/* --- Ecology: a continuous well-log recorder chart. Depth runs down the whole
+   sheet; the seven strata keep their true depth proportions (power-compressed
+   so thin top layers stay clickable); temperature and O2 envelopes are plotted
+   from the field readings like two recorder pens. --- */
+
+const ECO_DEPTH_EDGES = [0, 20, 45, 90, 180, 260, 320, 400];
+const ECO_CHART = { top: 74, bottom: 586, colLeft: 96, colRight: 300, traceLeft: 330, traceRight: 610, cardLeft: 640 };
+
+function ecoDepthY(depth) {
+  const compress = (value) => Math.pow(value, 0.62);
+  return ECO_CHART.top + (compress(depth) / compress(400)) * (ECO_CHART.bottom - ECO_CHART.top);
 }
 
+function ecoBands() {
+  return Array.from({ length: 7 }, (_, index) => ({
+    index,
+    y0: ecoDepthY(ECO_DEPTH_EDGES[index]),
+    y1: ecoDepthY(ECO_DEPTH_EDGES[index + 1]),
+  }));
+}
+
+function ecoParseRange(text, pattern) {
+  const match = (text || '').replace(/−/g, '-').match(pattern);
+  return match ? [parseFloat(match[1]), parseFloat(match[2])] : null;
+}
+
+function ecoTemperatureRange(index) {
+  return ecoParseRange(getEcologySpecimenReading(index).temperature, /(-?[\d.]+)[—–-]+(-?[\d.]+)/);
+}
+
+function ecoOxygenRange(archive) {
+  const gas = (archive.fields || []).find(([label]) => label.includes('气体'))?.[1] || '';
+  return ecoParseRange(gas, /O2 (-?[\d.]+)%[—–-]+(-?[\d.]+)%/);
+}
+
+function ecoEnvelopePaths(values, domainMin, domainMax) {
+  // Stepped min/max curves down the depth axis, like a two-pen chart recorder.
+  const bands = ecoBands();
+  const xOf = (value) => ECO_CHART.traceLeft + ((value - domainMin) / (domainMax - domainMin)) * (ECO_CHART.traceRight - ECO_CHART.traceLeft);
+  let minPath = '';
+  let maxPath = '';
+  bands.forEach(({ index, y0, y1 }) => {
+    const range = values[index];
+    if (!range) return;
+    const x0 = xOf(range[0]);
+    const x1 = xOf(range[1]);
+    minPath += `${minPath ? 'L' : 'M'}${x0} ${y0}L${x0} ${y1}`;
+    maxPath += `${maxPath ? 'L' : 'M'}${x1} ${y0}L${x1} ${y1}`;
+  });
+  return { minPath, maxPath };
+}
+
+const ECO_BAND_PATTERNS = [
+  '<path d="M3 1v5M9 3v5M15 0v5M21 4v5" stroke="rgba(207,224,230,.34)" stroke-width="1" fill="none"/>',
+  '<circle cx="4" cy="4" r="1.6" fill="none" stroke="rgba(232,224,192,.3)"/><circle cx="14" cy="9" r="1.6" fill="none" stroke="rgba(232,224,192,.24)"/>',
+  '<path d="M2 10q4 -7 8 0M12 10q4 -7 8 0" stroke="rgba(163,193,158,.3)" stroke-width="1" fill="none"/>',
+  '<path d="M4 0v12M10 2v12M16 0v12M22 3v12" stroke="rgba(150,168,152,.32)" stroke-width="1" fill="none"/>',
+  '<path d="M0 6q6 -4 12 0t12 0" stroke="rgba(83,120,207,.36)" stroke-width="1" fill="none"/>',
+  '<circle cx="5" cy="5" r="1" fill="rgba(199,148,96,.4)"/><path d="M12 9h6" stroke="rgba(199,148,96,.3)"/>',
+  '<path d="M0 4l6 6M6 4l-6 6M12 2l6 6M18 2l-6 6" stroke="rgba(196,182,160,.28)" stroke-width="1" fill="none"/>',
+];
+
 function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
+  const bands = ecoBands();
+  const tempRanges = entries.map((_, index) => ecoTemperatureRange(index));
+  const oxygenRanges = entries.map((archive) => ecoOxygenRange(archive));
+  const temp = ecoEnvelopePaths(tempRanges, -10, 20);
+  const oxygen = ecoEnvelopePaths(oxygenRanges, 17.5, 22);
+
   const cabinet = document.createElement('section');
-  cabinet.className = 'ecology-card-catalog';
+  cabinet.className = 'eco-log-console';
+  const depthTicks = ECO_DEPTH_EDGES.map((depth, index) => {
+    const y = ecoDepthY(depth);
+    const label = index === ECO_DEPTH_EDGES.length - 1 ? '320 m+' : `${depth}`;
+    return `<path class="el-print" d="M${ECO_CHART.colLeft - 14} ${y}h10"/><text class="el-scale-text" x="${ECO_CHART.colLeft - 18}" y="${y + 3}" text-anchor="end">${label}</text>`;
+  }).join('');
+  const bandRects = bands.map(({ index, y0, y1 }) => `
+    <rect class="el-band" x="${ECO_CHART.colLeft}" y="${y0}" width="${ECO_CHART.colRight - ECO_CHART.colLeft}" height="${y1 - y0}" fill="url(#eco-band-${index})"/>
+    <path class="el-print" d="M${ECO_CHART.colLeft} ${y1}H${ECO_CHART.colRight}"/>`).join('');
+  const gridLines = [0.25, 0.5, 0.75].map((t) => {
+    const x = ECO_CHART.traceLeft + t * (ECO_CHART.traceRight - ECO_CHART.traceLeft);
+    return `<path class="el-grid" d="M${x} ${ECO_CHART.top}V${ECO_CHART.bottom}"/>`;
+  }).join('');
+
   cabinet.innerHTML = `
-    <header class="ecology-catalog-header"><span>PALIS / SUBGLACIAL FIELD RECORD</span><b>07 CARDS · CONTINUOUS OBSERVATION</b></header>
-    <div class="ecology-catalog-body">
-      <nav class="ecology-catalog-tabs" role="list" aria-label="七层生态记录卡"></nav>
-      <div class="ecology-catalog-stack" aria-live="polite">
-        <div class="ecology-catalog-card">
-          <header class="ecology-card-head"><span data-ecology-index>E01 / 07</span><b data-ecology-code>E01</b></header>
+    <header class="eco-log-header"><span>PALIS / SUBGLACIAL FIELD LOG</span><b>07 STRATA · CONTINUOUS RECORDER</b></header>
+    <div class="eco-log-table">
+      <div class="eco-log-stage">
+        <svg class="eco-log-svg" viewBox="0 0 1160 620" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs>
+            ${ECO_BAND_PATTERNS.map((body, index) => `<pattern id="eco-band-${index}" width="24" height="12" patternUnits="userSpaceOnUse">${body}</pattern>`).join('')}
+          </defs>
+          <rect class="el-frame" x="8" y="8" width="1144" height="604"/>
+          <text class="el-print-text" x="26" y="34">PALIS FORM 64-B · FIELD PROFILE / CONTINUOUS RECORD</text>
+          <text class="el-print-text" x="26" y="50">SEVEN STRATA · SAMPLE SCALE ORIGINAL</text>
+          <text class="el-print-text" x="${ECO_CHART.colLeft}" y="${ECO_CHART.top - 10}">ICE CEILING / 000 m</text>
+          <text class="el-print-text el-print-text--warm" x="${ECO_CHART.colLeft}" y="${ECO_CHART.bottom + 18}">GEOTHERMAL FLOOR / 320 m+</text>
+          ${depthTicks}
+          <path class="el-print" d="M${ECO_CHART.colLeft - 4} ${ECO_CHART.top}V${ECO_CHART.bottom}"/>
+          ${bandRects}
+          <rect class="el-select" x="${ECO_CHART.colLeft}" y="${bands[0].y0}" width="${ECO_CHART.colRight - ECO_CHART.colLeft}" height="${bands[0].y1 - bands[0].y0}"/>
+          ${gridLines}
+          <text class="el-axis-text el-axis-text--temp" x="${ECO_CHART.traceLeft}" y="${ECO_CHART.top - 10}">温度 −10——20°C</text>
+          <text class="el-axis-text el-axis-text--oxygen" x="${ECO_CHART.traceRight - 150}" y="${ECO_CHART.top - 26}">O2 17.5——22%</text>
+          <path class="el-trace el-trace--temp" data-trace pathLength="1" d="${temp.minPath}"/>
+          <path class="el-trace el-trace--temp" data-trace pathLength="1" d="${temp.maxPath}"/>
+          <path class="el-trace el-trace--oxygen" data-trace pathLength="1" d="${oxygen.minPath}"/>
+          <path class="el-trace el-trace--oxygen" data-trace pathLength="1" d="${oxygen.maxPath}"/>
+          <path class="el-connector" d=""/>
+          <g class="el-head"><path d="M${ECO_CHART.colLeft - 26} 0H${ECO_CHART.traceRight + 14}"/><path class="el-head-pen" d="M${ECO_CHART.colLeft - 26} 0l-10 -6v12z"/></g>
+        </svg>
+        <nav class="eco-log-bands" role="list" aria-label="七层生态剖面"></nav>
+        <article class="eco-log-card" aria-live="polite">
+          <p class="eco-card-line"><b data-ecology-code>E01</b><span data-ecology-depth-tag></span><em data-ecology-sample-code>EP-01</em></p>
           <h3 data-ecology-name>未选择</h3>
-          <span class="ecology-card-depth" data-ecology-depth-tag></span>
-          <dl data-ecology-fields class="ecology-card-fields"></dl>
-          <div class="ecology-card-note">
-            <span class="ecology-card-note-label">连续观测</span>
+          <dl data-ecology-fields class="eco-card-fields"></dl>
+          <div class="eco-card-note">
+            <span>连续观测</span>
             <p data-ecology-summary></p>
           </div>
-          <div class="ecology-card-sample">
-            <span class="ecology-card-swatch ecology-material-swatch" data-ecology-swatch aria-hidden="true"></span>
-            <span class="ecology-card-sample-text"><b data-ecology-sample-code>EP-01</b><em data-ecology-sample-materials></em></span>
-          </div>
+          <p class="eco-card-materials" data-ecology-materials></p>
           <button type="button" class="directory-open-button">打开生态记录 →</button>
-        </div>
+        </article>
       </div>
     </div>
-    <nav class="ecology-catalog-flip" aria-label="翻阅记录卡">
-      <button type="button" class="ecology-flip-prev" aria-label="上一张记录卡">‹ 上一张</button>
-      <span data-ecology-flip-position>01 / 07</span>
-      <button type="button" class="ecology-flip-next" aria-label="下一张记录卡">下一张 ›</button>
-    </nav>
   `;
   orbit.appendChild(cabinet);
-  const tabNav = cabinet.querySelector('.ecology-catalog-tabs');
-  const buttons = entries.map((archive, index) => appendArchiveEntry(archive, index, tabNav).button);
-  cabinet.querySelector('.ecology-flip-prev').addEventListener('click', () => {
-    if (archiveSelection > 0) updateArchiveSelection(archiveSelection - 1, true);
+
+  const bandNav = cabinet.querySelector('.eco-log-bands');
+  const buttons = entries.map((archive, index) => {
+    const result = appendArchiveEntry(archive, index, bandNav);
+    const band = bands[index];
+    result.item.style.setProperty('--band-top', `${(band.y0 / 620) * 100}%`);
+    result.item.style.setProperty('--band-height', `${((band.y1 - band.y0) / 620) * 100}%`);
+    return result.button;
   });
-  cabinet.querySelector('.ecology-flip-next').addEventListener('click', () => {
-    if (archiveSelection < entries.length - 1) updateArchiveSelection(archiveSelection + 1, true);
-  });
-  ecologyCabinetState = { entries, cabinet, buttons, cardAnimation: null };
+  ecologyCabinetState = { entries, cabinet, buttons, bands, cardAnimation: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
+  if (!reducedMotion) {
+    cabinet.querySelectorAll('[data-trace]').forEach((trace, index) => {
+      trace.style.strokeDasharray = '1';
+      trace.style.strokeDashoffset = '1';
+      trace.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], {
+        duration: 900, delay: 260 + index * 140, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards',
+      });
+    });
+  }
   renderEcologyCabinet(false);
 }
 
@@ -1871,32 +2402,52 @@ function renderEcologyCabinet(animate = true) {
   if (!state || folderOrbit.dataset.mode !== 'ecology-strata') return;
   const archive = state.entries[archiveSelection];
   const reading = getEcologySpecimenReading(archiveSelection);
+  const band = state.bands[archiveSelection];
+  const center = (band.y0 + band.y1) / 2;
+
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
   });
-  state.cabinet.querySelector('[data-ecology-index]').textContent = `${archive.code} / 07`;
-  state.cabinet.querySelector('[data-ecology-code]').textContent = archive.code;
-  state.cabinet.querySelector('[data-ecology-name]').textContent = archive.name;
+
+  const select = state.cabinet.querySelector('.el-select');
+  select.setAttribute('y', band.y0);
+  select.setAttribute('height', band.y1 - band.y0);
+  const head = state.cabinet.querySelector('.el-head');
+  head.style.transform = `translateY(${center}px)`;
+
+  const card = state.cabinet.querySelector('.eco-log-card');
+  const cardCenter = Math.min(Math.max((center / 620) * 100, 31), 66);
+  card.style.setProperty('--card-top', `${cardCenter}%`);
+  const connector = state.cabinet.querySelector('.el-connector');
+  const cardY = (cardCenter / 100) * 620;
+  connector.setAttribute('d', `M${ECO_CHART.colRight} ${center}H${ECO_CHART.traceRight + 20}L${ECO_CHART.cardLeft - 14} ${cardY}H${ECO_CHART.cardLeft}`);
+
+  const codeChip = state.cabinet.querySelector('[data-ecology-code]');
+  codeChip.textContent = archive.code;
   state.cabinet.querySelector('[data-ecology-depth-tag]').textContent = reading.depth;
+  state.cabinet.querySelector('[data-ecology-sample-code]').textContent = reading.sample;
+  state.cabinet.querySelector('[data-ecology-name]').textContent = archive.name;
   state.cabinet.querySelector('[data-ecology-fields]').innerHTML = (archive.fields || [])
+    .slice(0, 5)
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   state.cabinet.querySelector('[data-ecology-summary]').textContent = archive.body?.[0] || '该生态记录尚无摘要。';
-  const swatch = state.cabinet.querySelector('[data-ecology-swatch]');
-  swatch.dataset.layer = String(archiveSelection + 1);
-  swatch.dataset.material = ecologyMaterialTexture(reading.materials[0] || '');
-  state.cabinet.querySelector('[data-ecology-sample-code]').textContent = reading.sample;
-  state.cabinet.querySelector('[data-ecology-sample-materials]').textContent = reading.materials.join(' · ');
-  state.cabinet.querySelector('[data-ecology-flip-position]').textContent = `${String(archiveSelection + 1).padStart(2, '0')} / 07`;
-  state.cabinet.querySelector('.ecology-flip-prev').disabled = archiveSelection === 0;
-  state.cabinet.querySelector('.ecology-flip-next').disabled = archiveSelection === state.entries.length - 1;
+  state.cabinet.querySelector('[data-ecology-materials]').innerHTML = reading.materials
+    .map((material) => `<i>${material}</i>`).join('');
+
   if (animate && !reducedMotion) {
-    const card = state.cabinet.querySelector('.ecology-catalog-card');
-    state.cardAnimation?.cancel();
-    state.cardAnimation = card.animate([
-      { opacity: .3, transform: 'translate3d(0, 0, 0) rotate(-1.4deg) scale(.965)' },
-      { opacity: 1, transform: 'translate3d(0, 0, 0) rotate(0deg) scale(1)' },
-    ], { duration: 380, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    state.cardAnimation?.forEach((animation) => animation.cancel());
+    state.cardAnimation = [
+      card.animate([
+        { opacity: 0, transform: 'translateY(calc(-50% + 14px)) rotate(.3deg)' },
+        { opacity: 1, transform: 'translateY(-50%) rotate(.3deg)' },
+      ], { duration: 340, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
+      codeChip.animate([
+        { opacity: 0, transform: 'scale(1.6) rotate(-6deg)' },
+        { opacity: 1, transform: 'scale(1) rotate(0deg)' },
+      ], { duration: 220, delay: 90, easing: 'steps(3, end)', fill: 'backwards' }),
+      connector.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 160, easing: 'steps(2, end)', fill: 'backwards' }),
+    ];
   }
 }
 

@@ -4,8 +4,6 @@ import test from 'node:test';
 
 import {
   buildEventCabinetGroups,
-  buildEntranceTopologyModel,
-  buildEntranceFocusModel,
   buildPeopleNetworkModel,
   classifyEventPeriod,
   getEcologySpecimenReading,
@@ -67,47 +65,25 @@ test('event cabinet keeps all sixteen files in four neutral date-range bays', ()
   });
 });
 
-test('entrance topology preserves every entrance and gives every node a connected route', () => {
-  const networks = ['us', 'ussr', 'china', 'north', 'france', 'australia'];
-  const types = [
-    'B级人员货运井', 'A级重型入口', 'E级应急通道', 'D级仪器探井', 'C级阶梯井', '地表支援节点',
-  ];
-  const entries = Array.from({ length: 18 }, (_, index) => ({
-    code: `K${String(index + 1).padStart(2, '0')}`,
-    name: `入口 ${index + 1}`,
-    network: networks[index % networks.length],
-    type: types[index % types.length],
-    status: index % 4 === 0 ? '限制访问' : '同期档案有效',
-  }));
-  const model = buildEntranceTopologyModel(entries);
-  const linkedCodes = new Set(model.links.flatMap((link) => [link.source, link.target]));
-
-  assert.equal(model.nodes.length, 18);
-  assert.ok(model.sources.length >= 6);
-  assert.ok(model.targets.length >= 3);
-  model.nodes.forEach((node) => {
-    assert.ok(['surface', 'descent', 'restricted'].includes(node.stage));
-    assert.ok(linkedCodes.has(node.code), `expected ${node.code} to be connected`);
-  });
-  ['surface', 'descent', 'restricted'].forEach((stage) => {
-    const positions = model.nodes.filter((node) => node.stage === stage).map((node) => node.y).sort((a, b) => a - b);
-    positions.slice(1).forEach((position, index) => {
-      assert.ok(position - positions[index] >= 5, `${stage} nodes should not collide vertically`);
-    });
-  });
-});
-
-test('entrance focus model enlarges one active route and a bounded set of useful alternatives', () => {
+test('every entrance carries the survey fields the section drawings are generated from', () => {
   const entries = ARCHIVE_ROOTS.find((root) => root.id === 'entrances').children;
-  const topology = buildEntranceTopologyModel(entries);
-  const focus = buildEntranceFocusModel(topology, 8, 7);
 
-  assert.equal(focus.nodes.length, 7);
-  assert.equal(focus.nodes.filter((node) => node.selected).length, 1);
-  assert.equal(focus.nodes.find((node) => node.selected)?.index, 8);
-  assert.ok(focus.source.label.length > 0);
-  assert.ok(focus.target.label.length > 0);
-  assert.equal(new Set(focus.nodes.map((node) => `${node.x}:${node.y}`)).size, focus.nodes.length);
+  assert.equal(entries.length, 18);
+  entries.forEach((entry) => {
+    assert.ok(entry.network, `${entry.code} should carry an authority network`);
+    assert.ok(entry.type, `${entry.code} should carry a passage class`);
+    const fields = Object.fromEntries(entry.fields || []);
+    const surfaceEntries = entry.type.includes('地表');
+    if (!surfaceEntries) {
+      const descent = ['下降', '井径', '井筒', '开口', '井口', '套管'].map((key) => fields[key] || '').join('');
+      assert.ok(descent.length > 0, `${entry.code} needs a descent or bore field for its drawing`);
+    }
+  });
+  const measured = entries.filter((entry) => {
+    const fields = Object.fromEntries(entry.fields || []);
+    return /[\d.]+\s*(米|公里)/.test(fields['下降'] || '');
+  });
+  assert.ok(measured.length >= 14, 'most descents should provide a parsable depth or route length');
 });
 
 test('ecology cabinet provides seven distinct specimen drawer readings', () => {
@@ -149,12 +125,12 @@ test('approved C C B B directory renderers are wired into the live archive page'
   assert.match(source, /events:\s*'case-chronology'/);
   assert.match(source, /function buildPeopleNetwork\(/);
   assert.match(source, /function buildEventChronology\(/);
-  assert.match(source, /function buildEntranceTopology\(/);
+  assert.match(source, /function buildEntranceElevation\(/);
   assert.match(source, /function buildEcologyCabinet\(/);
-  assert.match(source, /event-drawer-cabinet/);
-  assert.match(source, /entrance-topology-index/);
-  assert.match(source, /focusLimit = window\.matchMedia\('\(max-width: 760px\)'\)\.matches \? 5 : 7/);
-  assert.match(source, /ecology-sample-case/);
+  assert.match(source, /entranceSheetMarkup/);
+  assert.match(source, /event-drawer-files/);
+  assert.match(source, /event-thread-layer/);
+  assert.match(source, /eco-log-svg/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
   assert.doesNotMatch(source, /classList\.toggle\('is-off-deck'/);
@@ -164,17 +140,18 @@ test('new directory layouts include their responsive workbench styling', async (
   const styles = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
 
   assert.match(styles, /\.people-network-workbench/);
-  assert.match(styles, /\.event-case-chronology/);
-  assert.match(styles, /\.entrance-topology-console/);
-  assert.match(styles, /\.ecology-specimen-cabinet/);
+  assert.match(styles, /\.entrance-sheet-console/);
+  assert.match(styles, /\.eco-log-console/);
+  assert.match(styles, /\.event-cabinet\s*\{/);
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
   assert.match(styles, /\.directory-open-button\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(styles, /\.event-drawer-cabinet/);
-  assert.match(styles, /\.entrance-topology-index/);
+  assert.match(styles, /\.event-drawer-files/);
+  assert.match(styles, /\.event-thread\s*\{/);
+  assert.match(styles, /\.entrance-sheet-drawer/);
+  assert.match(styles, /\.eco-log-bands/);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);
   assert.match(styles, /display: block !important/);
   assert.match(styles, /width: calc\(100vw - 24px\) !important/);
-  assert.match(styles, /\.ecology-sample-case/);
   assert.match(styles, /@media\s*\(min-width:\s*2000px\)/);
 });
