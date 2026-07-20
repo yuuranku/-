@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050706" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='8' height='16' fill='%23315bcf'/%3E%3Crect x='8' width='8' height='16' fill='%23d14949'/%3E%3Cpath d='M2 7h12v2H2zm5-5h2v12H7z' fill='white'/%3E%3C/svg%3E" />
+    <meta name="description" content="从轨道舱进入白渊档案，并在尾页探索冷战早期的南极站点网络。" />
+    <title>WHITE ABYSS / 白渊档案终端</title>
+  </head>
+  <body>
+    <svg class="filter-defs" width="0" height="0" aria-hidden="true">
+      <filter id="cockpit-one-bit" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values=".299 .587 .114 0 0  .299 .587 .114 0 0  .299 .587 .114 0 0  0 0 0 1 0" />
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0 0 1 1" />
+          <feFuncG type="discrete" tableValues="0 0 1 1" />
+          <feFuncB type="discrete" tableValues="0 0 1 1" />
+        </feComponentTransfer>
+      </filter>
+    </svg>
+    <a class="skip-link" href="#archive-heading">跳到档案索引</a>
+
+    <main id="experience">
+      <div id="scene"></div>
+      <div class="space-noise" aria-hidden="true"></div>
+      <div class="scanlines" aria-hidden="true"></div>
+
+      <section class="capsule-layer" id="capsule-layer" aria-labelledby="capsule-title">
+        <div class="capsule-frame" aria-hidden="true">
+          <img class="capsule-photo" src="/assets/capsule-real-window-empty.png" alt="" width="1680" height="945" />
+          <img class="capsule-ink" src="/assets/capsule-real-window-pixel.png" alt="" width="1680" height="945" />
+        </div>
+        <div class="capsule-copy">
+          <p class="boot-authority">ANTARCTIC CONVENTION OVERSIGHT AUTHORITY · JOINT ARCHIVE CONTROL<br />POLAR RECORDS LIAISON OFFICE · WASHINGTON, D.C.</p>
+          <p class="system-kicker">PALIS / POLAR ARCHIVE LIAISON &amp; INDEX SYSTEM</p>
+          <h1 id="capsule-title" aria-live="polite">正在接入<br />PALIS 管理系统</h1>
+          <div class="boot-line" aria-live="polite">
+            <span id="boot-channel">CHANNEL 09A / ARCHIVE HANDSHAKE</span>
+            <b id="boot-status">INDEX READY</b>
+            <i aria-hidden="true"><span></span></i>
+          </div>
+        </div>
+        <a class="scroll-cue" href="#intro-section">
+          <span id="scroll-cue-label">向下滚动以接入</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7" /></svg>
+        </a>
+      </section>
+
+      <section class="intro-layer" id="intro-layer" aria-labelledby="intro-title">
+        <div class="sync-console" id="sync-console">
+          <header class="sync-mast">
+            <div>
+              <p class="system-kicker">PALIS / INDEX BUS SELF-TEST / CHANNEL 09A</p>
+              <h2 id="intro-title" aria-live="polite">正在校验档案索引</h2>
+              <p id="sync-subtitle">09 INDEX CHANNELS / ACCESSION COUNT / SOURCE CHAIN</p>
+            </div>
+            <div class="sync-reel" aria-hidden="true"><i></i><i></i><b>09A</b></div>
+          </header>
+
+          <div class="sync-body">
+            <section class="sync-ledger" aria-label="档案检索状态" data-local-window data-local-window-id="overview-index-log" data-local-window-label="索引日志">
+              <div class="title-bar local-window-titlebar" data-local-drag-handle>
+                <span>C:\PALIS\SYSTEM\INDEX.LOG</span>
+                <div class="window-controls">
+                  <button type="button" data-local-window-action="minimize" aria-label="最小化索引日志窗口">_</button>
+                  <button type="button" data-local-window-action="close" aria-label="关闭索引日志窗口">×</button>
+                </div>
+              </div>
+              <header><span>BUS</span><span>档案通道</span><span>状态</span><span>记录</span></header>
+              <ol id="sync-list"></ol>
+            </section>
+
+            <aside class="sync-summary" aria-label="档案同步汇总">
+              <p>INDEX ACCUMULATOR</p>
+              <div class="sync-counter"><span id="sync-percent">000</span><small>%</small></div>
+              <div class="sync-progress" aria-hidden="true"><i id="sync-progress"></i><span></span></div>
+              <div class="sync-phase"><span id="sync-phase">BUS 00 / 09</span><b id="sync-state">等待检索</b></div>
+              <dl class="sync-totals">
+                <div><dt>索引通道</dt><dd id="sync-channel-total">09</dd></div>
+                <div><dt>档案记录</dt><dd id="sync-record-total">---</dd></div>
+                <div><dt>同步异常</dt><dd id="sync-error-total">---</dd></div>
+              </dl>
+              <div class="sync-counts" id="sync-counts"></div>
+              <a class="retro-button sync-enter" id="sync-enter" href="#archive-section" aria-disabled="true">打开 PALIS 09A</a>
+            </aside>
+          </div>
+
+          <div class="local-window-dock" data-local-window-dock aria-label="概览页面窗口栏" hidden></div>
+
+          <footer class="sync-log"><span id="sync-log">&gt; AWAIT INDEX BUS RESPONSE</span><b>CRC / SOURCE CHAIN / ACCESSION COUNT</b></footer>
+        </div>
+      </section>
+
+      <section class="archive-layer" id="archive-layer" aria-labelledby="archive-heading">
+        <header class="archive-heading">
+          <p class="system-kicker">C:\WHITE_ABYSS\</p>
+          <h2 id="archive-heading">PALIS 09A 总目录</h2>
+          <p id="archive-subtitle">MASTER INDEX / NINE RECORD FAMILIES / SOURCE CONFLICTS PRESERVED</p>
+        </header>
+        <button class="archive-back retro-button" id="archive-back" type="button" hidden>← PALIS 09A</button>
+        <div class="archive-category-visual" id="archive-category-visual" aria-hidden="true"></div>
+        <article class="archive-feature" id="archive-feature" aria-live="polite" hidden></article>
+        <div class="orbit-ring" aria-hidden="true"></div>
+        <div class="folder-orbit" id="folder-orbit" role="list" aria-label="白渊档案分类"></div>
+        <div class="archive-browser-controls" id="archive-browser-controls" hidden>
+          <button type="button" id="archive-prev" aria-label="上一份档案">&lt;&lt;</button>
+          <output id="archive-position">01 / 01</output>
+          <button type="button" id="archive-next" aria-label="下一份档案">&gt;&gt;</button>
+        </div>
+        <p class="archive-hint" id="archive-hint">PALIS ROOT / DIRECTORY 09A</p>
+      </section>
+
+      <section class="polar-layer" id="polar-layer" aria-labelledby="polar-title">
+        <header class="polar-brand retro-window" data-local-window data-local-window-id="polar-network" data-local-window-label="南极站点网络">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>WHITE_ABYSS_NETWORK.EXE</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化南极站点网络窗口">_</button><button type="button" data-local-window-action="maximize" aria-label="最大化南极站点网络窗口">□</button><button type="button" data-local-window-action="close" aria-label="关闭南极站点网络窗口">×</button></div></div>
+          <div class="window-body brand-body">
+            <img src="/assets/target.svg" alt="" width="32" height="32" />
+            <div><p>FINAL DIRECTORY / FILE 09A</p><h2 id="polar-title">南极站点网络</h2></div>
+          </div>
+        </header>
+
+        <section class="polar-diagnostic retro-window" id="polar-diagnostic" aria-label="南极网络首次接入检查" aria-live="polite" data-local-window data-local-window-id="polar-self-test" data-local-window-label="南极网络自检" hidden>
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>PALIS_POLAR_SELF_TEST.LOG</span><b id="diagnostic-channel">CHANNEL 00</b></div>
+          <div class="window-body">
+            <header><p>ANTARCTIC NETWORK STARTUP SEQUENCE</p><strong id="diagnostic-title">等待南极网络响应</strong></header>
+            <ol>
+              <li data-diagnostic="stations"><i></i><span><b>科研站通信</b><small>SURFACE STATION UPLINK</small></span><output>00 / 20</output></li>
+              <li data-diagnostic="entrances"><i></i><span><b>入口信标</b><small>DESCENT BEACON RESPONSE</small></span><output>00 / 18</output></li>
+              <li data-diagnostic="routes"><i></i><span><b>补给路线</b><small>LOGISTICS ROUTE INTEGRITY</small></span><output>00 / 00</output></li>
+              <li data-diagnostic="weather"><i></i><span><b>天气遥测</b><small>WEATHER TELEMETRY</small></span><output>等待</output></li>
+              <li data-diagnostic="storm"><i></i><span><b>风暴监控</b><small>STORM WATCH ARRAY</small></span><output>等待</output></li>
+            </ol>
+            <div class="diagnostic-progress" aria-hidden="true"><i id="diagnostic-progress"></i><span></span></div>
+            <footer><span id="diagnostic-log">&gt; AWAIT POLAR CHANNEL RESPONSE</span><b id="diagnostic-percent">000%</b></footer>
+          </div>
+        </section>
+
+        <aside class="map-layers retro-window" aria-label="地图图层" data-local-window data-local-window-id="polar-layers" data-local-window-label="图层管理器">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>图层管理器</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化图层管理器窗口">_</button><button type="button" data-local-window-action="close" aria-label="关闭图层管理器窗口">×</button></div></div>
+          <div class="window-body">
+            <p class="window-label">MAP LAYERS / ARCHIVE COMPOSITE</p>
+            <button class="layer-button active" type="button" data-layer="abyss" aria-pressed="true"><span class="map-symbol entrance"></span><span><b>入口节点</b><small>17处下降点／1处地表支援</small></span><em>18</em></button>
+            <button class="layer-button active" type="button" data-layer="stations" aria-pressed="true"><span class="map-symbol station"></span><span><b>科考站网络</b><small>20 座公开站点与运输线</small></span><em>20</em></button>
+            <label for="network-filter">行动网络</label>
+            <select id="network-filter"><option value="all">全部网络</option></select>
+            <label for="point-picker">坐标快速定位</label>
+            <select id="point-picker"><option value="">未指定坐标</option></select>
+          </div>
+        </aside>
+
+        <aside class="map-detail retro-window" id="map-detail" aria-live="polite" data-local-window data-local-window-id="polar-detail" data-local-window-label="坐标属性">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>坐标属性</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化坐标属性窗口">_</button><button type="button" data-local-window-action="close" aria-label="关闭坐标属性窗口">×</button></div></div>
+          <div class="window-body">
+            <div class="detail-code"><span id="detail-kind">DESCENT NODE</span><b id="detail-index">US-K1</b></div>
+            <h3 id="detail-name">雁背竖井</h3>
+            <p id="detail-english">US-K1</p>
+            <dl>
+              <div><dt>坐标</dt><dd id="detail-coords">86°12′S · 34°00′E</dd></div>
+              <div><dt>归属</dt><dd id="detail-operator">美国南极测绘局</dd></div>
+              <div><dt>类别</dt><dd id="detail-type">B级人员货运井</dd></div>
+              <div><dt>状态</dt><dd id="detail-status">● 限制访问</dd></div>
+            </dl>
+            <p class="detail-note" id="detail-note">入口依赖地表科考站、雪道与无线电网络维持。</p>
+          </div>
+        </aside>
+
+        <div class="local-window-dock" data-local-window-dock aria-label="南极页面窗口栏" hidden></div>
+        <p class="map-instructions">POLAR DATUM / 38 ACTIVE RECORDS</p>
+      </section>
+
+      <nav class="chapter-nav" aria-label="章节导航">
+        <a href="#capsule-section" data-label="接入"><span>00</span></a>
+        <a href="#intro-section" data-label="概览"><span>01</span></a>
+        <a href="#archive-section" data-label="档案"><span>02</span></a>
+        <a href="#polar-section" data-label="南极"><span>03</span></a>
+      </nav>
+
+      <div class="taskbar" aria-label="白渊终端状态栏">
+        <a class="start-button" href="#capsule-section"><span class="pixel-flag" aria-hidden="true"></span><b>开始</b></a>
+        <p><i></i><span id="task-status">PALIS / 09A 握手中</span></p>
+        <div class="archive-task-list" id="archive-task-list" aria-label="已打开的档案窗口" hidden></div>
+        <p class="task-progress"><span id="chapter-name">00 / 接入</span><b id="scroll-percent">000%</b></p>
+        <time id="system-time">13:13</time>
+      </div>
+
+      <div class="story-spacer" aria-hidden="true">
+        <section id="capsule-section"></section>
+        <section id="intro-section"></section>
+        <section id="archive-section"></section>
+        <section id="polar-section"></section>
+      </div>
+    </main>
+
+    <div class="archive-desktop" id="archive-desktop" aria-label="档案窗口桌面"></div>
+
+    <template id="archive-window-template">
+      <section class="archive-window retro-window" role="dialog" aria-modal="false">
+        <div class="title-bar dialog-titlebar">
+          <span class="window-file">ARCHIVE.TXT</span>
+          <div class="window-controls">
+            <button class="window-minimize" type="button" aria-label="最小化档案窗口">_</button>
+            <button class="window-close" type="button" aria-label="关闭档案窗口">×</button>
+          </div>
+        </div>
+        <div class="dialog-menu" aria-hidden="true"><span>文件(F)</span><span>编辑(E)</span><span>查看(V)</span><span>帮助(H)</span></div>
+        <article class="document-sheet"></article>
+      </section>
+    </template>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

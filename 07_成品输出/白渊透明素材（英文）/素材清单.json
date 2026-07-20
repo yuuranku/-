@@ -1,0 +1,253 @@
+﻿{
+  "title": "Baiyuan / HZ-6 transparent extension assets",
+  "background": "transparent",
+  "language": "English only",
+  "count":  35,
+    "assets":  [
+                   {
+                       "name":  "stamp_confirmed_red",
+                       "category":  "stamp",
+                       "description":  "CONFIRMED rectangular red stamp",
+                       "png":  "位图素材/stamp_confirmed_red.png",
+                       "svg":  "矢量素材/stamp_confirmed_red.svg"
+                   },
+                   {
+                       "name":  "stamp_rejected_red",
+                       "category":  "stamp",
+                       "description":  "REJECTED rectangular red stamp",
+                       "png":  "位图素材/stamp_rejected_red.png",
+                       "svg":  "矢量素材/stamp_rejected_red.svg"
+                   },
+                   {
+                       "name":  "stamp_approved_green",
+                       "category":  "stamp",
+                       "description":  "APPROVED rectangular green stamp",
+                       "png":  "位图素材/stamp_approved_green.png",
+                       "svg":  "矢量素材/stamp_approved_green.svg"
+                   },
+                   {
+                       "name":  "stamp_denied_black",
+                       "category":  "stamp",
+                       "description":  "DENIED rectangular black stamp",
+                       "png":  "位图素材/stamp_denied_black.png",
+                       "svg":  "矢量素材/stamp_denied_black.svg"
+                   },
+                   {
+                       "name":  "stamp_archived_navy",
+                       "category":  "stamp",
+                       "description":  "ARCHIVED rectangular navy stamp",
+                       "png":  "位图素材/stamp_archived_navy.png",
+                       "svg":  "矢量素材/stamp_archived_navy.svg"
+                   },
+                   {
+                       "name":  "stamp_classified_black",
+                       "category":  "stamp",
+                       "description":  "CLASSIFIED rectangular black stamp",
+                       "png":  "位图素材/stamp_classified_black.png",
+                       "svg":  "矢量素材/stamp_classified_black.svg"
+                   },
+                   {
+                       "name":  "stamp_sample_logged_amber",
+                       "category":  "stamp",
+                       "description":  "SAMPLE LOGGED rectangular amber stamp",
+                       "png":  "位图素材/stamp_sample_logged_amber.png",
+                       "svg":  "矢量素材/stamp_sample_logged_amber.svg"
+                   },
+                   {
+                       "name":  "stamp_evidence_logged_navy",
+                       "category":  "stamp",
+                       "description":  "EVIDENCE LOGGED rectangular navy stamp",
+                       "png":  "位图素材/stamp_evidence_logged_navy.png",
+                       "svg":  "矢量素材/stamp_evidence_logged_navy.svg"
+                   },
+                   {
+                       "name":  "stamp_void_red",
+                       "category":  "stamp",
+                       "description":  "VOID rectangular red stamp",
+                       "png":  "位图素材/stamp_void_red.png",
+                       "svg":  "矢量素材/stamp_void_red.svg"
+                   },
+                   {
+                       "name":  "stamp_released_green",
+                       "category":  "stamp",
+                       "description":  "RELEASED rectangular green stamp",
+                       "png":  "位图素材/stamp_released_green.png",
+                       "svg":  "矢量素材/stamp_released_green.svg"
+                   },
+                   {
+                       "name":  "round_stamp_field_verified_navy",
+                       "category":  "round_stamp",
+                       "description":  "VERIFIED round navy stamp",
+                       "png":  "位图素材/round_stamp_field_verified_navy.png",
+                       "svg":  "矢量素材/round_stamp_field_verified_navy.svg"
+                   },
+                   {
+                       "name":  "round_stamp_access_revoked_red",
+                       "category":  "round_stamp",
+                       "description":  "REVOKED round red stamp",
+                       "png":  "位图素材/round_stamp_access_revoked_red.png",
+                       "svg":  "矢量素材/round_stamp_access_revoked_red.svg"
+                   },
+                   {
+                       "name":  "round_stamp_specimen_cleared_green",
+                       "category":  "round_stamp",
+                       "description":  "CLEARED round green stamp",
+                       "png":  "位图素材/round_stamp_specimen_cleared_green.png",
+                       "svg":  "矢量素材/round_stamp_specimen_cleared_green.svg"
+                   },
+                   {
+                       "name":  "round_stamp_quarantine_amber",
+                       "category":  "round_stamp",
+                       "description":  "HOLD round amber stamp",
+                       "png":  "位图素材/round_stamp_quarantine_amber.png",
+                       "svg":  "矢量素材/round_stamp_quarantine_amber.svg"
+                   },
+                   {
+                       "name":  "round_stamp_chain_of_custody_black",
+                       "category":  "round_stamp",
+                       "description":  "CUSTODY round black stamp",
+                       "png":  "位图素材/round_stamp_chain_of_custody_black.png",
+                       "svg":  "矢量素材/round_stamp_chain_of_custody_black.svg"
+                   },
+                   {
+                       "name":  "file_label_evidence_navy",
+                       "category":  "file_label",
+                       "description":  "EVIDENCE FILE label",
+                       "png":  "位图素材/file_label_evidence_navy.png",
+                       "svg":  "矢量素材/file_label_evidence_navy.svg"
+                   },
+                   {
+                       "name":  "file_label_restricted_red",
+                       "category":  "file_label",
+                       "description":  "RESTRICTED ACCESS label",
+                       "png":  "位图素材/file_label_restricted_red.png",
+                       "svg":  "矢量素材/file_label_restricted_red.svg"
+                   },
+                   {
+                       "name":  "file_label_sample_amber",
+                       "category":  "file_label",
+                       "description":  "SAMPLE TRANSFER label",
+                       "png":  "位图素材/file_label_sample_amber.png",
+                       "svg":  "矢量素材/file_label_sample_amber.svg"
+                   },
+                   {
+                       "name":  "file_label_video_record_navy",
+                       "category":  "file_label",
+                       "description":  "VIDEO RECORD label",
+                       "png":  "位图素材/file_label_video_record_navy.png",
+                       "svg":  "矢量素材/file_label_video_record_navy.svg"
+                   },
+                   {
+                       "name":  "file_label_archive_copy_black",
+                       "category":  "file_label",
+                       "description":  "ARCHIVE COPY label",
+                       "png":  "位图素材/file_label_archive_copy_black.png",
+                       "svg":  "矢量素材/file_label_archive_copy_black.svg"
+                   },
+                   {
+                       "name":  "seal_tape_classified_red",
+                       "category":  "file_label",
+                       "description":  "CLASSIFIED ARCHIVE SEAL seal tape",
+                       "png":  "位图素材/seal_tape_classified_red.png",
+                       "svg":  null
+                   },
+                   {
+                       "name":  "seal_tape_chain_of_custody_navy",
+                       "category":  "file_label",
+                       "description":  "CHAIN OF CUSTODY seal tape",
+                       "png":  "位图素材/seal_tape_chain_of_custody_navy.png",
+                       "svg":  null
+                   },
+                   {
+                       "name":  "video_rec_corner_red",
+                       "category":  "video_overlay",
+                       "description":  "rec video corner overlay",
+                       "png":  "位图素材/video_rec_corner_red.png",
+                       "svg":  "矢量素材/video_rec_corner_red.svg"
+                   },
+                   {
+                       "name":  "video_safe_frame_navy",
+                       "category":  "video_overlay",
+                       "description":  "safe video corner overlay",
+                       "png":  "位图素材/video_safe_frame_navy.png",
+                       "svg":  "矢量素材/video_safe_frame_navy.svg"
+                   },
+                   {
+                       "name":  "video_timecode_navy",
+                       "category":  "video_overlay",
+                       "description":  "00:07:19:12 / HZ6-R06 timecode plate",
+                       "png":  "位图素材/video_timecode_navy.png",
+                       "svg":  "矢量素材/video_timecode_navy.svg"
+                   },
+                   {
+                       "name":  "video_frame_id_black",
+                       "category":  "video_overlay",
+                       "description":  "FRAME 017 / CONTACT EVENT timecode plate",
+                       "png":  "位图素材/video_frame_id_black.png",
+                       "svg":  "矢量素材/video_frame_id_black.svg"
+                   },
+                   {
+                       "name":  "video_tracking_ticks_ice",
+                       "category":  "video_overlay",
+                       "description":  "frame tracking tick ruler",
+                       "png":  "位图素材/video_tracking_ticks_ice.png",
+                       "svg":  null
+                   },
+                   {
+                       "name":  "video_scanning_reticle_navy",
+                       "category":  "graphic_marker",
+                       "description":  "reticle marker",
+                       "png":  "位图素材/video_scanning_reticle_navy.png",
+                       "svg":  "矢量素材/video_scanning_reticle_navy.svg"
+                   },
+                   {
+                       "name":  "marker_warning_amber",
+                       "category":  "graphic_marker",
+                       "description":  "warning marker",
+                       "png":  "位图素材/marker_warning_amber.png",
+                       "svg":  "矢量素材/marker_warning_amber.svg"
+                   },
+                   {
+                       "name":  "marker_crosshair_navy",
+                       "category":  "graphic_marker",
+                       "description":  "crosshair marker",
+                       "png":  "位图素材/marker_crosshair_navy.png",
+                       "svg":  "矢量素材/marker_crosshair_navy.svg"
+                   },
+                   {
+                       "name":  "marker_arrow_red",
+                       "category":  "graphic_marker",
+                       "description":  "arrow marker",
+                       "png":  "位图素材/marker_arrow_red.png",
+                       "svg":  "矢量素材/marker_arrow_red.svg"
+                   },
+                   {
+                       "name":  "marker_arrow_navy",
+                       "category":  "graphic_marker",
+                       "description":  "arrow marker",
+                       "png":  "位图素材/marker_arrow_navy.png",
+                       "svg":  "矢量素材/marker_arrow_navy.svg"
+                   },
+                   {
+                       "name":  "marker_specimen_pin_green",
+                       "category":  "graphic_marker",
+                       "description":  "pin marker",
+                       "png":  "位图素材/marker_specimen_pin_green.png",
+                       "svg":  "矢量素材/marker_specimen_pin_green.svg"
+                   },
+                   {
+                       "name":  "marker_measure_scale_black",
+                       "category":  "graphic_marker",
+                       "description":  "ruler marker",
+                       "png":  "位图素材/marker_measure_scale_black.png",
+                       "svg":  "矢量素材/marker_measure_scale_black.svg"
+                   },
+                   {
+                       "name":  "marker_photo_crop_red",
+                       "category":  "graphic_marker",
+                       "description":  "crop marker",
+                       "png":  "位图素材/marker_photo_crop_red.png",
+                       "svg":  "矢量素材/marker_photo_crop_red.svg"
+                   }
+               ]
+}

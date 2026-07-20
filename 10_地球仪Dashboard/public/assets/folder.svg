@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="folder-title folder-desc" shape-rendering="crispEdges">
+  <title id="folder-title">像素文件夹</title>
+  <desc id="folder-desc">Windows 98 风格的黄色像素文件夹图标</desc>
+  <path fill="#5b4300" d="M2 7h11l3 3h14v18H2z"/>
+  <path fill="#fff2a8" d="M4 5h10l3 3h11v4H4z"/>
+  <path fill="#f0c942" d="M4 11h24v15H4z"/>
+  <path fill="#ffe873" d="M5 12h22v3H5z"/>
+  <path fill="#a87300" d="M4 24h24v2H4z"/>
+  <path fill="#ffffff" d="M4 6h9v1H4z"/>
+</svg>

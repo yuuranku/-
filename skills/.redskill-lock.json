@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "skills": {
+    "humanizer-zh": {
+      "name": "humanizer-zh",
+      "version": "1.1.0",
+      "source": "redskill",
+      "install_dir": "C:\\Users\\yuuranko\\Documents\\白渊\\skills\\humanizer-zh",
+      "installed_at": "1784165449186",
+      "sha256": "2cc170605d7b4f1ce689dc0e2292bcaca4a8a0b54b9ba30427a6c9085080124d"
+    },
+    "anti-vibe-writing": {
+      "name": "anti-vibe-writing",
+      "version": "1.0.0",
+      "source": "redskill",
+      "install_dir": "C:\\Users\\yuuranko\\Documents\\白渊\\skills\\anti-vibe-writing",
+      "installed_at": "1784165449864",
+      "sha256": "383058318ce6999a2b66e52bf6ba6868b4cca1d669e5bcbab5d28304fa4f518a"
+    }
+  }
+}

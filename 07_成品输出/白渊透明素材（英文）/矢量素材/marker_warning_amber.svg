@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+  <title>marker_warning_amber</title>
+  <desc>warning graphic marker in amber</desc>
+  <g fill="none" stroke="#B66B18" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.94">
+    <text x="210" y="380" fill="#B66B18" stroke="none" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-size="28">WARNING</text>
+  </g>
+</svg>

@@ -1,0 +1,250 @@
+【中文】HZ-6采集与回收任务报告。
+【English】HZ-6 Collection and Recovery Mission Report.
+
+【中文】本件按地平线站站长要求整理。内容限于 HZ-6 采集与回收任务的人员、装备、通联、影像材料和人员损失。
+【English】This file was prepared at the request of the Horizon Station chief. Its contents are limited to personnel, equipment, communications, image materials, and personnel losses related to the HZ-6 collection and recovery mission.
+
+【中文】供 BAS 内部复核、海军联络办公室查阅，以及站内野外规程修订使用。
+【English】It is for BAS internal review, Navy Liaison Office access, and revision of station field procedures.
+
+【中文】不作公开文本。
+【English】It is not a public text.
+
+【中文】对外仍按原口径处理：HZ-6 小队在南极科研活动中遭遇突发特大风暴，死亡及失踪人员按因公殉职处理；公开材料统一称其为极地科研任务中的牺牲者，并按规定抚恤家属。
+【English】Externally, the original account remains in use: the HZ-6 team encountered a sudden severe storm during Antarctic research activity; the deceased and missing personnel are handled as line-of-duty cases; public materials uniformly describe them as casualties of a polar research mission, with family compensation handled according to regulations.
+
+
+【中文】任务区域位于白渊针叶层，距地平线站东南测网 8.7 英里。
+【English】The mission area was located in the Baiyuan conifer layer, 8.7 miles from Horizon Station's southeastern survey grid.
+
+【中文】HZ-6A 为车辆回转点，HZ-6C 为低林样本点。两点之间只能步行进入。
+【English】HZ-6A was the vehicle turnaround point, and HZ-6C was the low forest sample point. The route between the two could only be entered on foot.
+
+【中文】任务按常规生态采样派出，同时补做测绘维护。
+【English】The mission was dispatched as routine ecological sampling, with additional survey maintenance.
+
+【中文】派出单简列三项：拍摄并收集黑针木根板与地表霜晶样品；回收 HZ-6C 空气滤芯；更新返程标记。
+【English】The dispatch order listed three items: photograph and collect black conifer root-plate and surface frost-crystal samples; recover the HZ-6C air filter; update the return markers.
+
+
+【中文】参与人员共五名。
+【English】Five personnel participated.
+
+【中文】霍华德·P·拉斯克中尉，队长，美国海军借调。状态：死亡，遗体未回收。
+【English】Lieutenant Howard P. Rusk, team leader, on assignment from the U.S. Navy. Status: deceased, body not recovered.
+
+【中文】海伦·M·克莱恩博士，生物员，哈佛大学特调研究员。状态：失踪。
+【English】Dr. Helen M. Klein, biologist, special research appointee from Harvard University. Status: missing.
+
+【中文】丹尼尔·基恩中士，无线电员，BAS 无线电接收员。状态：失踪。
+【English】Sergeant Daniel Keene, radio operator, BAS radio receiving operator. Status: missing.
+
+【中文】托马斯·E·马洛里，摄影师，BAS 民用影像技术员。状态：生还。
+【English】Thomas E. Mallory, photographer, BAS civilian imaging technician. Status: survived.
+
+【中文】塞缪尔·R·万斯二级士官，队尾护卫，美国海军借调，携带 M1 卡宾枪。状态：失踪。
+【English】Petty Officer Second Class Samuel R. Vance, rear guard, on assignment from the U.S. Navy, carrying an M1 carbine. Status: missing.
+
+【中文】按 BAS 常规出勤配置：两名护卫分列前后，保护研究人员、摄影员和无线电员。
+【English】Under BAS standard field staffing, two guards were positioned front and rear to protect the researcher, photographer, and radio operator.
+
+
+【中文】小队携带极地防寒服、AN/PRC-10 便携电台、备用电池、两支电手灯、一支乙炔灯、Brunton 罗盘、路线板、蜡封 HZ-6 野外地图、编号路线旗十二支、样本铁盒、玻璃样本瓶、土壤取样器、气体检测管、两日份 C 口粮、急救包、信号枪及红色信号弹六枚。
+【English】The team carried polar cold-weather clothing, an AN/PRC-10 portable radio, spare batteries, two electric hand lamps, one acetylene lamp, a Brunton compass, a route board, a wax-sealed HZ-6 field map, twelve numbered route flags, metal sample boxes, glass sample bottles, a soil sampler, gas detection tubes, two days of C-rations, a first-aid kit, a signal pistol, and six red signal flares.
+
+【中文】M29C Weasel 停放于 HZ-6A 车辆点，不进入低林区域。
+【English】The M29C Weasel was parked at the HZ-6A vehicle point and did not enter the low forest area.
+
+【中文】马洛里携带两台相机。
+【English】Mallory carried two cameras.
+
+【中文】Rolleiflex Automat MX 使用 Kodak Plus-X Pan 120 胶卷，用于静态样本和根板记录。
+【English】The Rolleiflex Automat MX used Kodak Plus-X Pan 120 film for static sample and root-plate records.
+
+【中文】Nikon S 35 毫米旁轴相机装载 Kodak Super-XX Panchromatic 胶卷，配 Nikkor-S.C 5cm f/1.4 与 Nikkor-Q.C 13.5cm f/3.5 镜头，用于行进、人员和突发情况记录。
+【English】The Nikon S 35mm rangefinder was loaded with Kodak Super-XX Panchromatic film and fitted with Nikkor-S.C 5cm f/1.4 and Nikkor-Q.C 13.5cm f/3.5 lenses for movement, personnel, and unexpected-event records.
+
+【中文】随身另有 Weston Master III 测光表、Graflex 闪光灯支架、Sylvania M3 闪光灯泡二十四枚及备用胶卷。
+【English】He also carried a Weston Master III light meter, a Graflex flash bracket, twenty-four Sylvania M3 flashbulbs, and spare film.
+
+
+【中文】0738，小队乘 M29C Weasel 从地平线站二号东门出发，沿通风车道前往 HZ-6A。
+【English】At 0738, the team left Horizon Station's East Gate Two in the M29C Weasel and followed the ventilation road toward HZ-6A.
+
+【中文】0925，抵达 HZ-6A。车辆停放于标志桩外侧，基恩接入线缆中继箱。马洛里使用 Rolleiflex 拍摄六张根板与表层霜晶照片。
+【English】At 0925, they reached HZ-6A. The vehicle was parked outside the marker post, Keene connected to the cable relay box, and Mallory used the Rolleiflex to take six photographs of root plates and surface frost crystals.
+
+【中文】1110，克莱恩在样本点北侧采集白壳碎片与地表霜晶样品。气体检测未见异常。
+【English】At 1110, Klein collected white-shell fragments and surface frost-crystal samples north of the sample point. Gas detection showed no abnormality.
+
+【中文】1240，午餐暂停。基恩报告林缘方向存在重复啄击声，暂按“静默鸟”活动记录。马洛里使用 Nikon S 拍摄两张正常行进照片。
+【English】At 1240, the team paused for lunch. Keene reported repeated pecking sounds from the forest edge, temporarily logged as "silent bird" activity. Mallory took two normal movement photographs with the Nikon S.
+
+【中文】1518，抵达 HZ-6C。克莱恩取下空气滤芯盒并装入样本箱。现场笔记记录树脂气味、湿树皮，以及标记点附近不寻常的低位拖痕。
+【English】At 1518, they reached HZ-6C. Klein removed the air-filter box and placed it in the sample case. Field notes recorded a resin smell, wet bark, and unusual low drag marks near the marker point.
+
+【中文】1712，冰顶漫射光与采样标灯亮度同时下降，速度快于预期。拉斯克下令原路返回 HZ-6A。
+【English】At 1712, the diffuse light from the ice cap and the sample marker lamp dimmed at the same time, faster than expected. Rusk ordered a return by the original route to HZ-6A.
+
+【中文】1819，基恩报告啄击声停止。马洛里后述称，此时他第一次在无人命令的情况下举起相机。
+【English】At 1819, Keene reported that the pecking sounds had stopped. Mallory later stated that this was the first time he raised the camera without being ordered to do so.
+
+【中文】1822，发生第一次非计划闪光拍摄。马洛里认为该帧记录了拉斯克中尉转向林缘的瞬间。
+【English】At 1822, the first unplanned flash exposure occurred. Mallory believed the frame captured Lieutenant Rusk turning toward the forest edge.
+
+【中文】1824 至 1828，基恩尝试经 HZ-6A 中继回报返程延迟。地平线站仅收到断续语音：“HZ-6 小队正在检查行进区域东侧疑似移动目标。”该句不视为正式判断或求救报告。
+【English】From 1824 to 1828, Keene attempted to report the delayed return through the HZ-6A relay. Horizon Station received only a broken transmission: "HZ-6 team is checking a suspected moving target east of the movement area." This statement is not treated as an official assessment or distress report.
+
+【中文】1829，推定发生未分类动物接触。马洛里在第一次询问中称目标“贴着树根出来”。从目标抬起前端到小队分散之间，马洛里的连续记忆中断。
+【English】At 1829, unclassified animal contact is presumed to have occurred. In his first questioning, Mallory said the target "came out against the tree roots." From the target raising its front end to the team scattering, Mallory's continuous memory breaks off.
+
+【中文】1831 至 1836，小队撤退并散开。底片顺序显示马洛里在奔跑、摔倒或受到冲撞后仍多次按下 Nikon S 快门。闪光灯并非每次触发。万斯的位置未能被完整记录。
+【English】From 1831 to 1836, the team withdrew and scattered. The negative sequence shows Mallory pressing the Nikon S shutter multiple times while running, falling, or after being struck. The flash did not fire every time. Vance's position was not fully recorded.
+
+【中文】1840，小队在返回 HZ-6A 前分散。克莱恩、基恩与万斯先后失去目视接触。拉斯克可能发射过一枚信号弹；两支 M1 卡宾枪是否开火未确认。
+【English】At 1840, the team scattered before returning to HZ-6A. Klein, Keene, and Vance were successively lost from visual contact. Rusk may have fired one signal flare; whether the two M1 carbines were fired is unconfirmed.
+
+【中文】1905，马洛里抵达黑湖支流附近浅水区。他记得水、手套里的碎闪光灯泡，以及自己反复推动过片杆，但无法说明为何离开采样区域。
+【English】At 1905, Mallory reached shallow water near a Black Lake tributary. He remembered water, broken flashbulbs inside his gloves, and repeatedly advancing the film lever, but could not explain why he had left the sampling area.
+
+【中文】1952 年 11 月 19 日 0218，救援队在预定返程路线以西约 1.4 英里处发现马洛里。Nikon S 仍挂在颈带上，胶卷已推至片尾。Rolleiflex 遗失。
+【English】At 0218 on November 19, 1952, the rescue team found Mallory about 1.4 miles west of the planned return route. The Nikon S was still hanging from its neck strap, and the film had been advanced to the end. The Rolleiflex was missing.
+
+【中文】0325，马洛里被送回地平线站。
+【English】At 0325, Mallory was returned to Horizon Station.
+
+【中文】0410，Nikon S 与已曝光胶卷由 BAS 档案保管员和海军警卫共同接收，马洛里未参与冲洗。
+【English】At 0410, the Nikon S and exposed film were jointly received by a BAS archivist and a Navy guard. Mallory did not participate in processing.
+
+
+【中文】HZ-6 低林区域无法稳定直接呼叫地平线站，任务依赖 HZ-6A 线缆中继箱。
+【English】The HZ-6 low forest area could not reliably call Horizon Station directly, so the mission depended on the HZ-6A cable relay box.
+
+【中文】1824 至 1828 之间的断续语音，是本任务最后可确认的站内接收通讯。
+【English】The broken voice transmission between 1824 and 1828 is the last confirmed station-received communication from this mission.
+
+【中文】此后未收到完整求救、伤亡报告或返程确认。
+【English】After that, no complete distress call, casualty report, or return confirmation was received.
+
+【中文】救援队于 11 月 18 日夜间由 HZ-6A 展开搜索。
+【English】The rescue team began its search from HZ-6A on the night of November 18.
+
+【中文】M29C Weasel 仍停放于车辆点，发动机已冷却，未见事故后重启或碰撞痕迹。
+【English】The M29C Weasel remained parked at the vehicle point. The engine had cooled, with no sign of restart or collision after the incident.
+
+【中文】根据马洛里被发现的位置判断，他在事故后偏离采样区域并向黑湖支流方向移动，但其本人无法解释移动原因。
+【English】Based on where Mallory was found, he moved away from the sampling area after the incident and toward the Black Lake tributary, but he could not explain why.
+
+
+【中文】Rolleiflex 所拍任务前段静态样本胶卷未回收。
+【English】The static-sample film from the earlier part of the mission shot on the Rolleiflex was not recovered.
+
+【中文】Nikon S 内 35 毫米胶卷编号为 HZ-6/R06，于三周后在麦克默多 B 影像室冲洗，BAS 人员全程监督。
+【English】The 35mm film inside the Nikon S was numbered HZ-6/R06 and was processed three weeks later in the McMurdo B imaging room under BAS supervision throughout.
+
+【中文】回收画面共三十七帧，其中六帧可供普通审查，十四帧列入限制归档或复核，十七帧为无法使用、重复、严重运动模糊或全黑画面。
+【English】Thirty-seven frames were recovered: six available for ordinary review, fourteen placed under restricted archive or review, and seventeen unusable, duplicate, severely motion-blurred, or fully black frames.
+
+【中文】第三十七帧为片尾不足幅画面，仅说明胶卷在混乱中被用尽，不作为单独证据。
+【English】Frame 37 is an incomplete end-of-roll frame, showing only that the film was used up during the confusion; it is not treated as separate evidence.
+
+【中文】马洛里未被允许查看冲洗结果。医疗理由为避免刺激和混乱记忆重建；内部备注写明：“不得允许对象根据限制级摄影序列重建记忆。”
+【English】Mallory was not allowed to view the processed results. The medical reason was to avoid stimulation and confused memory reconstruction; the internal note states: "The subject must not be allowed to reconstruct memory from restricted photographic sequences."
+
+
+【中文】复核阶段将接触对象赋予临时编号 HZ6-CO-01。
+【English】During review, the contact object was assigned the temporary number HZ6-CO-01.
+
+【中文】该编号只用于关联底片、足迹、伤情和现场痕迹，无法确定是否为已知物种。
+【English】The number is used only to associate negatives, tracks, injuries, and site traces; it cannot determine whether the object is a known species.
+
+【中文】目标贴近地面移动，背部较长，肩部位置偏高。
+【English】The target moved close to the ground, with a longer back and a high shoulder position.
+
+【中文】闪光下可见前肢比例异常，但底片没有给出完整轮廓。
+【English】Under flash, abnormal forelimb proportions were visible, but the negative did not provide a complete outline.
+
+【中文】它经过根板空隙时没有明显停顿，像是熟悉那片低林。
+【English】It showed no obvious pause when passing through gaps in the root plates, as if familiar with that low forest.
+
+
+【中文】原始补充询问记录另行封存，本件仅保留心理评估结论。
+【English】The original supplemental questioning record is sealed separately; this file retains only the psychological assessment conclusion.
+
+【中文】评估意见：马洛里的陈述可用于确认个人感受、相机使用状态和少量时间顺序，不宜作为完整现场复原依据。
+【English】Assessment opinion: Mallory's statements may be used to confirm personal sensations, camera-use status, and a limited sequence of events, but should not be used as a basis for full scene reconstruction.
+
+【中文】继续强行追问接触对象外形，可能扩大记忆混乱。
+【English】Continuing to force questions about the contact object's appearance may increase memory confusion.
+
+【中文】限制级影像不得向其展示，也不得以影像内容诱导其补全记忆。
+【English】Restricted images must not be shown to him, and image content must not be used to induce him to complete his memory.
+
+【中文】后续处理：马洛里留站观察四十八小时，夜间由医务室记录睡眠情况。
+【English】Follow-up handling: Mallory remained at the station under observation for forty-eight hours, with the medical room recording his sleep at night.
+
+【中文】所有关于事故经过的补充询问须有医务官在场，并限于任务流程、装备状态和救援定位。
+【English】All supplemental questioning about the incident must have a medical officer present and be limited to mission procedure, equipment status, and rescue location.
+
+【中文】1952 年 12 月 4 日调离地平线站后，心理观察记录与摄影卷宗分开封存。
+【English】After he was transferred out of Horizon Station on December 4, 1952, the psychological observation record and photographic file were sealed separately.
+
+
+【中文】拉斯克中尉列为死亡，遗体未回收。
+【English】Lieutenant Rusk was listed as deceased; his body was not recovered.
+
+【中文】克莱恩博士、基恩中士、万斯二级士官列为失踪。
+【English】Dr. Klein, Sergeant Keene, and Petty Officer Second Class Vance were listed as missing.
+
+【中文】马洛里于 1952 年 12 月 4 日调离地平线站，后续医疗观察记录另行封存。
+【English】Mallory was transferred out of Horizon Station on December 4, 1952, and subsequent medical observation records were sealed separately.
+
+【中文】Rolleiflex、克莱恩的样本箱、两支 M1 卡宾枪、部分土样与 HZ-6C 滤芯盒未回收。
+【English】The Rolleiflex, Klein's sample case, two M1 carbines, some soil samples, and the HZ-6C filter box were not recovered.
+
+【中文】滤芯盒已从标记点取下，但未带回站内。
+【English】The filter box had been removed from the marker point, but was not brought back to the station.
+
+【中文】M29C Weasel 于 11 月 19 日清晨拖回地平线站，车体未见明显撞击痕迹。
+【English】The M29C Weasel was towed back to Horizon Station on the morning of November 19, with no obvious impact marks on the vehicle body.
+
+
+【中文】处置意见如下。
+【English】The disposition opinions are as follows.
+
+【中文】HZ-6B 至 HZ-6C 低林区域暂停非必要任务，直至路线、通讯和照明规程复核完成。
+【English】Nonessential missions in the low forest area from HZ-6B to HZ-6C are suspended until route, communications, and lighting procedures are reviewed.
+
+【中文】所有低林采样任务不得少于五人，且前后均需配置安全人员。
+【English】All low forest sampling missions must include no fewer than five people, with safety personnel assigned front and rear.
+
+【中文】1600 当地时间后，未经站长和海军联络办公室双重批准，不得越过 HZ-6A。
+【English】After 1600 local time, no one may pass HZ-6A without dual approval from the station chief and the Navy Liaison Office.
+
+【中文】所有摄影胶卷应在封存链条下转交 BAS 影像分析部门。
+【English】All photographic film must be transferred to the BAS Image Analysis Department under sealed chain of custody.
+
+【中文】幸存人员不得接触限制级影像序列。
+【English】Surviving personnel must not access restricted image sequences.
+
+【中文】HZ6-CO-01 不登记为新物种。后续文件继续使用临时接触对象编号。
+【English】HZ6-CO-01 is not to be registered as a new species. Later files will continue using the temporary contact-object number.
+
+【中文】对外仍按原口径处理：HZ-6 小队在南极科研活动中遭遇突发特大风暴，死亡及失踪人员按因公殉职处理；公开材料统一称其为极地科研任务中的牺牲者，并按规定抚恤家属。
+【English】Externally, the original account remains in use: the HZ-6 team encountered a sudden severe storm during Antarctic research activity; the deceased and missing personnel are handled as line-of-duty cases; public materials uniformly describe them as casualties of a polar research mission, with family compensation handled according to regulations.
+
+
+【中文】归档单位：BAS 地平线站野外办公室。
+【English】Archiving unit: BAS Horizon Station Field Office.
+
+【中文】影像复核：BAS 影像分析科。
+【English】Image review: BAS Image Analysis Section.
+
+【中文】联络复核：海军极地联络办公室。
+【English】Liaison review: Navy Polar Liaison Office.
+
+【中文】文件状态：封存副本。
+【English】File status: sealed copy.
+
+【中文】未经 BAS 极地科学与研究办公室，不得复制、摘录或向非授权人员展示。
+【English】Without authorization from the BAS Office of Polar Science and Research, this file may not be copied, excerpted, or shown to unauthorized personnel.

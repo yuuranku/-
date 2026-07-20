@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 250">
+  <g fill="none" stroke="#082B57" stroke-width="5" opacity="0.95">
+    <rect x="16" y="18" width="888" height="214" rx="12"/>
+    <rect x="16" y="18" width="170" height="214" fill="#082B57" fill-opacity="0.16"/>
+    <line x1="204" y1="52" x2="864" y2="52" stroke="#8DC7E8" stroke-width="2" opacity="0.7"/>
+    <line x1="204" y1="196" x2="864" y2="196" stroke="#8DC7E8" stroke-width="2" opacity="0.7"/>
+  </g>
+  <text x="224" y="122" fill="#082B57" font-family="Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="1">VIDEO RECORD</text>
+  <text x="226" y="178" fill="#082B57" font-family="Consolas, monospace" font-size="24" letter-spacing="1">ROLL: R06 / FRAME: 0001-0037</text>
+</svg>

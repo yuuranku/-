@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430">
+  <g fill="none" stroke="#082B57" stroke-width="8" opacity="0.92">
+    <path d="M20 122 V20 H122"/>
+    <path d="M638 20 H740 V122"/>
+    <path d="M20 308 V410 H122"/>
+    <path d="M638 410 H740 V308"/>
+  </g>
+  <text x="102" y="69" fill="#082B57" font-family="Arial Narrow, Arial, sans-serif" font-size="40" font-weight="700"></text>
+  
+</svg>
