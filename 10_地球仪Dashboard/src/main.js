@@ -2719,7 +2719,7 @@ function setSvgLine(line, x1, y1, x2, y2) {
 function specimenPhotoMarkup(archive, index, large = false) {
   const image = archive?.image
     ? `<img src="${archive.image}" alt="" loading="lazy">`
-    : '<span class="specimen-photo-missing"><i class="placeholder-head"></i><i class="placeholder-shoulders"></i><em>PHOTOGRAPH<br>NOT FILED</em></span>';
+    : '<span class="specimen-photo-missing"><i class="specimen-mark"></i><em>SPECIMEN<br>NOT IMAGED</em></span>';
   return `<span class="specimen-photo-slot${large ? ' is-large' : ''}">${image}<b>${archive?.code || `S${String(index + 1).padStart(2, '0')}`}</b></span>`;
 }
 

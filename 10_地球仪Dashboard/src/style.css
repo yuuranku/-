@@ -1936,11 +1936,13 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .specimen-photo-slot b { position: absolute; right: 3px; bottom: 3px; padding: 2px 4px; color: #fff; background: var(--cold-blue); font: 7px var(--font-mono); }
 .mode-species-drawer .folder-item:nth-child(even) .specimen-photo-slot b { background: var(--cold-red); }
 .specimen-photo-missing { position: absolute; inset: 0; display: grid; place-items: center; background: #d4d1c5; }
-.placeholder-head { position: absolute; top: 20%; width: 27%; aspect-ratio: 1; border: 2px solid #222; border-radius: 50%; background: #b0ada4; }
-.placeholder-shoulders { position: absolute; top: 48%; width: 58%; height: 25%; border: 2px solid #222; border-bottom: 0; border-radius: 50% 50% 0 0; background: #b0ada4; }
-.specimen-photo-missing em { position: absolute; bottom: 9%; color: #4c4c49; font: 5px/1.2 var(--font-mono); font-style: normal; text-align: center; }
-.specimen-photo-slot.is-large .placeholder-head { width: 24%; border-width: 4px; }
-.specimen-photo-slot.is-large .placeholder-shoulders { width: 54%; border-width: 4px; }
+/* A neutral specimen-plate reticle, not a human portrait silhouette. */
+.specimen-mark { position: absolute; top: 20%; width: 34%; aspect-ratio: 1; border: 2px solid #3a3a34; background:
+  linear-gradient(#3a3a34, #3a3a34) center / 100% 1.5px no-repeat,
+  linear-gradient(#3a3a34, #3a3a34) center / 1.5px 100% no-repeat; }
+.specimen-mark::after { content: ''; position: absolute; inset: 28%; border: 1px dashed #6a6a60; border-radius: 50%; }
+.specimen-photo-missing em { position: absolute; bottom: 9%; color: #4c4c49; font: 5px/1.2 var(--font-mono); font-style: normal; letter-spacing: .04em; text-align: center; }
+.specimen-photo-slot.is-large .specimen-mark { width: 30%; border-width: 3px; }
 .specimen-photo-slot.is-large .specimen-photo-missing em { font-size: 9px; }
 .specimen-photo-slot.is-large b { right: 8px; bottom: 8px; padding: 3px 6px; font-size: 9px; }
 .mode-species-drawer .folder-name { align-self: end; margin: 0; font-size: 13px; line-height: 1.2; }
@@ -2150,8 +2152,7 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 }
 .mode-species-helix .specimen-photo-slot b { right: 1px; bottom: 1px; padding: 1px 2px; font-size: 6px; }
 .mode-species-helix .folder-item[data-side='right'] .specimen-photo-slot b { background: var(--cold-red); }
-.mode-species-helix .placeholder-head { border-width: 1px; }
-.mode-species-helix .placeholder-shoulders { border-width: 1px; }
+.mode-species-helix .specimen-mark { border-width: 1px; }
 .mode-species-helix .specimen-photo-missing em { display: none; }
 
 .mode-dossier { overflow: visible; }
