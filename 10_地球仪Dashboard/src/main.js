@@ -1592,6 +1592,17 @@ function eventChecklist(archive) {
   return { items, conflict };
 }
 
+// The directory record shows a real multi-paragraph readout so the panel fills
+// with case narrative rather than a single line. Longform cases preview their
+// first prose blocks; card-only cases fall back to their registered note.
+function eventNarrative(archive) {
+  const prose = (archive.longform?.blocks || [])
+    .filter((block) => block.type === 'paragraph' && block.text)
+    .map((block) => block.text);
+  if (prose.length) return prose.slice(0, 4);
+  return (archive.body || []).filter(Boolean);
+}
+
 function buildEventChronology(orbit, entries, appendArchiveEntry) {
   const cabinet = document.createElement('section');
   cabinet.className = 'ev-cabinet';
@@ -1605,32 +1616,34 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
         <span class="ev-record-code" data-event-code>--</span>
         <span class="ev-record-year" data-event-year>----</span>
         <span class="ev-record-band" data-event-band>--</span>
+        <span class="ev-record-accession" data-event-accession>PALIS/09A/---</span>
         <span class="ev-record-flag" data-event-flag hidden>版本冲突 · UNRECONCILED</span>
       </header>
-      <div class="ev-record-top">
-        <div class="ev-record-titles">
-          <h3 data-event-name>未选择</h3>
-          <strong data-event-status>--</strong>
+      <div class="ev-record-body">
+        <div class="ev-record-main">
+          <div class="ev-record-titles">
+            <h3 data-event-name>未选择</h3>
+            <strong data-event-status>--</strong>
+          </div>
+          <div class="ev-record-narrative" data-event-narrative></div>
+          <button type="button" class="directory-open-button">打开调查卷 →</button>
         </div>
-        <figure class="ev-record-photo-block">
-          <div class="event-dossier-image ev-record-photo" data-event-image></div>
-          <figcaption data-event-accession>PALIS/09A/---</figcaption>
-        </figure>
+        <aside class="ev-record-side">
+          <figure class="ev-record-photo-block">
+            <div class="event-dossier-image ev-record-photo" data-event-image></div>
+            <figcaption data-event-caption>影像存卷</figcaption>
+          </figure>
+          <dl data-event-fields class="event-dossier-fields"></dl>
+          <div class="event-dossier-exhibits">
+            <span class="event-dossier-section-label">夹内附件</span>
+            <div data-event-exhibits class="event-exhibit-tags"></div>
+          </div>
+          <div class="event-dossier-crossref" data-event-crossref hidden>
+            <span class="event-dossier-section-label">并存版本</span>
+            <div data-event-crossref-list class="event-crossref-chips"></div>
+          </div>
+        </aside>
       </div>
-      <dl data-event-fields class="event-dossier-fields"></dl>
-      <div class="event-dossier-exhibits">
-        <span class="event-dossier-section-label">夹内附件</span>
-        <div data-event-exhibits class="event-exhibit-tags"></div>
-      </div>
-      <div class="event-dossier-crossref" data-event-crossref hidden>
-        <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
-        <div data-event-crossref-list class="event-crossref-chips"></div>
-      </div>
-      <div class="ev-record-note">
-        <span class="event-dossier-section-label">案卷摘要</span>
-        <p data-event-summary></p>
-      </div>
-      <button type="button" class="directory-open-button">打开调查卷 →</button>
     </section>
   `;
   const directory = cabinet.querySelector('.ev-directory');
@@ -1672,6 +1685,7 @@ function renderEventChronology(animate = true) {
   bandTag.dataset.band = band;
   state.cabinet.querySelector('[data-event-flag]').hidden = !eventChecklist(archive).conflict;
   state.cabinet.querySelector('[data-event-accession]').textContent = archive.accession;
+  state.cabinet.querySelector('[data-event-caption]').textContent = archive.image ? '影像存卷' : '影像未公开';
   state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
   state.cabinet.querySelector('[data-event-status]').textContent = archive.meta;
   const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
@@ -1692,7 +1706,10 @@ function renderEventChronology(animate = true) {
   state.cabinet.querySelectorAll('[data-crossref-index]').forEach((chip) => {
     chip.addEventListener('click', () => updateArchiveSelection(Number(chip.dataset.crossrefIndex), true));
   });
-  state.cabinet.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
+  const narrative = eventNarrative(archive);
+  state.cabinet.querySelector('[data-event-narrative]').innerHTML = narrative.length
+    ? narrative.map((paragraph) => `<p>${escapeRecordText(paragraph)}</p>`).join('')
+    : '<p>该调查卷尚无摘要。</p>';
   // One quick record-redraw: the panel refreshes, the accession code snaps in. No further motion.
   if (animate && !reducedMotion) {
     const record = state.cabinet.querySelector('.ev-record');
@@ -2409,7 +2426,10 @@ function renderEcologyCabinet(animate = true) {
   head.style.transform = `translateY(${center}px)`;
 
   const card = state.cabinet.querySelector('.eco-log-card');
-  const cardCenter = Math.min(Math.max((center / 620) * 100, 31), 66);
+  // Keep the vertically-centered card fully inside the stage: with a max-height
+  // of 78% (half = 39%), the center must stay within [40, 60] so neither edge
+  // spills past the panel and clips the title.
+  const cardCenter = Math.min(Math.max((center / 620) * 100, 40), 60);
   card.style.setProperty('--card-top', `${cardCenter}%`);
   const connector = state.cabinet.querySelector('.el-connector');
   const cardY = (cardCenter / 100) * 620;
