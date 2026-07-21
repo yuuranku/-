@@ -165,6 +165,7 @@ let peopleNetworkState = null;
 let eventChronologyState = null;
 let entranceElevationState = null;
 let ecologyCabinetState = null;
+let anomalyRegisterState = null;
 
 const ARCHIVE_MODES = {
   countries: 'country-stack',
@@ -1028,6 +1029,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
   eventChronologyState = null;
   entranceElevationState = null;
   ecologyCabinetState = null;
+  anomalyRegisterState = null;
   orbit.replaceChildren();
   orbit.dataset.category = directory?.id || 'root';
   orbit.dataset.mode = mode;
@@ -1074,7 +1076,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
       else if (mode === 'film') {
         openArchive(archive, button);
       }
-      else if ((mode === 'dossier' || mode === 'case-chronology' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack') && index !== archiveSelection) updateArchiveSelection(index, true);
+      else if ((mode === 'dossier' || mode === 'case-chronology' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor') && index !== archiveSelection) updateArchiveSelection(index, true);
       else openArchive(archive, button);
     });
     item.appendChild(button);
@@ -1166,7 +1168,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
     return `<span class="strata-index"><b>${archive.code}</b><i>${String(index + 1).padStart(2, '0')} / 07</i></span>`;
   }
   if (mode === 'anomaly-monitor') {
-    return `<span class="anomaly-channel-mark"><b>${archive.code}</b><i></i><em>${archive.eventDate || String(index + 1).padStart(2, '0')}</em></span>`;
+    return `<span class="anomaly-row" data-severity="${archive.severity || 'observed'}"><i class="anomaly-row-dot" aria-hidden="true"></i><b>${archive.code}</b><em>${archive.eventDate || '----.--.--'}</em></span>`;
   }
   if (mode === 'species-helix') {
     return specimenPhotoMarkup(archive, index);
@@ -2463,91 +2465,130 @@ function renderEcologyCabinet(animate = true) {
   }
 }
 
+const ANOMALY_STATUS = {
+  critical: { tag: '红档 · 悬置复核', verdict: '不予结案' },
+  warning: { tag: '黄档 · 持续核验', verdict: '悬置' },
+  observed: { tag: '观测 · 未结案', verdict: '悬置' },
+};
+
+function anomalyFact(archive, label) {
+  return (archive.fields || archive.stats || []).find(([key]) => key === label)?.[1] || '';
+}
+
+// The first prose block lists the ordinary explanations the review ruled out,
+// then the residual that still won't close; split them so the register can show
+// the excluded checks struck through, official-report style.
+function anomalyExclusions(archive) {
+  const text = archive.longform?.blocks?.[0]?.text || archive.body?.[0] || '';
+  const match = text.match(/^(先排查了?|调查组检查了|调查人员检查了)(.+?)。(.*)$/);
+  if (!match) return { checks: [], residual: text };
+  const checks = match[2]
+    .split(/[、，,]/)
+    .flatMap((part) => part.split('和'))
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return { checks, residual: match[3].trim() };
+}
+
+// The second block usually reads "影响…。处理方式是…"; split scope + disposition.
+function anomalyDisposition(archive) {
+  const text = archive.longform?.blocks?.[1]?.text || archive.body?.[1] || '';
+  const idx = text.indexOf('处理方式是');
+  if (idx < 0) return { scope: text, disposition: '' };
+  return { scope: text.slice(0, idx).trim(), disposition: `处理方式是${text.slice(idx + 5).trim()}` };
+}
+
 function buildAnomalyMonitor(orbit, entries, appendArchiveEntry) {
-  const consolePanel = document.createElement('section');
-  consolePanel.className = 'anomaly-console';
-  consolePanel.innerHTML = `
-    <header><span>PALIS / INCIDENT REVIEW CONSOLE</span><b>CHRONOLOGY UNRESOLVED</b></header>
-    <div class="anomaly-workbench">
-      <section class="anomaly-primary" data-severity="${entries[0]?.severity || 'critical'}" aria-live="polite">
-        <header><span>${entries[0]?.eventDate || '----.--.--'} / A01</span><b>CRITICAL</b></header>
-        <div class="anomaly-primary-screen">
-          <svg class="anomaly-ecg" viewBox="0 0 640 180" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <pattern id="anomaly-grid-small" width="8" height="8" patternUnits="userSpaceOnUse"><path class="anomaly-grid-line" d="M8 0H0V8" /></pattern>
-              <pattern id="anomaly-grid-large" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="url(#anomaly-grid-small)"/><path class="anomaly-grid-line anomaly-grid-line-major" d="M40 0H0V40" /></pattern>
-              <linearGradient id="anomaly-sweep-glow" x1="0" x2="1"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset="1" stop-color="currentColor" stop-opacity=".2"/></linearGradient>
-            </defs>
-            <rect class="anomaly-ecg-grid" width="640" height="180" fill="url(#anomaly-grid-large)"/>
-            <path class="anomaly-trace anomaly-trace-ghost" d="${anomalyPath(0)}" />
-            <path class="anomaly-trace anomaly-trace-live" pathLength="100" d="${anomalyPath(0)}" />
-            <g class="anomaly-sweep-head">
-              <rect x="36" y="0" width="28" height="180" fill="url(#anomaly-sweep-glow)"/>
-              <line x1="64" y1="0" x2="64" y2="180" />
-            </g>
-          </svg>
-          <div class="anomaly-vitals"><span>LEAD II</span><b><em>${anomalyRate(0)}</em> BPM</b><span>25 mm/s · 10 mm/mV</span></div>
-          <i>CARDIAC TRACE / EVENT RECONSTRUCTION</i>
-        </div>
-        <div class="anomaly-primary-copy"><h3>${entries[0]?.name || 'CHANNEL IDLE'}</h3><p>${entries[0]?.body?.[0] || 'NO INCIDENT TRACE LOADED'}</p></div>
-      </section>
-      <div class="anomaly-channel-log" role="list"></div>
-    </div>
-    <footer><span>8 INCIDENTS / CHRONOLOGY LOCK ENABLED</span><b>LOCAL CHANNEL CONTROL</b></footer>
+  const register = document.createElement('section');
+  register.className = 'anomaly-register-console';
+  register.innerHTML = `
+    <header class="anomaly-register-bar"><span>PALIS / 异常登记 · ANOMALY REGISTER</span><b>${entries.length} 项 · 闭合失败悬置</b></header>
+    <nav class="anomaly-index" role="list" aria-label="全部异常登记">
+      <div class="anomaly-index-head" aria-hidden="true"><span>级 / 编号 / 首次异常</span><span>登记事件</span></div>
+    </nav>
+    <section class="anomaly-entry" aria-live="polite">
+      <header class="anomaly-entry-head">
+        <span class="anomaly-entry-code" data-a-code>A--</span>
+        <span class="anomaly-entry-type" data-a-type>--</span>
+        <span class="anomaly-entry-status" data-a-status>--</span>
+      </header>
+      <h3 class="anomaly-entry-title" data-a-title>未选择</h3>
+      <dl class="anomaly-entry-fields" data-a-fields></dl>
+      <div class="anomaly-entry-section">
+        <span class="anomaly-entry-label">常规解释排除</span>
+        <ul class="anomaly-checks" data-a-checks></ul>
+        <p class="anomaly-residual" data-a-residual></p>
+      </div>
+      <div class="anomaly-entry-section">
+        <span class="anomaly-entry-label">影响范围与处置</span>
+        <p data-a-scope></p>
+        <p class="anomaly-disposition" data-a-disposition></p>
+      </div>
+      <footer class="anomaly-entry-foot">
+        <span class="anomaly-verdict" data-a-verdict>悬置 · UNRESOLVED</span>
+        <button type="button" class="directory-open-button">打开异常附页 →</button>
+      </footer>
+    </section>
   `;
-  const log = consolePanel.querySelector('.anomaly-channel-log');
-  const primary = consolePanel.querySelector('.anomaly-primary');
-  const renderChannel = (archive, index) => {
-    primary.querySelector('header span').textContent = `${archive.eventDate} / ${archive.code}`;
-    primary.querySelector('header b').textContent = archive.severity.toUpperCase();
-    primary.dataset.severity = archive.severity;
-    primary.querySelectorAll('.anomaly-trace').forEach((trace) => trace.setAttribute('d', anomalyPath(index)));
-    primary.querySelector('.anomaly-vitals em').textContent = anomalyRate(index);
-    primary.querySelector('h3').textContent = archive.name;
-    primary.querySelector('p').textContent = archive.body[0];
-    restartEcgSweep(primary);
-  };
-  entries.forEach((archive, index) => {
-    const { button } = appendArchiveEntry(archive, index, log);
-    const update = () => renderChannel(archive, index);
-    button.addEventListener('pointerenter', update);
-    button.addEventListener('focus', update);
+  const index = register.querySelector('.anomaly-index');
+  const results = entries.map((archive, i) => appendArchiveEntry(archive, i, index));
+  const buttons = results.map((result) => result.button);
+  const items = results.map((result) => result.item);
+  results.forEach((result, i) => {
+    const nameEl = result.button.querySelector('.folder-name');
+    if (nameEl) nameEl.textContent = entries[i].name;
   });
-  orbit.appendChild(consolePanel);
-}
-
-function anomalyPath(index) {
-  const profiles = [
-    { baseline: 108, beats: [[136, 49, 137, 88], [326, 52, 134, 90], [516, 47, 139, 86]] },
-    { baseline: 112, beats: [[150, 61, 134, 94], [345, 58, 137, 92], [540, 64, 132, 95]] },
-    { baseline: 106, beats: [[124, 42, 142, 84], [264, 56, 133, 91], [404, 38, 146, 80], [544, 53, 136, 89]] },
-    { baseline: 110, beats: [[142, 54, 136, 91], [310, 46, 142, 86], [498, 59, 132, 94]] },
-  ];
-  const profile = profiles[index % profiles.length];
-  const { baseline } = profile;
-  let path = `M64 ${baseline}`;
-  profile.beats.forEach(([x, rY, sY, tY]) => {
-    const pStart = x - 48;
-    path += ` H${pStart}`;
-    path += ` C${pStart + 5} ${baseline} ${pStart + 7} ${baseline - 8} ${pStart + 14} ${baseline - 8}`;
-    path += ` C${pStart + 21} ${baseline - 8} ${pStart + 23} ${baseline} ${pStart + 30} ${baseline}`;
-    path += ` H${x - 16} L${x - 9} ${baseline + 6} L${x - 4} ${baseline}`;
-    path += ` L${x} ${rY} L${x + 8} ${sY} L${x + 17} ${baseline}`;
-    path += ` H${x + 34} C${x + 43} ${baseline} ${x + 47} ${tY} ${x + 61} ${tY}`;
-    path += ` C${x + 75} ${tY} ${x + 82} ${baseline} ${x + 94} ${baseline}`;
+  orbit.appendChild(register);
+  anomalyRegisterState = { entries, register, buttons, items, entryAnimation: null };
+  register.querySelector('.directory-open-button').addEventListener('click', () => {
+    openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
-  return `${path} H640`;
+  renderAnomalyRegister(false);
 }
 
-function anomalyRate(index) {
-  return [72, 54, 96, 78, 61, 91, 66, 82][index % 8];
-}
-
-function restartEcgSweep(container) {
-  const animated = container.querySelectorAll('.anomaly-trace-live, .anomaly-sweep-head');
-  animated.forEach((element) => { element.style.animation = 'none'; });
-  container.getBoundingClientRect();
-  animated.forEach((element) => { element.style.animation = ''; });
+function renderAnomalyRegister(animate = true) {
+  const state = anomalyRegisterState;
+  if (!state || folderOrbit.dataset.mode !== 'anomaly-monitor') return;
+  const archive = state.entries[archiveSelection];
+  const severity = archive.severity || 'observed';
+  const status = ANOMALY_STATUS[severity] || ANOMALY_STATUS.observed;
+  state.buttons.forEach((button, i) => {
+    button.classList.toggle('is-selected', i === archiveSelection);
+    button.setAttribute('aria-current', i === archiveSelection ? 'true' : 'false');
+  });
+  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
+  const q = (selector) => state.register.querySelector(selector);
+  q('.anomaly-entry').dataset.severity = severity;
+  q('[data-a-code]').textContent = archive.code;
+  q('[data-a-type]').textContent = anomalyFact(archive, '事件型') || archive.rule || '未分类';
+  q('[data-a-status]').textContent = status.tag;
+  q('[data-a-title]').textContent = archive.name;
+  const fields = [
+    ['首次异常', anomalyFact(archive, '首次异常') || anomalyFact(archive, '当前条目')],
+    ['地点', anomalyFact(archive, '地点') || archive.site],
+    ['固定证据', anomalyFact(archive, '固定证据')],
+  ].filter(([, value]) => value);
+  q('[data-a-fields]').innerHTML = fields
+    .map(([key, value]) => `<div><dt>${key}</dt><dd>${escapeRecordText(value)}</dd></div>`).join('');
+  const { checks, residual } = anomalyExclusions(archive);
+  q('[data-a-checks]').innerHTML = checks.length
+    ? checks.map((check) => `<li>${escapeRecordText(check)}</li>`).join('')
+    : '<li class="is-empty">无常规解释可排除</li>';
+  q('[data-a-residual]').textContent = residual;
+  const { scope, disposition } = anomalyDisposition(archive);
+  q('[data-a-scope]').textContent = scope;
+  const dispositionEl = q('[data-a-disposition]');
+  dispositionEl.textContent = disposition;
+  dispositionEl.hidden = !disposition;
+  q('[data-a-verdict]').textContent = `${status.verdict} · UNRESOLVED`;
+  if (animate && !reducedMotion) {
+    const entry = q('.anomaly-entry');
+    state.entryAnimation?.cancel();
+    state.entryAnimation = entry.animate([
+      { opacity: .55, transform: 'translateY(3px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], { duration: 180, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+  }
 }
 
 function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
@@ -2755,6 +2796,7 @@ function updateArchiveSelection(index, focus = false) {
   if (folderOrbit.dataset.mode === 'case-chronology') renderEventChronology(true);
   if (folderOrbit.dataset.mode === 'entrance-network') renderEntranceElevation(true);
   if (folderOrbit.dataset.mode === 'ecology-strata') renderEcologyCabinet(true);
+  if (folderOrbit.dataset.mode === 'anomaly-monitor') renderAnomalyRegister(true);
   layoutArchiveOrbit(1);
   const selected = folderButtons[archiveSelection];
   if (folderOrbit.dataset.mode === 'film') {
@@ -3118,22 +3160,13 @@ function renderArchiveDocument(archive) {
   }
 
   if (archive.recordType === 'incident-trace') {
-    const traceId = `incident-grid-${sequence}`;
+    const status = ANOMALY_STATUS[archive.severity] || ANOMALY_STATUS.observed;
     return `
       <header class="incident-mast"><div><p class="dialog-meta">${archive.formatLabel} / ${archive.code}</p><h2 data-dialog-title>${archive.name}</h2></div><b>${archive.severity.toUpperCase()}</b></header>
-      <div class="incident-strip">
-        <svg viewBox="0 0 640 180" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <pattern id="${traceId}-small" width="8" height="8" patternUnits="userSpaceOnUse"><path class="record-grid-line" d="M8 0H0V8" /></pattern>
-            <pattern id="${traceId}-large" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="url(#${traceId}-small)"/><path class="record-grid-line record-grid-line-major" d="M40 0H0V40" /></pattern>
-          </defs>
-          <rect class="record-ecg-grid" width="640" height="180" fill="url(#${traceId}-large)"/>
-          <path class="record-ecg record-ecg-ghost" d="${anomalyPath(sequence - 1)}"/>
-          <path class="record-ecg record-ecg-live" pathLength="100" d="${anomalyPath(sequence - 1)}"/>
-          <g class="record-ecg-sweep"><rect x="36" y="0" width="28" height="180"/><line x1="64" y1="0" x2="64" y2="180"/></g>
-        </svg>
-        <small>LEAD II · ${anomalyRate(sequence - 1)} BPM · 25 mm/s · 10 mm/mV</small>
-        <span>${archive.eventDate} / ${archive.site}</span>
+      <div class="incident-status-band" data-severity="${archive.severity}">
+        <div><span>事件型 / TYPE</span><b>${archive.rule || '未分类'}</b></div>
+        <div><span>首次可验证节点 / FIRST NODE</span><b>${archive.eventDate} · ${archive.site}</b></div>
+        <div class="incident-verdict"><span>闭合状态 / CLOSURE</span><b>${status.verdict} · UNRESOLVED</b></div>
       </div>
       <div class="incident-layout"><dl class="record-fields">${fields}</dl><p class="record-format">FACTS / EXCLUSIONS / DISPOSITION</p></div>
       ${paragraphs}
