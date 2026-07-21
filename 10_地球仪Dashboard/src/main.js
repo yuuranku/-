@@ -1597,7 +1597,9 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   cabinet.className = 'ev-cabinet';
   cabinet.innerHTML = `
     <header class="ev-cabinet-bar"><span>PALIS / 案卷目录 · CASE FILE DIRECTORY</span><b>${entries.length} RECORDS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <nav class="ev-directory" role="list" aria-label="按年代排列的全部案卷"></nav>
+    <nav class="ev-directory" role="list" aria-label="按年代排列的全部案卷">
+      <div class="ev-directory-head" aria-hidden="true"><span>属性</span><span>编号</span><span>年代</span><span>标题</span></div>
+    </nav>
     <section class="ev-record" aria-live="polite">
       <header class="ev-record-head">
         <span class="ev-record-code" data-event-code>--</span>
@@ -1610,7 +1612,10 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
           <h3 data-event-name>未选择</h3>
           <strong data-event-status>--</strong>
         </div>
-        <div class="event-dossier-image ev-record-photo" data-event-image></div>
+        <figure class="ev-record-photo-block">
+          <div class="event-dossier-image ev-record-photo" data-event-image></div>
+          <figcaption data-event-accession>PALIS/09A/---</figcaption>
+        </figure>
       </div>
       <dl data-event-fields class="event-dossier-fields"></dl>
       <div class="event-dossier-exhibits">
@@ -1621,7 +1626,10 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
         <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
         <div data-event-crossref-list class="event-crossref-chips"></div>
       </div>
-      <p class="ev-record-summary" data-event-summary></p>
+      <div class="ev-record-note">
+        <span class="event-dossier-section-label">案卷摘要</span>
+        <p data-event-summary></p>
+      </div>
       <button type="button" class="directory-open-button">打开调查卷 →</button>
     </section>
   `;
@@ -1663,6 +1671,7 @@ function renderEventChronology(animate = true) {
   bandTag.textContent = EVENT_BAND_LABEL[band];
   bandTag.dataset.band = band;
   state.cabinet.querySelector('[data-event-flag]').hidden = !eventChecklist(archive).conflict;
+  state.cabinet.querySelector('[data-event-accession]').textContent = archive.accession;
   state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
   state.cabinet.querySelector('[data-event-status]').textContent = archive.meta;
   const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
@@ -3247,11 +3256,11 @@ function onPageWheel(event) {
       return;
     }
 
-    const scrollSelector = '.country-card-deck, .station-ledger, .organization-lane__list, .ecology-strata-stack, .specimen-drawers';
+    const scrollSelector = '.country-card-deck, .station-ledger, .organization-lane__list, .ev-directory, .ev-record';
     const hoveredContainer = event.target.closest(scrollSelector);
     const scrollContainers = [
       ...(hoveredContainer ? [hoveredContainer] : []),
-      ...folderOrbit.querySelectorAll('.country-card-deck, .station-ledger, .organization-lane__list, .ecology-strata-stack, .specimen-drawers'),
+      ...folderOrbit.querySelectorAll(scrollSelector),
       folderOrbit,
     ].filter((element, index, elements) => elements.indexOf(element) === index);
     const verticalTarget = scrollContainers.find((element) => element.scrollHeight > element.clientHeight + 2);

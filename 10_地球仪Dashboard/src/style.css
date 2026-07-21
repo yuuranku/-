@@ -6065,6 +6065,7 @@ a:focus-visible,
 
 /* Left: DOS-style directory listing. */
 .ev-directory { grid-column: 1; grid-row: 2; min-height: 0; margin: 8px 0 8px 8px; padding: 2px; overflow-y: auto; border: 1px inset #4a5054; background: #0b0e0f; }
+.ev-directory-head { display: grid; grid-template-columns: 13px 34px 32px minmax(0, 1fr); gap: 4px; padding: 4px 8px 5px; color: #5c6660; border-bottom: 1px solid #2b3230; font: 9px "Courier New", Courier, monospace; letter-spacing: .06em; }
 .ev-directory .folder-item { position: static; min-width: 0; border-bottom: 1px solid #1c2320; }
 .ev-directory .folder-button,
 .ev-directory .folder-button:hover,
@@ -6100,7 +6101,24 @@ a:focus-visible,
 
 /* Right: one record readout panel, paper-toned like every other category's
    detail dossier, but dense and flat — no props. */
-.ev-record { grid-column: 2; grid-row: 2; display: grid; grid-auto-rows: min-content; gap: 10px; min-width: 0; min-height: 0; margin: 8px 8px 8px 0; padding: clamp(14px, 1.6vw, 22px); overflow-y: auto; color: var(--archive-ink); background: var(--archive-paper); text-align: left; }
+.ev-record {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  min-height: 0;
+  margin: 8px 8px 8px 0;
+  padding: clamp(14px, 1.6vw, 22px);
+  overflow-y: auto;
+  color: var(--archive-ink);
+  background-color: var(--archive-paper);
+  background-image: linear-gradient(rgba(35, 26, 6, .05) 1px, transparent 1px);
+  background-size: 100% 27px;
+  text-align: left;
+}
 .ev-record-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #a89f85; }
 .ev-record-code { padding: 2px 7px; color: #fff; background: var(--cold-blue); font: 700 var(--archive-ui-label) "Courier New", Courier, monospace; }
 .ev-record-year { color: #6b6455; font-size: var(--archive-ui-label); }
@@ -6111,7 +6129,9 @@ a:focus-visible,
 .ev-record-top { display: grid; grid-template-columns: minmax(0, 1fr) 168px; gap: 16px; align-items: start; }
 .ev-record-titles h3 { margin: 0; font: 500 clamp(19px, 1.6vw, 26px)/1.18 "Times New Roman", Times, var(--font-display); }
 .ev-record-titles strong { display: block; margin-top: 4px; color: #6b6455; font-size: var(--archive-ui-label); font-weight: 600; }
+.ev-record-photo-block { margin: 0; }
 .ev-record-photo { width: 168px; height: 122px; border: 1px solid #8f855f; }
+.ev-record-photo-block figcaption { margin-top: 4px; color: #8a7f60; font-size: 9px; font-family: "Courier New", Courier, monospace; text-align: right; }
 
 .event-dossier-image { position: relative; display: grid; place-items: center; overflow: hidden; background: #191b1a; }
 .event-dossier-image::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, .04) 3px 4px); }
@@ -6119,10 +6139,10 @@ a:focus-visible,
 .event-dossier-image.is-withheld { background: #14100c; }
 .event-redacted-stamp { padding: 8px; color: #b46a5f; text-align: center; font: 10px/1.6 "Courier New", Courier, monospace; letter-spacing: .04em; }
 
-.event-dossier-fields { margin: 0; border-top: 1px solid #a89f85; }
-.event-dossier-fields div { display: grid; grid-template-columns: 96px minmax(0, 1fr); border-bottom: 1px solid #cfc7ab; }
+.event-dossier-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid #a89f85; border-left: 1px solid #cfc7ab; }
+.event-dossier-fields div { display: grid; grid-template-columns: 88px minmax(0, 1fr); border-right: 1px solid #cfc7ab; border-bottom: 1px solid #cfc7ab; }
 .event-dossier-fields dt,
-.event-dossier-fields dd { margin: 0; padding: 5px 8px; font-size: var(--archive-ui-micro); line-height: 1.5; }
+.event-dossier-fields dd { margin: 0; padding: 5px 6px; font-size: var(--archive-ui-micro); line-height: 1.4; }
 .event-dossier-fields dt { color: #6b6455; font-family: "Courier New", Courier, monospace; }
 .event-dossier-fields dd { border-left: 1px solid #cfc7ab; }
 .event-dossier-section-label { display: block; margin-bottom: 5px; color: #8a7f60; font-size: var(--archive-ui-micro); letter-spacing: .04em; }
@@ -6134,7 +6154,7 @@ a:focus-visible,
 .event-crossref-chip:hover,
 .event-crossref-chip:focus-visible { background: #a83636; outline: 1px dotted #fff; outline-offset: -3px; }
 
-.ev-record-summary { margin: 0; padding-left: 10px; border-left: 2px solid #c9bf9b; color: #171816; font: var(--archive-ui-body)/1.6 Helvetica, Arial, var(--font-body); }
+.ev-record-note p { margin: 0; padding-left: 10px; border-left: 2px solid #c9bf9b; color: #171816; font: var(--archive-ui-body)/1.6 Helvetica, Arial, var(--font-body); }
 .ev-record .directory-open-button { justify-self: start; }
 
 @media (min-width: 1281px) {
