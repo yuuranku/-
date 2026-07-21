@@ -1148,8 +1148,9 @@ function entryIconMarkup(archive, isFolder, index, mode) {
   }
   if (mode === 'case-chronology') {
     const band = eventBandClass(archive);
-    const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '196X';
-    return `<span class="ev-file" data-band="${band}"><span class="ev-file-tab"></span><b>${archive.code}</b><i>${yearTab}</i></span>`;
+    const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '19XX';
+    const attr = { open: 'P', incident: 'C', file: 'F' }[band];
+    return `<span class="ev-attr" data-band="${band}"><b>${attr}</b><i>${archive.code}</i><em>${yearTab}</em></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1595,45 +1596,37 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   const cabinet = document.createElement('section');
   cabinet.className = 'ev-cabinet';
   cabinet.innerHTML = `
-    <header class="ev-cabinet-bar"><span>PALIS / 案卷柜 · CASE FILE CABINET</span><b>${entries.length} FOLDERS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <nav class="ev-folder-column" role="list" aria-label="按年代排列的全部案卷夹"></nav>
-    <section class="ev-desk" aria-live="polite">
-      <article class="ev-open-folder" data-band>
-        <div class="ev-cover">
-          <span class="ev-clip" aria-hidden="true"></span>
-          <div class="event-dossier-image ev-cover-photo" data-event-image></div>
-          <div class="ev-id-card" aria-hidden="true">
-            <span class="ev-id-band" data-event-band>--</span>
-            <div class="ev-id-row"><b data-event-code>--</b><span data-event-year>----</span></div>
-            <span class="ev-id-barcode"></span>
-          </div>
+    <header class="ev-cabinet-bar"><span>PALIS / 案卷目录 · CASE FILE DIRECTORY</span><b>${entries.length} RECORDS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
+    <nav class="ev-directory" role="list" aria-label="按年代排列的全部案卷"></nav>
+    <section class="ev-record" aria-live="polite">
+      <header class="ev-record-head">
+        <span class="ev-record-code" data-event-code>--</span>
+        <span class="ev-record-year" data-event-year>----</span>
+        <span class="ev-record-band" data-event-band>--</span>
+        <span class="ev-record-flag" data-event-flag hidden>版本冲突 · UNRECONCILED</span>
+      </header>
+      <div class="ev-record-top">
+        <div class="ev-record-titles">
+          <h3 data-event-name>未选择</h3>
+          <strong data-event-status>--</strong>
         </div>
-        <div class="ev-gutter" aria-hidden="true"></div>
-        <div class="ev-leaf">
-          <div class="ev-leaf-form">
-            <header class="ev-leaf-head"><h3 data-event-name>未选择</h3><strong data-event-status>--</strong></header>
-            <dl data-event-fields class="event-dossier-fields"></dl>
-            <div class="event-dossier-exhibits">
-              <span class="event-dossier-section-label">夹内附件</span>
-              <div data-event-exhibits class="event-exhibit-tags"></div>
-            </div>
-            <div class="event-dossier-crossref" data-event-crossref hidden>
-              <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
-              <div data-event-crossref-list class="event-crossref-chips"></div>
-            </div>
-            <button type="button" class="directory-open-button">打开调查卷 →</button>
-          </div>
-          <div class="ev-sticky" data-event-sticky>
-            <span class="ev-sticky-label">档案员便签</span>
-            <p data-event-summary></p>
-          </div>
-          <span class="ev-conflict-stamp" data-event-stamp hidden>版本冲突<br>UNRECONCILED</span>
-        </div>
-      </article>
+        <div class="event-dossier-image ev-record-photo" data-event-image></div>
+      </div>
+      <dl data-event-fields class="event-dossier-fields"></dl>
+      <div class="event-dossier-exhibits">
+        <span class="event-dossier-section-label">夹内附件</span>
+        <div data-event-exhibits class="event-exhibit-tags"></div>
+      </div>
+      <div class="event-dossier-crossref" data-event-crossref hidden>
+        <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
+        <div data-event-crossref-list class="event-crossref-chips"></div>
+      </div>
+      <p class="ev-record-summary" data-event-summary></p>
+      <button type="button" class="directory-open-button">打开调查卷 →</button>
     </section>
   `;
-  const column = cabinet.querySelector('.ev-folder-column');
-  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, column));
+  const directory = cabinet.querySelector('.ev-directory');
+  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, directory));
   const buttons = results.map((result) => result.button);
   const items = results.map((result) => result.item);
   results.forEach((result, index) => {
@@ -1642,81 +1635,11 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   });
   orbit.appendChild(cabinet);
   const crossRefs = buildEventCrossReferences(entries);
-  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, folderAnimations: null };
+  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, recordAnimation: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
   renderEventChronology(false);
-
-  // Deal the closed folders into the cabinet, then open the first one.
-  if (!reducedMotion) {
-    items.forEach((item, index) => {
-      item.animate([
-        { transform: 'translateY(10px)', opacity: 0 },
-        { transform: 'translateY(0)', opacity: 1 },
-      ], { duration: 320, delay: index * 22, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' });
-    });
-    setTimeout(() => openEventFolder(), 360);
-  }
-}
-
-// The picked case swings open on the desk: the front cover lifts off the spine,
-// the clip clamps the photo, the ID card slides in and the note settles.
-function openEventFolder() {
-  const state = eventChronologyState;
-  if (!state || folderOrbit.dataset.mode !== 'case-chronology' || reducedMotion) return;
-  const folder = state.cabinet.querySelector('.ev-open-folder');
-  const cover = state.cabinet.querySelector('.ev-cover');
-  const clip = state.cabinet.querySelector('.ev-clip');
-  const photo = state.cabinet.querySelector('.ev-cover-photo');
-  const idCard = state.cabinet.querySelector('.ev-id-card');
-  const sticky = state.cabinet.querySelector('.ev-sticky');
-  const formRows = [...state.cabinet.querySelectorAll('.ev-leaf-form > *')];
-  const stamp = state.cabinet.querySelector('[data-event-stamp]');
-  state.folderAnimations?.forEach((animation) => animation.cancel());
-  const animations = [];
-  animations.push(folder.animate([
-    { opacity: .2, transform: 'translateY(20px) scale(.98)' },
-    { opacity: 1, transform: 'translateY(0) scale(1)' },
-  ], { duration: 420, easing: 'cubic-bezier(.16, 1, .3, 1)' }));
-  // Front cover swings open around the spine.
-  animations.push(cover.animate([
-    { transform: 'rotateY(-96deg)' },
-    { transform: 'rotateY(6deg)', offset: .8 },
-    { transform: 'rotateY(0deg)' },
-  ], { duration: 560, delay: 60, easing: 'cubic-bezier(.34, 1.12, .5, 1)' }));
-  // Clip clamps down.
-  animations.push(clip.animate([
-    { transform: 'translateX(-50%) scaleY(1.5)', opacity: .3 },
-    { transform: 'translateX(-50%) scaleY(1)', opacity: 1 },
-  ], { duration: 240, delay: 380, easing: 'steps(3, end)', fill: 'backwards' }));
-  animations.push(photo.animate([
-    { transform: 'translateY(-10px) rotate(-2deg)', opacity: 0 },
-    { transform: 'translateY(0) rotate(-1.2deg)', opacity: 1 },
-  ], { duration: 320, delay: 340, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
-  animations.push(idCard.animate([
-    { transform: 'translateX(-16px) rotate(-6deg)', opacity: 0 },
-    { transform: 'translateX(0) rotate(-2.5deg)', opacity: 1 },
-  ], { duration: 340, delay: 440, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
-  // Right leaf contents settle, note drops on top.
-  formRows.forEach((row, index) => {
-    animations.push(row.animate([
-      { transform: 'translateY(12px)', opacity: 0 },
-      { transform: 'translateY(0)', opacity: 1 },
-    ], { duration: 300, delay: 300 + index * 55, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
-  });
-  animations.push(sticky.animate([
-    { transform: 'rotate(-7deg) scale(.86)', opacity: 0 },
-    { transform: 'rotate(2.2deg) scale(1.03)', opacity: 1, offset: .75 },
-    { transform: 'rotate(1.6deg) scale(1)', opacity: 1 },
-  ], { duration: 380, delay: 520, easing: 'cubic-bezier(.34, 1.3, .5, 1)', fill: 'backwards' }));
-  if (stamp && !stamp.hidden) {
-    animations.push(stamp.animate([
-      { opacity: 0, transform: 'rotate(-14deg) scale(1.6)' },
-      { opacity: .9, transform: 'rotate(-11deg) scale(1)' },
-    ], { duration: 220, delay: 640, easing: 'steps(3, end)', fill: 'backwards' }));
-  }
-  state.folderAnimations = animations;
 }
 
 function renderEventChronology(animate = true) {
@@ -1724,26 +1647,27 @@ function renderEventChronology(animate = true) {
   if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
   const archive = state.entries[archiveSelection];
   const band = eventBandClass(archive);
-  state.cabinet.querySelector('.ev-open-folder').dataset.band = band;
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
-    state.items[index].classList.toggle('is-open', index === archiveSelection);
   });
   state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
   const image = state.cabinet.querySelector('[data-event-image]');
   image.classList.toggle('is-withheld', !archive.image);
   image.innerHTML = archive.image
     ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)} 的档案影像" loading="eager">`
-    : `<span class="event-redacted-stamp"><b>${archive.code}</b>SOURCE<br>WITHHELD</span>`;
+    : `<span class="event-redacted-stamp">${archive.code}<br>影像未公开</span>`;
   state.cabinet.querySelector('[data-event-code]').textContent = archive.code;
   state.cabinet.querySelector('[data-event-year]').textContent = archive.year;
-  state.cabinet.querySelector('[data-event-band]').textContent = EVENT_BAND_LABEL[band];
+  const bandTag = state.cabinet.querySelector('[data-event-band]');
+  bandTag.textContent = EVENT_BAND_LABEL[band];
+  bandTag.dataset.band = band;
+  state.cabinet.querySelector('[data-event-flag]').hidden = !eventChecklist(archive).conflict;
   state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
   state.cabinet.querySelector('[data-event-status]').textContent = archive.meta;
   const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
   state.cabinet.querySelector('[data-event-fields]').innerHTML = fields
-    .slice(0, 3)
+    .slice(0, 4)
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   const evidenceField = (archive.fields || []).find(([label]) => label === '证据');
   const exhibits = evidenceField ? splitExhibitList(evidenceField[1]) : [];
@@ -1760,8 +1684,21 @@ function renderEventChronology(animate = true) {
     chip.addEventListener('click', () => updateArchiveSelection(Number(chip.dataset.crossrefIndex), true));
   });
   state.cabinet.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
-  state.cabinet.querySelector('[data-event-stamp]').hidden = !eventChecklist(archive).conflict;
-  if (animate) openEventFolder();
+  // One quick record-redraw: the panel refreshes, the accession code snaps in. No further motion.
+  if (animate && !reducedMotion) {
+    const record = state.cabinet.querySelector('.ev-record');
+    const codeChip = state.cabinet.querySelector('[data-event-code]');
+    state.recordAnimation?.forEach((animation) => animation.cancel());
+    state.recordAnimation = [
+      record.animate([
+        { opacity: .5, transform: 'translateY(4px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ], { duration: 200, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
+      codeChip.animate([
+        { opacity: 0 }, { opacity: 1 },
+      ], { duration: 140, easing: 'steps(2, end)', fill: 'backwards' }),
+    ];
+  }
 }
 
 const ENTRANCE_PROFILE_SHAPES = {
