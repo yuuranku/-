@@ -1168,7 +1168,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
     return `<span class="strata-index"><b>${archive.code}</b><i>${String(index + 1).padStart(2, '0')} / 07</i></span>`;
   }
   if (mode === 'anomaly-monitor') {
-    return `<span class="anomaly-row" data-severity="${archive.severity || 'observed'}"><i class="anomaly-row-dot" aria-hidden="true"></i><b>${archive.code}</b><em>${archive.eventDate || '----.--.--'}</em></span>`;
+    return `<span class="film-cell" data-severity="${archive.severity || 'observed'}"><span class="film-cell-strip" aria-hidden="true"></span><b>${archive.code}</b><em>${(archive.eventDate || '----').slice(0, 4)}</em></span>`;
   }
   if (mode === 'species-helix') {
     return specimenPhotoMarkup(archive, index);
@@ -2499,48 +2499,42 @@ function anomalyDisposition(archive) {
 }
 
 function buildAnomalyMonitor(orbit, entries, appendArchiveEntry) {
-  const register = document.createElement('section');
-  register.className = 'anomaly-register-console';
-  register.innerHTML = `
-    <header class="anomaly-register-bar"><span>PALIS / 异常登记 · ANOMALY REGISTER</span><b>${entries.length} 项 · 闭合失败悬置</b></header>
-    <nav class="anomaly-index" role="list" aria-label="全部异常登记">
-      <div class="anomaly-index-head" aria-hidden="true"><span>级 / 编号 / 首次异常</span><span>登记事件</span></div>
-    </nav>
-    <section class="anomaly-entry" aria-live="polite">
-      <header class="anomaly-entry-head">
-        <span class="anomaly-entry-code" data-a-code>A--</span>
-        <span class="anomaly-entry-type" data-a-type>--</span>
-        <span class="anomaly-entry-status" data-a-status>--</span>
-      </header>
-      <h3 class="anomaly-entry-title" data-a-title>未选择</h3>
-      <dl class="anomaly-entry-fields" data-a-fields></dl>
-      <div class="anomaly-entry-section">
-        <span class="anomaly-entry-label">常规解释排除</span>
-        <ul class="anomaly-checks" data-a-checks></ul>
-        <p class="anomaly-residual" data-a-residual></p>
-      </div>
-      <div class="anomaly-entry-section">
-        <span class="anomaly-entry-label">影响范围与处置</span>
-        <p data-a-scope></p>
-        <p class="anomaly-disposition" data-a-disposition></p>
-      </div>
-      <footer class="anomaly-entry-foot">
-        <span class="anomaly-verdict" data-a-verdict>悬置 · UNRESOLVED</span>
+  const reader = document.createElement('section');
+  reader.className = 'film-reader-console';
+  reader.innerHTML = `
+    <header class="film-reader-bar"><span>PALIS / 微缩胶片核销台 · MICROFILM RECONCILIATION</span><b>${entries.length} 帧 · 闭合失败悬置</b></header>
+    <div class="film-stage">
+      <article class="film-frame" data-a-frame>
+        <span class="film-perf film-perf--l" aria-hidden="true"></span>
+        <span class="film-perf film-perf--r" aria-hidden="true"></span>
+        <div class="film-sheet">
+          <div class="film-sheet-head"><b data-a-code>A--</b><span data-a-type>--</span><em data-a-status>--</em></div>
+          <h3 data-a-title>未选择</h3>
+          <p class="film-conflict film-glitch" data-a-conflict data-text="首次异常待读">首次异常待读</p>
+          <dl class="film-fields" data-a-fields></dl>
+          <div class="film-verdict film-glitch" data-a-verdict data-text="悬置 · UNRECONCILED">悬置 · UNRECONCILED</div>
+        </div>
+        <span class="film-scanband" aria-hidden="true"></span>
+        <span class="film-grain" aria-hidden="true"></span>
+      </article>
+      <div class="film-stage-foot">
+        <p class="film-caption" data-a-caption>FRAME -- / ---- · ----</p>
         <button type="button" class="directory-open-button">打开异常附页 →</button>
-      </footer>
-    </section>
+      </div>
+    </div>
+    <nav class="film-reel" role="list" aria-label="全部异常胶片帧"></nav>
   `;
-  const index = register.querySelector('.anomaly-index');
-  const results = entries.map((archive, i) => appendArchiveEntry(archive, i, index));
+  const reel = reader.querySelector('.film-reel');
+  const results = entries.map((archive, i) => appendArchiveEntry(archive, i, reel));
   const buttons = results.map((result) => result.button);
   const items = results.map((result) => result.item);
   results.forEach((result, i) => {
     const nameEl = result.button.querySelector('.folder-name');
     if (nameEl) nameEl.textContent = entries[i].name;
   });
-  orbit.appendChild(register);
-  anomalyRegisterState = { entries, register, buttons, items, entryAnimation: null };
-  register.querySelector('.directory-open-button').addEventListener('click', () => {
+  orbit.appendChild(reader);
+  anomalyRegisterState = { entries, register: reader, buttons, items };
+  reader.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
   renderAnomalyRegister(false);
@@ -2556,38 +2550,35 @@ function renderAnomalyRegister(animate = true) {
     button.classList.toggle('is-selected', i === archiveSelection);
     button.setAttribute('aria-current', i === archiveSelection ? 'true' : 'false');
   });
-  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
+  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
   const q = (selector) => state.register.querySelector(selector);
-  q('.anomaly-entry').dataset.severity = severity;
+  const frame = q('[data-a-frame]');
+  frame.dataset.severity = severity;
   q('[data-a-code]').textContent = archive.code;
   q('[data-a-type]').textContent = anomalyFact(archive, '事件型') || archive.rule || '未分类';
   q('[data-a-status]').textContent = status.tag;
   q('[data-a-title]').textContent = archive.name;
+  const conflict = anomalyFact(archive, '首次异常') || anomalyFact(archive, '当前条目') || '首次异常待读';
+  const conflictEl = q('[data-a-conflict]');
+  conflictEl.textContent = conflict;
+  conflictEl.dataset.text = conflict;
   const fields = [
-    ['首次异常', anomalyFact(archive, '首次异常') || anomalyFact(archive, '当前条目')],
-    ['地点', anomalyFact(archive, '地点') || archive.site],
     ['固定证据', anomalyFact(archive, '固定证据')],
   ].filter(([, value]) => value);
   q('[data-a-fields]').innerHTML = fields
     .map(([key, value]) => `<div><dt>${key}</dt><dd>${escapeRecordText(value)}</dd></div>`).join('');
-  const { checks, residual } = anomalyExclusions(archive);
-  q('[data-a-checks]').innerHTML = checks.length
-    ? checks.map((check) => `<li>${escapeRecordText(check)}</li>`).join('')
-    : '<li class="is-empty">无常规解释可排除</li>';
-  q('[data-a-residual]').textContent = residual;
-  const { scope, disposition } = anomalyDisposition(archive);
-  q('[data-a-scope]').textContent = scope;
-  const dispositionEl = q('[data-a-disposition]');
-  dispositionEl.textContent = disposition;
-  dispositionEl.hidden = !disposition;
-  q('[data-a-verdict]').textContent = `${status.verdict} · UNRESOLVED`;
+  const verdictEl = q('[data-a-verdict]');
+  const verdictText = `${status.verdict} · UNRECONCILED`;
+  verdictEl.textContent = verdictText;
+  verdictEl.dataset.text = verdictText;
+  const ruledOut = anomalyExclusions(archive).checks.length;
+  q('[data-a-caption]').textContent = `FRAME ${archive.code} / ${archive.eventDate || '----'} · ${archive.site || '现场未标'}${ruledOut ? ` · 常规解释 ${ruledOut} 项已排除` : ''}`;
   if (animate && !reducedMotion) {
-    const entry = q('.anomaly-entry');
-    state.entryAnimation?.cancel();
-    state.entryAnimation = entry.animate([
-      { opacity: .55, transform: 'translateY(3px)' },
-      { opacity: 1, transform: 'translateY(0)' },
-    ], { duration: 180, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    // Reloading a new frame: a quick exposure flash + re-scan pass.
+    frame.classList.remove('is-rescan');
+    void frame.offsetWidth;
+    frame.classList.add('is-rescan');
+    setTimeout(() => frame.classList.remove('is-rescan'), 760);
   }
 }
 
