@@ -6172,6 +6172,11 @@ a:focus-visible,
 @media (max-width: 760px) {
   .ev-cabinet { grid-template: 44px 168px minmax(0, 1fr) / minmax(0, 1fr); }
   .ev-directory { grid-column: 1; grid-row: 2; margin: 8px 8px 0; }
+  /* The generic .folder-orbit.is-dense mobile rule (3 classes) outranks our
+     2-class .ev-directory .folder-button selector and forces 126px rows;
+     match its specificity here so the compact directory rows survive. */
+  .folder-orbit.is-dense .ev-directory .folder-button { min-height: 30px; }
+  .folder-orbit.is-dense .ev-directory .folder-name { font-size: 12px; white-space: nowrap; }
   .ev-record { grid-column: 1; grid-row: 3; margin: 8px; }
   .ev-record-top { grid-template-columns: minmax(0, 1fr); }
   .ev-record-photo { width: 100%; height: 160px; }
