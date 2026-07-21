@@ -187,7 +187,7 @@ const ARCHIVE_SUBTITLES = {
   abnormalities: 'INCIDENT TRACE / FIRST-CONFIRMED DATES / CHRONOLOGY OPEN',
   species: 'MORPHOLOGY / TISSUE & PROTEIN COMPARISON / SPECIMEN CHANNEL 09',
   people: 'PERSONNEL LEDGER / ROSTERS, PHOTOGRAPHS & FIELD POSITIONS',
-  events: 'CASE CHRONOLOGY / TWENTY-SIX POCKETS / SOURCE CONFLICTS CROSS-INDEXED',
+  events: 'CASE CHRONOLOGY / TWENTY-SIX FOLDERS / SOURCE CONFLICTS CROSS-INDEXED',
 };
 
 const southPole = globe.getCoords(-90, 0, 0);
@@ -1149,10 +1149,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
   if (mode === 'case-chronology') {
     const band = eventBandClass(archive);
     const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '196X';
-    const peek = archive.image
-      ? `<img src="${archive.image}" alt="" loading="lazy">`
-      : `<span class="ev-pocket-void"></span>`;
-    return `<span class="ev-pocket" data-band="${band}"><span class="ev-pocket-tab"><b>${archive.code}</b><i>${yearTab}</i></span><span class="ev-pocket-face"><span class="ev-pocket-peek">${peek}</span><span class="ev-pocket-mouth"></span></span></span>`;
+    return `<span class="ev-folder" data-band="${band}"><span class="ev-folder-tab"><b>${archive.code}</b><i>${yearTab}</i></span><span class="ev-folder-body"><span class="ev-folder-jacket"></span><span class="ev-folder-label">CASE FILE</span></span></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1598,48 +1595,45 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   const cabinet = document.createElement('section');
   cabinet.className = 'ev-cabinet';
   cabinet.innerHTML = `
-    <header class="ev-cabinet-bar"><span>PALIS / 证物袋抽屉 · EVIDENCE POCKET DRAWER</span><b>${entries.length} POCKETS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <div class="ev-drawer">
-      <div class="ev-drawer-front" aria-hidden="true"><span class="ev-drawer-plate">CASE FILES / V-SERIES</span><span class="ev-drawer-pull"></span></div>
-      <nav class="ev-pocket-rail" role="list" aria-label="按年代排列的全部证物袋"></nav>
-    </div>
+    <header class="ev-cabinet-bar"><span>PALIS / 案卷柜 · CASE FILE CABINET</span><b>${entries.length} FOLDERS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
+    <nav class="ev-folder-grid" role="list" aria-label="按年代排列的全部案卷夹"></nav>
     <section class="ev-desk" aria-live="polite">
-      <article class="ev-envelope">
-        <div class="ev-env-flap" aria-hidden="true"></div>
-        <div class="ev-env-sheet">
-          <header class="ev-env-head">
-            <b data-event-code>--</b>
-            <span data-event-year>----</span>
-            <em class="ev-env-band" data-event-band>--</em>
-          </header>
-          <div class="ev-env-string" aria-hidden="true">
-            <svg viewBox="0 0 60 40"><path class="ev-string-line" data-string pathLength="1" d="M6 20C6 6 30 6 30 20C30 34 54 34 54 20"/><circle class="ev-string-eye" cx="6" cy="20" r="2.4"/><circle class="ev-string-button" cx="54" cy="20" r="5.5"/><circle class="ev-string-button-hole" cx="54" cy="20" r="1.6"/></svg>
+      <article class="ev-open-folder" data-band>
+        <div class="ev-cover">
+          <span class="ev-clip" aria-hidden="true"></span>
+          <div class="event-dossier-image ev-cover-photo" data-event-image></div>
+          <div class="ev-id-card" aria-hidden="true">
+            <span class="ev-id-band" data-event-band>--</span>
+            <div class="ev-id-row"><b data-event-code>--</b><span data-event-year>----</span></div>
+            <span class="ev-id-barcode"></span>
           </div>
-          <div class="ev-env-check" data-event-check aria-hidden="true"></div>
-          <div class="ev-env-body">
-            <div class="event-dossier-image ev-env-photo" data-event-image></div>
-            <div class="event-dossier-copy ev-env-copy">
-              <h3 data-event-name>未选择</h3>
-              <strong data-event-status>--</strong>
-              <dl data-event-fields class="event-dossier-fields"></dl>
-              <div class="event-dossier-exhibits">
-                <span class="event-dossier-section-label">袋内实物</span>
-                <div data-event-exhibits class="event-exhibit-tags"></div>
-              </div>
-              <div class="event-dossier-crossref" data-event-crossref hidden>
-                <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
-                <div data-event-crossref-list class="event-crossref-chips"></div>
-              </div>
-              <span data-event-summary></span>
-              <button type="button" class="directory-open-button">打开调查卷 →</button>
+        </div>
+        <div class="ev-gutter" aria-hidden="true"></div>
+        <div class="ev-leaf">
+          <div class="ev-leaf-form">
+            <header class="ev-leaf-head"><h3 data-event-name>未选择</h3><strong data-event-status>--</strong></header>
+            <dl data-event-fields class="event-dossier-fields"></dl>
+            <div class="event-dossier-exhibits">
+              <span class="event-dossier-section-label">夹内附件</span>
+              <div data-event-exhibits class="event-exhibit-tags"></div>
             </div>
+            <div class="event-dossier-crossref" data-event-crossref hidden>
+              <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
+              <div data-event-crossref-list class="event-crossref-chips"></div>
+            </div>
+            <button type="button" class="directory-open-button">打开调查卷 →</button>
           </div>
+          <div class="ev-sticky" data-event-sticky>
+            <span class="ev-sticky-label">档案员便签</span>
+            <p data-event-summary></p>
+          </div>
+          <span class="ev-conflict-stamp" data-event-stamp hidden>版本冲突<br>UNRECONCILED</span>
         </div>
       </article>
     </section>
   `;
-  const rail = cabinet.querySelector('.ev-pocket-rail');
-  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, rail));
+  const grid = cabinet.querySelector('.ev-folder-grid');
+  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, grid));
   const buttons = results.map((result) => result.button);
   const items = results.map((result) => result.item);
   results.forEach((result, index) => {
@@ -1648,76 +1642,81 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   });
   orbit.appendChild(cabinet);
   const crossRefs = buildEventCrossReferences(entries);
-  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, envelopeAnimations: null };
+  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, folderAnimations: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
   renderEventChronology(false);
 
-  // Pull the drawer open, then let the first pocket spring out as an envelope.
+  // Deal the closed folders into the cabinet, then open the first one.
   if (!reducedMotion) {
-    const drawer = cabinet.querySelector('.ev-drawer');
-    drawer.animate([
-      { transform: 'translateX(-34px)', opacity: .2 },
-      { transform: 'translateX(6px)', opacity: 1, offset: .78 },
-      { transform: 'translateX(0)', opacity: 1 },
-    ], { duration: 560, easing: 'cubic-bezier(.16, 1, .3, 1)' });
     items.forEach((item, index) => {
       item.animate([
-        { transform: 'translateY(12px)', opacity: 0 },
+        { transform: 'translateY(10px)', opacity: 0 },
         { transform: 'translateY(0)', opacity: 1 },
-      ], { duration: 360, delay: 180 + index * 26, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' });
+      ], { duration: 320, delay: index * 22, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' });
     });
-    setTimeout(() => popEventEnvelope(), 520);
+    setTimeout(() => openEventFolder(), 360);
   }
 }
 
-function popEventEnvelope() {
+// The picked case swings open on the desk: the front cover lifts off the spine,
+// the clip clamps the photo, the ID card slides in and the note settles.
+function openEventFolder() {
   const state = eventChronologyState;
   if (!state || folderOrbit.dataset.mode !== 'case-chronology' || reducedMotion) return;
-  const envelope = state.cabinet.querySelector('.ev-envelope');
-  const flap = state.cabinet.querySelector('.ev-env-flap');
-  const string = state.cabinet.querySelector('[data-string]');
-  const bodyRows = [...state.cabinet.querySelectorAll('.ev-env-check, .ev-env-body > *')];
-  const codeChip = state.cabinet.querySelector('[data-event-code]');
-  const band = state.cabinet.querySelector('[data-event-band]');
-  state.envelopeAnimations?.forEach((animation) => animation.cancel());
+  const folder = state.cabinet.querySelector('.ev-open-folder');
+  const cover = state.cabinet.querySelector('.ev-cover');
+  const clip = state.cabinet.querySelector('.ev-clip');
+  const photo = state.cabinet.querySelector('.ev-cover-photo');
+  const idCard = state.cabinet.querySelector('.ev-id-card');
+  const sticky = state.cabinet.querySelector('.ev-sticky');
+  const formRows = [...state.cabinet.querySelectorAll('.ev-leaf-form > *')];
+  const stamp = state.cabinet.querySelector('[data-event-stamp]');
+  state.folderAnimations?.forEach((animation) => animation.cancel());
   const animations = [];
-  // Envelope springs up out of the drawer.
-  animations.push(envelope.animate([
-    { transform: 'translateY(52px) scale(.94)', opacity: .12 },
-    { transform: 'translateY(-6px) scale(1.01)', opacity: 1, offset: .72 },
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
-  ], { duration: 520, easing: 'cubic-bezier(.16, 1, .3, 1)' }));
-  // Flap lifts open.
-  animations.push(flap.animate([
-    { transform: 'rotateX(0deg)' },
-    { transform: 'rotateX(-158deg)' },
-  ], { duration: 460, delay: 140, easing: 'cubic-bezier(.34, 1.3, .5, 1)', fill: 'both' }));
-  // Red string unwinds off its button.
-  if (string) {
-    string.style.strokeDasharray = '1';
-    animations.push(string.animate([
-      { strokeDashoffset: 1 }, { strokeDashoffset: 0 },
-    ], { duration: 520, delay: 220, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'backwards' }));
-  }
-  // Contents slide up out of the pocket, staggered.
-  bodyRows.forEach((row, index) => {
+  animations.push(folder.animate([
+    { opacity: .2, transform: 'translateY(20px) scale(.98)' },
+    { opacity: 1, transform: 'translateY(0) scale(1)' },
+  ], { duration: 420, easing: 'cubic-bezier(.16, 1, .3, 1)' }));
+  // Front cover swings open around the spine.
+  animations.push(cover.animate([
+    { transform: 'rotateY(-96deg)' },
+    { transform: 'rotateY(6deg)', offset: .8 },
+    { transform: 'rotateY(0deg)' },
+  ], { duration: 560, delay: 60, easing: 'cubic-bezier(.34, 1.12, .5, 1)' }));
+  // Clip clamps down.
+  animations.push(clip.animate([
+    { transform: 'translateX(-50%) scaleY(1.5)', opacity: .3 },
+    { transform: 'translateX(-50%) scaleY(1)', opacity: 1 },
+  ], { duration: 240, delay: 380, easing: 'steps(3, end)', fill: 'backwards' }));
+  animations.push(photo.animate([
+    { transform: 'translateY(-10px) rotate(-2deg)', opacity: 0 },
+    { transform: 'translateY(0) rotate(-1.2deg)', opacity: 1 },
+  ], { duration: 320, delay: 340, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
+  animations.push(idCard.animate([
+    { transform: 'translateX(-16px) rotate(-6deg)', opacity: 0 },
+    { transform: 'translateX(0) rotate(-2.5deg)', opacity: 1 },
+  ], { duration: 340, delay: 440, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
+  // Right leaf contents settle, note drops on top.
+  formRows.forEach((row, index) => {
     animations.push(row.animate([
-      { transform: 'translateY(16px)', opacity: 0 },
+      { transform: 'translateY(12px)', opacity: 0 },
       { transform: 'translateY(0)', opacity: 1 },
-    ], { duration: 320, delay: 300 + index * 60, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
+    ], { duration: 300, delay: 300 + index * 55, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
   });
-  // Accession chip and classification band thump in.
-  animations.push(codeChip.animate([
-    { opacity: 0, transform: 'scale(1.7) rotate(-7deg)' },
-    { opacity: 1, transform: 'scale(1) rotate(0deg)' },
-  ], { duration: 220, delay: 160, easing: 'steps(3, end)', fill: 'backwards' }));
-  animations.push(band.animate([
-    { opacity: 0, transform: 'scale(1.4)' },
-    { opacity: 1, transform: 'scale(1)' },
-  ], { duration: 200, delay: 260, easing: 'steps(3, end)', fill: 'backwards' }));
-  state.envelopeAnimations = animations;
+  animations.push(sticky.animate([
+    { transform: 'rotate(-7deg) scale(.86)', opacity: 0 },
+    { transform: 'rotate(2.2deg) scale(1.03)', opacity: 1, offset: .75 },
+    { transform: 'rotate(1.6deg) scale(1)', opacity: 1 },
+  ], { duration: 380, delay: 520, easing: 'cubic-bezier(.34, 1.3, .5, 1)', fill: 'backwards' }));
+  if (stamp && !stamp.hidden) {
+    animations.push(stamp.animate([
+      { opacity: 0, transform: 'rotate(-14deg) scale(1.6)' },
+      { opacity: .9, transform: 'rotate(-11deg) scale(1)' },
+    ], { duration: 220, delay: 640, easing: 'steps(3, end)', fill: 'backwards' }));
+  }
+  state.folderAnimations = animations;
 }
 
 function renderEventChronology(animate = true) {
@@ -1725,20 +1724,19 @@ function renderEventChronology(animate = true) {
   if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
   const archive = state.entries[archiveSelection];
   const band = eventBandClass(archive);
-  state.cabinet.querySelector('.ev-envelope').dataset.band = band;
+  state.cabinet.querySelector('.ev-open-folder').dataset.band = band;
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
-    state.items[index].classList.toggle('is-pulled', index === archiveSelection);
+    state.items[index].classList.toggle('is-open', index === archiveSelection);
   });
-  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
   const image = state.cabinet.querySelector('[data-event-image]');
   image.classList.toggle('is-withheld', !archive.image);
   image.innerHTML = archive.image
     ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)} 的档案影像" loading="eager">`
     : `<span class="event-redacted-stamp"><b>${archive.code}</b>SOURCE<br>WITHHELD</span>`;
-  const codeChip = state.cabinet.querySelector('[data-event-code]');
-  codeChip.textContent = archive.code;
+  state.cabinet.querySelector('[data-event-code]').textContent = archive.code;
   state.cabinet.querySelector('[data-event-year]').textContent = archive.year;
   state.cabinet.querySelector('[data-event-band]').textContent = EVENT_BAND_LABEL[band];
   state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
@@ -1752,12 +1750,6 @@ function renderEventChronology(animate = true) {
   state.cabinet.querySelector('[data-event-exhibits]').innerHTML = exhibits.length
     ? exhibits.map((item) => `<span class="event-exhibit-tag">${item}</span>`).join('')
     : '<span class="event-exhibit-tag is-empty">未附实物证据登记</span>';
-  const checklist = eventChecklist(archive);
-  const checkChips = checklist.items.length
-    ? checklist.items.map((label) => `<span class="ev-check-item${checklist.conflict ? ' is-flagged' : ''}">${label}</span>`).join('')
-    : '<span class="ev-check-item is-empty">内容清单空白</span>';
-  state.cabinet.querySelector('[data-event-check]').innerHTML = checkChips
-    + (checklist.conflict ? '<span class="ev-check-stamp">版本冲突</span>' : '');
   const crossref = state.crossRefs[archiveSelection] || [];
   const crossrefWrap = state.cabinet.querySelector('[data-event-crossref]');
   crossrefWrap.hidden = crossref.length === 0;
@@ -1768,7 +1760,8 @@ function renderEventChronology(animate = true) {
     chip.addEventListener('click', () => updateArchiveSelection(Number(chip.dataset.crossrefIndex), true));
   });
   state.cabinet.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
-  if (animate) popEventEnvelope();
+  state.cabinet.querySelector('[data-event-stamp]').hidden = !eventChecklist(archive).conflict;
+  if (animate) openEventFolder();
 }
 
 const ENTRANCE_PROFILE_SHAPES = {

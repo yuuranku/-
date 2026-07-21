@@ -117,8 +117,8 @@ test('approved C C B B directory renderers are wired into the live archive page'
   assert.match(source, /function buildEntranceElevation\(/);
   assert.match(source, /function buildEcologyCabinet\(/);
   assert.match(source, /entranceSheetMarkup/);
-  assert.match(source, /function popEventEnvelope\(/);
-  assert.match(source, /ev-pocket-rail/);
+  assert.match(source, /function openEventFolder\(/);
+  assert.match(source, /ev-folder-grid/);
   assert.match(source, /eco-log-svg/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
@@ -135,8 +135,8 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
   assert.match(styles, /\.directory-open-button\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(styles, /\.ev-pocket-rail/);
-  assert.match(styles, /\.ev-envelope/);
+  assert.match(styles, /\.ev-folder-grid/);
+  assert.match(styles, /\.ev-open-folder/);
   assert.match(styles, /\.entrance-sheet-drawer/);
   assert.match(styles, /\.eco-log-bands/);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);
