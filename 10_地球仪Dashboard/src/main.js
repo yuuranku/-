@@ -187,7 +187,7 @@ const ARCHIVE_SUBTITLES = {
   abnormalities: 'INCIDENT TRACE / FIRST-CONFIRMED DATES / CHRONOLOGY OPEN',
   species: 'MORPHOLOGY / TISSUE & PROTEIN COMPARISON / SPECIMEN CHANNEL 09',
   people: 'PERSONNEL LEDGER / ROSTERS, PHOTOGRAPHS & FIELD POSITIONS',
-  events: 'CASE CHRONOLOGY / SIXTEEN ACCESSIONS / SOURCE CONFLICTS CROSS-INDEXED',
+  events: 'CASE CHRONOLOGY / TWENTY-SIX POCKETS / SOURCE CONFLICTS CROSS-INDEXED',
 };
 
 const southPole = globe.getCoords(-90, 0, 0);
@@ -1147,10 +1147,12 @@ function entryIconMarkup(archive, isFolder, index, mode) {
     return `<span class="film-card"><span class="film-perf top"></span><span class="film-photo">${frame}</span><span class="film-perf bottom"></span><em>${archive.year || '19--'} / ${archive.code}</em></span>`;
   }
   if (mode === 'case-chronology') {
-    const evidence = archive.image
+    const band = eventBandClass(archive);
+    const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '196X';
+    const peek = archive.image
       ? `<img src="${archive.image}" alt="" loading="lazy">`
-      : `<span class="hanging-photo-missing">${archive.code}</span>`;
-    return `<span class="hanging-file"><i class="hanging-tab" data-tab-pos="${index % 3}"><b>${(archive.year || '19--').slice(0, 4)}</b></i><span class="hanging-photo">${evidence}</span></span>`;
+      : `<span class="ev-pocket-void"></span>`;
+    return `<span class="ev-pocket" data-band="${band}"><span class="ev-pocket-tab"><b>${archive.code}</b><i>${yearTab}</i></span><span class="ev-pocket-face"><span class="ev-pocket-peek">${peek}</span><span class="ev-pocket-mouth"></span></span></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1565,157 +1567,208 @@ function splitExhibitList(value = '') {
   return value.split(/[、，,]/).map((item) => item.trim()).filter(Boolean);
 }
 
+function eventBandClass(archive) {
+  const text = `${archive.meta || ''}${archive.status || ''}`;
+  if (/失踪|事故|监听|医检|撤离/.test(text)) return 'incident';
+  if (/公开/.test(text)) return 'open';
+  return 'file';
+}
+
+const EVENT_BAND_LABEL = { open: '公开行动卷', incident: '限制事故卷', file: '限制归档卷' };
+
+// The contents printed on the envelope face, inferred from the record's own
+// text. The pocket as a whole is flagged 版本冲突 when the note describes a
+// non-closure, rather than stamping every single line.
+function eventChecklist(archive) {
+  const text = `${archive.meta || ''} ${(archive.fields || []).map(([, value]) => value).join(' ')} ${(archive.body || []).join(' ')}`;
+  const catalogue = [
+    ['胶片', /胶片|印样|航片|底片|影像|画面/],
+    ['日志', /日志|记录|值班|飞行本|纸带/],
+    ['名单', /名单|名册|点名|座位|派遣表|清单/],
+    ['样本', /样本|组织|滤芯|样本箱|封条|血样|针叶/],
+    ['无线电', /无线电|呼号|电报|广播|频段|监听/],
+    ['地图', /地图|格网|坐标|母图|测线|里程/],
+  ];
+  const items = catalogue.filter(([, pattern]) => pattern.test(text)).map(([label]) => label);
+  const conflict = /互斥|冲突|双清单|双值班|双号|双附件|双批次|两套|两份|三链|三套|不闭合|漂移|重复|并存|异名/.test(text);
+  return { items, conflict };
+}
+
 function buildEventChronology(orbit, entries, appendArchiveEntry) {
-  const chronology = document.createElement('section');
-  chronology.className = 'event-cabinet';
-  chronology.innerHTML = `
-    <header class="event-cabinet-header"><span>PALIS / SUSPENSION FILE DRAWER</span><b>16 CASE FILES · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <div class="event-drawer">
-      <nav class="event-drawer-files" role="list" aria-label="按时间悬挂的十六份案卷"></nav>
+  const cabinet = document.createElement('section');
+  cabinet.className = 'ev-cabinet';
+  cabinet.innerHTML = `
+    <header class="ev-cabinet-bar"><span>PALIS / 证物袋抽屉 · EVIDENCE POCKET DRAWER</span><b>${entries.length} POCKETS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
+    <div class="ev-drawer">
+      <div class="ev-drawer-front" aria-hidden="true"><span class="ev-drawer-plate">CASE FILES / V-SERIES</span><span class="ev-drawer-pull"></span></div>
+      <nav class="ev-pocket-rail" role="list" aria-label="按年代排列的全部证物袋"></nav>
     </div>
-    <section class="event-desk" aria-live="polite">
-      <div class="event-dossier-image" data-event-image></div>
-      <div class="event-dossier-copy">
-        <p><b data-event-code>--</b><span data-event-year>----</span></p>
-        <h3 data-event-name>未选择</h3>
-        <strong data-event-status>--</strong>
-        <dl data-event-fields class="event-dossier-fields"></dl>
-        <div class="event-dossier-exhibits">
-          <span class="event-dossier-section-label">证据清单</span>
-          <div data-event-exhibits class="event-exhibit-tags"></div>
+    <section class="ev-desk" aria-live="polite">
+      <article class="ev-envelope">
+        <div class="ev-env-flap" aria-hidden="true"></div>
+        <div class="ev-env-sheet">
+          <header class="ev-env-head">
+            <b data-event-code>--</b>
+            <span data-event-year>----</span>
+            <em class="ev-env-band" data-event-band>--</em>
+          </header>
+          <div class="ev-env-string" aria-hidden="true">
+            <svg viewBox="0 0 60 40"><path class="ev-string-line" data-string pathLength="1" d="M6 20C6 6 30 6 30 20C30 34 54 34 54 20"/><circle class="ev-string-eye" cx="6" cy="20" r="2.4"/><circle class="ev-string-button" cx="54" cy="20" r="5.5"/><circle class="ev-string-button-hole" cx="54" cy="20" r="1.6"/></svg>
+          </div>
+          <div class="ev-env-check" data-event-check aria-hidden="true"></div>
+          <div class="ev-env-body">
+            <div class="event-dossier-image ev-env-photo" data-event-image></div>
+            <div class="event-dossier-copy ev-env-copy">
+              <h3 data-event-name>未选择</h3>
+              <strong data-event-status>--</strong>
+              <dl data-event-fields class="event-dossier-fields"></dl>
+              <div class="event-dossier-exhibits">
+                <span class="event-dossier-section-label">袋内实物</span>
+                <div data-event-exhibits class="event-exhibit-tags"></div>
+              </div>
+              <div class="event-dossier-crossref" data-event-crossref hidden>
+                <span class="event-dossier-section-label">并存版本 · 同源另立案卷</span>
+                <div data-event-crossref-list class="event-crossref-chips"></div>
+              </div>
+              <span data-event-summary></span>
+              <button type="button" class="directory-open-button">打开调查卷 →</button>
+            </div>
+          </div>
         </div>
-        <div class="event-dossier-crossref" data-event-crossref hidden>
-          <span class="event-dossier-section-label">交叉引用 · 红线连至同源案卷</span>
-          <div data-event-crossref-list class="event-crossref-chips"></div>
-        </div>
-        <span data-event-summary></span>
-        <button type="button" class="directory-open-button">打开调查卷 →</button>
-      </div>
+      </article>
     </section>
-    <svg class="event-thread-layer" aria-hidden="true"></svg>
   `;
-  const drawer = chronology.querySelector('.event-drawer-files');
-  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, drawer));
+  const rail = cabinet.querySelector('.ev-pocket-rail');
+  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, rail));
   const buttons = results.map((result) => result.button);
   const items = results.map((result) => result.item);
   results.forEach((result, index) => {
     const nameEl = result.button.querySelector('.folder-name');
     if (nameEl) nameEl.textContent = entries[index].name.replace(`${entries[index].year} / `, '');
   });
-  orbit.appendChild(chronology);
+  orbit.appendChild(cabinet);
   const crossRefs = buildEventCrossReferences(entries);
-  eventChronologyState = { entries, chronology, buttons, items, crossRefs, previewAnimation: null, threadAnimations: null };
-  chronology.querySelector('.directory-open-button').addEventListener('click', () => {
+  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, envelopeAnimations: null };
+  cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
     openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
-  drawer.addEventListener('scroll', () => renderEventThreads(false), { passive: true });
   renderEventChronology(false);
+
+  // Pull the drawer open, then let the first pocket spring out as an envelope.
+  if (!reducedMotion) {
+    const drawer = cabinet.querySelector('.ev-drawer');
+    drawer.animate([
+      { transform: 'translateX(-34px)', opacity: .2 },
+      { transform: 'translateX(6px)', opacity: 1, offset: .78 },
+      { transform: 'translateX(0)', opacity: 1 },
+    ], { duration: 560, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+    items.forEach((item, index) => {
+      item.animate([
+        { transform: 'translateY(12px)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 1 },
+      ], { duration: 360, delay: 180 + index * 26, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' });
+    });
+    setTimeout(() => popEventEnvelope(), 520);
+  }
 }
 
-function renderEventThreads(animate = true) {
+function popEventEnvelope() {
   const state = eventChronologyState;
-  if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
-  const svg = state.chronology.querySelector('.event-thread-layer');
-  const cabinetRect = state.chronology.getBoundingClientRect();
-  if (!cabinetRect.width) return;
-  svg.setAttribute('viewBox', `0 0 ${Math.round(cabinetRect.width)} ${Math.round(cabinetRect.height)}`);
-  const crossref = state.crossRefs[archiveSelection] || [];
-  const originEl = state.chronology.querySelector('[data-event-crossref]');
-  const paths = [];
-  if (crossref.length && !originEl.hidden) {
-    const originRect = originEl.getBoundingClientRect();
-    const x0 = originRect.left - cabinetRect.left + 14;
-    const y0 = originRect.top - cabinetRect.top + 8;
-    crossref.forEach(({ index }) => {
-      const tab = state.items[index]?.querySelector('.hanging-tab');
-      if (!tab) return;
-      const tabRect = tab.getBoundingClientRect();
-      if (tabRect.right < cabinetRect.left || tabRect.left > cabinetRect.right) return;
-      const x1 = tabRect.left - cabinetRect.left + tabRect.width / 2;
-      const y1 = tabRect.top - cabinetRect.top + tabRect.height;
-      const sagX = (x0 + x1) / 2;
-      const sagY = Math.max(y0, y1) + 46;
-      paths.push(`<path class="event-thread" pathLength="1" d="M${x0} ${y0}Q${sagX} ${sagY} ${x1} ${y1}"/><circle class="event-thread-pin" cx="${x1}" cy="${y1}" r="3"/>`);
-    });
+  if (!state || folderOrbit.dataset.mode !== 'case-chronology' || reducedMotion) return;
+  const envelope = state.cabinet.querySelector('.ev-envelope');
+  const flap = state.cabinet.querySelector('.ev-env-flap');
+  const string = state.cabinet.querySelector('[data-string]');
+  const bodyRows = [...state.cabinet.querySelectorAll('.ev-env-check, .ev-env-body > *')];
+  const codeChip = state.cabinet.querySelector('[data-event-code]');
+  const band = state.cabinet.querySelector('[data-event-band]');
+  state.envelopeAnimations?.forEach((animation) => animation.cancel());
+  const animations = [];
+  // Envelope springs up out of the drawer.
+  animations.push(envelope.animate([
+    { transform: 'translateY(52px) scale(.94)', opacity: .12 },
+    { transform: 'translateY(-6px) scale(1.01)', opacity: 1, offset: .72 },
+    { transform: 'translateY(0) scale(1)', opacity: 1 },
+  ], { duration: 520, easing: 'cubic-bezier(.16, 1, .3, 1)' }));
+  // Flap lifts open.
+  animations.push(flap.animate([
+    { transform: 'rotateX(0deg)' },
+    { transform: 'rotateX(-158deg)' },
+  ], { duration: 460, delay: 140, easing: 'cubic-bezier(.34, 1.3, .5, 1)', fill: 'both' }));
+  // Red string unwinds off its button.
+  if (string) {
+    string.style.strokeDasharray = '1';
+    animations.push(string.animate([
+      { strokeDashoffset: 1 }, { strokeDashoffset: 0 },
+    ], { duration: 520, delay: 220, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'backwards' }));
   }
-  svg.innerHTML = paths.join('');
-  state.items.forEach((item, index) => {
-    item.classList.toggle('is-thread-target', crossref.some((ref) => ref.index === index));
+  // Contents slide up out of the pocket, staggered.
+  bodyRows.forEach((row, index) => {
+    animations.push(row.animate([
+      { transform: 'translateY(16px)', opacity: 0 },
+      { transform: 'translateY(0)', opacity: 1 },
+    ], { duration: 320, delay: 300 + index * 60, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'backwards' }));
   });
-  if (animate && !reducedMotion) {
-    state.threadAnimations?.forEach((animation) => animation.cancel());
-    state.threadAnimations = [...svg.querySelectorAll('.event-thread')].map((thread, index) => {
-      thread.style.strokeDasharray = '1';
-      thread.style.strokeDashoffset = '1';
-      return thread.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], {
-        duration: 520, delay: 420 + index * 120, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards',
-      });
-    });
-  }
+  // Accession chip and classification band thump in.
+  animations.push(codeChip.animate([
+    { opacity: 0, transform: 'scale(1.7) rotate(-7deg)' },
+    { opacity: 1, transform: 'scale(1) rotate(0deg)' },
+  ], { duration: 220, delay: 160, easing: 'steps(3, end)', fill: 'backwards' }));
+  animations.push(band.animate([
+    { opacity: 0, transform: 'scale(1.4)' },
+    { opacity: 1, transform: 'scale(1)' },
+  ], { duration: 200, delay: 260, easing: 'steps(3, end)', fill: 'backwards' }));
+  state.envelopeAnimations = animations;
 }
 
 function renderEventChronology(animate = true) {
   const state = eventChronologyState;
   if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
   const archive = state.entries[archiveSelection];
+  const band = eventBandClass(archive);
+  state.cabinet.querySelector('.ev-envelope').dataset.band = band;
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
-    const item = state.items[index];
-    item.classList.toggle('is-lifted', index === archiveSelection);
-    item.classList.toggle('is-pushed-left', index === archiveSelection - 1);
-    item.classList.toggle('is-pushed-right', index === archiveSelection + 1);
+    state.items[index].classList.toggle('is-pulled', index === archiveSelection);
   });
-  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
-  const image = state.chronology.querySelector('[data-event-image]');
+  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+  const image = state.cabinet.querySelector('[data-event-image]');
   image.classList.toggle('is-withheld', !archive.image);
   image.innerHTML = archive.image
     ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)} 的档案影像" loading="eager">`
     : `<span class="event-redacted-stamp"><b>${archive.code}</b>SOURCE<br>WITHHELD</span>`;
-  const codeChip = state.chronology.querySelector('[data-event-code]');
+  const codeChip = state.cabinet.querySelector('[data-event-code]');
   codeChip.textContent = archive.code;
-  state.chronology.querySelector('[data-event-year]').textContent = archive.year;
-  state.chronology.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
-  state.chronology.querySelector('[data-event-status]').textContent = archive.meta;
+  state.cabinet.querySelector('[data-event-year]').textContent = archive.year;
+  state.cabinet.querySelector('[data-event-band]').textContent = EVENT_BAND_LABEL[band];
+  state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
+  state.cabinet.querySelector('[data-event-status]').textContent = archive.meta;
   const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
-  state.chronology.querySelector('[data-event-fields]').innerHTML = fields
+  state.cabinet.querySelector('[data-event-fields]').innerHTML = fields
     .slice(0, 3)
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   const evidenceField = (archive.fields || []).find(([label]) => label === '证据');
   const exhibits = evidenceField ? splitExhibitList(evidenceField[1]) : [];
-  state.chronology.querySelector('[data-event-exhibits]').innerHTML = exhibits.length
+  state.cabinet.querySelector('[data-event-exhibits]').innerHTML = exhibits.length
     ? exhibits.map((item) => `<span class="event-exhibit-tag">${item}</span>`).join('')
     : '<span class="event-exhibit-tag is-empty">未附实物证据登记</span>';
+  const checklist = eventChecklist(archive);
+  const checkChips = checklist.items.length
+    ? checklist.items.map((label) => `<span class="ev-check-item${checklist.conflict ? ' is-flagged' : ''}">${label}</span>`).join('')
+    : '<span class="ev-check-item is-empty">内容清单空白</span>';
+  state.cabinet.querySelector('[data-event-check]').innerHTML = checkChips
+    + (checklist.conflict ? '<span class="ev-check-stamp">版本冲突</span>' : '');
   const crossref = state.crossRefs[archiveSelection] || [];
-  const crossrefWrap = state.chronology.querySelector('[data-event-crossref]');
+  const crossrefWrap = state.cabinet.querySelector('[data-event-crossref]');
   crossrefWrap.hidden = crossref.length === 0;
-  state.chronology.querySelector('[data-event-crossref-list]').innerHTML = crossref
+  state.cabinet.querySelector('[data-event-crossref-list]').innerHTML = crossref
     .map(({ index, tokens }) => `<button type="button" class="event-crossref-chip" data-crossref-index="${index}">${state.entries[index].code} · 共享 ${tokens[0]}</button>`)
     .join('');
-  state.chronology.querySelectorAll('[data-crossref-index]').forEach((chip) => {
+  state.cabinet.querySelectorAll('[data-crossref-index]').forEach((chip) => {
     chip.addEventListener('click', () => updateArchiveSelection(Number(chip.dataset.crossrefIndex), true));
   });
-  state.chronology.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
-  if (animate && !reducedMotion) {
-    const desk = state.chronology.querySelector('.event-desk');
-    state.previewAnimation?.forEach((animation) => animation.cancel());
-    state.previewAnimation = [
-      desk.animate([
-        { opacity: .5, transform: 'translate3d(0, -8px, 0)' },
-        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-      ], { duration: 360, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
-      codeChip.animate([
-        { opacity: 0, transform: 'scale(1.6) rotate(-6deg)' },
-        { opacity: 1, transform: 'scale(1) rotate(0deg)' },
-      ], { duration: 220, delay: 110, easing: 'steps(3, end)', fill: 'backwards' }),
-      image.animate([
-        { filter: 'contrast(0) brightness(2.2)' },
-        { filter: 'contrast(.4) brightness(1.5)', offset: .4 },
-        { filter: 'contrast(1) brightness(1)' },
-      ], { duration: 520, easing: 'steps(5, end)' }),
-    ];
-  }
-  requestAnimationFrame(() => renderEventThreads(animate));
+  state.cabinet.querySelector('[data-event-summary]').textContent = archive.body?.[0] || '该调查卷尚无摘要。';
+  if (animate) popEventEnvelope();
 }
 
 const ENTRANCE_PROFILE_SHAPES = {

@@ -3,9 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
-  buildEventCabinetGroups,
   buildPeopleNetworkModel,
-  classifyEventPeriod,
   getEcologySpecimenReading,
 } from '../src/archive-layout.js';
 import { ARCHIVE_ROOTS } from '../src/archive-data.js';
@@ -42,27 +40,18 @@ test('people network exposes a stable twelve-person neighborhood without hidden-
   );
 });
 
-test('event chronology classifies all three approved dossier periods', () => {
-  assert.equal(classifyEventPeriod('1938—39'), 'early');
-  assert.equal(classifyEventPeriod('1949'), 'early');
-  assert.equal(classifyEventPeriod('1950'), 'middle');
-  assert.equal(classifyEventPeriod('1955—56'), 'middle');
-  assert.equal(classifyEventPeriod('1958'), 'late');
-  assert.equal(classifyEventPeriod('六十年代中期'), 'late');
-});
-
-test('event cabinet keeps all sixteen files in four neutral date-range bays', () => {
+test('event drawer holds all twenty-six pockets filed in chronological order', () => {
   const events = ARCHIVE_ROOTS.find((root) => root.id === 'events').children;
-  const groups = buildEventCabinetGroups(events, 4);
 
-  assert.equal(groups.length, 4);
-  assert.equal(groups.flatMap((group) => group.entries).length, 16);
-  assert.deepEqual(groups.map((group) => group.label), ['1938—1948', '1949—1953', '1954—1958', '1960—六十年代中期']);
-  assert.deepEqual(groups.flatMap((group) => group.entries.map(({ index }) => index)), events.map((_, index) => index));
-  groups.forEach((group) => {
-    assert.match(group.label, /\d|六十/);
-    assert.doesNotMatch(group.label, /起源|扩张|封存/);
+  assert.equal(events.length, 26);
+  assert.equal(new Set(events.map((event) => event.code)).size, 26);
+  const startYear = (year) => parseInt(String(year).match(/\d{4}/)?.[0] ?? '1965', 10);
+  const years = events.map((event) => startYear(event.year));
+  years.slice(1).forEach((year, index) => {
+    assert.ok(year >= years[index], `pockets should be filed chronologically near ${events[index + 1].code}`);
   });
+  assert.equal(events[0].code, 'V16');
+  assert.equal(events.at(-1).code, 'V09');
 });
 
 test('every entrance carries the survey fields the section drawings are generated from', () => {
@@ -103,7 +92,7 @@ test('approved archive counts include the expanded sixteen-event chronology', ()
   const counts = Object.fromEntries(ARCHIVE_ROOTS.map((root) => [root.id, root.children.length]));
 
   assert.equal(counts.people, 32);
-  assert.equal(counts.events, 16);
+  assert.equal(counts.events, 26);
   assert.equal(counts.entrances, 18);
   assert.equal(counts.ecology, 7);
 });
@@ -128,8 +117,8 @@ test('approved C C B B directory renderers are wired into the live archive page'
   assert.match(source, /function buildEntranceElevation\(/);
   assert.match(source, /function buildEcologyCabinet\(/);
   assert.match(source, /entranceSheetMarkup/);
-  assert.match(source, /event-drawer-files/);
-  assert.match(source, /event-thread-layer/);
+  assert.match(source, /function popEventEnvelope\(/);
+  assert.match(source, /ev-pocket-rail/);
   assert.match(source, /eco-log-svg/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
@@ -142,12 +131,12 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /\.people-network-workbench/);
   assert.match(styles, /\.entrance-sheet-console/);
   assert.match(styles, /\.eco-log-console/);
-  assert.match(styles, /\.event-cabinet\s*\{/);
+  assert.match(styles, /\.ev-cabinet\s*\{/);
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
   assert.match(styles, /\.directory-open-button\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(styles, /\.event-drawer-files/);
-  assert.match(styles, /\.event-thread\s*\{/);
+  assert.match(styles, /\.ev-pocket-rail/);
+  assert.match(styles, /\.ev-envelope/);
   assert.match(styles, /\.entrance-sheet-drawer/);
   assert.match(styles, /\.eco-log-bands/);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);

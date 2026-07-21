@@ -6041,14 +6041,15 @@ a:focus-visible,
 }
 
 /* --------------------------------------------------------------------------
-   Events A: one scrollable case-dossier spine plus an evidence-inventory
-   reading pane, replacing the four-period card wall. Cross-references are
-   derived from source codes the events already share in their own text.
+   Events: a metal case-file drawer pulled open, holding manila evidence
+   pockets (档案袋) filed by year. The picked pocket springs out as an
+   envelope on the desk: flap lifts, the red string unwinds off its button,
+   contents slide up out of the pocket. Cross-references from shared codes.
    -------------------------------------------------------------------------- */
-.event-cabinet {
+.ev-cabinet {
   position: relative;
   display: grid;
-  grid-template-rows: 48px 186px minmax(0, 1fr);
+  grid-template-rows: 48px 176px minmax(0, 1fr);
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -6056,181 +6057,209 @@ a:focus-visible,
   border: 2px outset #858c90;
   background: #080a0b;
   box-shadow: inset 0 0 0 6px #303438, 10px 12px 0 rgba(0, 0, 0, .4);
-  font-family: 'Courier New', Courier, var(--font-mono);
+  font-family: "Courier New", Courier, var(--font-mono);
 }
-.event-cabinet-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 6px 6px 0; padding: 0 12px; color: #111; border-bottom: 1px solid #555; background: var(--win-face); font-size: var(--archive-ui-micro); }
-.event-cabinet-header > b { color: #000080; }
+.ev-cabinet-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 6px 6px 0; padding: 0 12px; color: #111; border-bottom: 1px solid #555; background: var(--win-face); font-size: var(--archive-ui-micro); }
+.ev-cabinet-bar > b { color: #000080; }
 
-/* The open drawer: sixteen suspension files hanging on two rails. */
-.event-drawer {
-  position: relative;
+/* The pulled-open drawer. */
+.ev-drawer {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
   min-width: 0;
-  margin: 0 6px;
-  padding: 0 8px;
-  border: 3px solid #3a4042;
-  border-top-width: 8px;
-  background: linear-gradient(180deg, #171b1d, #0c0f10 70%);
-  box-shadow: inset 0 8px 14px rgba(0, 0, 0, .66);
+  margin: 8px 6px 0;
+  border: 3px solid #2f3538;
+  border-top: 7px solid #3d4447;
+  background: linear-gradient(180deg, #1a1f21, #0b0e0f 72%);
+  box-shadow: inset 0 10px 18px rgba(0, 0, 0, .7), inset 0 -4px 8px rgba(0, 0, 0, .5);
 }
-.event-drawer::before,
-.event-drawer::after {
-  content: '';
-  position: absolute;
-  top: 12px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #565e61, #767e81 30%, #565e61 80%);
-  z-index: 0;
-}
-.event-drawer::after { top: auto; bottom: 8px; opacity: .4; }
-.event-thread-layer { position: absolute; inset: 0; z-index: 30; width: 100%; height: 100%; pointer-events: none; }
-.event-thread { fill: none; stroke: var(--cold-red); stroke-width: 1.6; }
-.event-thread-pin { fill: var(--cold-red); stroke: #2b0f0f; stroke-width: 1; }
-.event-drawer-files {
+.ev-drawer-front {
   position: relative;
-  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-right: 2px solid #40474a;
+  background: linear-gradient(90deg, #3a4144, #2a3033 60%, #21272a);
+}
+.ev-drawer-plate { writing-mode: vertical-rl; color: #aeb6b1; font: 700 8px "Courier New", Courier, monospace; letter-spacing: .12em; }
+.ev-drawer-pull { position: absolute; bottom: 12px; width: 30px; height: 12px; border-radius: 7px; background: linear-gradient(180deg, #6b7377, #2b3134); box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .18); }
+.ev-pocket-rail {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
-  height: 100%;
-  padding: 20px 6px 10px;
+  padding: 14px 10px 10px;
   overflow-x: auto;
   overflow-y: hidden;
 }
-.event-drawer-files .folder-item {
+
+/* Manila pockets standing in the drawer. */
+.ev-pocket-rail .folder-item {
   position: relative;
-  flex: 1 0 76px;
-  max-width: 96px;
+  flex: 0 0 66px;
   min-width: 0;
-  transform: translateY(6px);
-  transition: transform 300ms cubic-bezier(.22, 1, .36, 1);
+  transition: transform 260ms cubic-bezier(.22, 1, .36, 1);
 }
-.event-drawer-files .folder-item.is-lifted { transform: translateY(-9px); z-index: 5; }
-.event-drawer-files .folder-item.is-pushed-left { transform: translateY(6px) translateX(-3px) rotate(-.8deg); }
-.event-drawer-files .folder-item.is-pushed-right { transform: translateY(6px) translateX(3px) rotate(.8deg); }
-.event-drawer-files .folder-button,
-.event-drawer-files .folder-button:hover,
-.event-drawer-files .folder-button:focus-visible {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+.ev-pocket-rail .folder-item.is-pulled { transform: translateY(-16px); z-index: 4; }
+.ev-pocket-rail .folder-button,
+.ev-pocket-rail .folder-button:hover,
+.ev-pocket-rail .folder-button:focus-visible {
+  display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
   padding: 0;
-  color: #2c2b24;
   border: 0;
   background: transparent;
-  text-align: left;
   text-shadow: none;
   transform: none;
 }
-.event-drawer-files .hanging-file { display: grid; grid-template-rows: 20px minmax(0, 1fr); min-height: 0; height: 100%; }
-.event-drawer-files .hanging-tab {
-  justify-self: start;
+.ev-pocket {
+  --band: #9a8f6b;
+  display: grid;
+  grid-template-rows: 17px minmax(0, 1fr);
+  height: 132px;
+}
+.ev-pocket[data-band='open'] { --band: var(--cold-blue); }
+.ev-pocket[data-band='incident'] { --band: var(--cold-red); }
+.ev-pocket[data-band='file'] { --band: #9a8f6b; }
+.ev-pocket-tab {
   z-index: 2;
   display: grid;
+  gap: 0;
   place-items: center;
-  min-width: 58%;
-  height: 20px;
-  padding: 0 6px;
-  color: #d6dcd7;
-  border: 1px solid #5a6165;
+  width: 82%;
+  padding: 1px 0;
+  color: #f0ede2;
+  border: 1px solid #4a4436;
   border-bottom: 0;
-  background: #22282b;
-  font-style: normal;
-  font-size: 10px;
+  border-top: 3px solid var(--band);
+  background: #2a2820;
+  line-height: 1;
 }
-.event-drawer-files .hanging-tab[data-tab-pos='1'] { justify-self: center; }
-.event-drawer-files .hanging-tab[data-tab-pos='2'] { justify-self: end; }
-.event-drawer-files .is-thread-target .hanging-tab { color: #fff; border-color: var(--cold-red); box-shadow: inset 0 -2px 0 var(--cold-red); }
-.event-drawer-files .hanging-photo {
-  display: grid;
-  place-items: center;
-  min-height: 0;
+.ev-pocket-tab b { font-size: 9px; }
+.ev-pocket-tab i { color: #a9a08a; font-size: 7px; font-style: normal; }
+.ev-pocket-face {
+  position: relative;
   overflow: hidden;
-  border: 1px solid #4a4437;
-  background: var(--archive-paper-dark);
-  box-shadow: inset 0 6px 8px rgba(0, 0, 0, .35);
+  border: 1px solid #4a4436;
+  background: linear-gradient(160deg, #cabf98, #b3a67e);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18), 3px 4px 0 rgba(0, 0, 0, .4);
 }
-.event-drawer-files .hanging-photo img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.15) brightness(.92); }
-.event-drawer-files .hanging-photo-missing { color: #6d6450; font-size: 10px; letter-spacing: .06em; }
-.event-drawer-files .folder-name { align-self: end; margin: 2px 0 0; overflow: hidden; color: #b9c0bb; font-size: 10px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.event-drawer-files .folder-button small { display: none; }
-.event-drawer-files .folder-button:hover .hanging-photo,
-.event-drawer-files .folder-button:focus-visible .hanging-photo { outline: 1px dotted #fff; outline-offset: -3px; background: var(--archive-paper); }
-.event-drawer-files .folder-button.is-selected .hanging-tab { color: #fff; border-color: var(--cold-blue); background: var(--cold-blue); }
-.event-drawer-files .folder-button.is-selected .hanging-photo { background: var(--archive-paper); }
-.event-drawer-files .folder-button.is-selected .folder-name { color: #fff; }
+.ev-pocket-mouth { position: absolute; top: 0; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, rgba(0, 0, 0, .5), transparent); border-bottom: 1px solid #8f855f; }
+.ev-pocket-peek { position: absolute; inset: 12px 8px 8px; overflow: hidden; border: 1px solid #8a7f5a; background: #1b1c19; }
+.ev-pocket-peek img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.15) brightness(.9); }
+.ev-pocket-void { position: absolute; inset: 0; background: repeating-linear-gradient(135deg, #14110c 0 5px, #211a11 5px 10px); }
+.ev-pocket-rail .folder-button:hover .ev-pocket-face,
+.ev-pocket-rail .folder-button:focus-visible .ev-pocket-face { outline: 1px dotted #fff; outline-offset: 2px; filter: brightness(1.06); }
+.ev-pocket-rail .folder-button.is-selected .ev-pocket-tab { color: #fff; background: #111e49; border-top-color: #fff; }
+.ev-pocket-rail .folder-name,
+.ev-pocket-rail .folder-button small { display: none; }
 
-/* The desk: the pulled file laid open below the drawer. */
-.event-desk { position: relative; display: grid; grid-template-columns: minmax(220px, .5fr) minmax(0, 1.35fr); gap: 14px; min-width: 0; min-height: 0; margin: 8px 6px 6px; overflow: hidden; padding: 10px; }
-.event-desk .event-dossier-image { transform: rotate(-1.1deg); box-shadow: 6px 7px 0 rgba(0, 0, 0, .5); border: 6px solid #e9e1c3; outline: 1px solid #555041; }
-.event-desk .event-dossier-copy { grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto; background: var(--archive-paper); box-shadow: 6px 7px 0 rgba(0, 0, 0, .5); transform: rotate(.35deg); color: #171817; text-align: left; }
-.event-desk .event-dossier-copy > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; align-self: start; }
-.event-desk .event-drawer-files-note { display: none; }
-.event-drawer-files .hanging-tab { min-width: 66%; white-space: nowrap; }
-.event-dossier-image { position: relative; display: grid; min-width: 0; place-items: center; overflow: hidden; background: #191b1a; }
-.event-dossier-image::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.04) 3px 4px); }
+/* The desk where the picked envelope opens. */
+.ev-desk { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; margin: 8px 6px 6px; padding: 10px; overflow: hidden; perspective: 1400px; }
+.ev-envelope {
+  --band: #9a8f6b;
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 1000px;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.ev-envelope[data-band='open'] { --band: var(--cold-blue); }
+.ev-envelope[data-band='incident'] { --band: var(--cold-red); }
+.ev-env-flap {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 54px;
+  z-index: 5;
+  background: linear-gradient(180deg, #d3c79d, #bdb083);
+  border: 1px solid #8f855f;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: 50% 0;
+  transform: rotateX(-158deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, .3);
+  pointer-events: none;
+}
+.ev-env-sheet {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  padding: 16px 18px 18px;
+  color: var(--archive-ink);
+  background: linear-gradient(165deg, #ece2bf, #dfd3ac);
+  border: 1px solid #8f855f;
+  box-shadow: 8px 10px 0 rgba(0, 0, 0, .5), inset 0 2px 0 rgba(255, 255, 255, .3);
+  text-align: left;
+}
+.ev-env-head { display: flex; align-items: center; gap: 12px; }
+.ev-env-head > b { padding: 3px 8px; color: #fff; background: var(--cold-blue); font-size: var(--archive-ui-label); }
+.ev-env-head > span { color: #6b6455; font-size: var(--archive-ui-label); }
+.ev-env-band { margin-left: auto; padding: 3px 9px; color: #fff; background: var(--band); font-size: var(--archive-ui-micro); font-style: normal; }
+.ev-env-string { position: absolute; top: 14px; right: 150px; width: 60px; height: 40px; pointer-events: none; }
+.ev-env-string svg { width: 100%; height: 100%; overflow: visible; }
+.ev-string-line { fill: none; stroke: var(--cold-red); stroke-width: 2; }
+.ev-string-eye { fill: none; stroke: #8f855f; stroke-width: 1.5; }
+.ev-string-button { fill: #d9cfa6; stroke: #6d6653; stroke-width: 1.5; }
+.ev-string-button-hole { fill: #6d6653; }
+.ev-env-check { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ev-check-item { padding: 3px 8px; color: #4a4636; border: 1px solid #a89f85; background: rgba(255, 255, 255, .28); font-size: var(--archive-ui-micro); }
+.ev-check-item.is-flagged { color: #7a2418; border-color: #c98f7f; }
+.ev-check-item.is-empty { color: #8a7f60; border-style: dashed; background: transparent; }
+.ev-check-stamp { margin-left: 4px; padding: 2px 8px; color: #fff; background: var(--cold-red); font-size: 10px; letter-spacing: .06em; transform: rotate(-3deg); box-shadow: 2px 2px 0 rgba(0, 0, 0, .28); }
+.ev-env-body { display: grid; grid-template-columns: minmax(190px, .46fr) minmax(0, 1fr); gap: 16px; min-height: 0; }
+
+/* Shared dossier pieces reused inside the envelope. */
+.event-dossier-image { position: relative; display: grid; min-width: 0; place-items: center; overflow: hidden; border: 5px solid #e9e1c3; outline: 1px solid #6b6653; background: #191b1a; box-shadow: 4px 5px 0 rgba(0, 0, 0, .42); }
+.event-dossier-image::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, .04) 3px 4px); }
 .event-dossier-image img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.22); }
 .event-dossier-image.is-withheld { background: repeating-linear-gradient(135deg, #0c0e0d 0 14px, #16110f 14px 28px); }
-.event-redacted-stamp {
-  display: grid;
-  gap: 6px;
-  padding: 14px 22px;
-  color: #d14949;
-  border: 3px solid #d14949;
-  text-align: center;
-  font: 700 12px/1.4 var(--font-mono);
-  letter-spacing: .08em;
-  transform: rotate(-6deg);
-  opacity: .85;
-}
+.event-redacted-stamp { display: grid; gap: 6px; padding: 12px 18px; color: #d14949; border: 3px solid #d14949; text-align: center; font: 700 12px/1.4 "Courier New", Courier, monospace; letter-spacing: .08em; transform: rotate(-6deg); opacity: .85; }
 .event-redacted-stamp b { color: #fff; font-size: 15px; }
-
-.event-dossier-copy { display: grid; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; gap: 9px; min-width: 0; min-height: 0; padding: 20px 22px; overflow-y: auto; }
-.event-dossier-copy > p { display: flex; justify-content: space-between; margin: 0; font-size: var(--archive-ui-label); }
-.event-dossier-copy > p b { padding: 3px 6px; color: #fff; background: var(--cold-blue); }
-.event-dossier-copy > p span { color: #6b6455; }
-.event-dossier-copy h3 { margin: 0; font: 500 clamp(20px, 1.9vw, 28px)/1.2 var(--font-display); }
-.event-dossier-copy > strong { color: #6b6455; font-size: var(--archive-ui-label); font-weight: 600; }
+.ev-env-copy { display: grid; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; gap: 8px; min-width: 0; min-height: 0; overflow: hidden; }
+.ev-env-copy h3 { margin: 0; font: 500 clamp(20px, 1.7vw, 28px)/1.15 "Times New Roman", Times, var(--font-display); }
+.ev-env-copy > strong { color: #6b6455; font-size: var(--archive-ui-label); font-weight: 600; }
 .event-dossier-fields { margin: 0; border-top: 1px solid #a89f85; }
 .event-dossier-fields div { display: grid; grid-template-columns: 118px minmax(0, 1fr); border-bottom: 1px solid #cfc7ab; }
 .event-dossier-fields dt,
-.event-dossier-fields dd { margin: 0; padding: 6px 8px; font-size: var(--archive-ui-micro); line-height: 1.5; }
-.event-dossier-fields dt { color: #6b6455; font-family: var(--font-mono); }
+.event-dossier-fields dd { margin: 0; padding: 5px 8px; font-size: var(--archive-ui-micro); line-height: 1.5; }
+.event-dossier-fields dt { color: #6b6455; font-family: "Courier New", Courier, monospace; }
 .event-dossier-fields dd { border-left: 1px solid #cfc7ab; }
 .event-dossier-section-label { display: block; margin-bottom: 5px; color: #8a7f60; font-size: var(--archive-ui-micro); letter-spacing: .04em; }
 .event-exhibit-tags,
 .event-crossref-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .event-exhibit-tag { padding: 4px 8px; color: #171816; border: 1px solid #b7ac86; background: #e9e1c3; font-size: var(--archive-ui-micro); }
 .event-exhibit-tag.is-empty { color: #6b6455; border-style: dashed; background: transparent; }
-.event-crossref-chip { padding: 4px 8px; color: #fff; border: 0; background: var(--cold-red); font-family: var(--font-mono); font-size: var(--archive-ui-micro); cursor: pointer; }
+.event-crossref-chip { padding: 4px 8px; color: #fff; border: 0; background: var(--cold-red); font-family: "Courier New", Courier, monospace; font-size: var(--archive-ui-micro); cursor: pointer; }
 .event-crossref-chip:hover,
 .event-crossref-chip:focus-visible { background: #a83636; outline: 1px dotted #fff; outline-offset: -3px; }
-.event-dossier-copy > span { font-size: var(--archive-ui-body); line-height: 1.6; }
-.event-dossier-copy .directory-open-button { justify-self: start; }
+.ev-env-copy > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font: var(--archive-ui-body)/1.6 Helvetica, Arial, var(--font-body); }
+.ev-env-copy .directory-open-button { justify-self: start; }
 
 @media (min-width: 1281px) {
-  .event-cabinet { grid-template-rows: 48px 208px minmax(0, 1fr); }
-  .event-drawer-files .folder-item { flex-basis: 84px; }
-  .event-dossier-copy { padding: 24px 28px; }
+  .ev-cabinet { grid-template-rows: 48px 196px minmax(0, 1fr); }
+  .ev-pocket-rail .folder-item { flex-basis: 74px; }
+  .ev-pocket { height: 150px; }
   .event-dossier-fields dt,
   .event-dossier-fields dd { font-size: var(--archive-ui-label); }
 }
 
 @media (max-width: 980px) and (min-width: 761px) {
-  .event-desk { grid-template-columns: 190px minmax(0, 1fr); }
+  .ev-env-body { grid-template-columns: 168px minmax(0, 1fr); }
 }
 
 @media (max-width: 760px) {
-  .event-cabinet { grid-template-rows: 44px 150px auto; }
-  .event-desk { grid-template-columns: minmax(0, 1fr); grid-template-rows: 200px auto; overflow-y: auto; }
+  .ev-cabinet { grid-template-rows: 44px 150px minmax(0, 1fr); }
+  .ev-pocket { height: 108px; }
+  .ev-env-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 180px auto; overflow-y: auto; }
+  .ev-env-string { display: none; }
+  .ev-env-band { margin-left: 0; }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  .event-drawer-files .folder-item,
+  .ev-pocket-rail .folder-item,
   .eco-log-svg .el-select,
   .eco-log-svg .el-head,
   .eco-log-card,

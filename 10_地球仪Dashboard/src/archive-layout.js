@@ -99,47 +99,6 @@ export function buildPeopleNetworkModel(entries, selectedIndex, limit = 12) {
   return { selectedIndex: normalized, nodes, links };
 }
 
-export function classifyEventPeriod(year) {
-  if (/六十|196|197|198|199|200/.test(String(year))) return 'late';
-  const numericYear = Number.parseInt(String(year).match(/\d{4}/)?.[0] || '1960', 10);
-  if (numericYear <= 1949) return 'early';
-  if (numericYear <= 1957) return 'middle';
-  return 'late';
-}
-
-function eventYearBoundary(value, edge) {
-  const text = String(value || '----');
-  const fullYears = text.match(/\d{4}/g) || [];
-  if (!fullYears.length) return text;
-  if (edge === 'start') return fullYears[0];
-  const abbreviatedEnd = text.match(/(\d{4})\s*[—–-]\s*(\d{2})(?!\d)/);
-  if (abbreviatedEnd) return `${abbreviatedEnd[1].slice(0, 2)}${abbreviatedEnd[2]}`;
-  return fullYears.at(-1);
-}
-
-export function buildEventCabinetGroups(entries, columnCount = 4) {
-  if (!entries.length) return [];
-  const count = Math.max(1, Math.min(columnCount, entries.length));
-  const baseSize = Math.floor(entries.length / count);
-  const remainder = entries.length % count;
-  let cursor = 0;
-
-  return Array.from({ length: count }, (_, groupIndex) => {
-    const size = baseSize + (groupIndex < remainder ? 1 : 0);
-    const groupedEntries = entries
-      .slice(cursor, cursor + size)
-      .map((archive, localIndex) => ({ archive, index: cursor + localIndex }));
-    cursor += size;
-    const firstYear = eventYearBoundary(groupedEntries[0]?.archive.year, 'start');
-    const lastYear = eventYearBoundary(groupedEntries.at(-1)?.archive.year, 'end');
-    return {
-      id: `bay-${groupIndex + 1}`,
-      label: firstYear === lastYear ? firstYear : `${firstYear}—${lastYear}`,
-      entries: groupedEntries,
-    };
-  });
-}
-
 const ECOLOGY_SPECIMEN_READINGS = [
   { depth: '0—20 m', temperature: '−8—−2°C', light: '散射微光', hazard: '落冰 / 融水', sample: 'EP-01', materials: ['融水滤膜', '冰顶菌膜'] },
   { depth: '20—45 m', temperature: '−5—0°C', light: '冷蓝微光', hazard: '盐壳剥落', sample: 'EP-02', materials: ['薄甲壳', '盐膜刮片'] },
