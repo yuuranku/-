@@ -1149,7 +1149,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
   if (mode === 'case-chronology') {
     const band = eventBandClass(archive);
     const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '196X';
-    return `<span class="ev-folder" data-band="${band}"><span class="ev-folder-tab"><b>${archive.code}</b><i>${yearTab}</i></span><span class="ev-folder-body"><span class="ev-folder-jacket"></span><span class="ev-folder-label">CASE FILE</span></span></span>`;
+    return `<span class="ev-file" data-band="${band}"><span class="ev-file-tab"></span><b>${archive.code}</b><i>${yearTab}</i></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1596,7 +1596,7 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
   cabinet.className = 'ev-cabinet';
   cabinet.innerHTML = `
     <header class="ev-cabinet-bar"><span>PALIS / 案卷柜 · CASE FILE CABINET</span><b>${entries.length} FOLDERS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <nav class="ev-folder-grid" role="list" aria-label="按年代排列的全部案卷夹"></nav>
+    <nav class="ev-folder-column" role="list" aria-label="按年代排列的全部案卷夹"></nav>
     <section class="ev-desk" aria-live="polite">
       <article class="ev-open-folder" data-band>
         <div class="ev-cover">
@@ -1632,8 +1632,8 @@ function buildEventChronology(orbit, entries, appendArchiveEntry) {
       </article>
     </section>
   `;
-  const grid = cabinet.querySelector('.ev-folder-grid');
-  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, grid));
+  const column = cabinet.querySelector('.ev-folder-column');
+  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, column));
   const buttons = results.map((result) => result.button);
   const items = results.map((result) => result.item);
   results.forEach((result, index) => {
