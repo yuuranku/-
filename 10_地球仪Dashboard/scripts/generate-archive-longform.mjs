@@ -364,7 +364,7 @@ const expected = {
   ecology: 7,
   people: 32,
   events: 10,
-  abnormalities: 8,
+  abnormalities: 16,
   species: 22,
 };
 
