@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050706" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='8' height='16' fill='%23315bcf'/%3E%3Crect x='8' width='8' height='16' fill='%23d14949'/%3E%3Cpath d='M2 7h12v2H2zm5-5h2v12H7z' fill='white'/%3E%3C/svg%3E" />
+    <meta name="description" content="从轨道舱进入白幕档案，并在尾页探索冷战早期的南极站点网络。" />
+    <title>WHITE ABYSS / 白幕档案终端</title>
+  </head>
+  <body class="access-locked">
+    <svg class="filter-defs" width="0" height="0" aria-hidden="true">
+      <filter id="cockpit-one-bit" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values=".299 .587 .114 0 0  .299 .587 .114 0 0  .299 .587 .114 0 0  0 0 0 1 0" />
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0 0 1 1" />
+          <feFuncG type="discrete" tableValues="0 0 1 1" />
+          <feFuncB type="discrete" tableValues="0 0 1 1" />
+        </feComponentTransfer>
+      </filter>
+    </svg>
+    <a class="skip-link" href="#archive-heading">跳到档案索引</a>
+
+    <section class="access-gate" id="access-gate" data-phase="boot" aria-label="PALIS 档案终端身份验证">
+      <div class="access-crt" aria-hidden="true"></div>
+      <div class="access-tv-power" aria-hidden="true"></div>
+      <div class="access-shell">
+        <header class="access-system-bar">
+          <span>PALIS BASIC I/O SYSTEM · REV 6.4.09A</span>
+          <span>POLAR RECORDS LIAISON OFFICE</span>
+        </header>
+
+        <section class="access-boot" id="access-boot" aria-live="polite">
+          <div class="access-boot-terminal">
+            <div class="access-command-heading">
+              <p>PALIS Command Processor [Version 6.4.09A]</p>
+              <p>(C) Polar Records Liaison Office. Authorized use only.</p>
+            </div>
+            <p class="access-command-line"><span>C:\PALIS\SYSTEM&gt;</span><b>BOOT /CHANNEL:09A /SECURITY</b></p>
+            <ol id="access-boot-log" aria-label="系统启动记录"></ol>
+            <p class="access-command-active"><span>C:\PALIS\SYSTEM&gt;</span><b id="access-boot-state">INITIALIZING SYSTEM BUS</b><i aria-hidden="true"></i></p>
+          </div>
+          <p class="access-skip-hint">按任意键加速启动 / PRESS ANY KEY TO ADVANCE</p>
+        </section>
+
+        <section class="access-login" id="access-login" aria-label="PALIS 身份验证" hidden>
+          <div class="access-window" role="dialog" aria-modal="true" aria-describedby="access-login-note">
+            <div class="access-titlebar">
+              <span>PALIS 身份验证</span>
+              <b>SECURITY.EXE</b>
+            </div>
+            <form id="access-form">
+              <div class="access-window-banner">
+                <span class="access-key-icon" aria-hidden="true"></span>
+                <div><b>输入档案终端凭据</b><small>ENTER ARCHIVE TERMINAL CREDENTIALS</small></div>
+              </div>
+              <label for="access-email">授权邮箱 / OPERATOR ID</label>
+              <input id="access-email" name="email" type="email" autocomplete="email" inputmode="email" required />
+              <label for="access-password">访问密码 / ACCESS CODE</label>
+              <div class="access-password-field">
+                <input id="access-password" name="password" type="password" autocomplete="current-password" minlength="6" required />
+                <button id="access-password-toggle" type="button" aria-pressed="false">显示</button>
+              </div>
+              <label class="access-remember"><input type="checkbox" checked disabled /><span>在本机保留加密会话</span></label>
+              <p class="access-form-status" id="access-form-status" role="alert">等待操作员输入凭据。</p>
+              <button class="access-submit" id="access-submit" type="submit">
+                <span>验证并接入</span><small>AUTHENTICATE</small>
+              </button>
+              <button class="access-preview" id="access-preview" type="button">
+                <span>跳过登录，进入预览</span><small>PREVIEW MODE</small>
+              </button>
+              <p class="access-login-note" id="access-login-note">如需账户，请联系 PALIS 节点管理员。当前终端不开放自行注册。</p>
+            </form>
+            <div class="access-config-warning" id="access-config-warning" hidden>
+              <b>身份服务器尚未配置</b>
+              <span>请添加 Supabase 项目地址与 Publishable Key 后重启终端。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="access-granted" id="access-granted" aria-live="polite" hidden>
+          <div class="access-granted-code"><span>ACCESS</span><b>GRANTED</b></div>
+          <p id="access-granted-user">OPERATOR VERIFIED</p>
+          <i aria-hidden="true"><span></span></i>
+          <small>正在挂载 WHITE ABYSS / CHANNEL 09A</small>
+        </section>
+
+        <footer class="access-footer">
+          <span id="access-footer-status">POST 00 / AWAIT SYSTEM CLOCK</span>
+          <b>© PALIS JOINT ARCHIVE CONTROL</b>
+        </footer>
+      </div>
+    </section>
+
+    <main id="experience" inert aria-hidden="true">
+      <div id="scene"></div>
+      <div class="space-noise" aria-hidden="true"></div>
+      <div class="scanlines" aria-hidden="true"></div>
+
+      <section class="capsule-layer" id="capsule-layer" aria-labelledby="capsule-title">
+        <div class="capsule-frame" aria-hidden="true">
+          <img class="capsule-photo" src="/assets/capsule-real-window-empty.png" alt="" width="1680" height="945" />
+          <img class="capsule-ink" src="/assets/capsule-real-window-pixel.png" alt="" width="1680" height="945" />
+        </div>
+        <div class="capsule-copy">
+          <p class="boot-authority">ANTARCTIC CONVENTION OVERSIGHT AUTHORITY · JOINT ARCHIVE CONTROL<br />POLAR RECORDS LIAISON OFFICE · WASHINGTON, D.C.</p>
+          <p class="system-kicker">PALIS / POLAR ARCHIVE LIAISON &amp; INDEX SYSTEM</p>
+          <h1 id="capsule-title" aria-live="polite">正在接入<br />PALIS 管理系统</h1>
+          <div class="boot-line" aria-live="polite">
+            <span id="boot-channel">CHANNEL 09A / ARCHIVE HANDSHAKE</span>
+            <b id="boot-status">INDEX READY</b>
+            <i aria-hidden="true"><span></span></i>
+          </div>
+        </div>
+        <a class="scroll-cue" href="#intro-section">
+          <span id="scroll-cue-label">向下滚动以接入</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7" /></svg>
+        </a>
+      </section>
+
+      <section class="intro-layer" id="intro-layer" aria-labelledby="intro-title">
+        <div class="sync-console" id="sync-console">
+          <header class="sync-mast">
+            <div>
+              <p class="system-kicker">PALIS / INDEX BUS SELF-TEST / CHANNEL 09A</p>
+              <h2 id="intro-title" aria-live="polite">正在校验档案索引</h2>
+              <p id="sync-subtitle">09 INDEX CHANNELS / ACCESSION COUNT / SOURCE CHAIN</p>
+            </div>
+            <div class="sync-reel" aria-hidden="true"><i></i><i></i><b>09A</b></div>
+          </header>
+
+          <div class="sync-body">
+            <section class="sync-ledger" aria-label="档案检索状态" data-local-window data-local-window-id="overview-index-log" data-local-window-label="索引日志">
+              <div class="title-bar local-window-titlebar" data-local-drag-handle>
+                <span>C:\PALIS\SYSTEM\INDEX.LOG</span>
+                <div class="window-controls">
+                  <button type="button" data-local-window-action="minimize" aria-label="最小化索引日志窗口">_</button>
+                  <button type="button" data-local-window-action="close" aria-label="关闭索引日志窗口">×</button>
+                </div>
+              </div>
+              <header><span>BUS</span><span>档案通道</span><span>状态</span><span>记录</span></header>
+              <ol id="sync-list"></ol>
+            </section>
+
+            <aside class="sync-summary" aria-label="档案同步汇总">
+              <p>INDEX ACCUMULATOR</p>
+              <div class="sync-counter"><span id="sync-percent">000</span><small>%</small></div>
+              <div class="sync-progress" aria-hidden="true"><i id="sync-progress"></i><span></span></div>
+              <div class="sync-phase"><span id="sync-phase">BUS 00 / 09</span><b id="sync-state">等待检索</b></div>
+              <dl class="sync-totals">
+                <div><dt>索引通道</dt><dd id="sync-channel-total">09</dd></div>
+                <div><dt>档案记录</dt><dd id="sync-record-total">---</dd></div>
+                <div><dt>同步异常</dt><dd id="sync-error-total">---</dd></div>
+              </dl>
+              <div class="sync-counts" id="sync-counts"></div>
+              <a class="retro-button sync-enter" id="sync-enter" href="#archive-section" aria-disabled="true">打开 PALIS 09A</a>
+            </aside>
+          </div>
+
+          <div class="local-window-dock" data-local-window-dock aria-label="概览页面窗口栏" hidden></div>
+
+          <footer class="sync-log"><span id="sync-log">&gt; AWAIT INDEX BUS RESPONSE</span><b>CRC / SOURCE CHAIN / ACCESSION COUNT</b></footer>
+        </div>
+      </section>
+
+      <section class="archive-layer" id="archive-layer" aria-labelledby="archive-heading">
+        <header class="archive-heading">
+          <p class="system-kicker">C:\WHITE_ABYSS\</p>
+          <h2 id="archive-heading">PALIS 09A 总目录</h2>
+          <p id="archive-subtitle">MASTER INDEX / NINE RECORD FAMILIES / SOURCE CONFLICTS PRESERVED</p>
+        </header>
+        <button class="archive-back retro-button" id="archive-back" type="button" hidden>← PALIS 09A</button>
+        <div class="archive-category-visual" id="archive-category-visual" aria-hidden="true"></div>
+        <article class="archive-feature" id="archive-feature" aria-live="polite" hidden></article>
+        <div class="orbit-ring" aria-hidden="true"></div>
+        <div class="folder-orbit" id="folder-orbit" role="list" aria-label="白幕档案分类"></div>
+        <div class="archive-browser-controls" id="archive-browser-controls" hidden>
+          <button type="button" id="archive-prev" aria-label="上一份档案">&lt;&lt;</button>
+          <output id="archive-position">01 / 01</output>
+          <button type="button" id="archive-next" aria-label="下一份档案">&gt;&gt;</button>
+        </div>
+        <p class="archive-hint" id="archive-hint">PALIS ROOT / DIRECTORY 09A</p>
+      </section>
+
+      <section class="polar-layer" id="polar-layer" aria-labelledby="polar-title">
+        <header class="polar-brand retro-window" data-local-window data-local-window-id="polar-network" data-local-window-label="南极站点网络">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>WHITE_ABYSS_NETWORK.EXE</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化南极站点网络窗口">_</button><button type="button" data-local-window-action="maximize" aria-label="最大化南极站点网络窗口">□</button><button type="button" data-local-window-action="close" aria-label="关闭南极站点网络窗口">×</button></div></div>
+          <div class="window-body brand-body">
+            <img src="/assets/target.svg" alt="" width="32" height="32" />
+            <div><p>FINAL DIRECTORY / FILE 09A</p><h2 id="polar-title">南极站点网络</h2></div>
+          </div>
+        </header>
+
+        <section class="polar-diagnostic retro-window" id="polar-diagnostic" aria-label="南极网络首次接入检查" aria-live="polite" data-local-window data-local-window-id="polar-self-test" data-local-window-label="南极网络自检" hidden>
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>PALIS_POLAR_SELF_TEST.LOG</span><b id="diagnostic-channel">CHANNEL 00</b></div>
+          <div class="window-body">
+            <header><p>ANTARCTIC NETWORK STARTUP SEQUENCE</p><strong id="diagnostic-title">等待南极网络响应</strong></header>
+            <ol>
+              <li data-diagnostic="stations"><i></i><span><b>科研站通信</b><small>SURFACE STATION UPLINK</small></span><output>00 / 20</output></li>
+              <li data-diagnostic="entrances"><i></i><span><b>入口信标</b><small>DESCENT BEACON RESPONSE</small></span><output>00 / 18</output></li>
+              <li data-diagnostic="routes"><i></i><span><b>补给路线</b><small>LOGISTICS ROUTE INTEGRITY</small></span><output>00 / 00</output></li>
+              <li data-diagnostic="weather"><i></i><span><b>天气遥测</b><small>WEATHER TELEMETRY</small></span><output>等待</output></li>
+              <li data-diagnostic="storm"><i></i><span><b>风暴监控</b><small>STORM WATCH ARRAY</small></span><output>等待</output></li>
+            </ol>
+            <div class="diagnostic-progress" aria-hidden="true"><i id="diagnostic-progress"></i><span></span></div>
+            <footer><span id="diagnostic-log">&gt; AWAIT POLAR CHANNEL RESPONSE</span><b id="diagnostic-percent">000%</b></footer>
+          </div>
+        </section>
+
+        <aside class="map-layers retro-window" aria-label="地图图层" data-local-window data-local-window-id="polar-layers" data-local-window-label="图层管理器">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>图层管理器</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化图层管理器窗口">_</button><button type="button" data-local-window-action="close" aria-label="关闭图层管理器窗口">×</button></div></div>
+          <div class="window-body">
+            <p class="window-label">MAP LAYERS / ARCHIVE COMPOSITE</p>
+            <button class="layer-button active" type="button" data-layer="abyss" aria-pressed="true"><span class="map-symbol entrance"></span><span><b>入口节点</b><small>17处下降点／1处地表支援</small></span><em>18</em></button>
+            <button class="layer-button active" type="button" data-layer="stations" aria-pressed="true"><span class="map-symbol station"></span><span><b>科考站网络</b><small>20 座公开站点与运输线</small></span><em>20</em></button>
+            <label for="network-filter">行动网络</label>
+            <select id="network-filter"><option value="all">全部网络</option></select>
+            <label for="point-picker">坐标快速定位</label>
+            <select id="point-picker"><option value="">未指定坐标</option></select>
+          </div>
+        </aside>
+
+        <aside class="map-detail retro-window" id="map-detail" aria-live="polite" data-local-window data-local-window-id="polar-detail" data-local-window-label="坐标属性">
+          <div class="title-bar local-window-titlebar" data-local-drag-handle><span>坐标属性</span><div class="window-controls"><button type="button" data-local-window-action="minimize" aria-label="最小化坐标属性窗口">_</button><button type="button" data-local-window-action="close" aria-label="关闭坐标属性窗口">×</button></div></div>
+          <div class="window-body">
+            <div class="detail-code"><span id="detail-kind">DESCENT NODE</span><b id="detail-index">US-K1</b></div>
+            <h3 id="detail-name">雁背竖井</h3>
+            <p id="detail-english">US-K1</p>
+            <dl>
+              <div><dt>坐标</dt><dd id="detail-coords">86°12′S · 34°00′E</dd></div>
+              <div><dt>归属</dt><dd id="detail-operator">美国南极测绘局</dd></div>
+              <div><dt>类别</dt><dd id="detail-type">B级人员货运井</dd></div>
+              <div><dt>状态</dt><dd id="detail-status">● 限制访问</dd></div>
+            </dl>
+            <p class="detail-note" id="detail-note">入口依赖地表科考站、雪道与无线电网络维持。</p>
+          </div>
+        </aside>
+
+        <div class="local-window-dock" data-local-window-dock aria-label="南极页面窗口栏" hidden></div>
+        <p class="map-instructions">POLAR DATUM / 38 ACTIVE RECORDS</p>
+      </section>
+
+      <nav class="chapter-nav" aria-label="章节导航">
+        <a href="#capsule-section" data-label="接入"><span>00</span></a>
+        <a href="#intro-section" data-label="概览"><span>01</span></a>
+        <a href="#archive-section" data-label="档案"><span>02</span></a>
+        <a href="#polar-section" data-label="南极"><span>03</span></a>
+      </nav>
+
+      <div class="taskbar" aria-label="白幕终端状态栏">
+        <a class="start-button" href="#capsule-section"><span class="pixel-flag" aria-hidden="true"></span><b>开始</b></a>
+        <p><i></i><span id="task-status">PALIS / 09A 握手中</span></p>
+        <div class="archive-task-list" id="archive-task-list" aria-label="已打开的档案窗口" hidden></div>
+        <div class="auth-session" id="auth-session" hidden>
+          <span id="auth-session-user">OPERATOR</span>
+          <button id="auth-sign-out" type="button">退出</button>
+        </div>
+        <p class="task-progress"><span id="chapter-name">00 / 接入</span><b id="scroll-percent">000%</b></p>
+        <time id="system-time">13:13</time>
+      </div>
+
+      <div class="story-spacer" aria-hidden="true">
+        <section id="capsule-section"></section>
+        <section id="intro-section"></section>
+        <section id="archive-section"></section>
+        <section id="polar-section"></section>
+      </div>
+    </main>
+
+    <div class="archive-desktop" id="archive-desktop" aria-label="档案窗口桌面"></div>
+
+    <aside class="mascot-assistant" id="mascot-assistant" aria-label="PALIS 吉祥物助手">
+      <section class="mascot-window retro-window" id="mascot-window" aria-labelledby="mascot-window-title" hidden>
+        <div class="title-bar mascot-titlebar">
+          <span id="mascot-window-title">PALIS_ASSISTANT.EXE</span>
+          <div class="window-controls">
+            <button class="mascot-window-close" id="mascot-window-close" type="button" aria-label="关闭吉祥物档案窗口">×</button>
+          </div>
+        </div>
+        <div class="mascot-window-body">
+          <section class="mascot-directory-view" id="mascot-directory-view">
+            <p class="mascot-window-kicker">ASSISTANT DIRECTORY / 05 ITEMS</p>
+            <nav class="mascot-directory" aria-label="吉祥物档案目录">
+              <button type="button" data-mascot-entry="设定"><span>00</span><b>设定</b><small>PROFILE</small></button>
+              <button type="button" data-mascot-entry="关于白幕的创作细则" data-mascot-document="1"><span>01</span><b>关于白幕的创作细则</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="2文档"><span>02</span><b>2文档</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="3文档"><span>03</span><b>3文档</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="4文档"><span>04</span><b>4文档</b><small>DOCUMENT</small></button>
+            </nav>
+            <p class="mascot-entry-status" id="mascot-entry-status"><span>请选择目录项目</span><b>READY</b></p>
+          </section>
+
+          <article class="mascot-document-view" id="mascot-document-view" aria-labelledby="mascot-document-heading" hidden>
+            <header class="mascot-document-toolbar">
+              <button type="button" id="mascot-document-back">← 返回目录</button>
+              <span>01 / DOCUMENT</span>
+            </header>
+            <div class="mascot-document-scroll">
+              <div class="mascot-document-mast">
+                <p>PALIS / ASSISTANT FILE 01</p>
+                <h2 id="mascot-document-heading">关于白幕的创作细则</h2>
+              </div>
+
+              <section>
+                <h3>概览</h3>
+                <p>理论上来说白渊是一个在南极之下的一片盆地，他由多个未知的生态系统组成。</p>
+                <p>它的空间形态拥有：</p>
+                <p>不稳定性，如：测绘地图于实际地图不符或偏差。</p>
+                <p>未知性，广大白区域没有被测绘和收录。</p>
+                <p>超自然性，有科学无法解释的怪异情况。</p>
+                <p>此处的创作类似于后室，scp基金会之流。这是一片开放创作的空间。</p>
+              </section>
+
+              <section>
+                <h3>关于核心异常</h3>
+                <p>“闭合失效” 指：原本应该形成完整闭环、严密封闭或顺利合拢的结构/过程，没有达到预期状态。</p>
+                <p>同一件事在档案中由不同分属的书记官记录会呈现出不同形式的报告文件。但最后只会输出一份报告结果。</p>
+                <p>如：美国行动小队记录本小队行动五人，苏方轮值书记员出于某些原因记录本次行动四人。行动报告与记录报告都拥有实际影响认知的能力。最终的结算报告中就会出现五人与四人的“闭合失效”报告。如果四人的记录报告被白幕认定为标准报告，大部分人的认知将受到影响，白幕内部会如同愈合伤口一样将多的人存在记录抹除。且只有最终报告中会存在行动报告内容，且官方以最终报告为归档文档。</p>
+                <p>回返者观察组就是由小部分没有完全被白幕认知覆盖的人组成，他们无法解释自己的“既视感” 医学上认为是“记忆错构”，某些人存在，或者某些事实实际不符，所以开始质疑官方档案，自己寻求事情的真相，但也深陷对自己的“既视感”的怀疑。</p>
+                <p>对于事件：额外补充，事件拥有因果的锚点，由母本确定的结果将作为锚点无法改动。</p>
+              </section>
+
+              <section>
+                <h3>关于创作视角</h3>
+                <p>创作者书记官视角为准。他们负责在PALIS南极作业管理系统中记录与管理档案。不同书记官可以对同一事件或物种，科考站，生态，异常进行独立记录，书记官的权限非常开放，他们甚至可以引用旧有事件来对自己不完全了解的记录进行推导，甚至编造证据来为自己的记录佐证。最后由集体意识决定其母本与最终报告记录。以文本或以视频报告。</p>
+                <p>所以再进入企划前，应对书记官进行设定。确定自己的立场与国籍；风格与性格。一旦确认，不应该轻易改动自己的立场。</p>
+              </section>
+
+              <section>
+                <h3>关于流程</h3>
+                <p class="mascot-document-flow">建立书记官档案→录入系统→开始进行相关内容填充→审核内容→内容录入系统→以第一版为母本→一个内容有多个版本→进行归档文档整理</p>
+              </section>
+            </div>
+          </article>
+        </div>
+      </section>
+      <button class="mascot-trigger" id="mascot-trigger" type="button" aria-expanded="false" aria-controls="mascot-window" aria-label="打开吉祥物档案">
+        <img id="mascot-idle-frame" src="/assets/mascot/idle-01.png" alt="" width="1254" height="1254" draggable="false" />
+        <span>PALIS 助手</span>
+      </button>
+    </aside>
+
+    <template id="archive-window-template">
+      <section class="archive-window retro-window" role="dialog" aria-modal="false">
+        <div class="title-bar dialog-titlebar">
+          <span class="window-file">ARCHIVE.TXT</span>
+          <div class="window-controls">
+            <button class="window-minimize" type="button" aria-label="最小化档案窗口">_</button>
+            <button class="window-close" type="button" aria-label="关闭档案窗口">×</button>
+          </div>
+        </div>
+        <div class="dialog-menu" aria-hidden="true"><span>文件(F)</span><span>编辑(E)</span><span>查看(V)</span><span>帮助(H)</span></div>
+        <article class="document-sheet"></article>
+      </section>
+    </template>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

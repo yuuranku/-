@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="target-title target-desc" shape-rendering="crispEdges">
+  <title id="target-title">南极定位</title>
+  <desc id="target-desc">像素风格的定位准星</desc>
+  <path fill="currentColor" d="M11 1h2v5h-2zM11 18h2v5h-2zM1 11h5v2H1zM18 11h5v2h-5z"/>
+  <path fill="none" stroke="currentColor" stroke-width="2" d="M7 12a5 5 0 1 0 10 0 5 5 0 0 0-10 0z"/>
+  <path fill="currentColor" d="M10 10h4v4h-4z"/>
+</svg>

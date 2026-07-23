@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="capsule-title capsule-desc" shape-rendering="geometricPrecision">
+  <title id="capsule-title">白幕轨道档案舱框架</title>
+  <desc id="capsule-desc">高分辨率黑白矢量舱体，中央为透明圆形观测窗。</desc>
+  <defs>
+    <pattern id="micro-dots" width="10" height="10" patternUnits="userSpaceOnUse">
+      <rect width="2" height="2" fill="#d8d8d8"/>
+    </pattern>
+    <pattern id="cross-dots" width="14" height="14" patternUnits="userSpaceOnUse">
+      <rect x="1" y="1" width="3" height="3" fill="#f2f2f2"/>
+      <rect x="8" y="8" width="2" height="2" fill="#777"/>
+    </pattern>
+    <clipPath id="viewport-cut">
+      <circle cx="960" cy="480" r="430"/>
+    </clipPath>
+  </defs>
+
+  <!-- Outer structural masses; the central viewport remains transparent. -->
+  <path d="M0 0H530L665 128 586 235 418 160 315 298 178 256 0 362Z" fill="#050505"/>
+  <path d="M1920 0H1390L1255 128 1334 235 1502 160 1605 298 1742 256 1920 362Z" fill="#050505"/>
+  <path d="M0 356L240 284 396 356 348 596 176 634 0 552Z" fill="#252525" stroke="#e8e8e8" stroke-width="5"/>
+  <path d="M1920 356L1680 284 1524 356 1572 596 1744 634 1920 552Z" fill="#252525" stroke="#e8e8e8" stroke-width="5"/>
+  <path d="M0 572L240 540 414 675 328 908 0 852Z" fill="url(#micro-dots)" stroke="#8c8c8c" stroke-width="5"/>
+  <path d="M1920 572L1680 540 1506 675 1592 908 1920 852Z" fill="url(#micro-dots)" stroke="#8c8c8c" stroke-width="5"/>
+
+  <!-- Porthole rings use clean vector geometry rather than bitmap stair-steps. -->
+  <circle cx="960" cy="480" r="488" fill="none" stroke="#0a0a0a" stroke-width="76"/>
+  <circle cx="960" cy="480" r="474" fill="none" stroke="#8c8c8c" stroke-width="7" stroke-dasharray="96 18 8 18"/>
+  <circle cx="960" cy="480" r="451" fill="none" stroke="#ececec" stroke-width="8"/>
+  <circle cx="960" cy="480" r="438" fill="none" stroke="#484848" stroke-width="18" stroke-dasharray="150 12"/>
+
+  <!-- Left and right instrument blocks. -->
+  <g id="left-console" transform="translate(92 216)">
+    <path d="M0 0H288L340 62 310 286 32 318 0 268Z" fill="#101010" stroke="#dcdcdc" stroke-width="5"/>
+    <rect x="34" y="38" width="210" height="74" fill="url(#cross-dots)" stroke="#777" stroke-width="4"/>
+    <rect x="34" y="138" width="104" height="118" fill="#050505" stroke="#eee" stroke-width="5"/>
+    <path d="M55 214L82 170 106 204 124 172V240H55Z" fill="#bcbcbc"/>
+    <g fill="#e8e8e8">
+      <rect x="170" y="144" width="28" height="28"/><rect x="214" y="144" width="28" height="28"/>
+      <rect x="170" y="190" width="28" height="28"/><rect x="214" y="190" width="28" height="28"/>
+    </g>
+    <path d="M264 136V258M286 136V258" stroke="#8a8a8a" stroke-width="8"/>
+  </g>
+  <use href="#left-console" transform="translate(1920 0) scale(-1 1)"/>
+
+  <!-- Bottom command desk. -->
+  <path d="M0 894L320 828 536 882 650 812H1270L1384 882 1600 828 1920 894V1080H0Z" fill="#080808" stroke="#d8d8d8" stroke-width="6"/>
+  <path d="M278 876L548 916 602 1052H184Z" fill="#343434" stroke="#a0a0a0" stroke-width="5"/>
+  <path d="M1642 876L1372 916 1318 1052H1736Z" fill="#343434" stroke="#a0a0a0" stroke-width="5"/>
+  <path d="M650 832H1270L1336 1080H584Z" fill="#222" stroke="#eee" stroke-width="6"/>
+  <rect x="744" y="868" width="432" height="74" fill="url(#micro-dots)" stroke="#777" stroke-width="4"/>
+  <g fill="#dedede">
+    <rect x="704" y="974" width="44" height="44"/><rect x="778" y="974" width="44" height="44"/>
+    <rect x="852" y="974" width="44" height="44"/><rect x="1024" y="974" width="44" height="44"/>
+    <rect x="1098" y="974" width="44" height="44"/><rect x="1172" y="974" width="44" height="44"/>
+  </g>
+  <path d="M932 970H988V1042H932Z" fill="#050505" stroke="#f0f0f0" stroke-width="5"/>
+
+  <!-- Sparse one-bit surface texture. -->
+  <path d="M24 24H388L456 118 350 152 276 94 120 176 24 134Z" fill="url(#micro-dots)" opacity=".7"/>
+  <path d="M1896 24H1532L1464 118 1570 152 1644 94 1800 176 1896 134Z" fill="url(#micro-dots)" opacity=".7"/>
+  <path d="M410 62L548 96M1510 62L1372 96" stroke="#eee" stroke-width="5" stroke-dasharray="10 13"/>
+</svg>

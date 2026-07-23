@@ -1,0 +1,39 @@
+{
+  "type": "FeatureCollection",
+  "name": "white_abyss_1964_surface_projection",
+  "crs": {
+    "type": "name",
+    "properties": { "name": "EPSG:4326" }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "code": "BZ-FP-1964",
+        "name": "白幕1964地表物理投影核定线",
+        "status": "fictional_approximate_boundary",
+        "nominal_center": [75.15, -81.7667],
+        "equal_area_estimate_km2": 2768987,
+        "display_area_km2": 2770000,
+        "note": "限制级异常区边界；经度在前、纬度在后，不用于常规导航。"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [35, -75],
+          [75, -74],
+          [115, -75],
+          [140, -77.5],
+          [145, -81.5],
+          [130, -85.5],
+          [85, -88.2],
+          [35, -87],
+          [10, -83],
+          [10, -78],
+          [22, -76],
+          [35, -75]
+        ]]
+      }
+    }
+  ]
+}
