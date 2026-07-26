@@ -2,11 +2,13 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#050706" />
+    <meta name="application-name" content="PALIS南极作业管理系统" />
+    <meta name="apple-mobile-web-app-title" content="PALIS南极作业管理系统" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='8' height='16' fill='%23315bcf'/%3E%3Crect x='8' width='8' height='16' fill='%23d14949'/%3E%3Cpath d='M2 7h12v2H2zm5-5h2v12H7z' fill='white'/%3E%3C/svg%3E" />
     <meta name="description" content="从轨道舱进入白幕档案，并在尾页探索冷战早期的南极站点网络。" />
-    <title>WHITE ABYSS / 白幕档案终端</title>
+    <title>PALIS南极作业管理系统</title>
   </head>
   <body class="access-locked">
     <svg class="filter-defs" width="0" height="0" aria-hidden="true">
@@ -51,7 +53,7 @@
             </div>
             <form id="access-form">
               <div class="access-window-banner">
-                <span class="access-key-icon" aria-hidden="true"></span>
+                <img class="access-key-icon" src="/assets/palis-key.svg" alt="" width="48" height="40" aria-hidden="true" />
                 <div><b>输入档案终端凭据</b><small>ENTER ARCHIVE TERMINAL CREDENTIALS</small></div>
               </div>
               <label for="access-email">授权邮箱 / OPERATOR ID</label>
@@ -252,8 +254,12 @@
         <p><i></i><span id="task-status">PALIS / 09A 握手中</span></p>
         <div class="archive-task-list" id="archive-task-list" aria-label="已打开的档案窗口" hidden></div>
         <div class="auth-session" id="auth-session" hidden>
-          <span id="auth-session-user">OPERATOR</span>
-          <button id="auth-sign-out" type="button">退出</button>
+          <button class="clerk-workspace-entry" id="clerk-workspace-entry" type="button" aria-controls="clerk-desktop" aria-expanded="false">
+            <i class="clerk-workspace-entry__marks" aria-hidden="true"><b></b><b></b><b></b></i>
+            <span><b data-workspace-name>书记官工作台</b><small data-workspace-name-en>CLERK WORKSPACE</small></span>
+          </button>
+          <span id="auth-session-user" hidden>OPERATOR</span>
+          <button id="auth-sign-out" type="button" aria-label="退出登录">退出登录</button>
         </div>
         <p class="task-progress"><span id="chapter-name">00 / 接入</span><b id="scroll-percent">000%</b></p>
         <time id="system-time">13:13</time>
@@ -269,6 +275,146 @@
 
     <div class="archive-desktop" id="archive-desktop" aria-label="档案窗口桌面"></div>
 
+    <section class="clerk-desktop" id="clerk-desktop" role="dialog" aria-modal="true" aria-labelledby="clerk-desktop-title" hidden tabindex="-1">
+      <header class="clerk-desktop__identity">
+        <div class="clerk-desktop__marks" aria-hidden="true"><i></i><i></i><i></i></div>
+        <p>PALIS / LOCAL ROLE WORKSPACE</p>
+        <h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2>
+        <div><span>LOCAL RECORDING LAYER</span><b>CHANNEL 09A</b></div>
+      </header>
+
+      <nav class="clerk-desktop__icons" aria-label="书记官工作台文件">
+        <button type="button" data-clerk-desktop-entry data-archive-template="01">
+          <i class="clerk-desktop__icon" data-icon-type="country" aria-hidden="true"><img src="/assets/icons/archive-country.svg" alt="" /><b>01</b></i>
+          <span>国家档案</span><small>STATE_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="02">
+          <i class="clerk-desktop__icon" data-icon-type="organization" aria-hidden="true"><img src="/assets/icons/archive-organization.svg" alt="" /><b>02</b></i>
+          <span>组织档案</span><small>ORG_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="03">
+          <i class="clerk-desktop__icon" data-icon-type="station" aria-hidden="true"><img src="/assets/icons/archive-station.svg" alt="" /><b>03</b></i>
+          <span>科考站档案</span><small>STATION_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="04">
+          <i class="clerk-desktop__icon" data-icon-type="entrance" aria-hidden="true"><img src="/assets/icons/archive-entrance.svg" alt="" /><b>04</b></i>
+          <span>白幕入口档案</span><small>ENTRANCE_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="05">
+          <i class="clerk-desktop__icon" data-icon-type="ecology" aria-hidden="true"><img src="/assets/icons/archive-ecology.svg" alt="" /><b>05</b></i>
+          <span>生态档案</span><small>ECOLOGY_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="06">
+          <i class="clerk-desktop__icon" data-icon-type="person" aria-hidden="true"><img src="/assets/icons/archive-person.svg" alt="" /><b>06</b></i>
+          <span>人物档案</span><small>PERSON_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="07">
+          <i class="clerk-desktop__icon" data-icon-type="event" aria-hidden="true"><img src="/assets/icons/archive-event.svg" alt="" /><b>07</b></i>
+          <span>事件档案</span><small>EVENT_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="08">
+          <i class="clerk-desktop__icon" data-icon-type="anomaly" aria-hidden="true"><img src="/assets/icons/archive-anomaly.svg" alt="" /><b>08</b></i>
+          <span>异常附卷</span><small>ANOMALY_RECORD.HTML</small>
+        </button>
+        <button type="button" data-clerk-desktop-entry data-archive-template="09">
+          <i class="clerk-desktop__icon" data-icon-type="species" aria-hidden="true"><img src="/assets/icons/archive-species.svg" alt="" /><b>09</b></i>
+          <span>物种与标本</span><small>SPECIES_RECORD.HTML</small>
+        </button>
+      </nav>
+
+      <nav class="clerk-desktop__utilities" aria-label="书记官工作流">
+        <button type="button" data-workflow-panel="drafts"><img src="/assets/icons/archive-draft.svg" alt="" /><span>暂存箱</span><small>LOCAL + CLOUD</small></button>
+        <button type="button" data-workflow-panel="inbox"><img src="/assets/icons/archive-inbox.svg" alt="" /><span>审核回信</span><small>INBOX</small></button>
+        <button type="button" data-workflow-panel="review" data-admin-only hidden><img src="/assets/icons/archive-review.svg" alt="" /><span>审核与录入</span><small>ADMIN</small></button>
+        <button type="button" data-workflow-panel="users" data-admin-only hidden><img src="/assets/icons/archive-users.svg" alt="" /><span>账号管理</span><small>ADMIN</small></button>
+      </nav>
+
+      <div class="clerk-desktop__window-layer" id="assistant-window-layer" aria-live="polite">
+        <article class="clerk-desktop__welcome retro-window" id="clerk-desktop-welcome" tabindex="-1">
+          <div class="title-bar clerk-desktop__welcome-titlebar">
+            <span>CLERK_WELCOME.NFO</span>
+            <div class="window-controls">
+              <button type="button" id="clerk-desktop-welcome-close" aria-label="关闭书记官工作台欢迎窗口">×</button>
+            </div>
+          </div>
+          <div class="clerk-desktop__welcome-body">
+            <p>PALIS / PERSONAL RECORDING LAYER</p>
+            <h3>欢迎进入<br /><span data-workspace-name>书记官工作台</span></h3>
+            <div class="clerk-desktop__welcome-rule" aria-hidden="true"><i></i><i></i><i></i></div>
+            <p>桌面上的九份网页设定卡分别对应九类 PALIS 档案。书记官可在此暂存、编辑、引用既有档案并提交审核；管理员批复后再正式录入公开档案。</p>
+            <dl>
+              <div><dt>节点</dt><dd>CHANNEL 09A</dd></div>
+              <div><dt>权限</dt><dd data-workspace-role>等待身份确认</dd></div>
+              <div><dt>暂存</dt><dd>800MS LOCAL / 5S CLOUD</dd></div>
+              <div><dt>状态</dt><dd data-workspace-status>WORKSPACE READY</dd></div>
+            </dl>
+          </div>
+        </article>
+      </div>
+
+      <footer class="clerk-desktop__taskbar" id="assistant-taskbar" aria-label="书记官工作台任务栏">
+        <button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-welcome"><i aria-hidden="true"></i><b>工作台</b></button>
+        <div class="clerk-desktop__task-list" id="assistant-task-list" aria-label="书记官工作台已打开窗口" hidden></div>
+        <p class="clerk-desktop__status"><i></i><span>本地工作台已接入</span></p>
+        <p class="clerk-desktop__channel"><span data-workspace-name>书记官工作台</span><b data-workspace-name-en>CLERK WORKSPACE</b></p>
+        <button class="clerk-desktop__exit" id="clerk-desktop-exit" type="button">返回档案系统</button>
+        <time id="clerk-desktop-time">13:13</time>
+      </footer>
+    </section>
+
+    <section class="version-notice" id="version-notice" role="dialog" aria-modal="true" aria-labelledby="version-notice-title" aria-describedby="version-notice-copy" hidden>
+      <div class="version-notice__veil" data-version-notice-action="close"></div>
+      <article class="version-notice__panel">
+        <header class="version-notice__titlebar">
+          <span>PALIS / VERSION BRIEFING / VER0.11 白幕初垂</span>
+          <div class="window-controls">
+            <button type="button" data-version-notice-action="minimize" aria-label="最小化版本介绍窗口">_</button>
+            <button type="button" data-version-notice-action="close" aria-label="关闭版本介绍窗口">×</button>
+          </div>
+        </header>
+        <div class="version-notice__content">
+          <figure class="version-notice__cover"><img src="/assets/ver-0-1-cover.jpg" alt="白幕之下 ver0.11 白幕初垂" width="1712" height="1284" /></figure>
+          <div class="version-notice__copy">
+            <p class="version-notice__kicker">WHITE VEIL / INTERNAL TEST</p>
+            <h2 id="version-notice-title">ver0.11 白幕初垂</h2>
+            <p id="version-notice-copy">欢迎来到《白幕之下》ver0.11 白幕初垂内测版本。此次企划作为 ver1.0 版本《海燕归巢》的先行版本，为 1.0 版本补充必要的基础资料与档案；也同时作为内测版本，为我设想的企划模式进行铺垫。</p>
+            <p>以主线事件推动为主与开放档案两种形式进行创作。此次企划补完 1952 年中苏联合科考队科考行动至中苏决裂、昆仑工程启动的档案。</p>
+            <p class="version-notice__ai-disclosure">本企划美术素材含有部分AI生成素材，由ChatGPT生成（非描图，非盗图，非喂图），如在意请止步。谢谢理解。</p>
+            <p class="version-notice__feedback">第一次做企划，有很多不懂和考虑不周的地方，请大家多多指教。<span class="version-notice__qq">QQ群：1023560229</span></p>
+            <section class="version-notice__report" aria-label="ver0.11 更新报告">
+              <h3>ver0.11 / 档案更新报告</h3>
+              <p>本次完成新增设定的网页化录入；下列单位与人物档案已恢复为可检索状态。</p>
+              <dl>
+                <div><dt>新增单位</dt><dd>
+                  <button type="button" data-version-reference="内陆特别作业局（USVR）">内陆特别作业局（USVR）</button>；
+                  <button type="button" data-version-reference="南极公约监管办公室">南极公约监管办公室（ATOO，含联合国南极管理局关系）</button>；
+                  <button type="button" data-version-reference="中国科学院地球物理研究所极地地球物理研究室">中国科学院地球物理研究所极地地球物理研究室</button>。
+                </dd></div>
+                <div><dt>新增人物</dt><dd>
+                  <button type="button" data-version-reference="苏久莫夫">苏久莫夫</button>、
+                  <button type="button" data-version-reference="尼古拉耶夫">尼古拉耶夫</button>、
+                  <button type="button" data-version-reference="伊万·曼">伊万·曼</button>、
+                  <button type="button" data-version-reference="切列维奇内">切列维奇内</button>、
+                  <button type="button" data-version-reference="古谢夫">古谢夫</button>、
+                  <button type="button" data-version-reference="罗戈佐夫">罗戈佐夫</button>、
+                  <button type="button" data-version-reference="科尔特">科尔特</button>、
+                  <button type="button" data-version-reference="舍韦廖夫">舍韦廖夫</button>、
+                  <button type="button" data-version-reference="帕帕宁">帕帕宁</button>；
+                  <button type="button" data-version-reference="顾功叙">顾功叙</button>、
+                  <button type="button" data-version-reference="傅承义">傅承义</button>、
+                  <button type="button" data-version-reference="李善邦">李善邦</button>、
+                  <button type="button" data-version-reference="朱岗昆">朱岗昆</button>、
+                  <button type="button" data-version-reference="吕保维">吕保维</button>。
+                </dd></div>
+                <div><dt>同步范围</dt><dd>USVR 既有人物岗位、ATOO 三部门与书记官制度，以及极地地球物理研究室的组织架构、研究方向和人员编制已完成归档。</dd></div>
+              </dl>
+            </section>
+            <footer class="version-notice__footer"><span>1952—1958 / PRELUDE ARCHIVE</span><button class="version-notice__enter" type="button" data-version-notice-action="close">进入档案系统 <b>↘</b></button></footer>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <aside class="mascot-assistant" id="mascot-assistant" aria-label="PALIS 吉祥物助手">
       <section class="mascot-window retro-window" id="mascot-window" aria-labelledby="mascot-window-title" hidden>
         <div class="title-bar mascot-titlebar">
@@ -281,29 +427,55 @@
           <section class="mascot-directory-view" id="mascot-directory-view">
             <p class="mascot-window-kicker">ASSISTANT DIRECTORY / 05 ITEMS</p>
             <nav class="mascot-directory" aria-label="吉祥物档案目录">
-              <button type="button" data-mascot-entry="设定"><span>00</span><b>设定</b><small>PROFILE</small></button>
-              <button type="button" data-mascot-entry="关于白幕的创作细则" data-mascot-document="1"><span>01</span><b>关于白幕的创作细则</b><small>DOCUMENT</small></button>
-              <button type="button" data-mascot-entry="2文档"><span>02</span><b>2文档</b><small>DOCUMENT</small></button>
-              <button type="button" data-mascot-entry="3文档"><span>03</span><b>3文档</b><small>DOCUMENT</small></button>
-              <button type="button" data-mascot-entry="4文档"><span>04</span><b>4文档</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="关于本站" data-mascot-document="site"><span>00</span><b>关于本站</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="世界观导入" data-mascot-document="world-guide"><span>04</span><b>世界观导入</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="关于白幕的创作细则" data-mascot-document="creation"><span>01</span><b>关于白幕的创作细则</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="关于第一期企划" data-mascot-document="phase-one"><span>02</span><b>关于第一期企划</b><small>DOCUMENT</small></button>
+              <button type="button" data-mascot-entry="在案书记官" data-mascot-directory="clerks"><span>05</span><b>在案书记官</b><small>DIRECTORY</small></button>
             </nav>
             <p class="mascot-entry-status" id="mascot-entry-status"><span>请选择目录项目</span><b>READY</b></p>
+          </section>
+
+          <section class="mascot-clerk-directory" id="mascot-clerk-directory" aria-labelledby="mascot-clerk-title" hidden>
+            <header class="mascot-clerk-directory__head">
+              <button type="button" id="mascot-clerk-back">← 返回助手目录</button>
+              <span>PALIS 09A / CLERK INDEX</span>
+            </header>
+            <p class="mascot-window-kicker" id="mascot-clerk-title">在案书记官 / 10 POSITIONS</p>
+            <ol class="mascot-clerk-list" id="mascot-clerk-list" aria-label="在案书记官目录"></ol>
           </section>
 
           <article class="mascot-document-view" id="mascot-document-view" aria-labelledby="mascot-document-heading" hidden>
             <header class="mascot-document-toolbar">
               <button type="button" id="mascot-document-back">← 返回目录</button>
-              <span>01 / DOCUMENT</span>
+              <span id="mascot-document-index">00 / DOCUMENT</span>
             </header>
             <div class="mascot-document-scroll">
+              <div class="mascot-document-content" data-mascot-document-content="site" hidden>
+                <div class="mascot-document-mast">
+                  <p>PALIS / ASSISTANT FILE 00</p>
+                  <h2 id="mascot-document-heading">关于本站</h2>
+                </div>
+
+                <section>
+                  <p>本站是白幕之下的世界观宣发。</p>
+                  <p>在企划中创造、修改的项目将会在本站进行实时的更新。它将伴随着企划的深入，点亮每一个离线文档。</p>
+                  <p>我对具体的事务的写作实在没有什么头绪，所以只是做了这个骨架，能够承载企划越来越多的具体内容。</p>
+                  <p>希望企划的大家能对我这个发起者多宽容一点 &gt; &lt;,感谢。</p>
+                  <p>如果有对网站有什么优化建议，或者现有结构有什么建议的，也可以直接发往我的邮箱。</p>
+                  <p>717652849@qq.com</p>
+                </section>
+              </div>
+
+              <div class="mascot-document-content" data-mascot-document-content="creation" hidden>
               <div class="mascot-document-mast">
                 <p>PALIS / ASSISTANT FILE 01</p>
-                <h2 id="mascot-document-heading">关于白幕的创作细则</h2>
+                <h2>关于白幕的创作细则</h2>
               </div>
 
               <section>
                 <h3>概览</h3>
-                <p>理论上来说白渊是一个在南极之下的一片盆地，他由多个未知的生态系统组成。</p>
+                <p>理论上来说白幕是一个在南极之下的一片盆地，他由多个未知的生态系统组成。</p>
                 <p>它的空间形态拥有：</p>
                 <p>不稳定性，如：测绘地图于实际地图不符或偏差。</p>
                 <p>未知性，广大白区域没有被测绘和收录。</p>
@@ -330,12 +502,105 @@
                 <h3>关于流程</h3>
                 <p class="mascot-document-flow">建立书记官档案→录入系统→开始进行相关内容填充→审核内容→内容录入系统→以第一版为母本→一个内容有多个版本→进行归档文档整理</p>
               </section>
+              </div>
+
+              <div class="mascot-document-content mascot-document-content--blank" data-mascot-document-content="phase-one" hidden>
+                <div class="mascot-document-mast">
+                  <p>PALIS / ASSISTANT FILE 02</p>
+                  <h2>关于第一期企划</h2>
+                </div>
+              </div>
+
+              <div class="mascot-document-content mascot-document-content--clerk" data-mascot-document-content="clerk-wei-yi" hidden>
+                <div class="mascot-document-mast">
+                  <p>PALIS 09A / CLERK DOSSIER / SC-01</p>
+                  <h2>助理书记官 · 笔名：魏伊</h2>
+                </div>
+                <div class="clerk-dossier-pages">
+                  <figure class="clerk-dossier-page"><img src="/assets/clerks/wei-yi-profile.png" alt="助理书记官笔名魏伊档案：身份登记、教育与履历" /></figure>
+                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/wei-yi-notes.png" alt="助理书记官笔名魏伊档案附页：其他备注" /></figure>
+                </div>
+                <nav class="clerk-dossier-pagination" aria-label="笔名魏伊档案翻页">
+                  <button type="button" data-clerk-page="previous" aria-label="上一页" disabled>←</button>
+                  <output>01 / 02</output>
+                  <button type="button" data-clerk-page="next" aria-label="下一页">→</button>
+                </nav>
+              </div>
+
+              <div class="mascot-document-content mascot-document-content--clerk" data-mascot-document-content="clerk-yinnar-light" hidden>
+                <div class="mascot-document-mast">
+                  <p>PALIS 09A / CLERK DOSSIER / SC-II</p>
+                  <h2>见习书记官 · 笔名：主行</h2>
+                </div>
+                <div class="clerk-dossier-pages">
+                  <figure class="clerk-dossier-page"><img src="/assets/clerks/yinnar-light-profile.jpg" alt="见习书记官笔名主行档案：身份登记、教育与履历" /></figure>
+                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/yinnar-light-notes.jpg" alt="见习书记官笔名主行档案附页：其他备注" /></figure>
+                </div>
+                <nav class="clerk-dossier-pagination" aria-label="笔名主行档案翻页">
+                  <button type="button" data-clerk-page="previous" aria-label="上一页" disabled>←</button>
+                  <output>01 / 02</output>
+                  <button type="button" data-clerk-page="next" aria-label="下一页">→</button>
+                </nav>
+              </div>
+
+              <div class="mascot-document-content mascot-document-content--timeline" data-mascot-document-content="world-guide" hidden>
+                <div class="mascot-document-mast">
+                  <p>PALIS / ASSISTANT FILE 04 · HISTORICAL INGRESS</p>
+                  <h2>世界观导入</h2>
+                </div>
+                <ol class="world-guide-timeline" aria-label="白幕世界观历史时间轴">
+                  <li>
+                    <time datetime="1921">1921年</time>
+                    <p>国联南极开发署成立，公开汇总捕鲸航路、气象、地名和资源调查，秘密保存成员国提交的异常航片与远征事故卷。</p>
+                  </li>
+                  <li>
+                    <time datetime="1938">1938年</time>
+                    <p>德国南极考察以捕鲸、航空测绘和资源调查为名活动；德方取得异常航测、磁测和矿物记录。</p>
+                  </li>
+                  <li>
+                    <time datetime="1942">1942–1944年</time>
+                    <p>美苏在极区冻土、寒区燃料和工程保障上投入战时研究；热钻、低温套管、远程供电进入军工系统。</p>
+                  </li>
+                  <li>
+                    <time datetime="1945">1945年</time>
+                    <p>战争结束，德国和日本技术资料被战胜国分割；美苏接收热钻、南极、寒区矿业、低温医学和冻土工程资。</p>
+                  </li>
+                  <li>
+                    <time datetime="1946">1946年</time>
+                    <p>国联停止运作；国联南极开发署的人员、地图、卷宗移交新设的联合国南极管理局。各南极开发边缘签约。</p>
+                  </li>
+                  <li>
+                    <time datetime="1949">1949年</time>
+                    <p>联合钻探沿旧测线穿透冰盖，取回活体针叶组织，项目内部首次使用“白幕”一词。</p>
+                  </li>
+                  <li>
+                    <time datetime="1952">1952–1955年</time>
+                    <p>国际地球物理年组织开始邀请中国科学院参与。中国科学院决定参加，成立国家委员会，准备气象、地磁、经纬度、地震、高空观测等项目，并通过苏联渠道取得仪器、资料和训练机会。</p>
+                  </li>
+                  <li>
+                    <time datetime="1958">1958年</time>
+                    <p>中苏联合勘探队在北部林区将第一次超自然异常在苏联档案中被记录。中方海燕小队在苏方失误失踪。中苏交恶。中方在非《南极公约》体系建立海燕中转站并启动昆仑工程独自研究“白幕”。</p>
+                  </li>
+                  <li>
+                    <time datetime="1959">1959年</time>
+                    <p>南极条约公开签署，视为第二次南极条约；联合国南极管理局与核心参与国拟定秘密的《南极公约监督议定书》。</p>
+                  </li>
+                  <li>
+                    <time datetime="1961">1961年</time>
+                    <p>条约生效；南极管理局将国联遗档部门与事故办公室改组为南极公约监管办公室，PALIS南极作业管理系统接入各缔约国相关系统。</p>
+                  </li>
+                  <li class="world-guide-timeline__continuation">
+                    <strong>风暴初始</strong>
+                    <p>未来待续 · · · · · ·</p>
+                  </li>
+                </ol>
+              </div>
             </div>
           </article>
         </div>
       </section>
-      <button class="mascot-trigger" id="mascot-trigger" type="button" aria-expanded="false" aria-controls="mascot-window" aria-label="打开吉祥物档案">
-        <img id="mascot-idle-frame" src="/assets/mascot/idle-01.png" alt="" width="1254" height="1254" draggable="false" />
+      <button class="mascot-trigger" id="mascot-trigger" type="button" aria-expanded="false" aria-controls="mascot-window" aria-label="打开 PALIS 助手">
+        <img id="mascot-idle-frame" src="/assets/mascot/idle-02.png" alt="" width="1254" height="1254" draggable="false" />
         <span>PALIS 助手</span>
       </button>
     </aside>

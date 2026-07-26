@@ -281,34 +281,11 @@ body.access-locked #archive-desktop {
 .access-window-banner small { display: block; margin-top: 4px; color: #555; font-size: 8px; letter-spacing: .08em; }
 
 .access-key-icon {
-  position: relative;
   display: block;
-  width: 34px;
-  height: 34px;
-  border: 3px solid #101010;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 4px #d8d8d8;
-}
-.access-key-icon::before {
-  position: absolute;
-  top: 13px;
-  left: 27px;
-  width: 25px;
-  height: 6px;
-  content: '';
-  border: 2px solid #111;
-  border-left: 0;
-  background: #d3b84d;
-}
-.access-key-icon::after {
-  position: absolute;
-  top: 17px;
-  left: 39px;
-  width: 4px;
-  height: 8px;
-  content: '';
-  border-right: 2px solid #111;
-  border-bottom: 2px solid #111;
+  width: 48px;
+  height: 40px;
+  image-rendering: pixelated;
+  filter: drop-shadow(1px 1px 0 #777);
 }
 
 #access-form > label:not(.access-remember) {
@@ -550,7 +527,7 @@ body.access-locked #archive-desktop {
   background: #b9b9b9;
 }
 .auth-session[hidden] { display: none; }
-.auth-session span {
+.auth-session > #auth-session-user {
   max-width: 180px;
   align-self: center;
   padding: 0 9px;
@@ -560,7 +537,8 @@ body.access-locked #archive-desktop {
   white-space: nowrap;
 }
 .auth-session button {
-  min-width: 48px;
+  min-width: 66px;
+  min-height: 34px;
   color: #111;
   border: 0;
   border-left: 2px outset var(--win-face);
@@ -569,11 +547,114 @@ body.access-locked #archive-desktop {
 }
 .auth-session button:active { border-style: inset; }
 
+.auth-session .clerk-workspace-entry {
+  display: flex;
+  min-width: 204px;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 11px 3px 8px;
+  text-align: left;
+  border-left: 0;
+  border-right: 2px outset var(--win-face);
+}
+.clerk-workspace-entry__marks {
+  display: grid;
+  width: 11px;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.clerk-workspace-entry__marks b {
+  display: block;
+  height: 3px;
+  border: 1px solid rgba(0, 0, 0, .35);
+}
+.clerk-workspace-entry__marks b:nth-child(1) { background: #c44b4b; }
+.clerk-workspace-entry__marks b:nth-child(2) { background: #d2a629; }
+.clerk-workspace-entry__marks b:nth-child(3) { background: #3d68b7; }
+.clerk-workspace-entry > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.clerk-workspace-entry > span b {
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.clerk-workspace-entry > span small {
+  color: #4a4a4a;
+  font: 7px/1 var(--font-mono);
+  white-space: nowrap;
+}
+.clerk-workspace-entry:focus-visible {
+  outline: 2px dotted #111;
+  outline-offset: -4px;
+}
+
 .taskbar:has(.auth-session:not([hidden])) {
   grid-template-columns: auto minmax(130px, .8fr) minmax(150px, 1.2fr) minmax(128px, auto) auto 74px;
 }
 .taskbar:has(.archive-task-list[hidden]):has(.auth-session:not([hidden])) {
   grid-template-columns: auto minmax(150px, 1fr) minmax(128px, auto) auto 74px;
+}
+
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  .taskbar,
+  .taskbar:has(.archive-task-list[hidden]),
+  .taskbar:has(.auth-session:not([hidden])),
+  .taskbar:has(.archive-task-list[hidden]):has(.auth-session:not([hidden])) {
+    grid-template-columns: 84px minmax(0, 1fr) 64px !important;
+    grid-auto-flow: row;
+    height: var(--taskbar-height);
+    min-height: var(--taskbar-height);
+    padding: 4px max(4px, var(--safe-right)) calc(4px + var(--safe-bottom)) max(4px, var(--safe-left));
+    gap: 4px;
+  }
+
+  .taskbar .start-button {
+    grid-column: 1;
+    min-width: 84px;
+    min-height: 48px;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+
+  .taskbar > p,
+  .taskbar .archive-task-list { display: none !important; }
+
+  .taskbar time {
+    grid-column: 3;
+    min-width: 64px;
+    min-height: 48px;
+    padding: 4px;
+    font-size: 13px;
+  }
+
+  .auth-session {
+    grid-column: 2;
+    min-width: 0;
+    min-height: 48px;
+  }
+
+  .auth-session > #auth-session-user {
+    flex: 1 1 auto;
+    max-width: none;
+    padding: 0 7px;
+  }
+
+  .auth-session button {
+    min-width: 70px;
+    min-height: 44px;
+    padding: 0 7px;
+  }
+
+  .auth-session .clerk-workspace-entry {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-inline: 7px;
+  }
+
+  .clerk-workspace-entry > span small { display: none; }
 }
 
 @keyframes access-line-in {

@@ -40,18 +40,21 @@ test('people network exposes a stable twelve-person neighborhood without hidden-
   );
 });
 
-test('event drawer holds all twenty-six pockets filed in chronological order', () => {
+test('event plane keeps the single online HZ-6 record first and the remaining files chronological', () => {
   const events = ARCHIVE_ROOTS.find((root) => root.id === 'events').children;
 
   assert.equal(events.length, 26);
   assert.equal(new Set(events.map((event) => event.code)).size, 26);
   const startYear = (year) => parseInt(String(year).match(/\d{4}/)?.[0] ?? '1965', 10);
-  const years = events.map((event) => startYear(event.year));
+  assert.equal(events[0].code, 'EV10');
+  assert.equal(events[0].name, 'HZ-6 / 样本线任务');
+  assert.ok(events[0].webContent, 'the available HZ-6 record should be first');
+  const years = events.slice(1).map((event) => startYear(event.year));
   years.slice(1).forEach((year, index) => {
-    assert.ok(year >= years[index], `pockets should be filed chronologically near ${events[index + 1].code}`);
+    assert.ok(year >= years[index], `files should be chronological near ${events[index + 2].code}`);
   });
-  assert.equal(events[0].code, 'V16');
-  assert.equal(events.at(-1).code, 'V09');
+  assert.equal(events[1].code, 'EV01');
+  assert.equal(events.at(-1).code, 'EV26');
 });
 
 test('every entrance carries the survey fields the section drawings are generated from', () => {
@@ -88,10 +91,10 @@ test('ecology cabinet provides seven distinct specimen drawer readings', () => {
   });
 });
 
-test('approved archive counts include the expanded sixteen-event chronology', () => {
+test('approved archive counts include the current personnel and event records', () => {
   const counts = Object.fromEntries(ARCHIVE_ROOTS.map((root) => [root.id, root.children.length]));
 
-  assert.equal(counts.people, 32);
+  assert.equal(counts.people, 36);
   assert.equal(counts.events, 26);
   assert.equal(counts.entrances, 18);
   assert.equal(counts.ecology, 7);
@@ -101,24 +104,24 @@ test('every event dossier has complete chronology metadata', () => {
   const events = ARCHIVE_ROOTS.find((root) => root.id === 'events').children;
 
   events.forEach((event) => {
-    assert.match(event.code, /^V\d{2}$/);
+    assert.match(event.code, /^EV\d{2}$/);
     assert.ok(event.year?.length > 0, `${event.code} is missing a year`);
     assert.ok(event.body?.length > 0, `${event.code} is missing a body`);
     assert.ok(event.meta?.length > 0, `${event.code} is missing a status`);
   });
 });
 
-test('approved C C B B directory renderers are wired into the live archive page', async () => {
+test('current directory renderers are wired into the live archive page', async () => {
   const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 
-  assert.match(source, /events:\s*'case-chronology'/);
+  assert.match(source, /events:\s*'event-plane'/);
   assert.match(source, /function buildPeopleNetwork\(/);
-  assert.match(source, /function buildEventChronology\(/);
+  assert.match(source, /function buildEventPlane\(/);
   assert.match(source, /function buildEntranceElevation\(/);
   assert.match(source, /function buildEcologyCabinet\(/);
   assert.match(source, /entranceSheetMarkup/);
-  assert.match(source, /function renderEventChronology\(/);
-  assert.match(source, /ev-directory/);
+  assert.match(source, /function resetEventPlane\(/);
+  assert.match(source, /event-plane-world/);
   assert.match(source, /eco-log-svg/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
@@ -131,12 +134,12 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /\.people-network-workbench/);
   assert.match(styles, /\.entrance-sheet-console/);
   assert.match(styles, /\.eco-log-console/);
-  assert.match(styles, /\.ev-cabinet\s*\{/);
+  assert.match(styles, /\.event-plane\s*\{/);
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
   assert.match(styles, /\.directory-open-button\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(styles, /\.ev-directory/);
-  assert.match(styles, /\.ev-record\s*\{/);
+  assert.match(styles, /\.event-plane-world/);
+  assert.match(styles, /\.mode-event-plane \.folder-button\s*\{/);
   assert.match(styles, /\.entrance-sheet-drawer/);
   assert.match(styles, /\.eco-log-bands/);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);

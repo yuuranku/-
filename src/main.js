@@ -6,7 +6,14 @@ import '@fontsource/ibm-plex-mono/latin-600.css';
 import '@fontsource/ibm-plex-mono/latin-700.css';
 import './style.css';
 import './auth.css';
+import './archive-workflow/workspace.css';
 import { initializeAccessGate } from './auth.js';
+import { createArchiveWorkflowClient } from './archive-workflow/client.js';
+import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
+import {
+  buildPublishedArchiveModel,
+  renderPublishedContributionLedger,
+} from './archive-workflow/publication.js';
 import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -27,133 +34,599 @@ import {
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
-initializeAccessGate({ reducedMotion });
+const accessContext = initializeAccessGate({ reducedMotion });
 initializeMascotAssistant();
+const archiveWorkflowClient = accessContext?.supabase
+  ? createArchiveWorkflowClient(accessContext.supabase)
+  : null;
+initializeArchiveWorkspace({ client: archiveWorkflowClient });
+
+const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
+
+function findArchiveReference(target) {
+  const normalized = String(target ?? '').trim().toLocaleLowerCase('zh-CN');
+  if (!normalized) return null;
+  return localArchiveRecords.find((archive) =>
+    [archive.id, archive.code, archive.name, archive.heading]
+      .filter(Boolean)
+      .some((value) => String(value).trim().toLocaleLowerCase('zh-CN') === normalized))
+    || localArchiveRecords.find((archive) =>
+      [archive.name, archive.heading]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase('zh-CN').includes(normalized)));
+}
+
+function openArchiveReference(target, trigger = null) {
+  const archive = findArchiveReference(target);
+  if (!archive) return false;
+  if (typeof versionNotice !== 'undefined' && !versionNotice.hidden) minimizeVersionNotice();
+  const source = trigger?.getBoundingClientRect
+    ? trigger
+    : document.querySelector(`[data-archive-id="${CSS.escape(archive.id)}"]`)
+      || document.querySelector('#sync-enter')
+      || document.body;
+  openArchive(archive, source);
+  return true;
+}
+
+window.openArchiveReference = openArchiveReference;
+document.addEventListener('click', (event) => {
+  const reference = event.target.closest('[data-open-archive-reference], [data-version-reference]');
+  if (!reference) return;
+  const target = reference.dataset.openArchiveReference || reference.dataset.versionReference;
+  if (openArchiveReference(target, reference)) event.preventDefault();
+});
 
 function initializeMascotAssistant() {
   const assistant = document.querySelector('#mascot-assistant');
   const trigger = document.querySelector('#mascot-trigger');
-  const windowElement = document.querySelector('#mascot-window');
+  const startMenu = document.querySelector('#mascot-window');
   const closeButton = document.querySelector('#mascot-window-close');
   const frame = document.querySelector('#mascot-idle-frame');
   const status = document.querySelector('#mascot-entry-status');
   const directoryView = document.querySelector('#mascot-directory-view');
+  const clerkDirectory = document.querySelector('#mascot-clerk-directory');
+  const clerkList = document.querySelector('#mascot-clerk-list');
+  const clerkBack = document.querySelector('#mascot-clerk-back');
   const documentView = document.querySelector('#mascot-document-view');
-  const documentBack = document.querySelector('#mascot-document-back');
-  const windowTitle = document.querySelector('#mascot-window-title');
-  const titlebar = windowElement?.querySelector('.mascot-titlebar');
-  const entries = [...document.querySelectorAll('[data-mascot-entry]')];
-  if (!assistant || !trigger || !windowElement || !frame || !status || !directoryView || !documentView) return;
+  const entries = [...startMenu.querySelectorAll('[data-mascot-entry]')];
+  const documentContents = [...document.querySelectorAll('[data-mascot-document-content]')];
+  const experienceRoot = document.querySelector('#experience');
+  const archiveWindowLayer = document.querySelector('#archive-desktop');
+  const archiveTaskbar = document.querySelector('.taskbar');
+  const archiveTaskList = document.querySelector('#archive-task-list');
+  const desktop = document.querySelector('#clerk-desktop');
+  const desktopWindowLayer = document.querySelector('#assistant-window-layer');
+  const desktopTaskbar = document.querySelector('#assistant-taskbar');
+  const desktopTaskList = document.querySelector('#assistant-task-list');
+  const desktopEntry = document.querySelector('#clerk-workspace-entry');
+  const desktopStart = document.querySelector('#clerk-desktop-start');
+  const desktopExit = document.querySelector('#clerk-desktop-exit');
+  const desktopTime = document.querySelector('#clerk-desktop-time');
+  const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
+  const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
+  const desktopEntries = [...document.querySelectorAll('[data-clerk-desktop-entry]')];
+  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopExit) return;
 
+  // Frame 01 has a noticeably different body axis and reads as a jump rather
+  // than part of this idle sway, so keep the coherent 02–07 loop.
   const frames = Array.from(
-    { length: 7 },
-    (_, index) => `/assets/mascot/idle-${String(index + 1).padStart(2, '0')}.png`,
+    { length: 6 },
+    (_, index) => `/assets/mascot/idle-${String(index + 2).padStart(2, '0')}.png`,
   );
   let frameIndex = 0;
-  let previousFrameTime = 0;
-  let windowX = 0;
-  let windowY = 0;
-  let windowDrag = null;
+  let idleFrameTimer = 0;
+  let documentWindowSequence = 0;
+  let documentWindowZ = 22000;
+  let activeDocumentWindow = null;
+  let desktopCloseTimer = 0;
+  const openDocuments = new Map();
 
-  frames.slice(1).forEach((source) => {
-    const preload = new Image();
-    preload.src = source;
+  const preloadedFrames = frames.map((source) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = source;
+    return image;
   });
 
-  function animateIdle(timestamp) {
-    if (!reducedMotion && document.visibilityState === 'visible' && timestamp - previousFrameTime >= 180) {
-      frameIndex = (frameIndex + 1) % frames.length;
-      frame.src = frames[frameIndex];
-      previousFrameTime = timestamp;
-    }
-    window.requestAnimationFrame(animateIdle);
+  function advanceIdleFrame() {
+    frameIndex = (frameIndex + 1) % frames.length;
+    frame.src = frames[frameIndex];
+    frame.dataset.mascotFrame = String(frameIndex + 2).padStart(2, '0');
   }
 
-  function setWindowOpen(open) {
-    windowElement.hidden = !open;
+  function stopIdleAnimation() {
+    window.clearInterval(idleFrameTimer);
+    idleFrameTimer = 0;
+  }
+
+  function startIdleAnimation() {
+    if (idleFrameTimer || document.visibilityState !== 'visible') return;
+    idleFrameTimer = window.setInterval(advanceIdleFrame, 260);
+  }
+
+  function restartIdleAnimation() {
+    stopIdleAnimation();
+    startIdleAnimation();
+  }
+
+  function updateDesktopClock() {
+    if (!desktopTime) return;
+    desktopTime.textContent = new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+  }
+
+  function setDesktopOpen(open) {
+    if (open && !['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
+      window.dispatchEvent(new CustomEvent('palis:workspace-denied', {
+        detail: { role: document.body.dataset.operatorRole || 'observer' },
+      }));
+      return;
+    }
+    window.clearTimeout(desktopCloseTimer);
+    setMenuOpen(false);
+    desktopEntry.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('clerk-desktop-open', open);
+    experienceRoot.toggleAttribute('inert', open);
+    archiveWindowLayer.toggleAttribute('inert', open);
+    assistant.toggleAttribute('inert', open);
+    if (open) {
+      desktop.hidden = false;
+      updateDesktopClock();
+      requestAnimationFrame(() => {
+        desktop.classList.add('is-open');
+        desktop.focus({ preventScroll: true });
+      });
+      return;
+    }
+    desktop.classList.remove('is-open');
+    desktopCloseTimer = window.setTimeout(() => {
+      desktop.hidden = true;
+      desktopEntry.focus({ preventScroll: true });
+    }, reducedMotion ? 0 : 220);
+  }
+
+  function setMenuOpen(open) {
+    startMenu.hidden = !open;
     trigger.setAttribute('aria-expanded', String(open));
     assistant.classList.toggle('is-open', open);
-    if (open) entries[0]?.focus({ preventScroll: true });
-    else {
-      showDirectory();
-      trigger.focus({ preventScroll: true });
+    if (open) {
+      clerkDirectory.hidden = true;
+      directoryView.hidden = false;
+      entries[0]?.focus({ preventScroll: true });
     }
+    else trigger.focus({ preventScroll: true });
   }
 
-  function showDirectory() {
-    directoryView.hidden = false;
-    documentView.hidden = true;
-    assistant.classList.remove('is-reading');
-    if (windowTitle) windowTitle.textContent = 'PALIS_ASSISTANT.EXE';
-  }
-
-  function showDocument() {
+  function showClerkDirectory() {
     directoryView.hidden = true;
-    documentView.hidden = false;
-    assistant.classList.add('is-reading');
-    if (windowTitle) windowTitle.textContent = 'PALIS_ASSISTANT_01.TXT';
-    documentView.querySelector('.mascot-document-scroll')?.scrollTo({ top: 0, behavior: 'instant' });
-    documentBack?.focus({ preventScroll: true });
+    clerkDirectory.hidden = false;
+    clerkList.querySelector('button')?.focus({ preventScroll: true });
   }
 
-  trigger.addEventListener('click', () => setWindowOpen(windowElement.hidden));
-  closeButton?.addEventListener('click', () => setWindowOpen(false));
+  function showAssistantDirectory() {
+    clerkDirectory.hidden = true;
+    directoryView.hidden = false;
+    entries.find((entry) => entry.dataset.mascotDirectory === 'clerks')?.focus({ preventScroll: true });
+  }
+
+  function syncDocumentWindows() {
+    archiveTaskList.hidden = archiveTaskList.children.length === 0;
+    desktopTaskList.hidden = desktopTaskList.children.length === 0;
+    openDocuments.forEach(({ windowElement, taskButton, minimized }) => {
+      const isActive = windowElement === activeDocumentWindow && !minimized;
+      windowElement.classList.toggle('is-active', isActive);
+      taskButton.classList.toggle('is-active', isActive);
+      taskButton.classList.toggle('is-minimized', minimized);
+      taskButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function focusDocumentWindow(windowElement, focusControl = false) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || state.minimized || state.closing) return;
+    if (state.surface === 'assistant') {
+      document.querySelectorAll('.archive-window.is-active').forEach((candidate) => candidate.classList.remove('is-active'));
+      archiveTaskList.querySelectorAll('.archive-task-button:not(.mascot-document-task-button)')
+        .forEach((button) => {
+          button.classList.remove('is-active');
+          button.setAttribute('aria-pressed', 'false');
+        });
+    }
+    documentWindowZ += 1;
+    windowElement.style.zIndex = String(documentWindowZ);
+    activeDocumentWindow = windowElement;
+    syncDocumentWindows();
+    if (focusControl) windowElement.querySelector('.mascot-document-minimize')?.focus({ preventScroll: true });
+  }
+
+  function documentTaskVector(windowElement, taskButton) {
+    const windowRect = windowElement.getBoundingClientRect();
+    const taskRect = taskButton.getBoundingClientRect();
+    return {
+      x: taskRect.left + taskRect.width / 2 - (windowRect.left + windowRect.width / 2),
+      y: taskRect.top + taskRect.height / 2 - (windowRect.top + windowRect.height / 2),
+    };
+  }
+
+  function minimizeDocumentWindow(windowElement) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || state.minimized || state.closing) return;
+    state.minimized = true;
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    if (reducedMotion) {
+      windowElement.classList.add('is-minimized');
+    } else {
+      windowElement.classList.add('is-minimizing');
+      window.setTimeout(() => {
+        windowElement.classList.remove('is-minimizing');
+        windowElement.classList.add('is-minimized');
+      }, 260);
+    }
+    if (activeDocumentWindow === windowElement) {
+      const nextVisible = [...openDocuments.values()]
+        .filter((item) => !item.minimized && !item.closing && item.windowElement !== windowElement)
+        .sort((a, b) => Number(b.windowElement.style.zIndex) - Number(a.windowElement.style.zIndex))[0];
+      activeDocumentWindow = nextVisible?.windowElement || null;
+    }
+    syncDocumentWindows();
+  }
+
+  function restoreDocumentWindow(windowElement) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || !state.minimized || state.closing) return;
+    state.minimized = false;
+    windowElement.classList.remove('is-minimized', 'is-minimizing');
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    if (!reducedMotion) {
+      windowElement.classList.remove('is-restoring');
+      void windowElement.offsetWidth;
+      windowElement.classList.add('is-restoring');
+      window.setTimeout(() => windowElement.classList.remove('is-restoring'), 300);
+    }
+    focusDocumentWindow(windowElement, true);
+  }
+
+  function closeDocumentWindow(windowElement) {
+    const documentId = windowElement.dataset.mascotDocumentWindow;
+    const state = openDocuments.get(documentId);
+    if (!state || state.closing) return;
+    state.closing = true;
+    const removeWindow = () => {
+      windowElement.remove();
+      state.taskButton.remove();
+      openDocuments.delete(documentId);
+      if (activeDocumentWindow === windowElement) {
+        const nextVisible = [...openDocuments.values()]
+          .filter((item) => !item.minimized && !item.closing)
+          .sort((a, b) => Number(b.windowElement.style.zIndex) - Number(a.windowElement.style.zIndex))[0];
+        activeDocumentWindow = nextVisible?.windowElement || null;
+      }
+      syncDocumentWindows();
+    };
+    if (state.minimized || reducedMotion) {
+      removeWindow();
+      return;
+    }
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    windowElement.classList.remove('is-opening', 'is-restoring');
+    windowElement.classList.add('is-closing');
+    window.setTimeout(removeWindow, 240);
+  }
+
+  function installDocumentWindowDrag(windowElement) {
+    const titlebar = windowElement.querySelector('.mascot-document-titlebar');
+    const handles = [titlebar, ...ensureWindowDragEdges(windowElement)].filter(Boolean);
+    let drag = null;
+
+    const startDrag = (event) => {
+      if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button')) return;
+      focusDocumentWindow(windowElement);
+      const rect = windowElement.getBoundingClientRect();
+      drag = {
+        pointerId: event.pointerId,
+        handle: event.currentTarget,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+      drag.handle.setPointerCapture(event.pointerId);
+      windowElement.classList.add('is-dragging');
+      event.preventDefault();
+    };
+
+    const moveDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+      const taskbarElement = state?.surface === 'workspace' ? desktopTaskbar : archiveTaskbar;
+      const taskbarHeight = taskbarElement.getBoundingClientRect().height || 52;
+      const nextLeft = THREE.MathUtils.clamp(
+        drag.left + event.clientX - drag.startX,
+        -drag.width + 28,
+        innerWidth - 28,
+      );
+      const nextTop = THREE.MathUtils.clamp(
+        drag.top + event.clientY - drag.startY,
+        -drag.height + 64,
+        innerHeight - taskbarHeight - 24,
+      );
+      windowElement.style.left = `${nextLeft}px`;
+      windowElement.style.top = `${nextTop}px`;
+    };
+
+    const finishDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (drag.handle.hasPointerCapture(event.pointerId)) drag.handle.releasePointerCapture(event.pointerId);
+      drag = null;
+      windowElement.classList.remove('is-dragging');
+    };
+
+    handles.forEach((handle) => {
+      handle.addEventListener('pointerdown', startDrag);
+      handle.addEventListener('pointermove', moveDrag);
+      handle.addEventListener('pointerup', finishDrag);
+      handle.addEventListener('pointercancel', finishDrag);
+    });
+  }
+
+  function buildClerkIndexContent() {
+    const content = document.createElement('div');
+    content.className = 'mascot-document-content assistant-clerk-index';
+    content.innerHTML = `
+      <div class="mascot-document-mast">
+        <p>PALIS / LOCAL CLERK DIRECTORY / 10 POSITIONS</p>
+        <h2>在案书记官</h2>
+      </div>
+      <section>
+        <p class="assistant-clerk-index__lead">当前工作台可调阅两份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
+        <ol class="assistant-clerk-index__list">
+          ${Array.from({ length: 10 }, (_, index) => {
+            const number = String(index + 1).padStart(2, '0');
+            const record = clerkRecords[index];
+            return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'disabled'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
+          }).join('')}
+        </ol>
+      </section>
+    `;
+    return content;
+  }
+
+  function openDocument(documentId, entry, surface = 'assistant') {
+    const documentKey = `${surface}:${documentId}`;
+    const existing = openDocuments.get(documentKey);
+    if (existing) {
+      if (existing.minimized) restoreDocumentWindow(existing.windowElement);
+      else focusDocumentWindow(existing.windowElement, true);
+      setMenuOpen(false);
+      return;
+    }
+    const content = documentId === 'clerks'
+      ? buildClerkIndexContent()
+      : documentContents.find((item) => item.dataset.mascotDocumentContent === documentId);
+    if (!content) return;
+
+    const isDesktopEntry = entry.hasAttribute('data-clerk-desktop-entry');
+    const entryIndex = isDesktopEntry
+      ? entry.querySelector('.clerk-desktop__icon b')?.textContent || '00'
+      : entry.querySelector('span')?.textContent || '00';
+    const entryTitle = isDesktopEntry
+      ? entry.querySelector(':scope > span')?.textContent || '书记官文档'
+      : entry.querySelector('b')?.textContent || entry.dataset.mascotEntry;
+    const windowId = `mascot-document-window-${++documentWindowSequence}`;
+    const headingId = `${windowId}-heading`;
+    const windowElement = document.createElement('section');
+    windowElement.className = 'mascot-document-window retro-window';
+    const isClerkDossier = documentId.startsWith('clerk-');
+    if (isClerkDossier) windowElement.classList.add('is-clerk-dossier');
+    if (documentId === 'clerks') windowElement.classList.add('is-clerk-index');
+    windowElement.id = windowId;
+    windowElement.dataset.mascotDocumentWindow = documentKey;
+    windowElement.setAttribute('role', 'dialog');
+    windowElement.setAttribute('aria-modal', 'false');
+    windowElement.setAttribute('aria-labelledby', headingId);
+    windowElement.innerHTML = `
+      <div class="title-bar mascot-document-titlebar">
+        <span>PALIS_ASSISTANT_${escapeRecordText(entryIndex)}.TXT</span>
+        <div class="window-controls">
+          <button type="button" class="mascot-document-minimize" aria-label="最小化${escapeRecordText(entryTitle)}窗口">_</button>
+          <button type="button" class="mascot-document-close" aria-label="关闭${escapeRecordText(entryTitle)}窗口">×</button>
+        </div>
+      </div>
+      <article class="mascot-document-view">
+        <header class="mascot-document-toolbar">
+          <span>${escapeRecordText(entryTitle)}</span>
+          <span>${escapeRecordText(entryIndex)} / DOCUMENT</span>
+        </header>
+        <div class="mascot-document-scroll" tabindex="0" aria-label="${escapeRecordText(entryTitle)}文档滚动区"></div>
+      </article>
+    `;
+
+    const clonedContent = content.cloneNode(true);
+    clonedContent.hidden = false;
+    const heading = clonedContent.querySelector('h2');
+    if (heading) heading.id = headingId;
+    windowElement.querySelector('.mascot-document-scroll').appendChild(clonedContent);
+    if (documentId === 'clerks') {
+      clonedContent.addEventListener('click', (event) => {
+        const clerkEntry = event.target.closest('button[data-mascot-document]');
+        if (clerkEntry) openDocument(clerkEntry.dataset.mascotDocument, clerkEntry, surface);
+      });
+    }
+    if (isClerkDossier) {
+      const pages = [...windowElement.querySelectorAll('.clerk-dossier-page')];
+      const pageOutput = windowElement.querySelector('.clerk-dossier-pagination output');
+      const previousButton = windowElement.querySelector('[data-clerk-page="previous"]');
+      const nextButton = windowElement.querySelector('[data-clerk-page="next"]');
+      let activePage = 0;
+      const updateClerkPage = () => {
+        pages.forEach((page, index) => { page.hidden = index !== activePage; });
+        pageOutput.value = `${String(activePage + 1).padStart(2, '0')} / ${String(pages.length).padStart(2, '0')}`;
+        previousButton.disabled = activePage === 0;
+        nextButton.disabled = activePage === pages.length - 1;
+      };
+      previousButton.addEventListener('click', () => { activePage = Math.max(0, activePage - 1); updateClerkPage(); });
+      nextButton.addEventListener('click', () => { activePage = Math.min(pages.length - 1, activePage + 1); updateClerkPage(); });
+      updateClerkPage();
+    }
+    windowElement.style.visibility = 'hidden';
+    const taskButton = document.createElement('button');
+    taskButton.type = 'button';
+    taskButton.className = 'archive-task-button mascot-document-task-button';
+    taskButton.innerHTML = `<i></i><span><b>${escapeRecordText(entryIndex)}</b>${escapeRecordText(entryTitle)}</span>`;
+    taskButton.setAttribute('aria-controls', windowId);
+    taskButton.setAttribute('aria-label', `切换助手文档窗口：${entryTitle}`);
+    const targetTaskList = surface === 'workspace' ? desktopTaskList : archiveTaskList;
+    const targetWindowLayer = surface === 'workspace' ? desktopWindowLayer : archiveWindowLayer;
+    const targetTaskbar = surface === 'workspace' ? desktopTaskbar : archiveTaskbar;
+    targetTaskList.appendChild(taskButton);
+    targetWindowLayer.appendChild(windowElement);
+
+    const rect = windowElement.getBoundingClientRect();
+    const taskbarHeight = targetTaskbar.getBoundingClientRect().height || 52;
+    const left = THREE.MathUtils.clamp(
+      (innerWidth - rect.width) / 2,
+      8,
+      Math.max(8, innerWidth - rect.width - 8),
+    );
+    const top = THREE.MathUtils.clamp(
+      (innerHeight - taskbarHeight - rect.height) / 2,
+      8,
+      Math.max(8, innerHeight - taskbarHeight - rect.height - 8),
+    );
+    windowElement.style.left = `${left}px`;
+    windowElement.style.top = `${top}px`;
+    windowElement.style.visibility = '';
+    const triggerRect = entry.getBoundingClientRect();
+    const positionedRect = windowElement.getBoundingClientRect();
+    windowElement.style.setProperty('--dialog-from-x', `${triggerRect.left + triggerRect.width / 2 - (positionedRect.left + positionedRect.width / 2)}px`);
+    windowElement.style.setProperty('--dialog-from-y', `${triggerRect.top + triggerRect.height / 2 - (positionedRect.top + positionedRect.height / 2)}px`);
+    const state = { windowElement, taskButton, minimized: false, closing: false, surface };
+    openDocuments.set(documentKey, state);
+    installDocumentWindowDrag(windowElement);
+    focusDocumentWindow(windowElement);
+
+    windowElement.addEventListener('pointerdown', () => focusDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-minimize').addEventListener('click', () => minimizeDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-close').addEventListener('click', () => closeDocumentWindow(windowElement));
+    taskButton.addEventListener('click', () => {
+      if (state.minimized) restoreDocumentWindow(windowElement);
+      else if (activeDocumentWindow === windowElement && windowElement.classList.contains('is-active')) minimizeDocumentWindow(windowElement);
+      else focusDocumentWindow(windowElement, true);
+    });
+    syncDocumentWindows();
+    if (!reducedMotion) {
+      windowElement.classList.add('is-opening');
+      window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
+    }
+    setMenuOpen(false);
+  }
+
+  directoryView.hidden = false;
+  clerkDirectory.hidden = true;
+  documentView.hidden = true;
+  startMenu.classList.add('mascot-start-menu');
+
+  const clerkRecords = [
+    { documentId: 'clerk-wei-yi', entry: '助理书记官 · 笔名：魏伊', title: '助理书记官 · 笔名：魏伊', code: 'SC-01 / PEN NAME / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-yinnar-light', entry: '见习书记官 · 笔名：主行', title: '见习书记官 · 笔名：主行', code: 'SC-II / PEN NAME / ONLINE / 2 PAGES' },
+  ];
+  clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, '0');
+    const record = clerkRecords[index];
+    return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'data-clerk-reserved="true"'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
+  }).join('');
+
+  trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
+  desktopEntry.addEventListener('click', () => setDesktopOpen(true));
+  desktopStart.addEventListener('click', () => {
+    desktopWelcome.hidden = false;
+    desktopWelcome.focus?.({ preventScroll: true });
+  });
+  desktopExit.addEventListener('click', () => setDesktopOpen(false));
+  desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
+  desktopEntries.forEach((entry) => {
+    entry.addEventListener('click', () => {
+      desktopEntries.forEach((button) => button.classList.toggle('is-selected', button === entry));
+      if (entry.dataset.clerkDesktopAction === 'exit') {
+        setDesktopOpen(false);
+        return;
+      }
+      if (entry.dataset.mascotDocument) openDocument(entry.dataset.mascotDocument, entry, 'workspace');
+    });
+  });
+  closeButton?.addEventListener('click', () => setMenuOpen(false));
   entries.forEach((entry) => {
     entry.addEventListener('click', () => {
       entries.forEach((button) => button.classList.toggle('is-selected', button === entry));
-      if (entry.dataset.mascotDocument === '1') {
-        showDocument();
+      if (entry.dataset.mascotDirectory === 'clerks') {
+        showClerkDirectory();
+        return;
+      }
+      if (entry.dataset.mascotDocument) {
+        openDocument(entry.dataset.mascotDocument, entry);
         return;
       }
       status.innerHTML = `<span>${entry.dataset.mascotEntry} / 内容尚未录入</span><b>SELECTED</b>`;
     });
   });
-  documentBack?.addEventListener('click', () => {
-    showDirectory();
-    entries.find((entry) => entry.dataset.mascotDocument === '1')?.focus({ preventScroll: true });
+  clerkBack?.addEventListener('click', showAssistantDirectory);
+  clerkList.addEventListener('click', (event) => {
+    const entry = event.target.closest('button');
+    if (!entry) return;
+    if (entry.dataset.mascotDocument) openDocument(entry.dataset.mascotDocument, entry);
   });
-  titlebar?.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.target.closest('button')) return;
-    windowDrag = {
-      pointerId: event.pointerId,
-      clientX: event.clientX,
-      clientY: event.clientY,
-    };
-    titlebar.setPointerCapture(event.pointerId);
-    windowElement.classList.add('is-dragging');
-    event.preventDefault();
+  document.addEventListener('pointerdown', (event) => {
+    if (startMenu.hidden || assistant.contains(event.target)) return;
+    setMenuOpen(false);
   });
-  titlebar?.addEventListener('pointermove', (event) => {
-    if (!windowDrag || event.pointerId !== windowDrag.pointerId) return;
-    const rect = windowElement.getBoundingClientRect();
-    const edge = 4;
-    const taskbarHeight = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--taskbar-height'),
-    ) || 44;
-    const requestedX = event.clientX - windowDrag.clientX;
-    const requestedY = event.clientY - windowDrag.clientY;
-    const stepX = THREE.MathUtils.clamp(requestedX, edge - rect.left, innerWidth - edge - rect.right);
-    const stepY = THREE.MathUtils.clamp(requestedY, edge - rect.top, innerHeight - taskbarHeight - edge - rect.bottom);
-    windowX += stepX;
-    windowY += stepY;
-    windowElement.style.setProperty('--mascot-window-x', `${windowX}px`);
-    windowElement.style.setProperty('--mascot-window-y', `${windowY}px`);
-    windowDrag.clientX = event.clientX;
-    windowDrag.clientY = event.clientY;
-  });
-  const finishWindowDrag = (event) => {
-    if (!windowDrag || event.pointerId !== windowDrag.pointerId) return;
-    if (titlebar?.hasPointerCapture(event.pointerId)) titlebar.releasePointerCapture(event.pointerId);
-    windowDrag = null;
-    windowElement.classList.remove('is-dragging');
-  };
-  titlebar?.addEventListener('pointerup', finishWindowDrag);
-  titlebar?.addEventListener('pointercancel', finishWindowDrag);
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !windowElement.hidden) setWindowOpen(false);
+    if (event.key !== 'Escape') return;
+    if (!startMenu.hidden) setMenuOpen(false);
+    else if (!desktop.hidden) setDesktopOpen(false);
   });
 
-  window.requestAnimationFrame(animateIdle);
+  frame.dataset.mascotFrame = '02';
+  updateDesktopClock();
+  window.setInterval(updateDesktopClock, 30_000);
+  startIdleAnimation();
+  Promise.allSettled(preloadedFrames.map((image) => image.decode()))
+    .then(() => {
+      if (!idleFrameTimer) startIdleAnimation();
+    });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') restartIdleAnimation();
+    else stopIdleAnimation();
+  });
+  window.addEventListener('focus', restartIdleAnimation);
+  window.addEventListener('pageshow', restartIdleAnimation);
+}
+
+function ensureWindowDragEdges(windowElement) {
+  const existing = [...windowElement.querySelectorAll(':scope > .window-drag-edge')];
+  if (existing.length) return existing;
+  const fragment = document.createDocumentFragment();
+  const edges = ['left', 'right', 'bottom'].map((edge) => {
+    const handle = document.createElement('div');
+    handle.className = `window-drag-edge window-drag-edge--${edge}`;
+    handle.dataset.windowDragEdge = edge;
+    handle.setAttribute('aria-hidden', 'true');
+    fragment.appendChild(handle);
+    return handle;
+  });
+  windowElement.appendChild(fragment);
+  return edges;
 }
 const RECORD_COPY_LABELS = {
   'state-registry': ['部署摘要', '证据链与归档', '本期处置'],
@@ -252,8 +725,10 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.065;
 controls.enablePan = false;
 controls.enableZoom = true;
-controls.minDistance = 150;
-controls.maxDistance = 430;
+// Keep the polar globe reachable at a genuinely close inspection distance.
+// The old 150-unit floor made the last zoom level feel like a distant overview.
+controls.minDistance = 105;
+controls.maxDistance = 480;
 controls.rotateSpeed = 0.42;
 controls.zoomSpeed = 0.85;
 controls.enabled = false;
@@ -426,6 +901,8 @@ const bootChannel = document.querySelector('#boot-channel');
 const bootStatus = document.querySelector('#boot-status');
 const bootProgress = document.querySelector('.boot-line i span');
 const scrollCueLabel = document.querySelector('#scroll-cue-label');
+const versionNotice = document.querySelector('#version-notice');
+const versionNoticeTask = document.querySelector('#archive-task-list');
 
 let scrollProgress = 0;
 let targetProgress = 0;
@@ -445,11 +922,16 @@ let archiveWheelLocked = false;
 let pageWheelLocked = false;
 let chapterScrollFrame = 0;
 let overviewSyncRun = 0;
+let capsuleBootRun = 0;
+let capsuleBootTimer = 0;
+let versionNoticeTaskButton = null;
+let versionNoticeClosed = false;
+let versionNoticeTimer = 0;
 const chapterTargets = [0, 1 / 3, 2 / 3, 1];
 
 buildArchiveOrbit();
 buildOverviewSync();
-armCapsuleBootSequence();
+prepareCapsuleBootSequence();
 updateClock();
 setInterval(updateClock, 30_000);
 onScroll();
@@ -488,6 +970,61 @@ chapterLinks.forEach((link, index) => {
 archiveBack.addEventListener('click', () => transitionArchiveDirectory(null, { force: true }));
 archivePrev.addEventListener('click', () => stepArchiveSelection(-1));
 archiveNext.addEventListener('click', () => stepArchiveSelection(1));
+versionNotice.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-version-notice-action]')?.dataset.versionNoticeAction;
+  if (action === 'minimize') minimizeVersionNotice();
+  if (action === 'close') closeVersionNotice();
+});
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !versionNotice.hidden) closeVersionNotice();
+});
+
+function syncVersionNoticeTask() {
+  if (!versionNoticeTaskButton) return;
+  versionNoticeTaskButton.classList.toggle('is-minimized', versionNotice.hidden);
+  versionNoticeTaskButton.classList.toggle('is-active', !versionNotice.hidden);
+  versionNoticeTaskButton.setAttribute('aria-pressed', String(!versionNotice.hidden));
+}
+
+function showVersionNotice() {
+  if (versionNoticeClosed) return;
+  window.clearTimeout(versionNoticeTimer);
+  versionNotice.hidden = false;
+  document.body.classList.add('version-notice-open');
+  window.requestAnimationFrame(() => versionNotice.classList.add('is-open'));
+  window.setTimeout(() => versionNotice.querySelector('[data-version-notice-action="minimize"]')?.focus(), 180);
+  syncVersionNoticeTask();
+}
+
+function minimizeVersionNotice() {
+  if (versionNotice.hidden) return;
+  versionNotice.classList.remove('is-open');
+  document.body.classList.remove('version-notice-open');
+  window.clearTimeout(versionNoticeTimer);
+  versionNoticeTimer = window.setTimeout(() => { versionNotice.hidden = true; syncVersionNoticeTask(); }, 180);
+}
+
+function closeVersionNotice() {
+  versionNoticeClosed = true;
+  minimizeVersionNotice();
+  versionNoticeTaskButton?.remove();
+  versionNoticeTaskButton = null;
+  versionNoticeTask.hidden = versionNoticeTask.children.length === 0;
+}
+
+function resetVersionNotice() {
+  versionNoticeClosed = false;
+  minimizeVersionNotice();
+  if (versionNoticeTaskButton) return;
+  versionNoticeTaskButton = document.createElement('button');
+  versionNoticeTaskButton.type = 'button';
+  versionNoticeTaskButton.className = 'archive-task-button is-minimized';
+  versionNoticeTaskButton.setAttribute('aria-pressed', 'false');
+  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.11</b>白幕初垂</span>';
+  versionNoticeTaskButton.addEventListener('click', showVersionNotice);
+  versionNoticeTask.append(versionNoticeTaskButton);
+  versionNoticeTask.hidden = false;
+}
 
 function applyCapsuleAccessState() {
   capsuleTitle.innerHTML = '系统接入已完成<br />欢迎使用';
@@ -500,33 +1037,56 @@ function applyCapsuleAccessState() {
 }
 
 window.addEventListener('palis:access-mode-change', (event) => {
-  if (event.detail?.mode === 'locked') return;
-  if (capsuleBootComplete) applyCapsuleAccessState();
+  if (event.detail?.mode === 'locked') {
+    capsuleBootRun += 1;
+    prepareCapsuleBootSequence();
+    return;
+  }
+  armCapsuleBootSequence();
 });
 
+function prepareCapsuleBootSequence() {
+  window.clearTimeout(capsuleBootTimer);
+  capsuleBootComplete = false;
+  capsuleCopy.classList.remove('is-booting', 'is-resolving', 'is-complete');
+  capsuleLayer.classList.remove('boot-ready');
+  resetVersionNotice();
+  capsuleTitle.innerHTML = '正在接入<br />PALIS 管理系统';
+  bootChannel.textContent = 'CHANNEL 09A / ARCHIVE HANDSHAKE';
+  bootStatus.textContent = 'INDEX READY';
+  bootProgress.style.transition = 'none';
+  bootProgress.style.transform = 'scaleX(0)';
+  void bootProgress.offsetWidth;
+  bootProgress.style.removeProperty('transition');
+  bootProgress.style.removeProperty('transform');
+}
+
 function armCapsuleBootSequence() {
+  const runId = ++capsuleBootRun;
+  prepareCapsuleBootSequence();
   const commitWelcome = () => {
+    if (runId !== capsuleBootRun) return;
     applyCapsuleAccessState();
-    capsuleCopy.classList.remove('is-resolving');
+    capsuleCopy.classList.remove('is-booting', 'is-resolving');
     capsuleCopy.classList.add('is-complete');
     capsuleLayer.classList.add('boot-ready');
     capsuleBootComplete = true;
     applyCapsuleAccessState();
+    window.setTimeout(showVersionNotice, 480);
   };
 
   const complete = () => {
+    if (runId !== capsuleBootRun) return;
     if (capsuleBootComplete || capsuleCopy.classList.contains('is-resolving')) return;
-    if (reducedMotion) {
-      commitWelcome();
-      return;
-    }
     bootStatus.textContent = 'VERIFYING';
     capsuleCopy.classList.add('is-resolving');
     window.setTimeout(commitWelcome, 260);
   };
 
-  if (reducedMotion) return requestAnimationFrame(complete);
-  bootProgress.addEventListener('animationend', complete, { once: true });
+  window.requestAnimationFrame(() => {
+    if (runId === capsuleBootRun) capsuleCopy.classList.add('is-booting');
+  });
+  capsuleBootTimer = window.setTimeout(complete, 2020);
 }
 
 function updateCapsuleParallax(event) {
@@ -540,9 +1100,27 @@ function resetCapsuleParallax() {
   capsuleParallax.targetY = 0;
 }
 
+function onlineArchiveCount(archive) {
+  return archive.children.filter((record) => record.webContent).length;
+}
+
+function offlineArchiveCount(archive) {
+  return archive.children.length - onlineArchiveCount(archive);
+}
+
+function syncCountText(onlineCount, offlineCount) {
+  return `${String(onlineCount).padStart(3, '0')}/${String(offlineCount).padStart(3, '0')}`;
+}
+
+function archiveSyncStatus(archive) {
+  const onlineCount = onlineArchiveCount(archive);
+  if (onlineCount === 0) return '文档离线';
+  return onlineCount === archive.children.length ? '正常' : '部分在线';
+}
+
 function buildOverviewSync() {
   syncList.innerHTML = ARCHIVE_ROOTS.map((archive, index) => `
-    <li class="sync-row" data-index="${index}" data-count="${archive.children.length}">
+    <li class="sync-row" data-index="${index}" data-count="${archive.children.length}" data-online-count="${onlineArchiveCount(archive)}">
       <span>${String(index + 1).padStart(2, '0')}</span>
       <b>${archive.name}档案</b>
       <i>等待</i>
@@ -550,17 +1128,18 @@ function buildOverviewSync() {
     </li>
   `).join('');
   syncCounts.innerHTML = ARCHIVE_ROOTS.map((archive) => `
-    <div><span>${archive.name}</span><b>${String(archive.children.length).padStart(2, '0')}</b></div>
+    <div><span>${archive.name}</span><b>${syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive))}</b></div>
   `).join('');
 }
 
 async function runOverviewSync() {
   const runId = ++overviewSyncRun;
   const rows = [...syncList.querySelectorAll('.sync-row')];
-  const recordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + archive.children.length, 0);
+  const recordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
+  const offlineRecordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
   const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
   const animateArchiveCount = async (row, archive, index) => {
-    const target = archive.children.length;
+    const target = onlineArchiveCount(archive);
     const output = row.querySelector('output');
     const status = row.querySelector('i');
     const pausePoints = target >= 30
@@ -571,6 +1150,7 @@ async function runOverviewSync() {
     const stepDelay = target >= 30 ? 24 : target >= 20 ? 28 : target >= 14 ? 31 : 36;
 
     output.textContent = '000';
+    if (target === 0) return true;
     for (let count = 1; count <= target; count += 1) {
       if (runId !== overviewSyncRun || currentChapter !== 1) return false;
       output.textContent = String(count).padStart(3, '0');
@@ -607,7 +1187,8 @@ async function runOverviewSync() {
   syncEnter.textContent = '打开 PALIS 09A';
   syncLog.textContent = '> AWAIT INDEX BUS RESPONSE';
   [...syncCounts.querySelectorAll('b')].forEach((count, index) => {
-    count.textContent = String(ARCHIVE_ROOTS[index].children.length).padStart(2, '0');
+    const archive = ARCHIVE_ROOTS[index];
+    count.textContent = syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive));
   });
   rows.forEach((row) => {
     row.classList.remove('is-requesting', 'is-scanning', 'is-buffering', 'is-complete', 'is-failed');
@@ -615,16 +1196,20 @@ async function runOverviewSync() {
     row.querySelector('output').textContent = '---';
   });
 
-  if (isPreviewAccess()) {
+  const hasEmbeddedArchiveContent = ARCHIVE_ROOTS.every((archive) => archive.children.every((record) => record.webContent));
+  if (isPreviewAccess() && !hasEmbeddedArchiveContent) {
     syncSubtitle.textContent = '09 INDEX CHANNELS / SOURCE FILE AVAILABILITY';
     syncState.textContent = '等待源文件';
     syncLog.textContent = '> OPEN INDEX BUS / SOURCE FILES NOT FOUND';
 
     if (reducedMotion) {
-      rows.forEach((row) => {
-        row.classList.add('is-failed');
-        row.querySelector('i').textContent = '文档离线';
-        row.querySelector('output').textContent = 'ERR';
+      rows.forEach((row, index) => {
+        const archive = ARCHIVE_ROOTS[index];
+        const onlineCount = onlineArchiveCount(archive);
+        const offlineCount = offlineArchiveCount(archive);
+        row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+        row.querySelector('i').textContent = archiveSyncStatus(archive);
+        row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
       });
     } else {
       await wait(240);
@@ -632,6 +1217,8 @@ async function runOverviewSync() {
         if (runId !== overviewSyncRun || currentChapter !== 1) return;
         const row = rows[index];
         const archive = ARCHIVE_ROOTS[index];
+        const onlineCount = onlineArchiveCount(archive);
+        const offlineCount = offlineArchiveCount(archive);
         row.classList.add('is-requesting');
         row.querySelector('i').textContent = '呼叫';
         row.querySelector('output').textContent = '000';
@@ -654,7 +1241,7 @@ async function runOverviewSync() {
           if (runId !== overviewSyncRun || currentChapter !== 1) return;
           const block = String((index + 1) * 0x100 + probe * 0x20).padStart(4, '0');
           row.querySelector('output').textContent = String(probe).padStart(3, '0');
-          syncLog.textContent = `> SCAN ${archive.code} / BLOCK ${block} / NO INDEX RECORD`;
+          syncLog.textContent = `> SCAN ${archive.code} / BLOCK ${block} / ${onlineCount > 0 ? 'CONTENT INDEX FOUND' : 'NO INDEX RECORD'}`;
           const scanProgress = Math.round(((index + 0.22 + ((probe + 1) / probeCount) * 0.62) / rows.length) * 100);
           syncPercent.textContent = String(scanProgress).padStart(3, '0');
           syncProgress.style.width = `${scanProgress}%`;
@@ -662,6 +1249,14 @@ async function runOverviewSync() {
         }
 
         row.classList.remove('is-scanning');
+        if (onlineCount > 0) {
+          row.classList.add('is-complete');
+          row.querySelector('i').textContent = archiveSyncStatus(archive);
+          row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
+          syncLog.textContent = `> ${archive.code} / ${onlineCount} RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
+          await wait(160);
+          continue;
+        }
         row.classList.add('is-buffering');
         row.querySelector('i').textContent = '重试';
         row.querySelector('output').textContent = '---';
@@ -672,26 +1267,28 @@ async function runOverviewSync() {
         row.classList.remove('is-buffering');
         row.classList.add('is-failed');
         row.querySelector('i').textContent = '文档离线';
-        row.querySelector('output').textContent = 'ERR';
+        row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
         const failedProgress = Math.round(((index + 1) / rows.length) * 100);
         syncPercent.textContent = String(failedProgress).padStart(3, '0');
         syncProgress.style.width = `${failedProgress}%`;
-        syncLog.textContent = `> ${archive.code} / SOURCE FILE NOT FOUND / INDEX CHECK FAILED`;
+        syncLog.textContent = `> ${archive.code} / 0 RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
         await wait(160);
       }
     }
 
-    commitRestrictedOverviewSync(runId, rows.length);
+    commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
     return;
   }
 
   if (reducedMotion) {
-    rows.forEach((row) => {
-      row.classList.add('is-complete');
-      row.querySelector('i').textContent = '正常';
-      row.querySelector('output').textContent = row.dataset.count;
+    rows.forEach((row, index) => {
+      const archive = ARCHIVE_ROOTS[index];
+      const onlineCount = onlineArchiveCount(archive);
+      row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+      row.querySelector('i').textContent = archiveSyncStatus(archive);
+      row.querySelector('output').textContent = syncCountText(onlineCount, offlineArchiveCount(archive));
     });
-    commitOverviewSync(runId, recordTotal, rows.length);
+    commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
     return;
   }
 
@@ -700,6 +1297,8 @@ async function runOverviewSync() {
     if (runId !== overviewSyncRun || currentChapter !== 1) return;
     const row = rows[index];
     const archive = ARCHIVE_ROOTS[index];
+    const onlineCount = onlineArchiveCount(archive);
+    const offlineCount = offlineArchiveCount(archive);
     const requestProgress = Math.round(((index + 0.18) / rows.length) * 100);
     row.classList.add('is-requesting');
     row.querySelector('i').textContent = '呼叫';
@@ -721,24 +1320,40 @@ async function runOverviewSync() {
     syncLog.textContent = `> VERIFY ${archive.code} / ACCESSION COUNT / SOURCE CHAIN / CRC`;
     if (!await animateArchiveCount(row, archive, index)) return;
     row.classList.remove('is-scanning');
-    row.classList.add('is-complete');
-    row.querySelector('i').textContent = '正常';
-    row.querySelector('output').textContent = String(archive.children.length).padStart(3, '0');
+    row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+    row.querySelector('i').textContent = archiveSyncStatus(archive);
+    row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
     const completeProgress = Math.round(((index + 1) / rows.length) * 100);
     syncPercent.textContent = String(completeProgress).padStart(3, '0');
     syncProgress.style.width = `${completeProgress}%`;
-    syncLog.textContent = `> ${archive.name}档案检索正常 / ${archive.children.length} RECORDS / CRC VERIFIED`;
+    syncLog.textContent = `> ${archive.name} / ${onlineCount} RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
     await wait(135 + (index % 2) * 28);
   }
 
-  commitOverviewSync(runId, recordTotal, rows.length);
+  commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
 }
 
-function commitOverviewSync(runId, recordTotal, channelTotal) {
+function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal) {
   if (runId !== overviewSyncRun) return;
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
   syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
+  if (offlineRecordTotal > 0) {
+    syncState.textContent = '已录入内容可用，其余文档离线';
+    syncRecordTotal.textContent = String(recordTotal).padStart(3, '0');
+    syncErrorTotal.textContent = String(offlineRecordTotal).padStart(3, '0');
+    syncTitle.replaceChildren(
+      document.createTextNode('档案索引完成'),
+      document.createElement('br'),
+      document.createTextNode('已录入记录可检索'),
+    );
+    syncSubtitle.textContent = `INDEX BUS ${String(channelTotal).padStart(2, '0')}/${String(channelTotal).padStart(2, '0')} · ${String(recordTotal).padStart(3, '0')} ONLINE · ${String(offlineRecordTotal).padStart(3, '0')} OFFLINE`;
+    syncLog.textContent = `> INDEX COMPLETE / ${recordTotal} RECORDS ONLINE / ${offlineRecordTotal} RECORDS OFFLINE`;
+    syncEnter.removeAttribute('aria-disabled');
+    syncEnter.textContent = '打开 PALIS 09A';
+    syncConsole.classList.add('is-sync-complete');
+    return;
+  }
   syncState.textContent = '全部通道就绪';
   syncRecordTotal.textContent = String(recordTotal).padStart(3, '0');
   syncErrorTotal.textContent = '000';
@@ -1019,6 +1634,10 @@ async function runRestrictedPolarDiagnostic(totals) {
   document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 20 STATIONS OFFLINE / ROUTES UNKNOWN';
   document.querySelector('[data-layer="stations"] small').textContent = '20 座站点离线／补给路线未知';
   taskStatus.textContent = '南极网络离线 / 补给路线未知';
+  await diagnosticWait(reducedMotion ? 20 : 1250);
+  polarDiagnostic.classList.add('is-dismissed');
+  await diagnosticWait(reducedMotion ? 20 : 520);
+  polarDiagnostic.hidden = true;
 }
 
 let archiveDrag = null;
@@ -1161,7 +1780,7 @@ function focusLocalWindow(state) {
 }
 
 function startLocalWindowDrag(state, event) {
-  if (event.button !== 0 || event.target.closest('button') || state.maximized || state.mode !== 'open') return;
+  if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button') || state.maximized || state.mode !== 'open') return;
   focusLocalWindow(state);
   const windowRect = state.windowElement.getBoundingClientRect();
   const containerRect = state.container.getBoundingClientRect();
@@ -1265,7 +1884,7 @@ let archiveWindowSequence = 0;
 let activeArchiveWindow = null;
 
 function syncArchiveTaskbar() {
-  archiveTaskList.hidden = archiveWindows.size === 0;
+  archiveTaskList.hidden = archiveTaskList.children.length === 0;
   archiveWindows.forEach(({ windowElement, taskButton, minimized }) => {
     const isActive = windowElement === activeArchiveWindow && !minimized;
     windowElement.classList.toggle('is-active', isActive);
@@ -1278,6 +1897,11 @@ function syncArchiveTaskbar() {
 function bringArchiveWindowToFront(windowElement, focusControl = false) {
   const state = archiveWindows.get(windowElement.dataset.archiveId);
   if (!state || state.minimized) return;
+  document.querySelectorAll('.mascot-document-window.is-active').forEach((candidate) => candidate.classList.remove('is-active'));
+  archiveTaskList.querySelectorAll('.mascot-document-task-button').forEach((button) => {
+    button.classList.remove('is-active');
+    button.setAttribute('aria-pressed', 'false');
+  });
   archiveWindowZ += 1;
   windowElement.style.zIndex = String(archiveWindowZ);
   activeArchiveWindow = windowElement;
@@ -1367,32 +1991,46 @@ function closeArchiveWindow(windowElement) {
 
 function installArchiveWindowDrag(windowElement) {
   const titlebar = windowElement.querySelector('.dialog-titlebar');
+  const handles = [titlebar, ...ensureWindowDragEdges(windowElement)].filter(Boolean);
   let dragState = null;
-  titlebar.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.target.closest('button')) return;
+  const startDrag = (event) => {
+    if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button')) return;
     bringArchiveWindowToFront(windowElement);
     const rect = windowElement.getBoundingClientRect();
-    dragState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: rect.left, top: rect.top, width: rect.width };
-    titlebar.setPointerCapture(event.pointerId);
+    dragState = {
+      pointerId: event.pointerId,
+      handle: event.currentTarget,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    dragState.handle.setPointerCapture(event.pointerId);
     windowElement.classList.add('is-dragging');
     event.preventDefault();
-  });
-  titlebar.addEventListener('pointermove', (event) => {
+  };
+  const moveDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
     const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
-    const nextLeft = THREE.MathUtils.clamp(dragState.left + event.clientX - dragState.startX, -dragState.width + 150, innerWidth - 150);
-    const nextTop = THREE.MathUtils.clamp(dragState.top + event.clientY - dragState.startY, 0, innerHeight - taskbarHeight - 28);
+    const nextLeft = THREE.MathUtils.clamp(dragState.left + event.clientX - dragState.startX, -dragState.width + 28, innerWidth - 28);
+    const nextTop = THREE.MathUtils.clamp(dragState.top + event.clientY - dragState.startY, -dragState.height + 64, innerHeight - taskbarHeight - 24);
     windowElement.style.left = `${nextLeft}px`;
     windowElement.style.top = `${nextTop}px`;
-  });
+  };
   const finishDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
-    if (titlebar.hasPointerCapture(event.pointerId)) titlebar.releasePointerCapture(event.pointerId);
+    if (dragState.handle.hasPointerCapture(event.pointerId)) dragState.handle.releasePointerCapture(event.pointerId);
     dragState = null;
     windowElement.classList.remove('is-dragging');
   };
-  titlebar.addEventListener('pointerup', finishDrag);
-  titlebar.addEventListener('pointercancel', finishDrag);
+  handles.forEach((handle) => {
+    handle.addEventListener('pointerdown', startDrag);
+    handle.addEventListener('pointermove', moveDrag);
+    handle.addEventListener('pointerup', finishDrag);
+    handle.addEventListener('pointercancel', finishDrag);
+  });
 }
 
 function buildArchiveOrbit(directory = archiveDirectory) {
@@ -1439,7 +2077,8 @@ function buildArchiveOrbit(directory = archiveDirectory) {
     item.setAttribute('role', 'listitem');
     const button = document.createElement('button');
     const isFolder = Boolean(archive.children);
-    button.className = `folder-button ${isFolder ? 'is-folder' : 'is-document'}`;
+    const availabilityClass = !isFolder ? (archive.webContent ? 'is-online' : 'is-offline') : '';
+    button.className = `folder-button ${isFolder ? 'is-folder' : 'is-document'} ${availabilityClass}`;
     button.type = 'button';
     button.dataset.index = String(index);
     button.dataset.code = archive.code;
@@ -1955,6 +2594,10 @@ function buildEventPlane(orbit, entries, appendArchiveEntry) {
       <span>CAMERA DEPTH</span>
       <strong>×0.00</strong>
       <b>VISIBLE 00 / ${String(entries.length).padStart(2, '0')}</b>
+      <div class="event-plane-zoom-controls" aria-label="Archive plane zoom">
+        <button class="event-plane-zoom-out" type="button" aria-label="Zoom out archive plane">−</button>
+        <button class="event-plane-zoom-in" type="button" aria-label="Zoom in archive plane">+</button>
+      </div>
       <button class="event-plane-reset" type="button">⌖ 返回全景</button>
     </aside>
     <nav class="event-plane-map" aria-label="事件空间快速定位">
@@ -2008,6 +2651,14 @@ function buildEventPlane(orbit, entries, appendArchiveEntry) {
   };
 
   scene.querySelector('.event-plane-reset').addEventListener('click', () => resetEventPlane());
+  scene.querySelector('.event-plane-zoom-out').addEventListener('click', () => {
+    const { width, height } = eventPlaneViewportSize();
+    zoomEventPlaneAt(width / 2, height / 2, 0.78);
+  });
+  scene.querySelector('.event-plane-zoom-in').addEventListener('click', () => {
+    const { width, height } = eventPlaneViewportSize();
+    zoomEventPlaneAt(width / 2, height / 2, 1.28);
+  });
   scene.addEventListener('wheel', handleEventPlaneWheel, { passive: false });
   scene.addEventListener('pointerdown', beginEventPlanePointer);
   scene.addEventListener('pointermove', moveEventPlanePointer);
@@ -2198,9 +2849,14 @@ function handleEventPlaneWheel(event) {
 }
 
 function beginEventPlanePointer(event) {
-  // Cards and controls keep ownership of the pointer so a physical click reaches
-  // their native click handler. Panning starts only from the empty archive plane.
-  if (!eventPlaneState || event.button > 0 || event.target.closest('.folder-button, .event-plane-hud, .event-plane-map')) return;
+  // A first finger on a card still owns its native tap. A second touch may join
+  // an active canvas gesture even when it lands on a card, so phone pinch zoom
+  // remains reliable in a dense archive plane.
+  if (!eventPlaneState || event.button > 0) return;
+  const targetIsControl = event.target.closest('.event-plane-hud, .event-plane-map');
+  const targetIsCard = event.target.closest('.folder-button');
+  const joinsActiveTouchGesture = event.pointerType === 'touch' && eventPlaneState.pointers.size > 0;
+  if (targetIsControl || (targetIsCard && !joinsActiveTouchGesture)) return;
   const scene = eventPlaneState.scene;
   const rect = scene.getBoundingClientRect();
   const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -3835,6 +4491,81 @@ function renderArchiveDocument(archive) {
     ${recordFooter(archive, 'MORPHOLOGY / PROTEIN / CLASSIFICATION OPEN')}`;
 }
 
+const archiveCategoryTemplateCodes = Object.freeze({
+  country: '01',
+  organization: '02',
+  station: '03',
+  entrance: '04',
+  ecology: '05',
+  person: '06',
+  event: '07',
+  anomaly: '08',
+  species: '09',
+});
+
+async function resolvePublishedArchive(archive) {
+  if (!archiveWorkflowClient) return null;
+  const embeddedCode = archive.name.match(/\bHZ-\d+\b/i)?.[0]
+    || archive.heading?.match(/\bHZ-\d+\b/i)?.[0];
+  const candidates = [embeddedCode, archive.code, archive.name].filter(Boolean);
+  for (const candidate of candidates) {
+    const matches = await archiveWorkflowClient.searchArchives(candidate, { limit: 12 });
+    const normalized = String(candidate).toLocaleLowerCase('zh-CN');
+    const exact = matches.find((entry) =>
+      [entry.code, entry.title]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase('zh-CN') === normalized));
+    if (exact) return exact;
+  }
+  return null;
+}
+
+async function hydratePublishedContributions(archive, sheet) {
+  if (!archiveWorkflowClient || !archive.webContent) return;
+  try {
+    const publishedArchive = await resolvePublishedArchive(archive);
+    if (!publishedArchive || publishedArchive.visibility !== 'public') return;
+    const [contributions, reverseReferences] = await Promise.all([
+      archiveWorkflowClient.listArchiveContributions(publishedArchive.id),
+      archiveWorkflowClient.listArchiveReferences?.(publishedArchive.id) ?? Promise.resolve([]),
+    ]);
+    const model = buildPublishedArchiveModel({
+      archive: publishedArchive,
+      contributions,
+      reverseReferences,
+    });
+    if (!model?.contributions.length || !sheet.isConnected) return;
+
+    sheet.innerHTML = renderPublishedContributionLedger(model);
+
+    const tabs = [...sheet.querySelectorAll('[data-contribution-tab]')];
+    const panels = [...sheet.querySelectorAll('[data-contribution-panel]')];
+    const selectTab = (id) => {
+      tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.contributionTab === id)));
+      panels.forEach((panel) => { panel.hidden = panel.dataset.contributionPanel !== id; });
+      sheet.scrollTop = 0;
+    };
+    tabs.forEach((tab) => tab.addEventListener('click', () => selectTab(tab.dataset.contributionTab)));
+    selectTab(model.tabs[0].id);
+
+    sheet.querySelectorAll('[data-request-amendment]').forEach((button) => {
+      button.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('palis:open-amendment', {
+          detail: {
+            templateCode: archiveCategoryTemplateCodes[publishedArchive.category] || '07',
+            archiveId: publishedArchive.id,
+            archiveCode: publishedArchive.code,
+            targetContributionId: button.dataset.requestAmendment,
+            title: `修改申请 / ${publishedArchive.title}`,
+          },
+        }));
+      });
+    });
+  } catch {
+    // Static records remain fully usable if the free-tier data service is offline.
+  }
+}
+
 function openArchive(archive, trigger) {
   const existing = archiveWindows.get(archive.id);
   if (existing) {
@@ -3855,7 +4586,7 @@ function openArchive(archive, trigger) {
   windowElement.querySelector('.window-file').textContent = archive.file;
   const sheet = windowElement.querySelector('.document-sheet');
   sheet.className = `document-sheet record-${archive.recordType}`;
-  if (document.body.dataset.accessMode === 'preview') {
+  if (!archive.webContent) {
     sheet.classList.add('document-sheet--offline');
     sheet.innerHTML = `
       <section class="document-offline-cover" role="status">
@@ -3870,6 +4601,7 @@ function openArchive(archive, trigger) {
   }
   const titleElement = sheet.querySelector('[data-dialog-title]');
   if (titleElement) titleElement.id = titleId;
+  hydratePublishedContributions(archive, sheet);
 
   taskButton.type = 'button';
   taskButton.className = 'archive-task-button';
@@ -3902,7 +4634,7 @@ function openArchive(archive, trigger) {
   windowElement.addEventListener('pointerdown', () => bringArchiveWindowToFront(windowElement));
   taskButton.addEventListener('click', () => {
     if (state.minimized) restoreArchiveWindow(windowElement);
-    else if (activeArchiveWindow === windowElement) minimizeArchiveWindow(windowElement);
+    else if (activeArchiveWindow === windowElement && windowElement.classList.contains('is-active')) minimizeArchiveWindow(windowElement);
     else bringArchiveWindowToFront(windowElement, true);
   });
   installArchiveWindowDrag(windowElement);
@@ -3924,7 +4656,15 @@ function onScroll() {
 function onPageWheel(event) {
   if (event.defaultPrevented) return;
   const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
-  const overlay = event.target.closest('.archive-window, .mascot-assistant, [data-local-window]');
+  if (!versionNotice.hidden) {
+    const noticeCopy = event.target.closest('.version-notice__copy');
+    event.preventDefault();
+    if (noticeCopy) noticeCopy.scrollTop += delta;
+    return;
+  }
+  const overlay = event.target.closest(
+    '.archive-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
+  );
   if (overlay) {
     let scrollTarget = event.target;
     while (scrollTarget && scrollTarget !== overlay.parentElement) {
@@ -4265,7 +5005,11 @@ function getGlobeLayout(progress) {
   const viewportHeight = window.visualViewport?.height || innerHeight;
   const taskbarHeight = document.querySelector('.taskbar')?.getBoundingClientRect().height || 44;
   const stageHeight = Math.max(viewportHeight - taskbarHeight, 1);
-  const worldHeight = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+  // Keep responsive layout in the initial 340-unit camera space. Deriving layout
+  // scale from the live OrbitControls distance cancels zoom: every camera move
+  // would resize the globe back to the same apparent diameter.
+  const layoutCameraDistance = 340;
+  const worldHeight = 2 * layoutCameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
   const worldPerPixel = worldHeight / Math.max(viewportHeight, 1);
   const stageCenterY = taskbarHeight * 0.5 * worldPerPixel;
   const introCornerX = viewportWidth * 0.5 * worldPerPixel;

@@ -151,6 +151,26 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   let grantPromise = null;
   let signingOut = false;
   let previewMode = false;
+  let activeProfile = null;
+
+  function emitSessionChange(session = null, profile = null, preview = false) {
+    const role = preview ? 'observer' : (profile?.role || null);
+    window.dispatchEvent(new CustomEvent('palis:session-change', {
+      detail: { session, profile, role, preview },
+    }));
+  }
+
+  async function loadProfile(session) {
+    const userId = session?.user?.id;
+    if (!supabase || !userId) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,email,display_name,role,enabled')
+      .eq('id', userId)
+      .single();
+    if (error || !data?.enabled) return null;
+    return data;
+  }
 
   function setExperienceLocked(locked) {
     document.body.classList.toggle('access-locked', locked);
@@ -181,8 +201,10 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   function showLogin(message = '等待操作员输入凭据。') {
     grantPromise = null;
     previewMode = false;
+    activeProfile = null;
     delete document.body.dataset.accessMode;
     window.dispatchEvent(new CustomEvent('palis:access-mode-change', { detail: { mode: 'locked' } }));
+    emitSessionChange(null, null, false);
     gate.hidden = false;
     gate.classList.remove('is-leaving', 'is-tv-opening');
     gate.dataset.phase = 'login';
@@ -207,9 +229,10 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   function updateSessionDisplay(session) {
     const email = session?.user?.email || '';
     sessionPanel.hidden = !email && !previewMode;
-    sessionUser.textContent = previewMode ? 'CONTENT OFFLINE / 内容未上线' : (email || 'OPERATOR');
-    sessionUser.title = previewMode ? '网站框架预览：档案内容尚未录入' : email;
-    signOutButton.textContent = previewMode ? '返回登录' : '退出';
+    sessionUser.textContent = previewMode ? 'PARTIAL CONTENT / 部分内容可检索' : (email || 'OPERATOR');
+    sessionUser.title = previewMode ? '本地预览：已录入的档案可直接打开，其余档案保持离线' : email;
+    signOutButton.textContent = previewMode ? '返回登录' : '退出登录';
+    signOutButton.setAttribute('aria-label', previewMode ? '返回登录' : '退出登录');
   }
 
   async function openLikeTelevision() {
@@ -236,8 +259,11 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     grantPromise = (async () => {
       pendingSession = session;
       previewMode = false;
+      activeProfile = await loadProfile(session);
       document.body.dataset.accessMode = 'authenticated';
+      document.body.dataset.operatorRole = activeProfile?.role || 'observer';
       window.dispatchEvent(new CustomEvent('palis:access-mode-change', { detail: { mode: 'authenticated' } }));
+      emitSessionChange(session, activeProfile, false);
       updateSessionDisplay(session);
       await openLikeTelevision();
     })();
@@ -250,8 +276,11 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
 
     grantPromise = (async () => {
       previewMode = true;
+      activeProfile = null;
       document.body.dataset.accessMode = 'preview';
+      document.body.dataset.operatorRole = 'observer';
       window.dispatchEvent(new CustomEvent('palis:access-mode-change', { detail: { mode: 'preview' } }));
+      emitSessionChange(null, null, true);
       updateSessionDisplay(null);
       await openLikeTelevision();
     })();
@@ -312,6 +341,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     signOutButton.disabled = false;
     if (error) return;
     pendingSession = null;
+    activeProfile = null;
     updateSessionDisplay(null);
     passwordInput.value = '';
     showLogin('当前会话已安全结束，请重新输入凭据。');
@@ -385,6 +415,11 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
       } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         pendingSession = session;
         updateSessionDisplay(session);
+        loadProfile(session).then((profile) => {
+          activeProfile = profile;
+          document.body.dataset.operatorRole = profile?.role || 'observer';
+          emitSessionChange(session, profile, false);
+        });
       } else if (event === 'SIGNED_OUT' && !signingOut) {
         pendingSession = null;
         updateSessionDisplay(null);

@@ -1,0 +1,4 @@
+<!-- Locally bundled archive symbol. Geometry adapted from Iconify/Lucide "flag"; ISC license. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#142e35" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" shape-rendering="geometricPrecision">
+  <path d="M5 21V4m0 1h11l-2 3 2 3H5"/><path d="M3 21h7"/>
+</svg>
