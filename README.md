@@ -80,12 +80,17 @@ npm run build
 网站仍可部署为免费的 Cloudflare 静态站；登录、档案工作流、私有附件和审核记录使用 Supabase 免费层。当前实现不启用 Realtime，也不做高频轮询。
 
 1. 创建 Supabase 项目，在 Authentication 中关闭公开注册。
-2. 执行 [202607270001_archive_workflow.sql](./supabase/migrations/202607270001_archive_workflow.sql)。它会建立数据表、RLS、九类模板、私有附件桶、审核/录入函数和公开记录读取函数。
-3. 在 Supabase Authentication 后台创建首个用户 `717652849@qq.com`。数据库触发器会把这个邮箱设为管理员。
-4. 部署邀请函数：
+2. 按顺序执行下列迁移：
+
+   - [202607270001_archive_workflow.sql](./supabase/migrations/202607270001_archive_workflow.sql)：建立数据表、RLS、九类模板、私有附件桶、审核/录入函数和公开记录读取函数。
+   - [202607270002_repair_admin_and_official_archives.sql](./supabase/migrations/202607270002_repair_admin_and_official_archives.sql)：修复主管理员资料并登记网站既有官方档案。
+   - [202607270003_archive_editor_pipeline.sql](./supabase/migrations/202607270003_archive_editor_pipeline.sql)：允许管理员提交草稿，建立自动档号、模板简称与修改母版本链。
+
+3. 在 Supabase Authentication 后台创建首个用户 `717652849@qq.com`。数据库触发器会把这个邮箱设为受保护管理员。
+4. 部署正式账号管理函数：
 
 ```powershell
-supabase functions deploy admin-invite-user
+supabase functions deploy admin-manage-user
 supabase secrets set SUPABASE_URL="https://项目.supabase.co"
 supabase secrets set SUPABASE_ANON_KEY="项目匿名密钥"
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY="仅供函数使用的服务密钥"
@@ -98,7 +103,7 @@ VITE_SUPABASE_URL=https://项目.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` 只能放在 Edge Function secrets，不能写入任何 `VITE_*` 变量或提交到仓库。配置完成后，管理员可在工作台邀请书记官或观察员；网站界面不提供自行注册。
+`SUPABASE_SERVICE_ROLE_KEY` 只能放在 Edge Function secrets，不能写入任何 `VITE_*` 变量或提交到仓库。配置完成后，管理员可直接建立书记官或观察员账号、设置正式密码、切换权限、重置密码或停用登录；Supabase 不提供旧密码明文，因此后台只显示密码已设置状态。网站界面不提供自行注册。
 
 本地验证：
 

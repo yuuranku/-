@@ -356,7 +356,7 @@
         <button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-welcome"><i aria-hidden="true"></i><b>工作台</b></button>
         <div class="clerk-desktop__task-list" id="assistant-task-list" aria-label="书记官工作台已打开窗口" hidden></div>
         <p class="clerk-desktop__status"><i></i><span>本地工作台已接入</span></p>
-        <p class="clerk-desktop__channel"><span data-workspace-name>书记官工作台</span><b data-workspace-name-en>CLERK WORKSPACE</b></p>
+        <p class="clerk-desktop__channel"><span data-workspace-greeting>欢迎您，书记官</span><b data-workspace-name-en>CLERK WORKSPACE</b></p>
         <button class="clerk-desktop__exit" id="clerk-desktop-exit" type="button">返回档案系统</button>
         <time id="clerk-desktop-time">13:13</time>
       </footer>
@@ -514,11 +514,11 @@
               <div class="mascot-document-content mascot-document-content--clerk" data-mascot-document-content="clerk-wei-yi" hidden>
                 <div class="mascot-document-mast">
                   <p>PALIS 09A / CLERK DOSSIER / SC-01</p>
-                  <h2>助理书记官 · 笔名：魏伊</h2>
+                  <h2>助理见习书记官 · 笔名：魏伊</h2>
                 </div>
                 <div class="clerk-dossier-pages">
-                  <figure class="clerk-dossier-page"><img src="/assets/clerks/wei-yi-profile.png" alt="助理书记官笔名魏伊档案：身份登记、教育与履历" /></figure>
-                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/wei-yi-notes.png" alt="助理书记官笔名魏伊档案附页：其他备注" /></figure>
+                  <figure class="clerk-dossier-page"><img src="/assets/clerks/wei-yi-profile.png" alt="助理见习书记官笔名魏伊档案：身份登记、教育与履历" /></figure>
+                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/wei-yi-notes.png" alt="助理见习书记官笔名魏伊档案附页：其他备注" /></figure>
                 </div>
                 <nav class="clerk-dossier-pagination" aria-label="笔名魏伊档案翻页">
                   <button type="button" data-clerk-page="previous" aria-label="上一页" disabled>←</button>
@@ -530,11 +530,11 @@
               <div class="mascot-document-content mascot-document-content--clerk" data-mascot-document-content="clerk-yinnar-light" hidden>
                 <div class="mascot-document-mast">
                   <p>PALIS 09A / CLERK DOSSIER / SC-II</p>
-                  <h2>见习书记官 · 笔名：主行</h2>
+                  <h2>助理见习书记官 · 笔名：主行</h2>
                 </div>
                 <div class="clerk-dossier-pages">
-                  <figure class="clerk-dossier-page"><img src="/assets/clerks/yinnar-light-profile.jpg" alt="见习书记官笔名主行档案：身份登记、教育与履历" /></figure>
-                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/yinnar-light-notes.jpg" alt="见习书记官笔名主行档案附页：其他备注" /></figure>
+                  <figure class="clerk-dossier-page"><img src="/assets/clerks/yinnar-light-profile.jpg" alt="助理见习书记官笔名主行档案：身份登记、教育与履历" /></figure>
+                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/yinnar-light-notes.jpg" alt="助理见习书记官笔名主行档案附页：其他备注" /></figure>
                 </div>
                 <nav class="clerk-dossier-pagination" aria-label="笔名主行档案翻页">
                   <button type="button" data-clerk-page="previous" aria-label="上一页" disabled>←</button>
@@ -614,7 +614,19 @@
             <button class="window-close" type="button" aria-label="关闭档案窗口">×</button>
           </div>
         </div>
-        <div class="dialog-menu" aria-hidden="true"><span>文件(F)</span><span>编辑(E)</span><span>查看(V)</span><span>帮助(H)</span></div>
+        <nav class="dialog-menu" aria-label="档案窗口菜单">
+          <div class="dialog-menu__group">
+            <button type="button" data-archive-menu-trigger="file" aria-haspopup="menu" aria-expanded="false">文件(F)</button>
+            <div class="dialog-file-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-archive-file-action="amend">提交修改申请</button>
+              <button type="button" role="menuitem" data-archive-file-action="export">导出当前档案</button>
+              <button type="button" role="menuitem" data-archive-file-action="print">打印当前档案</button>
+              <hr />
+              <button type="button" role="menuitem" data-archive-file-action="close">关闭档案</button>
+            </div>
+          </div>
+          <span>编辑(E)</span><span>查看(V)</span><span>帮助(H)</span>
+        </nav>
         <article class="document-sheet"></article>
       </section>
     </template>

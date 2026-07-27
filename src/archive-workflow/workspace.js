@@ -1,9 +1,15 @@
 import { createAutosaveController } from './autosave.js';
+import { createTemplateEditorBridge } from './editor-bridge.js';
+import {
+  createEditorDocument,
+  normalizeEditorDocument,
+} from './editor-document.js';
 import {
   buildArchiveReference,
   canEnterWorkspace,
   canReview,
 } from './domain.js';
+import { renderFormalArchiveDocument } from './public-renderer.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
@@ -12,7 +18,18 @@ const AUTOSAVE_LABELS = Object.freeze({
   'cloud-syncing': '正在同步云端…',
   'cloud-synced': '本地与云端均已保存',
   'offline-saved': '网络离线，内容已保存在本机',
+  'network-error': '网络中断，内容已安全保存在本机',
+  'session-expired': '登录已失效，请重新登录后同步',
+  'permission-denied': '当前账号没有建立云端草稿的权限',
+  'cloud-error': '云端暂存失败，请重试',
   conflict: '发现本地与云端版本冲突',
+});
+
+const CLOUD_SYNC_FAILURE_MESSAGES = Object.freeze({
+  'network-error': '网络中断，内容已安全保存在本机；恢复连接后可重新同步。',
+  'session-expired': '登录状态已失效，请重新登录后再提交。',
+  'permission-denied': 'Supabase 拒绝建立云端草稿：当前账号没有写入权限。',
+  'cloud-error': '云端暂存失败，内容仍在本机；请重试或联系管理员检查数据库。',
 });
 
 const escapeHtml = (value) =>
@@ -26,6 +43,26 @@ const escapeHtml = (value) =>
 const templatePreviewUrl = (template) =>
   `/templates/${encodeURIComponent(template.sourceFile)}`;
 
+const draftContentToEditorDocument = (template, content = {}, fallback = {}) => {
+  if (content?.schemaVersion === 2 || content?.values) {
+    return normalizeEditorDocument({
+      ...content,
+      templateCode: content.templateCode || template.code,
+    });
+  }
+  const legacyValues = Object.fromEntries(
+    Object.entries(content?.fields ?? {}).map(([label, value]) => [`legacy:${label}`, value]),
+  );
+  return createEditorDocument(template, {
+    hero: fallback.title ?? '',
+    entryCode: fallback.archiveCode ?? content?.archiveCode ?? '',
+    ...legacyValues,
+  }, {
+    references: content?.references,
+    media: content?.media,
+  });
+};
+
 const serverDraftToEditorDraft = (record, fallback = {}) => ({
   ...fallback,
   id: record.id,
@@ -36,6 +73,7 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
   archiveCode: record.draft_content?.archiveCode ?? fallback.archiveCode ?? '',
   kind: record.kind ?? fallback.kind ?? 'new',
   targetContributionId: record.target_contribution_id ?? fallback.targetContributionId ?? null,
+  baseVersionId: record.base_version_id ?? fallback.baseVersionId ?? null,
   status: record.status ?? fallback.status ?? 'draft',
   content: record.draft_content ?? fallback.content ?? {},
   revision: record.revision ?? fallback.revision ?? 1,
@@ -51,6 +89,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
   const workspaceStatus = root?.querySelector('[data-workspace-status]');
   const workspaceNameOutputs = [...document.querySelectorAll('[data-workspace-name]')];
   const workspaceNameEnglishOutputs = [...document.querySelectorAll('[data-workspace-name-en]')];
+  const workspaceGreetingOutputs = [...document.querySelectorAll('[data-workspace-greeting]')];
   const templateButtons = [...(root?.querySelectorAll('[data-archive-template]') ?? [])];
   const panelButtons = [...(root?.querySelectorAll('[data-workflow-panel]') ?? [])];
   const adminButtons = [...(root?.querySelectorAll('[data-admin-only]') ?? [])];
@@ -231,16 +270,10 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       ? `editor-${initial.id}`
       : initial.targetContributionId
         ? `amendment-${initial.targetContributionId}`
-        : `editor-${template.code}`;
+        : initial.archiveCode
+          ? `amendment-${template.code}-${initial.archiveCode}`
+          : `editor-${template.code}`;
     const profileName = context.profile?.display_name || context.profile?.email || '当前书记官';
-    const fieldMarkup = template.fields
-      .filter((field) => field !== '关联档案')
-      .map((field) => `
-        <label class="archive-editor-field">
-          <span>${escapeHtml(field)}</span>
-          <textarea rows="4" data-content-field="${escapeHtml(field)}" placeholder="在此录入${escapeHtml(field)}"></textarea>
-        </label>
-      `).join('');
 
     const windowState = createWindow({
       key: editorKey,
@@ -257,12 +290,10 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
                 <option value="amendment">提交修改申请</option>
               </select>
             </label>
-            <label>目标档案编号
-              <input name="archiveCode" placeholder="例如 HZ-6" />
+            <label>正式档号
+              <output data-formal-number>${escapeHtml(initial.formalNumber || '审核录入时自动分配')}</output>
             </label>
-            <label data-amendment-target hidden>目标投稿 ID
-              <input name="targetContributionId" placeholder="由既有档案带入" />
-            </label>
+            <input type="hidden" name="targetContributionId" />
             <output class="archive-autosave-status" data-autosave-status data-state="local-saved">等待编辑</output>
           </header>
 
@@ -274,16 +305,28 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
           </aside>
 
           <div class="archive-editor__split">
-            <div class="archive-editor__fields">
+            <aside class="archive-editor__workflow-rail">
               <div class="archive-editor__registration">
-                <span>PALIS / TEMPLATE ${escapeHtml(template.code)}</span>
+                <span>PALIS / TEMPLATE ${escapeHtml(template.code)} / ${escapeHtml(template.abbreviation)}</span>
                 <b>VER 0.1 / 白幕初垂 / 待录入</b>
               </div>
-              <label class="archive-editor-field archive-editor-field--title">
-                <span>档案标题</span>
-                <input name="title" required placeholder="${escapeHtml(template.title)}标题" />
-              </label>
-              ${fieldMarkup}
+              <p class="archive-editor__instruction">
+                请直接在右侧设定卡中填写。正式档案会沿用网站原有风格，并按本卡分区生成。
+              </p>
+
+              <section class="archive-editable-picker" data-editable-archive-picker hidden>
+                <header>
+                  <b>选择要补充或修改的档案</b>
+                  <button type="button" data-refresh-editable-archives>刷新列表</button>
+                </header>
+                <label>
+                  <span>可编辑档案</span>
+                  <select name="archiveId">
+                    <option value="">请选择档案</option>
+                  </select>
+                </label>
+                <p data-editable-archive-status>切换为补充或修改后，从当前可见档案中选择。</p>
+              </section>
 
               <section class="archive-reference-editor">
                 <header>
@@ -306,12 +349,16 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
                 <div><dt>档案提交者</dt><dd data-submitter>${escapeHtml(profileName)}</dd></div>
                 <div data-modifier-row hidden><dt>档案修改者</dt><dd data-modifier>${escapeHtml(profileName)}</dd></div>
               </dl>
-            </div>
-
-            <aside class="archive-editor__preview">
-              <header><b>原始网页设定卡</b><a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a></header>
-              <iframe src="${templatePreviewUrl(template)}" title="${escapeHtml(template.title)}原始网页设定卡"></iframe>
             </aside>
+
+            <section class="archive-editor__canvas is-loading" aria-busy="true">
+              <header><b>九类档案录入设定卡 / 当前编辑器</b><a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a></header>
+              <div class="archive-editor__frame">
+                <div class="archive-editor__loading" data-template-editor-loading role="status"><b>正在载入设定卡</b><span>首次打开会准备可编辑档案版式</span></div>
+                <div class="archive-slash-reference-menu" data-slash-reference-menu hidden></div>
+                <iframe data-template-editor-frame src="${templatePreviewUrl(template)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
+              </div>
+            </section>
           </div>
 
           <footer class="archive-editor__footer">
@@ -332,10 +379,19 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     const referenceResults = form.querySelector('[data-reference-results]');
     const recoveryPanel = form.querySelector('[data-recovery]');
     const kindSelect = form.elements.kind;
-    const amendmentTarget = form.querySelector('[data-amendment-target]');
     const modifierRow = form.querySelector('[data-modifier-row]');
-    const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || 'new'}`;
-    let references = initial.content?.references ? [...initial.content.references] : [];
+    const templateFrame = form.querySelector('[data-template-editor-frame]');
+    const editorCanvas = form.querySelector('.archive-editor__canvas');
+    const editorLoading = form.querySelector('[data-template-editor-loading]');
+    const slashReferenceMenu = form.querySelector('[data-slash-reference-menu]');
+    const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
+    const editableArchiveSelect = form.elements.archiveId;
+    const editableArchiveStatus = form.querySelector('[data-editable-archive-status]');
+    const formalNumberOutput = form.querySelector('[data-formal-number]');
+    const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || initial.archiveCode || 'new'}`;
+    let editorDocument = draftContentToEditorDocument(template, initial.content, initial);
+    let references = [...editorDocument.references];
+    let editorBridge = null;
     const uploadedAttachmentKeys = new Set();
     let editorDraft = {
       id: initial.id ?? null,
@@ -346,6 +402,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       archiveCode: initial.archiveCode ?? '',
       kind: initial.kind ?? 'new',
       targetContributionId: initial.targetContributionId ?? null,
+      baseVersionId: initial.baseVersionId ?? null,
       status: initial.status ?? 'draft',
       content: initial.content ?? {},
       revision: initial.revision ?? 1,
@@ -372,32 +429,125 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       onState: setAutosaveState,
     });
 
+    let editableArchives = [];
+    let archiveTargetsLoaded = false;
+
+    const formatFormalNumber = (archive) => {
+      if (!archive) return '审核录入时自动分配';
+      if (archive.sequence_number && archive.abbreviation) {
+        return `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`;
+      }
+      return archive.code || '已选择现有档案';
+    };
+
+    const loadEditableArchives = async () => {
+      if (!client) {
+        editableArchiveStatus.textContent = '当前未连接档案服务，无法读取可修改档案。';
+        return;
+      }
+      editableArchiveStatus.textContent = '正在读取可修改档案…';
+      try {
+        editableArchives = await client.listEditableArchives({ category: template.category });
+        editableArchiveSelect.innerHTML = [
+          '<option value="">请选择档案</option>',
+          ...editableArchives.map((archive) => `
+            <option value="${escapeHtml(archive.id)}">${escapeHtml(formatFormalNumber(archive))} / ${escapeHtml(archive.title)}</option>
+          `),
+        ].join('');
+        const preferredId = editorDraft.archiveId || initial.archiveId || '';
+        if (preferredId && editableArchives.some((archive) => archive.id === preferredId)) {
+          editableArchiveSelect.value = preferredId;
+          formalNumberOutput.textContent = formatFormalNumber(
+            editableArchives.find((archive) => archive.id === preferredId),
+          );
+        }
+        archiveTargetsLoaded = true;
+        editableArchiveStatus.textContent = editableArchives.length
+          ? `已载入 ${editableArchives.length} 份可编辑档案。`
+          : `当前没有可编辑的${template.title}。`;
+      } catch (error) {
+        editableArchiveStatus.textContent = `读取失败：${error?.message || '请检查 Supabase 连接'}`;
+      }
+    };
+
+    const applySelectedArchive = async ({ loadSource = true } = {}) => {
+      const archive = editableArchives.find((entry) => entry.id === editableArchiveSelect.value);
+      editorDraft.archiveId = archive?.id || null;
+      formalNumberOutput.textContent = formatFormalNumber(archive);
+      if (!archive) {
+        editorDraft.targetContributionId = null;
+        editorDraft.baseVersionId = null;
+        form.elements.targetContributionId.value = '';
+        editableArchiveStatus.textContent = '请选择要补充或修改的档案。';
+        return;
+      }
+      editorDraft.archiveCode = archive.code || '';
+      editableArchiveStatus.textContent = `已选择：${archive.title}`;
+      if (!loadSource || !client || kindSelect.value === 'new') return;
+      editableArchiveStatus.textContent = `正在载入“${archive.title}”的最新正式内容…`;
+      try {
+        const source = await client.loadArchiveEditorSource(archive.id);
+        if (source?.content?.schemaVersion === 2) {
+          editorDocument = draftContentToEditorDocument(template, source.content, {
+            title: archive.title,
+            archiveCode: archive.code,
+          });
+          editorBridge?.write(editorDocument);
+          editorDraft.targetContributionId = source.contributionId;
+          editorDraft.baseVersionId = source.versionId;
+          form.elements.targetContributionId.value = source.contributionId || '';
+          editableArchiveStatus.textContent = '已载入最新正式版本，可直接在右侧修改。';
+        } else {
+          editorDraft.targetContributionId = source?.contributionId || null;
+          editorDraft.baseVersionId = source?.versionId || null;
+          form.elements.targetContributionId.value = source?.contributionId || '';
+          editableArchiveStatus.textContent = '该档案为原始官方档案；请在右侧建立本次结构化补充。';
+        }
+        autosave.queue(collectDraft());
+      } catch (error) {
+        editableArchiveStatus.textContent = `正式内容载入失败：${error?.message || '请稍后重试'}`;
+      }
+    };
+
     const updateMode = () => {
+      const existingArchive = kindSelect.value !== 'new';
       const amendment = kindSelect.value === 'amendment';
-      amendmentTarget.hidden = !amendment;
+      editableArchivePicker.hidden = !existingArchive;
       modifierRow.hidden = !amendment;
+      if (!existingArchive) {
+        editableArchiveSelect.value = '';
+        editorDraft.archiveId = null;
+        editorDraft.targetContributionId = null;
+        editorDraft.baseVersionId = null;
+        form.elements.targetContributionId.value = '';
+        formalNumberOutput.textContent = '审核录入时自动分配';
+      } else if (!archiveTargetsLoaded) {
+        loadEditableArchives();
+      }
     };
 
     const collectDraft = () => {
-      const fields = {};
-      form.querySelectorAll('[data-content-field]').forEach((field) => {
-        fields[field.dataset.contentField] = field.value;
-      });
+      if (editorBridge) editorDocument = editorBridge.read();
       const attachmentFiles = [...form.elements.attachments.files].map((file) => ({
         name: file.name,
         type: file.type,
         size: file.size,
       }));
+      editorDocument = normalizeEditorDocument({
+        ...editorDocument,
+        references,
+      });
       editorDraft = {
         ...editorDraft,
         key: localKey,
-        title: form.elements.title.value.trim(),
+        title: editorDocument.title || `未命名${template.title}`,
         kind: kindSelect.value,
-        archiveCode: form.elements.archiveCode.value.trim(),
+        archiveCode: editorDocument.businessCode,
+        archiveId: editorDraft.archiveId,
         targetContributionId: form.elements.targetContributionId.value.trim() || null,
+        baseVersionId: editorDraft.baseVersionId,
         content: {
-          ...editorDraft.content,
-          fields,
+          ...editorDocument,
           references,
           attachments: attachmentFiles,
         },
@@ -408,19 +558,82 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     const populateDraft = (draft) => {
       if (!draft) return;
       editorDraft = { ...editorDraft, ...draft };
-      form.elements.title.value = draft.title || '';
       form.elements.kind.value = draft.kind || 'new';
-      form.elements.archiveCode.value = draft.archiveCode || '';
       form.elements.targetContributionId.value = draft.targetContributionId || '';
-      form.querySelectorAll('[data-content-field]').forEach((field) => {
-        field.value = draft.content?.fields?.[field.dataset.contentField] || '';
-      });
-      references = [...(draft.content?.references || [])];
+      editorDocument = draftContentToEditorDocument(template, draft.content, draft);
+      references = [...editorDocument.references];
+      editorBridge?.write(editorDocument);
       renderReferenceList(referenceList, references);
       updateMode();
     };
 
     populateDraft(editorDraft);
+    let slashSearchSequence = 0;
+    const runSlashReferenceSearch = async ({ query }) => {
+      const searchSequence = ++slashSearchSequence;
+      slashReferenceMenu.hidden = false;
+      slashReferenceMenu.innerHTML = `<p>正在检索“${escapeHtml(query || '全部档案')}”…</p>`;
+      if (!client) {
+        slashReferenceMenu.innerHTML = '<p>档案服务未连接，暂时无法插入引用。</p>';
+        return;
+      }
+      try {
+        const matches = await client.searchArchives(query, { limit: 8 });
+        if (searchSequence !== slashSearchSequence) return;
+        slashReferenceMenu.innerHTML = matches.length
+          ? matches.map((archive) => `
+              <button type="button" data-insert-slash-reference="${escapeHtml(archive.id)}" data-code="${escapeHtml(archive.code)}" data-label="${escapeHtml(archive.title)}">
+                <b>${escapeHtml(archive.title)}</b>
+                <span>${escapeHtml(archive.code)} / ${escapeHtml(archive.category)}</span>
+              </button>
+            `).join('')
+          : '<p>没有找到标题或编号匹配的档案。</p>';
+      } catch (error) {
+        if (searchSequence !== slashSearchSequence) return;
+        slashReferenceMenu.innerHTML = `<p>引用检索失败：${escapeHtml(error?.message || '请稍后重试')}</p>`;
+      }
+    };
+
+    slashReferenceMenu.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-insert-slash-reference]');
+      if (!button) return;
+      const reference = buildArchiveReference({
+        id: button.dataset.insertSlashReference,
+        code: button.dataset.code,
+        title: button.dataset.label,
+      });
+      if (!references.some((entry) => entry.archiveId === reference.archiveId)) {
+        references.push(reference);
+        renderReferenceList(referenceList, references);
+      }
+      editorBridge?.insertReference(reference);
+      slashReferenceMenu.hidden = true;
+      autosave.queue(collectDraft());
+    });
+
+    editorBridge = createTemplateEditorBridge({
+      iframe: templateFrame,
+      template,
+      initialDocument: editorDocument,
+      onReferenceTrigger: runSlashReferenceSearch,
+      onChange: (document) => {
+        editorDocument = {
+          ...document,
+          references,
+        };
+        autosave.queue(collectDraft());
+      },
+    });
+    editorBridge.ready.then(() => {
+      editorCanvas?.classList.remove('is-loading');
+      editorCanvas?.setAttribute('aria-busy', 'false');
+      if (editorLoading) editorLoading.hidden = true;
+    });
+    if (initial.archiveId && !initial.id && initial.kind !== 'new') {
+      await loadEditableArchives();
+      editableArchiveSelect.value = initial.archiveId;
+      await applySelectedArchive({ loadSource: true });
+    }
     const localRecovery = autosave.loadRecovery(localKey, null);
     let recovery = localRecovery;
     if (client) {
@@ -462,9 +675,14 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       if (event.target.closest('[data-reference-search]')) return;
       autosave.queue(collectDraft());
     });
-    form.addEventListener('change', () => {
+    form.addEventListener('change', (event) => {
       updateMode();
+      if (event.target === editableArchiveSelect) applySelectedArchive({ loadSource: true });
       autosave.queue(collectDraft());
+    });
+    form.querySelector('[data-refresh-editable-archives]').addEventListener('click', async () => {
+      archiveTargetsLoaded = false;
+      await loadEditableArchives();
     });
     form.querySelector('[data-save-now]').addEventListener('click', async () => {
       autosave.queue(collectDraft());
@@ -541,6 +759,11 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
         message.textContent = '云端版本已变化，请先处理版本冲突再提交。';
         return;
       }
+      if (CLOUD_SYNC_FAILURE_MESSAGES[syncResult?.status]) {
+        submitButton.disabled = false;
+        message.textContent = CLOUD_SYNC_FAILURE_MESSAGES[syncResult.status];
+        return;
+      }
       if (!editorDraft.id) {
         submitButton.disabled = false;
         message.textContent = '云端暂存尚未建立，请检查网络后重试。';
@@ -569,6 +792,8 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     window.addEventListener('pagehide', flushOnPageHide);
     windowState.dispose = async () => {
       window.removeEventListener('pagehide', flushOnPageHide);
+      editorBridge?.dispose();
+      editorBridge = null;
       await autosave.dispose();
     };
     return windowState;
@@ -648,53 +873,149 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       code: 'ADMIN.USERS',
       className: 'archive-admin-window archive-workflow-list-window',
       body: `
-        <form class="archive-admin-users" data-admin-user-management>
-          <header>
-            <p>PALIS / OPERATOR DIRECTORY</p>
-            <h3>添加工作台用户</h3>
-            <span>管理员只能邀请书记官或观察员；不开放公共注册。</span>
-          </header>
-          <label>邮箱
-            <input name="email" type="email" required autocomplete="off" placeholder="operator@example.com" />
-          </label>
-          <label>显示名称
-            <input name="displayName" required autocomplete="off" placeholder="书记官姓名或代号" />
-          </label>
-          <label>账号类型
-            <select name="role">
-              <option value="clerk">书记官 / 可进入工作台并提交档案</option>
-              <option value="observer">观察员 / 仅可查阅，无工作台权限</option>
-            </select>
-          </label>
-          <p data-admin-user-message>邀请将由 Supabase Auth 邮件发送；网站不保存初始密码。</p>
-          <button type="submit">发送账号邀请</button>
-        </form>
+        <div class="archive-admin-users-layout">
+          <form class="archive-admin-users" data-admin-user-management>
+            <header>
+              <p>PALIS / OPERATOR DIRECTORY</p>
+              <h3>直接建立工作台账号</h3>
+              <span>管理员只可建立书记官或观察员。密码正式生效，直到管理员重置。</span>
+            </header>
+            <label>登录邮箱
+              <input name="email" type="email" required autocomplete="off" placeholder="operator@example.com" />
+            </label>
+            <label>笔名
+              <input name="displayName" required autocomplete="off" placeholder="档案署名使用的笔名" />
+            </label>
+            <label>账号类型
+              <select name="role">
+                <option value="clerk">书记官 / 可进入工作台并提交档案</option>
+                <option value="observer">观察员 / 仅可查阅，无工作台权限</option>
+              </select>
+            </label>
+            <label>正式密码
+              <input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="至少 8 位" />
+            </label>
+            <p data-admin-user-message>密码由 Supabase Auth 安全保存；建立后不能查看原密码，只能重置。</p>
+            <button type="submit">建立正式账号</button>
+          </form>
+          <aside class="archive-admin-user-directory">
+            <header>
+              <div><b>用户列表</b><span>角色、密码重置与登录权</span></div>
+              <button type="button" data-refresh-user-list>刷新</button>
+            </header>
+            <div data-admin-user-list><p>正在读取用户列表…</p></div>
+          </aside>
+        </div>
       `,
     });
     if (state.panelReady) return;
     state.panelReady = true;
     const form = state.windowElement.querySelector('[data-admin-user-management]');
     const message = form.querySelector('[data-admin-user-message]');
+    const userList = state.windowElement.querySelector('[data-admin-user-list]');
+
+    const loadUsers = async () => {
+      if (!client) {
+        userList.innerHTML = '<p>档案服务未连接。</p>';
+        return;
+      }
+      userList.innerHTML = '<p>正在读取用户列表…</p>';
+      try {
+        const users = await client.listUsers();
+        userList.innerHTML = users.length
+          ? users.map((user) => `
+              <article class="archive-admin-user ${user.protected ? 'is-protected' : ''}" data-managed-user="${escapeHtml(user.id)}">
+                <header>
+                  <div>
+                    <b>${escapeHtml(user.display_name || '未设置笔名')}</b>
+                    <span>${escapeHtml(user.email)}</span>
+                  </div>
+                  <em>${user.enabled ? '可登录' : '已停用'}</em>
+                </header>
+                ${user.protected
+                  ? '<p>受保护管理员账号：不可删除、停用或降级。</p>'
+                  : `
+                    <label>权限
+                      <select data-user-role>
+                        <option value="clerk" ${user.role === 'clerk' ? 'selected' : ''}>书记官</option>
+                        <option value="observer" ${user.role === 'observer' ? 'selected' : ''}>观察员</option>
+                      </select>
+                    </label>
+                    <button type="button" data-save-user-role>切换权限</button>
+                    <label>新密码
+                      <input data-user-password type="password" minlength="8" autocomplete="new-password" placeholder="至少 8 位" />
+                    </label>
+                    <button type="button" data-reset-user-password>重置密码</button>
+                    <button type="button" data-delete-user>删除账号／保留历史署名并停用</button>
+                  `}
+                <small>${escapeHtml(user.password_status || '密码已设置（不可查看）')}</small>
+                <output data-user-action-message></output>
+              </article>
+            `).join('')
+          : '<p>当前没有其他账号。</p>';
+      } catch (error) {
+        userList.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+      }
+    };
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!form.reportValidity() || !client) return;
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
-      message.textContent = '正在建立邀请…';
+      message.textContent = '正在建立正式账号…';
       try {
-        const result = await client.inviteUser({
+        const result = await client.createUser({
           email: form.elements.email.value,
           displayName: form.elements.displayName.value,
           role: form.elements.role.value,
+          password: form.elements.password.value,
         });
-        message.textContent = `邀请已发送 / ${result.userId || result.status || 'INVITED'}`;
+        message.textContent = `正式账号已建立 / ${result.userId || result.status || 'CREATED'}`;
         form.reset();
+        await loadUsers();
       } catch (error) {
         message.textContent = error.message;
       } finally {
         submit.disabled = false;
       }
     });
+    userList.addEventListener('click', async (event) => {
+      const card = event.target.closest('[data-managed-user]');
+      if (!card || !client) return;
+      const output = card.querySelector('[data-user-action-message]');
+      const userId = card.dataset.managedUser;
+      const action = event.target.closest('button');
+      if (!action) return;
+      action.disabled = true;
+      try {
+        if (action.matches('[data-save-user-role]')) {
+          await client.updateUserRole(userId, card.querySelector('[data-user-role]').value);
+          output.textContent = '权限已更新。';
+        }
+        if (action.matches('[data-reset-user-password]')) {
+          const password = card.querySelector('[data-user-password]').value;
+          await client.resetUserPassword(userId, password);
+          card.querySelector('[data-user-password]').value = '';
+          output.textContent = '正式密码已重置。';
+        }
+        if (action.matches('[data-delete-user]')) {
+          const confirmed = window.confirm('确定删除该账号的登录权吗？有历史档案时会保留署名并停用登录。');
+          if (!confirmed) return;
+          const result = await client.deleteUser(userId);
+          output.textContent = result.status === 'disabled'
+            ? '账号已有历史档案，署名已保留，登录权已停用。'
+            : '账号已永久删除。';
+          await loadUsers();
+        }
+      } catch (error) {
+        output.textContent = error.message;
+      } finally {
+        action.disabled = false;
+      }
+    });
+    state.windowElement.querySelector('[data-refresh-user-list]').addEventListener('click', loadUsers);
+    loadUsers();
   };
 
   const openReviewPanel = async () => {
@@ -724,6 +1045,42 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     }
 
     let submissions = [];
+    const formalReviewPreview = (submission) => {
+      if (submission.draft_content?.schemaVersion !== 2) {
+        const fields = Object.entries(submission.draft_content?.fields || {});
+        return `
+          <article class="archive-review-legacy">
+            <header><b>旧版投稿内容</b><span>录入后仍使用原档案兼容排版</span></header>
+            <dl>
+              ${fields.map(([label, value]) => `
+                <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>
+              `).join('') || '<div><dt>正文</dt><dd>没有可显示的结构化字段</dd></div>'}
+            </dl>
+          </article>
+        `;
+      }
+      const template = ARCHIVE_TEMPLATES.find((entry) => entry.id === submission.template_id);
+      return renderFormalArchiveDocument({
+        archive: {
+          ...(submission.archive || {}),
+          category: submission.archive?.category || template?.category || submission.draft_content.category,
+          abbreviation: submission.archive?.abbreviation || template?.abbreviation || submission.draft_content.abbreviation,
+          origin: submission.archive?.origin || 'community',
+        },
+        contribution: {
+          ...submission,
+          versions: [],
+        },
+        version: {
+          version_label: '0.1',
+          content: submission.draft_content,
+          submitter: submission.owner,
+          modifier: submission.kind === 'amendment' ? submission.owner : null,
+        },
+        preview: true,
+      });
+    };
+
     const registrationMarkup = (submission) => `
       <form class="archive-registration" data-registration-form>
         <header>
@@ -731,13 +1088,23 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
           <h3>正式录入</h3>
           <b>VER 0.1 / 白幕初垂 / 已录入</b>
         </header>
+        <input type="hidden" name="archiveId" value="${escapeHtml(submission.archive_id || '')}" />
         <div class="archive-registration__grid">
-          <label>既有档案 ID（补充记录时填写）
-            <input name="archiveId" value="${escapeHtml(submission.archive_id || '')}" placeholder="UUID，可留空新建" />
+          <div class="archive-registration__target">
+            <span>录入目标</span>
+            <b>${submission.archive_id
+              ? `${escapeHtml(submission.archive?.code || '')} / ${escapeHtml(submission.archive?.title || submission.title)}`
+              : `新建${escapeHtml(ARCHIVE_TEMPLATES.find((entry) => entry.id === submission.template_id)?.title || '档案')}`}</b>
+          </div>
+          <label>业务编号（来自设定卡）
+            <input name="code" required value="${escapeHtml(submission.archive?.code || submission.draft_content?.businessCode || submission.draft_content?.archiveCode || '')}" placeholder="例如 HZ-6、USVR" />
           </label>
-          <label>档案编号
-            <input name="code" required value="${escapeHtml(submission.archive?.code || submission.draft_content?.archiveCode || '')}" placeholder="例如 HZ-6" />
-          </label>
+          <div class="archive-registration__target">
+            <span>正式档号</span>
+            <b>${submission.archive?.sequence_number && submission.archive?.abbreviation
+              ? `${String(submission.archive.sequence_number).padStart(3, '0')}.${escapeHtml(submission.archive.abbreviation)}`
+              : `正式档号由系统自动分配 / ${escapeHtml(ARCHIVE_TEMPLATES.find((entry) => entry.id === submission.template_id)?.abbreviation || 'ARC')}`}</b>
+          </div>
           <label>档案类别
             <select name="category">
               ${ARCHIVE_TEMPLATES.map((template) => `<option value="${template.category}" ${submission.template_id === template.id ? 'selected' : ''}>${escapeHtml(template.title)}</option>`).join('')}
@@ -780,7 +1147,9 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
             <div><dt>修订</dt><dd>REV ${escapeHtml(submission.revision)}</dd></div>
           </dl>
         </header>
-        <pre>${escapeHtml(JSON.stringify(submission.draft_content, null, 2))}</pre>
+        <section class="archive-formal-review-preview" data-formal-review-preview>
+          ${formalReviewPreview(submission)}
+        </section>
         <label>审核批复（必填）
           <textarea data-review-message required rows="5" placeholder="说明通过依据，或逐项写明需要修改的内容"></textarea>
         </label>
@@ -818,6 +1187,13 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
               visibility: form.elements.visibility.value,
             });
             message.textContent = `录入完成 / ${result.archiveId || ''} / ${result.versionId || ''}`;
+            window.dispatchEvent(new CustomEvent('palis:open-published-archive', {
+              detail: {
+                archiveId: result.archiveId || null,
+                code: form.elements.code.value.trim(),
+                title: submission.title,
+              },
+            }));
             submit.remove();
             await loadQueue();
           } catch (error) {
@@ -917,8 +1293,13 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     adminButtons.forEach((button) => { button.hidden = !canReview(context.role); });
     const workspaceName = context.role === 'admin' ? '管理员工作台' : '书记官工作台';
     const workspaceNameEnglish = context.role === 'admin' ? 'ADMIN WORKSPACE' : 'CLERK WORKSPACE';
+    const profileName = context.profile?.display_name || context.profile?.email || (context.role === 'admin' ? '管理员' : '书记官');
+    const greetingRole = context.role === 'admin' ? '管理员' : '书记官';
     workspaceNameOutputs.forEach((output) => { output.textContent = workspaceName; });
     workspaceNameEnglishOutputs.forEach((output) => { output.textContent = workspaceNameEnglish; });
+    workspaceGreetingOutputs.forEach((output) => {
+      output.textContent = allowed ? `欢迎您，${greetingRole}${profileName}` : '工作台未授权';
+    });
     root.setAttribute('aria-label', workspaceName);
     root.querySelector('#assistant-taskbar')?.setAttribute('aria-label', `${workspaceName}任务栏`);
     if (roleOutput) roleOutput.textContent = context.role === 'admin' ? 'ADMIN / 管理员' : context.role === 'clerk' ? 'CLERK / 书记官' : 'OBSERVER / 观察员';

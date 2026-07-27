@@ -20,6 +20,26 @@ const samePayload = (left, right) => {
   return JSON.stringify(stripTransportFields(left)) === JSON.stringify(stripTransportFields(right));
 };
 
+const classifyRemoteError = (error) => {
+  const code = String(error?.code ?? '').toLowerCase();
+  const message = String(error?.message ?? '').toLowerCase();
+  if (
+    code === '401'
+    || code === 'pgrst301'
+    || /jwt.*expired|session.*expired|not authenticated|auth session missing/.test(message)
+  ) return 'session-expired';
+  if (
+    code === '42501'
+    || code === '403'
+    || /row-level security|permission denied|insufficient privilege|not allowed/.test(message)
+  ) return 'permission-denied';
+  if (
+    error?.name === 'TypeError'
+    || /failed to fetch|network|offline|load failed|fetch failed/.test(message)
+  ) return 'network-error';
+  return 'cloud-error';
+};
+
 export const createAutosaveController = ({
   storage,
   remote = null,
@@ -75,8 +95,9 @@ export const createAutosaveController = ({
       emit('cloud-synced', { key: snapshot.key, result: result ?? null });
       return result ?? snapshot;
     } catch (error) {
-      emit('offline-saved', { key: snapshot.key, error });
-      return { status: 'offline-saved', local: snapshot, error };
+      const status = classifyRemoteError(error);
+      emit(status, { key: snapshot.key, error });
+      return { status, local: snapshot, error };
     }
   };
 
@@ -137,4 +158,3 @@ export const createAutosaveController = ({
     dispose,
   };
 };
-

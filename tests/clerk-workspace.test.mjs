@@ -27,17 +27,13 @@ test('assistant files and workspace files use independent window surfaces', () =
   assert.match(script, /openDocument\(entry\.dataset\.mascotDocument, entry, 'workspace'\)/);
 });
 
-test.skip('legacy clerk labels have been replaced by explicit pen names', () => {
-  assert.match(script, /documentId: 'clerk-wei-yi', entry: '助理书记官 魏伊', title: '助理书记官 · 魏伊'/);
-  assert.match(script, /documentId: 'clerk-yinnar-light', entry: '助理书记官 主行', title: '助理书记官 · 主行'/);
-  assert.match(html, /data-mascot-document-content="clerk-yinnar-light"[\s\S]*?<h2>助理书记官 · 主行<\/h2>/);
-});
-
-test('recorded clerks use pen names and the second clerk is a trainee clerk', () => {
+test('both recorded clerks use pen names and the assistant trainee clerk title', () => {
   assert.match(script, /\u7b14\u540d\uff1a\u9b4f\u4f0a/);
   assert.match(script, /\u7b14\u540d\uff1a\u4e3b\u884c/);
-  assert.match(script, /title: '\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a\u4e3b\u884c'/);
-  assert.match(html, /<h2>\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a\u4e3b\u884c<\/h2>/);
+  assert.equal((script.match(/\u52a9\u7406\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a/g) || []).length, 4);
+  assert.equal((html.match(/<h2>\u52a9\u7406\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a/g) || []).length, 2);
+  assert.doesNotMatch(script, /title: '\u52a9\u7406\u4e66\u8bb0\u5b98\s*\u00b7/);
+  assert.doesNotMatch(script, /title: '\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7/);
 });
 
 test('the clerk desktop exposes the nine archive template shortcuts', () => {

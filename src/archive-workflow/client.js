@@ -75,6 +75,7 @@ export const createArchiveWorkflowClient = (supabase) => {
       title: String(draft.title ?? '').trim() || '未命名档案',
       kind: draft.kind ?? 'new',
       target_contribution_id: draft.targetContributionId ?? draft.target_contribution_id ?? null,
+      base_version_id: draft.baseVersionId ?? draft.base_version_id ?? null,
       status: draft.status ?? 'draft',
       draft_content: {
         ...(draft.content ?? draft.draft_content ?? {}),
@@ -136,7 +137,7 @@ export const createArchiveWorkflowClient = (supabase) => {
     unwrap(
       supabase
         .from('archive_contributions')
-        .select('*,owner:profiles!archive_contributions_owner_id_fkey(id,email,display_name),archive:archives(id,code,title,category)')
+        .select('*,owner:profiles!archive_contributions_owner_id_fkey(id,email,display_name),archive:archives(id,code,title,category,visibility,origin,sequence_number,abbreviation)')
         .in('status', ['submitted', 'in_review', 'approved'])
         .order('submitted_at', { ascending: true }),
       'Unable to load review queue',
@@ -189,6 +190,57 @@ export const createArchiveWorkflowClient = (supabase) => {
     );
   };
 
+  const manageUser = (action, payload = {}) =>
+    unwrap(
+      supabase.functions.invoke('admin-manage-user', {
+        body: { action, ...payload },
+      }),
+      'Unable to manage user',
+    );
+
+  const listUsers = async () => {
+    const result = await manageUser('list');
+    return result?.users || [];
+  };
+
+  const createUser = ({ email, displayName, role, password }) => {
+    if (!['clerk', 'observer'].includes(role)) {
+      throw new ArchiveWorkflowError('Only clerk or observer accounts can be created', { code: 'invalid_role' });
+    }
+    if (String(password ?? '').length < 8) {
+      throw new ArchiveWorkflowError('Formal password must contain at least 8 characters', { code: 'invalid_password' });
+    }
+    return manageUser('create', {
+      email: String(email ?? '').trim().toLowerCase(),
+      displayName: String(displayName ?? '').trim(),
+      role,
+      password: String(password),
+    });
+  };
+
+  const updateUserRole = (userId, role) => {
+    if (!['clerk', 'observer'].includes(role)) {
+      throw new ArchiveWorkflowError('Only clerk or observer roles can be assigned', { code: 'invalid_role' });
+    }
+    return manageUser('update-role', {
+      userId: requireId(userId, 'userId'),
+      role,
+    });
+  };
+
+  const resetUserPassword = (userId, password) => {
+    if (String(password ?? '').length < 8) {
+      throw new ArchiveWorkflowError('Formal password must contain at least 8 characters', { code: 'invalid_password' });
+    }
+    return manageUser('reset-password', {
+      userId: requireId(userId, 'userId'),
+      password: String(password),
+    });
+  };
+
+  const deleteUser = (userId) =>
+    manageUser('delete', { userId: requireId(userId, 'userId') });
+
   const listNotifications = (recipientId) =>
     unwrap(
       supabase
@@ -216,12 +268,25 @@ export const createArchiveWorkflowClient = (supabase) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
     let request = supabase
       .from('archives')
-      .select('id,code,category,title,summary,visibility,is_mother,is_archived,published_at')
+      .select('id,code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation')
       .eq('visibility', 'public')
       .order('code', { ascending: true })
       .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
     if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to search archives');
+  };
+
+  const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
+    const term = String(query ?? '').trim().replaceAll(',', ' ');
+    let request = supabase
+      .from('archives')
+      .select('id,code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation')
+      .neq('visibility', 'offline')
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(Math.min(Math.max(Number(limit) || 50, 1), 100));
+    if (category) request = request.eq('category', category);
+    if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
+    return unwrap(request, 'Unable to list editable archives');
   };
 
   const listArchiveContributions = (archiveId) =>
@@ -231,6 +296,25 @@ export const createArchiveWorkflowClient = (supabase) => {
       }),
       'Unable to load archive contributions',
     );
+
+  const loadArchiveEditorSource = async (archiveId) => {
+    const contributions = await listArchiveContributions(archiveId);
+    const candidates = (contributions || []).flatMap((contribution) =>
+      (contribution.versions || []).map((version) => ({ contribution, version })));
+    candidates.sort((left, right) =>
+      new Date(right.version.created_at || right.version.approved_at || 0).getTime()
+      - new Date(left.version.created_at || left.version.approved_at || 0).getTime());
+    const selected = candidates.find(({ version }) => version?.content?.schemaVersion === 2)
+      || candidates[0]
+      || null;
+    if (!selected) return null;
+    return {
+      archiveId: requireId(archiveId, 'archiveId'),
+      contributionId: selected.contribution.id,
+      versionId: selected.version.id,
+      content: selected.version.content || {},
+    };
+  };
 
   const listArchiveReferences = (archiveId) =>
     unwrap(
@@ -297,9 +381,16 @@ export const createArchiveWorkflowClient = (supabase) => {
     reviewSubmission,
     publishContribution,
     inviteUser,
+    listUsers,
+    createUser,
+    updateUserRole,
+    resetUserPassword,
+    deleteUser,
     listNotifications,
     markNotificationRead,
     searchArchives,
+    listEditableArchives,
+    loadArchiveEditorSource,
     listArchiveContributions,
     listArchiveReferences,
     uploadAttachment,

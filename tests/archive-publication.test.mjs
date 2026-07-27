@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   buildPublishedArchiveModel,
+  renderOfficialArchiveBanner,
   renderPublishedContributionLedger,
 } from '../src/archive-workflow/publication.js';
 
@@ -18,6 +19,7 @@ const contributions = Array.from({ length: 5 }, (_, index) => ({
   id: `record-${index + 1}`,
   title: `HZ-6 记录 ${index + 1}`,
   kind: index === 4 ? 'amendment' : 'contribution',
+  target_contribution_id: index === 4 ? 'record-1' : null,
   status: 'published',
   versions: [{
     id: `version-${index + 1}`,
@@ -67,6 +69,52 @@ test('published contribution ledger shows attribution, history, references and r
   assert.match(markup, /data-request-amendment="record-5"/);
 });
 
+test('approved editor documents publish through the formal archive renderer', () => {
+  const editorContribution = {
+    id: 'person-record',
+    title: '叶夫根尼',
+    kind: 'new',
+    status: 'published',
+    versions: [{
+      id: 'person-version',
+      version_label: '0.1',
+      approved_at: '2026-07-27T00:00:00Z',
+      submitter: { display_name: '魏伊' },
+      reviewer: { display_name: '管理员' },
+      content: {
+        schemaVersion: 2,
+        templateCode: '06',
+        category: 'person',
+        abbreviation: 'PER',
+        title: '叶夫根尼',
+        values: { hero: '叶夫根尼', identity: '助理见习书记官' },
+        sections: [{ id: 'identity', label: '身份资料 / IDENTITY', fields: ['identity'] }],
+        fieldLabels: { identity: '职务' },
+        references: [],
+        media: [],
+      },
+    }],
+  };
+  const model = buildPublishedArchiveModel({
+    archive: {
+      id: 'person-33',
+      code: 'P33',
+      title: '叶夫根尼',
+      category: 'person',
+      visibility: 'public',
+      sequence_number: 33,
+      abbreviation: 'PER',
+    },
+    contributions: [editorContribution],
+  });
+
+  const markup = renderPublishedContributionLedger(model);
+  assert.match(markup, /archive-formal-document--person/);
+  assert.match(markup, /033\.PER/);
+  assert.match(markup, /身份资料 \/ IDENTITY/);
+  assert.match(markup, /档案收录者[\s\S]*魏伊/);
+});
+
 test('sealed and offline archives never produce a public contribution model', () => {
   for (const visibility of ['sealed', 'offline']) {
     assert.equal(buildPublishedArchiveModel({
@@ -83,4 +131,63 @@ test('site and update announcement use the same clickable archive reference acti
   assert.match(html, /data-version-reference/);
   assert.match(styles, /archive-contribution-tabs/);
   assert.match(styles, /archive-registration-stamp/);
+});
+
+test('website-authored content is an editable official archive without a fake version or author', () => {
+  const markup = renderOfficialArchiveBanner({
+    code: 'O05',
+    name: '南极公约监管办公室',
+  });
+  assert.match(markup, /官方档案/);
+  assert.match(markup, /data-request-official-amendment/);
+  assert.doesNotMatch(markup, /VER 0\.1|档案提交者|录入者/);
+  assert.match(main, /palis:open-amendment/);
+});
+
+test('official content remains the first tab when approved community records exist', () => {
+  const model = buildPublishedArchiveModel({
+    archive: { id: 'hz6', code: 'HZ-6', title: 'HZ-6', visibility: 'public', origin: 'official' },
+    contributions,
+    officialRecord: {
+      id: 'official-hz6',
+      title: '官方档案',
+      markup: '<article>HZ-6 官方正文</article>',
+    },
+  });
+  const markup = renderPublishedContributionLedger(model);
+  assert.equal(model.tabs[0].id, 'official-hz6');
+  assert.equal(model.tabs[0].label, '官方档案');
+  assert.match(markup, /data-contribution-panel="official-hz6"/);
+  assert.match(markup, /HZ-6 官方正文/);
+});
+
+test('an amendment to an official base names the official source and only the modifier', () => {
+  const officialAmendment = {
+    ...contributions[4],
+    target_contribution_id: null,
+  };
+  const model = buildPublishedArchiveModel({
+    archive: { id: 'hz6', code: 'HZ-6', title: 'HZ-6', visibility: 'public', origin: 'official' },
+    contributions: [officialAmendment],
+  });
+  const markup = renderPublishedContributionLedger(model);
+  assert.match(markup, /<dt>原始档案<\/dt><dd>官方档案<\/dd>/);
+  assert.match(markup, /<dt>档案修改者<\/dt><dd>修改者甲<\/dd>/);
+  assert.doesNotMatch(markup, /<dt>档案提交者<\/dt>/);
+});
+
+test('archive File menu exposes real amendment, export, print, and close actions', () => {
+  assert.match(html, /data-archive-menu-trigger="file"/);
+  for (const action of ['amend', 'export', 'print', 'close']) {
+    assert.match(html, new RegExp(`data-archive-file-action="${action}"`));
+  }
+  assert.match(main, /initializeArchiveFileMenu/);
+  assert.match(main, /downloadArchiveDocument/);
+});
+
+test('a newly accessioned cloud archive can open immediately in the public archive window', () => {
+  assert.match(main, /palis:open-published-archive/);
+  assert.match(main, /cloudRecord/);
+  assert.match(main, /openCloudArchiveReference/);
+  assert.doesNotMatch(main, /if\s*\(!archiveWorkflowClient\s*\|\|\s*!archive\.webContent\)\s*return/);
 });

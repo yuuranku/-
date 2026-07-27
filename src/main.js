@@ -12,6 +12,7 @@ import { createArchiveWorkflowClient } from './archive-workflow/client.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import {
   buildPublishedArchiveModel,
+  renderOfficialArchiveBanner,
   renderPublishedContributionLedger,
 } from './archive-workflow/publication.js';
 import * as THREE from 'three';
@@ -56,9 +57,55 @@ function findArchiveReference(target) {
         .some((value) => String(value).toLocaleLowerCase('zh-CN').includes(normalized)));
 }
 
-function openArchiveReference(target, trigger = null) {
-  const archive = findArchiveReference(target);
+const cloudArchiveRecordTypes = Object.freeze({
+  country: 'state-registry',
+  organization: 'chain-ledger',
+  station: 'station-log',
+  entrance: 'descent-chart',
+  ecology: 'strata-profile',
+  person: 'personnel-file',
+  event: 'chronology-reel',
+  anomaly: 'incident-trace',
+  species: 'specimen-plate',
+});
+
+function createCloudArchiveRecord(archive) {
+  const formalNumber = archive.sequence_number && archive.abbreviation
+    ? `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`
+    : archive.code;
+  return {
+    id: `cloud-${archive.id}`,
+    code: archive.code,
+    name: archive.title,
+    heading: archive.title,
+    file: `${formalNumber || archive.code || 'ARCHIVE'}.HTML`,
+    category: archive.category,
+    recordType: cloudArchiveRecordTypes[archive.category] || 'chronology-reel',
+    webContent: true,
+    cloudRecord: archive,
+  };
+}
+
+async function openCloudArchiveReference(target, trigger = null) {
+  if (!archiveWorkflowClient) return false;
+  const matches = await archiveWorkflowClient.searchArchives(target, { limit: 12 });
+  const normalized = String(target ?? '').trim().toLocaleLowerCase('zh-CN');
+  const archive = matches.find((entry) =>
+    [entry.id, entry.code, entry.title]
+      .filter(Boolean)
+      .some((value) => String(value).trim().toLocaleLowerCase('zh-CN') === normalized))
+    || matches[0];
   if (!archive) return false;
+  const source = trigger?.getBoundingClientRect
+    ? trigger
+    : document.querySelector('#sync-enter') || document.body;
+  openArchive(createCloudArchiveRecord(archive), source);
+  return true;
+}
+
+async function openArchiveReference(target, trigger = null) {
+  const archive = findArchiveReference(target);
+  if (!archive) return openCloudArchiveReference(target, trigger);
   if (typeof versionNotice !== 'undefined' && !versionNotice.hidden) minimizeVersionNotice();
   const source = trigger?.getBoundingClientRect
     ? trigger
@@ -74,7 +121,13 @@ document.addEventListener('click', (event) => {
   const reference = event.target.closest('[data-open-archive-reference], [data-version-reference]');
   if (!reference) return;
   const target = reference.dataset.openArchiveReference || reference.dataset.versionReference;
-  if (openArchiveReference(target, reference)) event.preventDefault();
+  event.preventDefault();
+  openArchiveReference(target, reference);
+});
+
+window.addEventListener('palis:open-published-archive', (event) => {
+  const target = event.detail?.code || event.detail?.title;
+  if (target) openCloudArchiveReference(target, event.detail?.trigger || null);
 });
 
 function initializeMascotAssistant() {
@@ -539,8 +592,8 @@ function initializeMascotAssistant() {
   startMenu.classList.add('mascot-start-menu');
 
   const clerkRecords = [
-    { documentId: 'clerk-wei-yi', entry: '助理书记官 · 笔名：魏伊', title: '助理书记官 · 笔名：魏伊', code: 'SC-01 / PEN NAME / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-yinnar-light', entry: '见习书记官 · 笔名：主行', title: '见习书记官 · 笔名：主行', code: 'SC-II / PEN NAME / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-wei-yi', entry: '助理见习书记官 · 笔名：魏伊', title: '助理见习书记官 · 笔名：魏伊', code: 'SC-01 / PEN NAME / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-yinnar-light', entry: '助理见习书记官 · 笔名：主行', title: '助理见习书记官 · 笔名：主行', code: 'SC-II / PEN NAME / ONLINE / 2 PAGES' },
   ];
   clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');
@@ -4493,15 +4546,41 @@ function renderArchiveDocument(archive) {
 
 const archiveCategoryTemplateCodes = Object.freeze({
   country: '01',
+  countries: '01',
   organization: '02',
+  organizations: '02',
   station: '03',
+  stations: '03',
   entrance: '04',
+  entrances: '04',
   ecology: '05',
   person: '06',
+  people: '06',
   event: '07',
+  events: '07',
   anomaly: '08',
+  abnormalities: '08',
   species: '09',
 });
+
+const archiveRecordTypeTemplateCodes = Object.freeze({
+  'state-registry': '01',
+  'chain-ledger': '02',
+  'station-brief': '03',
+  'entrance-dossier': '04',
+  'ecology-strata': '05',
+  'personnel-file': '06',
+  'chronology-reel': '07',
+  'anomaly-report': '08',
+  'specimen-plate': '09',
+});
+
+function archiveTemplateCode(archive, publishedArchive = null) {
+  return archiveCategoryTemplateCodes[publishedArchive?.category]
+    || archiveCategoryTemplateCodes[archive.category]
+    || archiveRecordTypeTemplateCodes[archive.recordType]
+    || '07';
+}
 
 async function resolvePublishedArchive(archive) {
   if (!archiveWorkflowClient) return null;
@@ -4520,10 +4599,32 @@ async function resolvePublishedArchive(archive) {
   return null;
 }
 
+async function requestArchiveAmendment(archive, targetContributionId = null, knownPublishedArchive = null) {
+  let publishedArchive = knownPublishedArchive;
+  if (!publishedArchive && archiveWorkflowClient) {
+    try {
+      publishedArchive = await resolvePublishedArchive(archive);
+    } catch {
+      publishedArchive = null;
+    }
+  }
+  window.dispatchEvent(new CustomEvent('palis:open-amendment', {
+    detail: {
+      templateCode: archiveTemplateCode(archive, publishedArchive),
+      archiveId: publishedArchive?.id || null,
+      archiveCode: publishedArchive?.code || archive.code,
+      targetContributionId,
+      title: `修改申请 / ${publishedArchive?.title || archive.name}`,
+      officialBase: !targetContributionId,
+    },
+  }));
+}
+
 async function hydratePublishedContributions(archive, sheet) {
-  if (!archiveWorkflowClient || !archive.webContent) return;
+  if (!archiveWorkflowClient) return;
   try {
-    const publishedArchive = await resolvePublishedArchive(archive);
+    const officialMarkup = archive.cloudRecord ? '' : sheet.innerHTML;
+    const publishedArchive = archive.cloudRecord || await resolvePublishedArchive(archive);
     if (!publishedArchive || publishedArchive.visibility !== 'public') return;
     const [contributions, reverseReferences] = await Promise.all([
       archiveWorkflowClient.listArchiveContributions(publishedArchive.id),
@@ -4533,6 +4634,13 @@ async function hydratePublishedContributions(archive, sheet) {
       archive: publishedArchive,
       contributions,
       reverseReferences,
+      officialRecord: archive.cloudRecord
+        ? null
+        : {
+            id: `official-${publishedArchive.id}`,
+            title: '官方档案',
+            markup: officialMarkup,
+          },
     });
     if (!model?.contributions.length || !sheet.isConnected) return;
 
@@ -4550,20 +4658,94 @@ async function hydratePublishedContributions(archive, sheet) {
 
     sheet.querySelectorAll('[data-request-amendment]').forEach((button) => {
       button.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('palis:open-amendment', {
-          detail: {
-            templateCode: archiveCategoryTemplateCodes[publishedArchive.category] || '07',
-            archiveId: publishedArchive.id,
-            archiveCode: publishedArchive.code,
-            targetContributionId: button.dataset.requestAmendment,
-            title: `修改申请 / ${publishedArchive.title}`,
-          },
-        }));
+        requestArchiveAmendment(archive, button.dataset.requestAmendment, publishedArchive);
       });
     });
   } catch {
     // Static records remain fully usable if the free-tier data service is offline.
   }
+}
+
+function downloadArchiveDocument(archive, windowElement) {
+  const sheet = windowElement.querySelector('.document-sheet');
+  const source = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeRecordText(archive.code)} · ${escapeRecordText(archive.name)}</title>
+  <style>
+    body{max-width:1000px;margin:0 auto;padding:40px;color:#101514;background:#f2efdf;font:17px/1.8 serif}
+    img{max-width:100%;height:auto}button{display:none}dt{font-weight:700}dd{margin:0}
+  </style>
+</head>
+<body>${sheet.innerHTML}</body>
+</html>`;
+  const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/html;charset=utf-8' }));
+  const link = document.createElement('a');
+  const safeCode = String(archive.code || 'PALIS-ARCHIVE').replaceAll(/[^a-zA-Z0-9_-]/g, '-');
+  link.href = blobUrl;
+  link.download = `${safeCode}-官方档案.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+}
+
+function initializeArchiveFileMenu(state) {
+  const { archive, windowElement } = state;
+  const trigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
+  const menu = windowElement.querySelector('.dialog-file-menu');
+  if (!trigger || !menu) return;
+  const amendAction = menu.querySelector('[data-archive-file-action="amend"]');
+  amendAction.disabled = !archive.webContent;
+  amendAction.textContent = archive.webContent ? '提交修改申请' : '正文离线，不能修改';
+
+  const setMenuOpen = (open) => {
+    menu.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+    windowElement.classList.toggle('is-file-menu-open', open);
+  };
+
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setMenuOpen(menu.hidden);
+  });
+  windowElement.addEventListener('pointerdown', (event) => {
+    if (!event.target.closest('.dialog-menu__group')) setMenuOpen(false);
+  });
+  windowElement.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !menu.hidden) {
+      event.preventDefault();
+      setMenuOpen(false);
+      trigger.focus();
+    }
+  });
+  windowElement.addEventListener('click', (event) => {
+    const officialAmendment = event.target.closest('[data-request-official-amendment]');
+    if (officialAmendment) {
+      event.preventDefault();
+      requestArchiveAmendment(archive);
+      return;
+    }
+    const action = event.target.closest('[data-archive-file-action]')?.dataset.archiveFileAction;
+    if (!action) return;
+    setMenuOpen(false);
+    if (action === 'amend' && archive.webContent) requestArchiveAmendment(archive);
+    if (action === 'export') downloadArchiveDocument(archive, windowElement);
+    if (action === 'print') {
+      document.body.classList.add('archive-printing');
+      windowElement.classList.add('is-print-target');
+      const cleanup = () => {
+        document.body.classList.remove('archive-printing');
+        windowElement.classList.remove('is-print-target');
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    }
+    if (action === 'close') closeArchiveWindow(windowElement);
+  });
 }
 
 function openArchive(archive, trigger) {
@@ -4586,7 +4768,15 @@ function openArchive(archive, trigger) {
   windowElement.querySelector('.window-file').textContent = archive.file;
   const sheet = windowElement.querySelector('.document-sheet');
   sheet.className = `document-sheet record-${archive.recordType}`;
-  if (!archive.webContent) {
+  if (archive.cloudRecord) {
+    sheet.innerHTML = `
+      <section class="document-offline-cover" role="status">
+        <h2 id="${titleId}" class="document-offline-title">${escapeRecordText(archive.name)}</h2>
+        <span>PALIS / CHANNEL 09A</span>
+        <strong>正在读取正式档案</strong>
+        <p>LOADING ACCESSION</p>
+      </section>`;
+  } else if (!archive.webContent) {
     sheet.classList.add('document-sheet--offline');
     sheet.innerHTML = `
       <section class="document-offline-cover" role="status">
@@ -4597,7 +4787,7 @@ function openArchive(archive, trigger) {
         <small>该文档内容尚未录入，当前没有可供检索的正文。</small>
       </section>`;
   } else {
-    sheet.innerHTML = renderArchiveDocument(archive);
+    sheet.innerHTML = `${renderOfficialArchiveBanner(archive)}${renderArchiveDocument(archive)}`;
   }
   const titleElement = sheet.querySelector('[data-dialog-title]');
   if (titleElement) titleElement.id = titleId;
@@ -4613,6 +4803,7 @@ function openArchive(archive, trigger) {
   archiveWindows.set(archive.id, state);
   archiveTaskList.appendChild(taskButton);
   archiveDesktop.appendChild(windowElement);
+  initializeArchiveFileMenu(state);
 
   windowElement.style.visibility = 'hidden';
   const measuredRect = windowElement.getBoundingClientRect();
@@ -4663,7 +4854,7 @@ function onPageWheel(event) {
     return;
   }
   const overlay = event.target.closest(
-    '.archive-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
+    '.archive-window, .archive-workflow-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
   );
   if (overlay) {
     let scrollTarget = event.target;

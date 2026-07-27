@@ -3,19 +3,34 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const projectRoot = new URL('../', import.meta.url);
-const [workspace, client, migration] = await Promise.all([
+const [workspace, client, migration, userFunction] = await Promise.all([
   readFile(new URL('src/archive-workflow/workspace.js', projectRoot), 'utf8'),
   readFile(new URL('src/archive-workflow/client.js', projectRoot), 'utf8'),
   readFile(new URL('supabase/migrations/202607270001_archive_workflow.sql', projectRoot), 'utf8'),
+  readFile(new URL('supabase/functions/admin-manage-user/index.ts', projectRoot), 'utf8'),
 ]);
 
-test('administrator user management only invites clerks or observers', () => {
+test('administrator directly creates and manages clerk or observer accounts', () => {
   assert.match(workspace, /data-admin-user-management/);
+  assert.match(workspace, /type="password"/);
+  assert.match(workspace, /data-admin-user-list/);
+  assert.match(workspace, /重置密码/);
+  assert.match(workspace, /删除账号|停用账号/);
   assert.match(workspace, /value="clerk"/);
   assert.match(workspace, /value="observer"/);
   const userPanel = workspace.slice(workspace.indexOf('data-admin-user-management'));
   assert.doesNotMatch(userPanel.slice(0, userPanel.indexOf('</form>')), /value="admin"/);
-  assert.match(client, /admin-invite-user/);
+  assert.match(client, /admin-manage-user/);
+  assert.match(client, /createUser/);
+  assert.match(client, /updateUserRole/);
+  assert.match(client, /resetUserPassword/);
+  assert.match(client, /deleteUser/);
+  assert.match(userFunction, /auth\.admin\.createUser/);
+  assert.match(userFunction, /auth\.admin\.updateUserById/);
+  assert.match(userFunction, /auth\.admin\.listUsers/);
+  assert.match(userFunction, /717652849@qq\.com/);
+  assert.match(userFunction, /已设置（不可查看）/);
+  assert.doesNotMatch(userFunction, /plaintext_password|password_plaintext/i);
 });
 
 test('review pane requires a written reply before approval or return', () => {
@@ -37,6 +52,8 @@ test('approved submissions can be formally registered with archive marks', () =>
   assert.match(workspace, /引用复核/);
   assert.match(workspace, /VER 0\.1 \/ 白幕初垂 \/ 已录入/);
   assert.match(workspace, /publishContribution/);
+  assert.match(workspace, /正式档号由系统自动分配/);
+  assert.doesNotMatch(workspace, /既有档案 ID/);
 });
 
 test('database publication flags dependent references for re-review', () => {

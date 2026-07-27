@@ -117,7 +117,7 @@ test('recovery returns local and cloud choices and detects divergent revisions',
   assert.equal(states.at(-1), 'conflict');
 });
 
-test('remote failure keeps the local draft and reports offline-saved', async () => {
+test('network failure keeps the local draft and reports a network error', async () => {
   const storage = createMemoryStorage();
   const scheduler = createScheduler();
   const states = [];
@@ -133,7 +133,33 @@ test('remote failure keeps the local draft and reports offline-saved', async () 
   controller.queue({ key: 'draft:offline', revision: 2, content: '不丢失' });
   await scheduler.advance(5000);
   assert.equal(JSON.parse(storage.getItem('palis:draft:offline')).content, '不丢失');
-  assert.equal(states.at(-1), 'offline-saved');
+  assert.equal(states.at(-1), 'network-error');
+});
+
+test('permission failure stays distinguishable from a real network outage', async () => {
+  const storage = createMemoryStorage();
+  const scheduler = createScheduler();
+  const states = [];
+  const controller = createAutosaveController({
+    storage,
+    remote: {
+      saveDraft: async () => {
+        throw Object.assign(new Error('new row violates row-level security policy'), { code: '42501' });
+      },
+    },
+    schedule: scheduler.schedule,
+    cancelSchedule: scheduler.cancel,
+    now: scheduler.now,
+    onState: (state, detail) => states.push({ state, detail }),
+  });
+
+  controller.queue({ key: 'draft:admin', revision: 1, content: '管理员草稿' });
+  const result = await controller.flushRemote();
+
+  assert.equal(JSON.parse(storage.getItem('palis:draft:admin')).content, '管理员草稿');
+  assert.equal(result.status, 'permission-denied');
+  assert.equal(states.at(-1).state, 'permission-denied');
+  assert.equal(states.at(-1).detail.error.code, '42501');
 });
 
 test('clear removes a submitted draft and dispose flushes pending local edits', async () => {

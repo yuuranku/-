@@ -50,17 +50,48 @@ test('administrator keeps the shared workspace and receives administrator labeli
   assert.doesNotMatch(html, /id="admin-desktop"/);
 });
 
-test('editor provides structured fields, source preview, references and amendments', () => {
+test('the right-side dossier card is the single structured editor', () => {
   assert.match(workspace, /data-archive-editor/);
+  assert.match(workspace, /createTemplateEditorBridge/);
+  assert.match(workspace, /data-template-editor-frame/);
+  assert.match(workspace, /九类档案录入设定卡/);
+  assert.doesNotMatch(workspace, /data-content-field/);
   assert.match(workspace, /value="new"/);
   assert.match(workspace, /value="contribution"/);
   assert.match(workspace, /value="amendment"/);
   assert.match(workspace, /data-reference-search/);
   assert.match(workspace, /archive-reference/);
-  assert.match(workspace, /原始网页设定卡/);
   assert.match(workspace, /档案提交者/);
   assert.match(workspace, /档案修改者/);
   assert.match(workspace, /type="file"/);
+});
+
+test('amendments choose a visible archive instead of asking for internal record IDs', () => {
+  assert.match(workspace, /data-editable-archive-picker/);
+  assert.match(workspace, /listEditableArchives/);
+  assert.match(workspace, /loadArchiveEditorSource/);
+  assert.doesNotMatch(workspace, /目标投稿 ID/);
+});
+
+test('administrator review previews the formal archive instead of raw editor JSON', () => {
+  assert.match(workspace, /renderFormalArchiveDocument/);
+  assert.match(workspace, /data-formal-review-preview/);
+  assert.doesNotMatch(workspace, /JSON\.stringify\(submission\.draft_content/);
+});
+
+test('successful accession asks the public desktop to open the published archive', () => {
+  assert.match(workspace, /palis:open-published-archive/);
+});
+
+test('typing a slash inside the dossier editor opens archive title suggestions', () => {
+  assert.match(workspace, /data-slash-reference-menu/);
+  assert.match(workspace, /onReferenceTrigger/);
+  assert.match(workspace, /insertReference/);
+});
+
+test('official archive amendments keep separate windows and autosave keys by archive code', () => {
+  assert.match(workspace, /initial\.archiveCode[\s\S]*amendment-/);
+  assert.match(workspace, /initial\.id\s*\|\|\s*initial\.archiveCode\s*\|\|\s*['"]new['"]/);
 });
 
 test('editor exposes local/cloud autosave and crash recovery states', () => {
