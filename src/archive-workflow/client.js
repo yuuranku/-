@@ -276,6 +276,17 @@ export const createArchiveWorkflowClient = (supabase) => {
     return unwrap(request, 'Unable to search archives');
   };
 
+  const listPublishedArchives = ({ limit = 100 } = {}) =>
+    unwrap(
+      supabase
+        .from('archives')
+        .select('id,code,category,title,summary,visibility,published_at,sequence_number,abbreviation')
+        .eq('visibility', 'public')
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .limit(Math.min(Math.max(Number(limit) || 100, 1), 100)),
+      'Unable to load published archives',
+    );
+
   const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
     let request = supabase
@@ -288,6 +299,29 @@ export const createArchiveWorkflowClient = (supabase) => {
     if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to list editable archives');
   };
+
+  const listAdminArchives = ({ query = '', limit = 100 } = {}) => {
+    const term = String(query ?? '').trim().replaceAll(',', ' ');
+    let request = supabase
+      .from('archives')
+      .select('id,code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation');
+    if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
+    request = request
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(Math.min(Math.max(Number(limit) || 100, 1), 100));
+    return unwrap(request, 'Unable to load administrator archive directory');
+  };
+
+  const deleteArchive = (archiveId) =>
+    unwrap(
+      supabase
+        .from('archives')
+        .delete()
+        .eq('id', requireId(archiveId, 'archiveId'))
+        .select('id,code,title')
+        .single(),
+      'Unable to delete archive',
+    );
 
   const listArchiveContributions = (archiveId) =>
     unwrap(
@@ -389,7 +423,10 @@ export const createArchiveWorkflowClient = (supabase) => {
     listNotifications,
     markNotificationRead,
     searchArchives,
+    listPublishedArchives,
     listEditableArchives,
+    listAdminArchives,
+    deleteArchive,
     loadArchiveEditorSource,
     listArchiveContributions,
     listArchiveReferences,

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PALIS 自由修订补充页</title>
+    <style>
+      :root { color: #111; background: #f4f0e4; font-family: "Noto Serif SC", serif; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; padding: clamp(22px, 4vw, 56px); background: #e5e0d2; }
+      main { width: min(900px, 100%); min-height: 1050px; margin: 0 auto; padding: clamp(24px, 5vw, 70px); border: 2px solid #171717; background: #faf7ed; box-shadow: 10px 10px 0 #30302b; }
+      header { display: grid; gap: 8px; padding-bottom: 20px; border-bottom: 5px solid #b54646; }
+      header p, .eyebrow { margin: 0; color: #8d3c38; font: 700 12px/1.2 monospace; letter-spacing: .09em; }
+      h1 { margin: 0; font-size: clamp(30px, 5vw, 54px); line-height: 1.1; }
+      header small { color: #5c625e; font: 13px/1.5 monospace; }
+      section { margin-top: 30px; }
+      h2 { margin: 0 0 12px; font-size: 20px; }
+      .sheet { min-height: 86px; padding: 16px; border: 1px solid #67675f; background: #fffdf6; white-space: pre-wrap; outline: none; font: 17px/1.7 "Noto Serif SC", serif; }
+      .sheet:focus { outline: 3px solid #315bcf; outline-offset: 2px; }
+      .items { display: grid; gap: 12px; }
+      .item { display: grid; grid-template-columns: minmax(140px, .45fr) minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 12px; border: 1px solid #929792; background: #f4f0e4; }
+      .item label { display: grid; gap: 5px; color: #343834; font: 700 12px/1.2 monospace; }
+      .item .sheet { min-height: 38px; padding: 8px; font-size: 15px; line-height: 1.45; }
+      button { min-height: 34px; padding: 7px 11px; color: #fff; border: 2px outset #78909a; background: #173a6d; font: 700 13px/1.1 sans-serif; cursor: pointer; }
+      .remove { align-self: end; background: #8c3c39; }
+      #addItem { margin-top: 12px; }
+      .hint { color: #5c625e; font: 13px/1.55 monospace; }
+      @media print { body { padding: 0; background: #fff; } main { width: auto; min-height: auto; border: 0; box-shadow: none; } button { display: none; } }
+      @media (max-width: 600px) { .item { grid-template-columns: 1fr; } .remove { justify-self: start; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p>PALIS / AMENDMENT SUPPLEMENT</p>
+        <h1>自由修订补充页</h1>
+        <small>原档案信息由工作台左侧锁定显示；在本页补充、修正或新增条目。</small>
+      </header>
+      <section>
+        <p class="eyebrow">本次补充标题</p>
+        <div class="sheet" contenteditable="true" data-save="amendment:title" role="textbox" aria-label="本次补充标题"></div>
+      </section>
+      <section>
+        <p class="eyebrow">补充正文</p>
+        <div class="sheet" contenteditable="true" data-save="amendment:body" role="textbox" aria-label="补充正文"></div>
+      </section>
+      <section>
+        <h2>自定义条目</h2>
+        <p class="hint">可按需要添加任意条目。管理员审核后决定如何纳入正式档案。</p>
+        <div class="items" id="amendment-items"></div>
+        <button id="addItem" type="button">添加条目</button>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const items = document.querySelector('#amendment-items');
+        const makeId = () => globalThis.crypto?.randomUUID?.() || `item-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const notify = () => items.dispatchEvent(new Event('input', { bubbles: true }));
+        const addItem = (id = makeId()) => {
+          if (items.querySelector(`[data-amendment-item-id="${CSS.escape(id)}"]`)) return;
+          const row = document.createElement('article');
+          row.className = 'item';
+          row.dataset.amendmentItemId = id;
+          row.innerHTML = `
+            <label>条目名称<div class="sheet" contenteditable="true" data-save="amendment:item:${id}:label"></div></label>
+            <label>条目内容<div class="sheet" contenteditable="true" data-save="amendment:item:${id}:value"></div></label>
+            <button class="remove" type="button">删除条目</button>
+          `;
+          row.querySelector('.remove').addEventListener('click', () => { row.remove(); notify(); });
+          items.append(row);
+        };
+        document.querySelector('#addItem').addEventListener('click', () => { addItem(); notify(); });
+        window.syncAmendmentItems = (values = {}) => {
+          const ids = new Set(Object.keys(values).map((key) => {
+            const match = /^amendment:item:([^:]+):(label|value)$/.exec(key);
+            return match ? match[1] : null;
+          }).filter(Boolean));
+          ids.forEach(addItem);
+        };
+      })();
+    </script>
+  </body>
+</html>

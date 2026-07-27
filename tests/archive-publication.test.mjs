@@ -7,6 +7,7 @@ import {
   renderOfficialArchiveBanner,
   renderPublishedContributionLedger,
 } from '../src/archive-workflow/publication.js';
+import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from '../src/archive-workflow/directory.js';
 
 const projectRoot = new URL('../', import.meta.url);
 const [main, html, styles] = await Promise.all([
@@ -190,4 +191,53 @@ test('a newly accessioned cloud archive can open immediately in the public archi
   assert.match(main, /cloudRecord/);
   assert.match(main, /openCloudArchiveReference/);
   assert.doesNotMatch(main, /if\s*\(!archiveWorkflowClient\s*\|\|\s*!archive\.webContent\)\s*return/);
+});
+
+test('published cloud events appear in the event directory without duplicating built-in records', () => {
+  const directories = [
+    {
+      id: 'events',
+      code: '07',
+      name: '事件',
+      meta: '1 FILE',
+      children: [{ id: 'event-01', code: 'EV01', name: '已有事件', webContent: true }],
+    },
+  ];
+  const merged = mergePublishedArchiveDirectory(directories, [
+    {
+      id: 'cloud-event',
+      code: 'EV-2026-01',
+      title: '新入卷事件',
+      category: 'event',
+      visibility: 'public',
+      published_at: '2026-07-27T12:00:00Z',
+      sequence_number: 3,
+      abbreviation: 'RLL',
+    },
+    {
+      id: 'existing-event',
+      code: 'EV01',
+      title: '不应重复的已有事件',
+      category: 'event',
+      visibility: 'public',
+    },
+  ]);
+
+  const events = merged.find((directory) => directory.id === 'events');
+  assert.equal(events.children.length, 2);
+  assert.equal(events.children[0].name, '新入卷事件');
+  assert.equal(events.children[0].webContent, true);
+  assert.equal(events.children[0].cloudRecord.id, 'cloud-event');
+});
+
+test('an open category resolves to its refreshed cloud-backed directory', () => {
+  const originalEvents = { id: 'events', children: [{ code: 'EV01' }] };
+  const refreshedEvents = { id: 'events', children: [{ code: 'EV-2026-01' }, { code: 'EV01' }] };
+
+  assert.equal(resolveArchiveDirectory(originalEvents, [refreshedEvents]), refreshedEvents);
+});
+
+test('cloud directory sync rebuilds the root index before a category is opened', () => {
+  assert.match(main, /archiveDirectory = resolveArchiveDirectory\(archiveDirectory, archiveRoots\);\s*buildArchiveOrbit\(archiveDirectory\);/);
+  assert.doesNotMatch(main, /if \(currentChapter === 2\) buildArchiveOrbit\(archiveDirectory\);/);
 });

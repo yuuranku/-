@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const projectRoot = new URL('../', import.meta.url);
-const [workspace, client, migration, userFunction] = await Promise.all([
+const [workspace, client, migration, userFunction, html] = await Promise.all([
   readFile(new URL('src/archive-workflow/workspace.js', projectRoot), 'utf8'),
   readFile(new URL('src/archive-workflow/client.js', projectRoot), 'utf8'),
   readFile(new URL('supabase/migrations/202607270001_archive_workflow.sql', projectRoot), 'utf8'),
   readFile(new URL('supabase/functions/admin-manage-user/index.ts', projectRoot), 'utf8'),
+  readFile(new URL('index.html', projectRoot), 'utf8'),
 ]);
 
 test('administrator directly creates and manages clerk or observer accounts', () => {
@@ -61,4 +62,12 @@ test('database publication flags dependent references for re-review', () => {
   assert.match(migration, /reference_review_required = true/i);
   assert.match(migration, /mother_version_id/i);
   assert.match(migration, /is_archived/i);
+});
+
+test('administrator workspace exposes an archive manager with typed-code permanent deletion', () => {
+  assert.match(html, /data-workflow-panel="archives"[^>]*data-admin-only/);
+  assert.match(workspace, /listAdminArchives/);
+  assert.match(workspace, /data-delete-archive-confirmation/);
+  assert.match(workspace, /client\.deleteArchive\(archive\.id\)/);
+  assert.match(workspace, /palis:archive-directory-changed/);
 });

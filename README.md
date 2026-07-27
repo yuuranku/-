@@ -85,6 +85,7 @@ npm run build
    - [202607270001_archive_workflow.sql](./supabase/migrations/202607270001_archive_workflow.sql)：建立数据表、RLS、九类模板、私有附件桶、审核/录入函数和公开记录读取函数。
    - [202607270002_repair_admin_and_official_archives.sql](./supabase/migrations/202607270002_repair_admin_and_official_archives.sql)：修复主管理员资料并登记网站既有官方档案。
    - [202607270003_archive_editor_pipeline.sql](./supabase/migrations/202607270003_archive_editor_pipeline.sql)：允许管理员提交草稿，建立自动档号、模板简称与修改母版本链。
+   - [202607270004_repair_archive_version_lineage.sql](./supabase/migrations/202607270004_repair_archive_version_lineage.sql)：补齐版本母本字段，修复已审核档案在正式录入时无法发布的问题。
 
 3. 在 Supabase Authentication 后台创建首个用户 `717652849@qq.com`。数据库触发器会把这个邮箱设为受保护管理员。
 4. 部署正式账号管理函数：

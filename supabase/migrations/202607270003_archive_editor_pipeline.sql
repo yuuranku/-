@@ -24,6 +24,9 @@ alter table public.archives
 alter table public.archive_contributions
   add column if not exists base_version_id uuid references public.archive_versions(id);
 
+alter table public.archive_versions
+  add column if not exists mother_version_id uuid references public.archive_versions(id);
+
 create table if not exists public.archive_number_counters (
   category text primary key,
   last_value integer not null check (last_value >= 0),

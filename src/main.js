@@ -15,6 +15,7 @@ import {
   renderOfficialArchiveBanner,
   renderPublishedContributionLedger,
 } from './archive-workflow/publication.js';
+import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
 import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -43,6 +44,7 @@ const archiveWorkflowClient = accessContext?.supabase
 initializeArchiveWorkspace({ client: archiveWorkflowClient });
 
 const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
+let archiveRoots = ARCHIVE_ROOTS;
 
 function findArchiveReference(target) {
   const normalized = String(target ?? '').trim().toLocaleLowerCase('zh-CN');
@@ -127,7 +129,12 @@ document.addEventListener('click', (event) => {
 
 window.addEventListener('palis:open-published-archive', (event) => {
   const target = event.detail?.code || event.detail?.title;
+  void syncPublishedArchiveDirectory();
   if (target) openCloudArchiveReference(target, event.detail?.trigger || null);
+});
+
+window.addEventListener('palis:archive-directory-changed', () => {
+  void syncPublishedArchiveDirectory();
 });
 
 function initializeMascotAssistant() {
@@ -984,6 +991,7 @@ const chapterTargets = [0, 1 / 3, 2 / 3, 1];
 
 buildArchiveOrbit();
 buildOverviewSync();
+void syncPublishedArchiveDirectory();
 prepareCapsuleBootSequence();
 updateClock();
 setInterval(updateClock, 30_000);
@@ -995,7 +1003,7 @@ requestAnimationFrame(animate);
 {
   const devDirectory = new URLSearchParams(location.search).get('dir');
   if (devDirectory) {
-    const target = ARCHIVE_ROOTS.find((root) => root.id === devDirectory);
+    const target = archiveRoots.find((root) => root.id === devDirectory);
     if (target) {
       setTimeout(() => {
         document.querySelector('#archive-section')?.scrollIntoView({ behavior: 'instant' });
@@ -1172,7 +1180,7 @@ function archiveSyncStatus(archive) {
 }
 
 function buildOverviewSync() {
-  syncList.innerHTML = ARCHIVE_ROOTS.map((archive, index) => `
+  syncList.innerHTML = archiveRoots.map((archive, index) => `
     <li class="sync-row" data-index="${index}" data-count="${archive.children.length}" data-online-count="${onlineArchiveCount(archive)}">
       <span>${String(index + 1).padStart(2, '0')}</span>
       <b>${archive.name}档案</b>
@@ -1180,16 +1188,29 @@ function buildOverviewSync() {
       <output>---</output>
     </li>
   `).join('');
-  syncCounts.innerHTML = ARCHIVE_ROOTS.map((archive) => `
+  syncCounts.innerHTML = archiveRoots.map((archive) => `
     <div><span>${archive.name}</span><b>${syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive))}</b></div>
   `).join('');
+}
+
+async function syncPublishedArchiveDirectory() {
+  if (!archiveWorkflowClient?.listPublishedArchives) return;
+  try {
+    const publishedArchives = await archiveWorkflowClient.listPublishedArchives();
+    archiveRoots = mergePublishedArchiveDirectory(ARCHIVE_ROOTS, publishedArchives || []);
+    buildOverviewSync();
+    archiveDirectory = resolveArchiveDirectory(archiveDirectory, archiveRoots);
+    buildArchiveOrbit(archiveDirectory);
+  } catch {
+    // The built-in index remains available when the cloud directory is unavailable.
+  }
 }
 
 async function runOverviewSync() {
   const runId = ++overviewSyncRun;
   const rows = [...syncList.querySelectorAll('.sync-row')];
-  const recordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
-  const offlineRecordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
+  const recordTotal = archiveRoots.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
+  const offlineRecordTotal = archiveRoots.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
   const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
   const animateArchiveCount = async (row, archive, index) => {
     const target = onlineArchiveCount(archive);
@@ -1240,7 +1261,7 @@ async function runOverviewSync() {
   syncEnter.textContent = '打开 PALIS 09A';
   syncLog.textContent = '> AWAIT INDEX BUS RESPONSE';
   [...syncCounts.querySelectorAll('b')].forEach((count, index) => {
-    const archive = ARCHIVE_ROOTS[index];
+    const archive = archiveRoots[index];
     count.textContent = syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive));
   });
   rows.forEach((row) => {
@@ -1249,7 +1270,7 @@ async function runOverviewSync() {
     row.querySelector('output').textContent = '---';
   });
 
-  const hasEmbeddedArchiveContent = ARCHIVE_ROOTS.every((archive) => archive.children.every((record) => record.webContent));
+  const hasEmbeddedArchiveContent = archiveRoots.every((archive) => archive.children.every((record) => record.webContent));
   if (isPreviewAccess() && !hasEmbeddedArchiveContent) {
     syncSubtitle.textContent = '09 INDEX CHANNELS / SOURCE FILE AVAILABILITY';
     syncState.textContent = '等待源文件';
@@ -1257,7 +1278,7 @@ async function runOverviewSync() {
 
     if (reducedMotion) {
       rows.forEach((row, index) => {
-        const archive = ARCHIVE_ROOTS[index];
+        const archive = archiveRoots[index];
         const onlineCount = onlineArchiveCount(archive);
         const offlineCount = offlineArchiveCount(archive);
         row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
@@ -1269,7 +1290,7 @@ async function runOverviewSync() {
       for (let index = 0; index < rows.length; index += 1) {
         if (runId !== overviewSyncRun || currentChapter !== 1) return;
         const row = rows[index];
-        const archive = ARCHIVE_ROOTS[index];
+        const archive = archiveRoots[index];
         const onlineCount = onlineArchiveCount(archive);
         const offlineCount = offlineArchiveCount(archive);
         row.classList.add('is-requesting');
@@ -1335,7 +1356,7 @@ async function runOverviewSync() {
 
   if (reducedMotion) {
     rows.forEach((row, index) => {
-      const archive = ARCHIVE_ROOTS[index];
+      const archive = archiveRoots[index];
       const onlineCount = onlineArchiveCount(archive);
       row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
       row.querySelector('i').textContent = archiveSyncStatus(archive);
@@ -1349,7 +1370,7 @@ async function runOverviewSync() {
   for (let index = 0; index < rows.length; index += 1) {
     if (runId !== overviewSyncRun || currentChapter !== 1) return;
     const row = rows[index];
-    const archive = ARCHIVE_ROOTS[index];
+    const archive = archiveRoots[index];
     const onlineCount = onlineArchiveCount(archive);
     const offlineCount = offlineArchiveCount(archive);
     const requestProgress = Math.round(((index + 0.18) / rows.length) * 100);
@@ -2088,7 +2109,7 @@ function installArchiveWindowDrag(windowElement) {
 
 function buildArchiveOrbit(directory = archiveDirectory) {
   const orbit = document.querySelector('#folder-orbit');
-  const sourceEntries = directory ? directory.children : ARCHIVE_ROOTS;
+  const sourceEntries = directory ? directory.children : archiveRoots;
   const mode = directory ? ARCHIVE_MODES[directory.id] || 'index' : 'orbit';
   const entries = mode === 'station-board'
     ? [...sourceEntries].sort((a, b) => a.operator.localeCompare(b.operator, 'zh-CN') || a.name.localeCompare(b.name, 'zh-CN'))

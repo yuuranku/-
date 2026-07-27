@@ -43,6 +43,14 @@ const escapeHtml = (value) =>
 const templatePreviewUrl = (template) =>
   `/templates/${encodeURIComponent(template.sourceFile)}`;
 
+const FREEFORM_AMENDMENT_TEMPLATE = '/templates/10-自由修订补充页.html';
+
+const isFixedArchiveCategory = (category) =>
+  category === 'station' || category === 'entrance';
+
+const editorPreviewUrl = (template, kind) =>
+  kind === 'amendment' ? FREEFORM_AMENDMENT_TEMPLATE : templatePreviewUrl(template);
+
 const draftContentToEditorDocument = (template, content = {}, fallback = {}) => {
   if (content?.schemaVersion === 2 || content?.values) {
     return normalizeEditorDocument({
@@ -266,6 +274,8 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
 
   const createEditor = async (template, initial = {}) => {
     if (!ensureWorkspaceAccess()) return null;
+    const fixedArchive = isFixedArchiveCategory(template.category);
+    const initialKind = fixedArchive ? 'amendment' : (initial.kind || 'new');
     const editorKey = initial.id
       ? `editor-${initial.id}`
       : initial.targetContributionId
@@ -356,7 +366,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
               <div class="archive-editor__frame">
                 <div class="archive-editor__loading" data-template-editor-loading role="status"><b>正在载入设定卡</b><span>首次打开会准备可编辑档案版式</span></div>
                 <div class="archive-slash-reference-menu" data-slash-reference-menu hidden></div>
-                <iframe data-template-editor-frame src="${templatePreviewUrl(template)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
+                <iframe data-template-editor-frame src="${editorPreviewUrl(template, initialKind)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
               </div>
             </section>
           </div>
@@ -389,6 +399,10 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     const editableArchiveStatus = form.querySelector('[data-editable-archive-status]');
     const formalNumberOutput = form.querySelector('[data-formal-number]');
     const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || initial.archiveCode || 'new'}`;
+    if (fixedArchive) {
+      kindSelect.value = 'amendment';
+      kindSelect.disabled = true;
+    }
     let editorDocument = draftContentToEditorDocument(template, initial.content, initial);
     let references = [...editorDocument.references];
     let editorBridge = null;
@@ -400,7 +414,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       ownerId: context.profile.id,
       title: initial.title ?? '',
       archiveCode: initial.archiveCode ?? '',
-      kind: initial.kind ?? 'new',
+      kind: initialKind,
       targetContributionId: initial.targetContributionId ?? null,
       baseVersionId: initial.baseVersionId ?? null,
       status: initial.status ?? 'draft',
@@ -487,7 +501,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       editableArchiveStatus.textContent = `正在载入“${archive.title}”的最新正式内容…`;
       try {
         const source = await client.loadArchiveEditorSource(archive.id);
-        if (source?.content?.schemaVersion === 2) {
+        if (source?.content?.schemaVersion === 2 && kindSelect.value !== 'amendment') {
           editorDocument = draftContentToEditorDocument(template, source.content, {
             title: archive.title,
             archiveCode: archive.code,
@@ -510,6 +524,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     };
 
     const updateMode = () => {
+      if (fixedArchive) kindSelect.value = 'amendment';
       const existingArchive = kindSelect.value !== 'new';
       const amendment = kindSelect.value === 'amendment';
       editableArchivePicker.hidden = !existingArchive;
@@ -540,9 +555,9 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       editorDraft = {
         ...editorDraft,
         key: localKey,
-        title: editorDocument.title || `未命名${template.title}`,
+        title: editorDocument.title || editorDocument.values['amendment:title'] || `未命名${template.title}`,
         kind: kindSelect.value,
-        archiveCode: editorDocument.businessCode,
+        archiveCode: editorDocument.businessCode || editorDraft.archiveCode,
         archiveId: editorDraft.archiveId,
         targetContributionId: form.elements.targetContributionId.value.trim() || null,
         baseVersionId: editorDraft.baseVersionId,
@@ -611,24 +626,38 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       autosave.queue(collectDraft());
     });
 
-    editorBridge = createTemplateEditorBridge({
-      iframe: templateFrame,
-      template,
-      initialDocument: editorDocument,
-      onReferenceTrigger: runSlashReferenceSearch,
-      onChange: (document) => {
-        editorDocument = {
-          ...document,
-          references,
-        };
-        autosave.queue(collectDraft());
-      },
-    });
-    editorBridge.ready.then(() => {
-      editorCanvas?.classList.remove('is-loading');
-      editorCanvas?.setAttribute('aria-busy', 'false');
-      if (editorLoading) editorLoading.hidden = true;
-    });
+    let activePreviewUrl = null;
+    const mountEditorBridge = ({ waitForLoad = false } = {}) => {
+      const previewUrl = editorPreviewUrl(template, kindSelect.value);
+      if (editorBridge && activePreviewUrl === previewUrl) return;
+      editorDocument = editorBridge?.read() || editorDocument;
+      editorBridge?.dispose();
+      activePreviewUrl = previewUrl;
+      editorCanvas?.classList.add('is-loading');
+      editorCanvas?.setAttribute('aria-busy', 'true');
+      if (editorLoading) editorLoading.hidden = false;
+      if (templateFrame.getAttribute('src') !== previewUrl) templateFrame.setAttribute('src', previewUrl);
+      editorBridge = createTemplateEditorBridge({
+        iframe: templateFrame,
+        template,
+        initialDocument: editorDocument,
+        onReferenceTrigger: runSlashReferenceSearch,
+        onChange: (document) => {
+          editorDocument = {
+            ...document,
+            references,
+          };
+          autosave.queue(collectDraft());
+        },
+        waitForLoad,
+      });
+      editorBridge.ready.then(() => {
+        editorCanvas?.classList.remove('is-loading');
+        editorCanvas?.setAttribute('aria-busy', 'false');
+        if (editorLoading) editorLoading.hidden = true;
+      });
+    };
+    mountEditorBridge();
     if (initial.archiveId && !initial.id && initial.kind !== 'new') {
       await loadEditableArchives();
       editableArchiveSelect.value = initial.archiveId;
@@ -677,6 +706,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     });
     form.addEventListener('change', (event) => {
       updateMode();
+      if (event.target === kindSelect) mountEditorBridge({ waitForLoad: true });
       if (event.target === editableArchiveSelect) applySelectedArchive({ loadSource: true });
       autosave.queue(collectDraft());
     });
@@ -741,6 +771,10 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       if (!client) {
         message.textContent = '当前未连接档案服务，仅保留了本地暂存。';
         setAutosaveState('offline-saved');
+        return;
+      }
+      if (kindSelect.value === 'amendment' && !editorDraft.archiveId) {
+        message.textContent = '请先选择要修改的既有档案。';
         return;
       }
       const submitButton = form.querySelector('[data-submit-draft]');
@@ -1018,6 +1052,132 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
     loadUsers();
   };
 
+  const openArchiveManagementPanel = () => {
+    if (!ensureWorkspaceAccess() || !canReview(context.role)) return denyWorkspace();
+    const state = createWindow({
+      key: 'archives',
+      title: '档案管理',
+      code: 'ADMIN.ARCHIVES',
+      className: 'archive-admin-window archive-workflow-list-window',
+      body: `
+        <section class="archive-admin-archives" data-admin-archive-management>
+          <header>
+            <div><p>PALIS / FORMAL ARCHIVE DIRECTORY</p><h3>正式档案管理</h3><span>管理员可检索公开、封存与离线档案。永久删除前必须输入完整档案编号确认。</span></div>
+            <form data-admin-archive-search>
+              <input name="query" type="search" autocomplete="off" placeholder="档案编号或标题" />
+              <button type="submit">检索</button>
+              <button type="button" data-refresh-admin-archives>刷新</button>
+            </form>
+          </header>
+          <p data-admin-archive-message>正在读取正式档案目录…</p>
+          <div data-admin-archive-list><p>正在读取正式档案目录…</p></div>
+        </section>
+      `,
+    });
+    if (state.panelReady) return state;
+    state.panelReady = true;
+    const panel = state.windowElement.querySelector('[data-admin-archive-management]');
+    const search = panel.querySelector('[data-admin-archive-search]');
+    const message = panel.querySelector('[data-admin-archive-message]');
+    const list = panel.querySelector('[data-admin-archive-list]');
+    let archives = [];
+
+    const visibilityLabel = (visibility) => ({
+      public: '公开',
+      sealed: '封存',
+      offline: '离线',
+    }[visibility] || visibility || '未设定');
+
+    const renderArchives = () => {
+      list.innerHTML = archives.length
+        ? archives.map((archive) => `
+            <article class="archive-admin-archive" data-managed-archive="${escapeHtml(archive.id)}">
+              <header>
+                <div><b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span></div>
+                <em>${escapeHtml(visibilityLabel(archive.visibility))}</em>
+              </header>
+              <p>${escapeHtml(archive.summary || '未填写摘要')}</p>
+              <small>${escapeHtml(archive.category)} / ${escapeHtml(archive.published_at ? new Date(archive.published_at).toLocaleString('zh-CN') : '未发布')}</small>
+              <button type="button" data-request-archive-delete>永久删除档案</button>
+              <form data-archive-delete-form hidden>
+                <label>输入“${escapeHtml(archive.code)}”确认永久删除
+                  <input data-delete-archive-confirmation autocomplete="off" />
+                </label>
+                <button type="submit" data-confirm-archive-delete disabled>确认永久删除</button>
+                <output data-archive-delete-message></output>
+              </form>
+            </article>
+          `).join('')
+        : '<p>没有符合条件的正式档案。</p>';
+    };
+
+    const loadArchives = async () => {
+      if (!client) {
+        message.textContent = '档案服务未连接。';
+        list.innerHTML = '';
+        return;
+      }
+      message.textContent = '正在读取正式档案目录…';
+      try {
+        archives = await client.listAdminArchives({ query: search.elements.query.value });
+        message.textContent = `已载入 ${archives.length} 份正式档案。`;
+        renderArchives();
+      } catch (error) {
+        message.textContent = error.message;
+        list.innerHTML = '';
+      }
+    };
+
+    search.addEventListener('submit', (event) => {
+      event.preventDefault();
+      loadArchives();
+    });
+    search.querySelector('[data-refresh-admin-archives]').addEventListener('click', loadArchives);
+    list.addEventListener('click', (event) => {
+      const reveal = event.target.closest('[data-request-archive-delete]');
+      if (!reveal) return;
+      const form = reveal.closest('[data-managed-archive]')?.querySelector('[data-archive-delete-form]');
+      if (!form) return;
+      form.hidden = false;
+      form.querySelector('[data-delete-archive-confirmation]').focus();
+    });
+    list.addEventListener('input', (event) => {
+      const input = event.target.closest('[data-delete-archive-confirmation]');
+      if (!input) return;
+      const card = input.closest('[data-managed-archive]');
+      const archive = archives.find((entry) => entry.id === card?.dataset.managedArchive);
+      const button = input.closest('[data-archive-delete-form]')?.querySelector('[data-confirm-archive-delete]');
+      if (button) button.disabled = input.value.trim() !== archive?.code;
+    });
+    list.addEventListener('submit', async (event) => {
+      const form = event.target.closest('[data-archive-delete-form]');
+      if (!form) return;
+      event.preventDefault();
+      const card = form.closest('[data-managed-archive]');
+      const archive = archives.find((entry) => entry.id === card?.dataset.managedArchive);
+      const input = form.querySelector('[data-delete-archive-confirmation]');
+      const output = form.querySelector('[data-archive-delete-message]');
+      if (!archive || input.value.trim() !== archive.code || !client) return;
+      const button = form.querySelector('[data-confirm-archive-delete]');
+      button.disabled = true;
+      output.textContent = '正在永久删除档案…';
+      try {
+        const deleted = await client.deleteArchive(archive.id);
+        archives = archives.filter((entry) => entry.id !== archive.id);
+        message.textContent = `已永久删除 ${deleted.code || archive.code}。`;
+        window.dispatchEvent(new CustomEvent('palis:archive-directory-changed', {
+          detail: { archiveId: archive.id, code: deleted.code || archive.code },
+        }));
+        renderArchives();
+      } catch (error) {
+        output.textContent = error.message;
+        button.disabled = false;
+      }
+    });
+    loadArchives();
+    return state;
+  };
+
   const openReviewPanel = async () => {
     if (!ensureWorkspaceAccess() || !canReview(context.role)) return denyWorkspace();
     const state = createWindow({
@@ -1155,7 +1315,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
         </label>
         <footer>
           <button type="button" data-review-decision="changes_requested">退回修改</button>
-          <button type="button" data-review-decision="approved">审核通过</button>
+          <button type="button" data-review-decision="approved">审核通过，进入正式录入</button>
         </footer>
         <p data-review-message-output></p>
       </form>
@@ -1278,6 +1438,7 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       if (panel === 'inbox') openInboxPanel();
       if (panel === 'review') openReviewPanel();
       if (panel === 'users') openUserManagementPanel();
+      if (panel === 'archives') openArchiveManagementPanel();
     });
   });
 

@@ -90,6 +90,7 @@ export const readTemplateDocument = (root, template, extras = {}) => {
 export const writeTemplateDocument = (root, value) => {
   if (!root?.querySelectorAll) throw new TypeError('A template document is required');
   const document = normalizeEditorDocument(value);
+  root.defaultView?.syncAmendmentItems?.(document.values);
   root.querySelectorAll('[data-save]').forEach((element) => {
     const key = String(element?.dataset?.save ?? '').trim();
     if (key) element.textContent = String(document.values[key] ?? '');
@@ -114,6 +115,7 @@ export const createTemplateEditorBridge = ({
   initialDocument,
   onChange = () => {},
   onReferenceTrigger = () => {},
+  waitForLoad = false,
 } = {}) => {
   if (!iframe?.addEventListener) throw new TypeError('A same-origin template iframe is required');
   let root = null;
@@ -152,20 +154,32 @@ export const createTemplateEditorBridge = ({
     }
     installEditorPerformanceStyles(root);
     writeTemplateDocument(root, current);
-    root.querySelectorAll('[data-save]').forEach((element) => {
-      const onInput = () => {
-        emitChange();
-        const query = detectArchiveReferenceQuery(element.innerText ?? element.textContent);
-        if (query === null) return;
-        activeReferenceElement = element;
-        onReferenceTrigger({
-          query,
-          key: String(element.dataset?.save ?? ''),
-        });
+    const handleEditorInput = (element) => {
+      emitChange();
+      const query = detectArchiveReferenceQuery(element?.innerText ?? element?.textContent);
+      if (query === null) return;
+      activeReferenceElement = element;
+      onReferenceTrigger({
+        query,
+        key: String(element.dataset?.save ?? ''),
+      });
+    };
+    if (root.addEventListener) {
+      const onInput = (event) => {
+        const element = event.target?.closest?.('[data-save]')
+          || (event.target?.dataset?.save ? event.target : null);
+        if (element) handleEditorInput(element);
+        else emitChange();
       };
-      element.addEventListener?.('input', onInput);
-      removers.push(() => element.removeEventListener?.('input', onInput));
-    });
+      root.addEventListener('input', onInput);
+      removers.push(() => root.removeEventListener?.('input', onInput));
+    } else {
+      root.querySelectorAll('[data-save]').forEach((element) => {
+        const onInput = () => handleEditorInput(element);
+        element.addEventListener?.('input', onInput);
+        removers.push(() => element.removeEventListener?.('input', onInput));
+      });
+    }
     const photoInput = root.querySelector?.('#photoInput');
     if (photoInput) {
       photoInput.addEventListener('change', emitChange);
@@ -224,6 +238,6 @@ export const createTemplateEditorBridge = ({
     },
   };
 
-  if (iframe.contentDocument?.readyState === 'complete') attach();
+  if (!waitForLoad && iframe.contentDocument?.readyState === 'complete') attach();
   return api;
 };

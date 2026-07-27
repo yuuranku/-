@@ -84,6 +84,40 @@ test('template documents round-trip every data-save field and the photo slot', (
   assert.deepEqual(output.sections[0].fields, ['custom_unknown_key']);
 });
 
+test('freeform amendment page restores every saved custom item before writing values', () => {
+  const title = createEditable('amendment:title');
+  const body = createEditable('amendment:body');
+  const customItems = new Map();
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-save]') return [title, body, ...customItems.values()];
+      if (selector === '.sect') return [];
+      return [];
+    },
+    querySelector: () => null,
+    defaultView: {
+      syncAmendmentItems(values) {
+        Object.keys(values)
+          .filter((key) => key.startsWith('amendment:item:'))
+          .forEach((key) => {
+            if (!customItems.has(key)) customItems.set(key, createEditable(key));
+          });
+      },
+    },
+  };
+  const input = createEditorDocument(ARCHIVE_TEMPLATE_BY_CODE['03'], {
+    'amendment:title': '补充记录',
+    'amendment:body': '新增观测内容',
+    'amendment:item:field-1:label': '新坐标',
+    'amendment:item:field-1:value': '78°S / 164°E',
+  });
+
+  writeTemplateDocument(root, input);
+
+  assert.equal(customItems.get('amendment:item:field-1:label').textContent, '新坐标');
+  assert.equal(customItems.get('amendment:item:field-1:value').textContent, '78°S / 164°E');
+});
+
 test('the iframe bridge turns template input into editor document changes', async () => {
   const fixture = createFixture();
   const changes = [];

@@ -121,6 +121,59 @@ test('privileged actions use RPC or the administrator Edge Function', async () =
   assert.equal(calls[2].name, 'admin-invite-user');
 });
 
+test('administrator archive client queries every visibility state and deletes a selected archive', async () => {
+  const calls = [];
+  const supabase = {
+    from(table) {
+      const call = { table, filters: [] };
+      calls.push(call);
+      const query = {
+        select(columns) {
+          call.columns = columns;
+          return query;
+        },
+        delete() {
+          call.operation = 'delete';
+          return query;
+        },
+        eq(column, value) {
+          call.filters.push([column, value]);
+          return query;
+        },
+        or(filter) {
+          call.or = filter;
+          return query;
+        },
+        order(column, options) {
+          call.order = { column, options };
+          return query;
+        },
+        limit(value) {
+          call.limit = value;
+          return Promise.resolve({ data: [], error: null });
+        },
+        single() {
+          return Promise.resolve({ data: { id: 'archive-01', code: 'TEST-01', title: '测试档案' }, error: null });
+        },
+      };
+      return query;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  };
+  const client = createArchiveWorkflowClient(supabase);
+
+  await client.listAdminArchives({ query: 'TEST-01' });
+  await client.deleteArchive('archive-01');
+
+  assert.equal(calls[0].table, 'archives');
+  assert.equal(calls[0].operation, undefined);
+  assert.equal(calls[0].or, 'code.ilike.%TEST-01%,title.ilike.%TEST-01%');
+  assert.equal(calls[0].limit, 100);
+  assert.equal(calls[1].operation, 'delete');
+  assert.deepEqual(calls[1].filters, [['id', 'archive-01']]);
+});
+
 test('client source scopes owner writes and uses optimistic draft revisions', async () => {
   const source = await readFile(clientSourceUrl, 'utf8');
   assert.match(source, /\.eq\(['"]owner_id['"]/);

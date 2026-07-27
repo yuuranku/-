@@ -6,6 +6,7 @@ const projectRoot = new URL('../', import.meta.url);
 const migrationUrl = new URL('supabase/migrations/202607270001_archive_workflow.sql', projectRoot);
 const repairMigrationUrl = new URL('supabase/migrations/202607270002_repair_admin_and_official_archives.sql', projectRoot);
 const editorPipelineMigrationUrl = new URL('supabase/migrations/202607270003_archive_editor_pipeline.sql', projectRoot);
+const versionRepairMigrationUrl = new URL('supabase/migrations/202607270004_repair_archive_version_lineage.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -78,9 +79,17 @@ test('editor pipeline allocates permanent category numbers only when archives ar
   assert.match(sql, /create trigger allocate_archive_number/i);
   assert.match(sql, /unique index[\s\S]*category[\s\S]*sequence_number/i);
   assert.match(sql, /base_version_id uuid references public\.archive_versions/i);
+  assert.match(sql, /add column if not exists mother_version_id uuid references public\.archive_versions/i);
   assert.match(sql, /inherit_archive_version_base/i);
   assert.match(sql, /new\.mother_version_id\s*:=\s*contribution_base/i);
   for (const abbreviation of ['REG', 'CHN', 'LOG', 'CRD', 'ECO', 'PER', 'RLL', 'TRC', 'SPC']) {
     assert.match(sql, new RegExp(`'${abbreviation}'`));
   }
+});
+
+test('version lineage repair supplies the trigger field for already-migrated projects', async () => {
+  const sql = await readFile(versionRepairMigrationUrl, 'utf8').catch(() => '');
+  assert.match(sql, /alter table public\.archive_versions[\s\S]*add column if not exists mother_version_id uuid references public\.archive_versions/i);
+  assert.match(sql, /create or replace function public\.inherit_archive_version_base/i);
+  assert.match(sql, /create trigger inherit_archive_version_base/i);
 });
