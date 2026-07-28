@@ -73,10 +73,11 @@ test('amendments choose a visible archive instead of asking for internal record 
   assert.doesNotMatch(workspace, /目标投稿 ID/);
 });
 
-test('station and entrance are amendment-only while every amendment loads the blank supplement page', async () => {
+test('station and entrance are clerk amendment-only while administrators can create them', async () => {
   assert.match(workspace, /isFixedArchiveCategory/);
   assert.match(workspace, /category === 'station'/);
   assert.match(workspace, /category === 'entrance'/);
+  assert.match(workspace, /isFixedArchiveCategory\(template\.category\) && context\.role !== 'admin'/);
   assert.match(workspace, /10-自由修订补充页\.html/);
   await access(new URL('public/templates/10-自由修订补充页.html', projectRoot));
 });

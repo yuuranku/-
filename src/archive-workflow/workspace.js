@@ -49,7 +49,7 @@ const isFixedArchiveCategory = (category) =>
   category === 'station' || category === 'entrance';
 
 const editorPreviewUrl = (template, kind) =>
-  kind === 'amendment' ? FREEFORM_AMENDMENT_TEMPLATE : templatePreviewUrl(template);
+  kind === 'new' ? templatePreviewUrl(template) : FREEFORM_AMENDMENT_TEMPLATE;
 
 const draftContentToEditorDocument = (template, content = {}, fallback = {}) => {
   if (content?.schemaVersion === 2 || content?.values) {
@@ -278,7 +278,7 @@ export function initializeArchiveWorkspace({
 
   const createEditor = async (template, initial = {}) => {
     if (!ensureWorkspaceAccess()) return null;
-    const fixedArchive = isFixedArchiveCategory(template.category);
+    const fixedArchive = isFixedArchiveCategory(template.category) && context.role !== 'admin';
     const initialKind = fixedArchive ? 'amendment' : (initial.kind || 'new');
     const editorKey = initial.id
       ? `editor-${initial.id}`
@@ -505,22 +505,10 @@ export function initializeArchiveWorkspace({
       editableArchiveStatus.textContent = `正在载入“${archive.title}”的最新正式内容…`;
       try {
         const source = await client.loadArchiveEditorSource(archive.id);
-        if (source?.content?.schemaVersion === 2 && kindSelect.value !== 'amendment') {
-          editorDocument = draftContentToEditorDocument(template, source.content, {
-            title: archive.title,
-            archiveCode: archive.code,
-          });
-          editorBridge?.write(editorDocument);
-          editorDraft.targetContributionId = source.contributionId;
-          editorDraft.baseVersionId = source.versionId;
-          form.elements.targetContributionId.value = source.contributionId || '';
-          editableArchiveStatus.textContent = '已载入最新正式版本，可直接在右侧修改。';
-        } else {
-          editorDraft.targetContributionId = source?.contributionId || null;
-          editorDraft.baseVersionId = source?.versionId || null;
-          form.elements.targetContributionId.value = source?.contributionId || '';
-          editableArchiveStatus.textContent = '该档案为原始官方档案；请在右侧建立本次结构化补充。';
-        }
+        editorDraft.targetContributionId = source?.contributionId || null;
+        editorDraft.baseVersionId = source?.versionId || null;
+        form.elements.targetContributionId.value = source?.contributionId || '';
+        editableArchiveStatus.textContent = '已关联最新正式版本；右侧空白页只记录本次补充或修订。';
         autosave.queue(collectDraft());
       } catch (error) {
         editableArchiveStatus.textContent = `正式内容载入失败：${error?.message || '请稍后重试'}`;

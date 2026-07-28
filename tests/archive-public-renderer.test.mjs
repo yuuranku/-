@@ -127,3 +127,38 @@ test('administrator review uses the same formal renderer without claiming public
   assert.doesNotMatch(html, /已录入/);
   assert.doesNotMatch(html, /\{\s*&quot;schemaVersion/);
 });
+
+test('freeform entries render as named fields without exposing storage keys', () => {
+  const html = renderFormalArchiveDocument({
+    archive: {
+      code: 'P33',
+      category: 'person',
+      sequence_number: 33,
+      abbreviation: 'PER',
+    },
+    contribution: {
+      kind: 'amendment',
+      owner: { display_name: '书记官甲' },
+      versions: [],
+    },
+    version: {
+      version_label: '0.2',
+      content: {
+        ...personDocument,
+        values: {
+          hero: personDocument.title,
+          'amendment:title': '信仰信息补录',
+          'amendment:body': '依据本人陈述补录。',
+          'amendment:item:faith:label': '宗教',
+          'amendment:item:faith:value': '未公开',
+        },
+      },
+      submitter: { display_name: '书记官甲' },
+      modifier: { display_name: '书记官甲' },
+    },
+  });
+
+  assert.match(html, /补充标题[\s\S]*信仰信息补录/);
+  assert.match(html, /宗教[\s\S]*未公开/);
+  assert.doesNotMatch(html, /amendment:item:faith/);
+});

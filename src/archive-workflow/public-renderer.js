@@ -52,8 +52,29 @@ const PUBLIC_LAYOUT_CLASS = Object.freeze({
 const fieldLabel = (document, key) => {
   const label = visibleValue(document.fieldLabels?.[key]);
   if (label) return label;
+  if (key === 'amendment:title') return '补充标题';
+  if (key === 'amendment:body') return '补充正文';
   if (key.startsWith('legacy:')) return key.slice('legacy:'.length);
   return decodeLegacyFieldKey(key);
+};
+
+const customEntryKey = /^(?:amendment|custom):item:([^:]+):(label|value)$/;
+
+const customEntries = (document) => {
+  const entries = new Map();
+  Object.entries(document.values).forEach(([key, value]) => {
+    const match = customEntryKey.exec(key);
+    if (!match) return;
+    const entry = entries.get(match[1]) || { label: '', value: '' };
+    entry[match[2]] = visibleValue(value);
+    entries.set(match[1], entry);
+  });
+  return [...entries.values()]
+    .filter((entry) => entry.value)
+    .map((entry) => ({
+      label: entry.label || '自定义词条',
+      value: entry.value,
+    }));
 };
 
 const normalizedSections = (document) => {
@@ -61,23 +82,30 @@ const normalizedSections = (document) => {
   const used = new Set(declared.flatMap((section) => section.fields || []));
   const systemKeys = new Set(['hero', 'dossierNo', 'entryCode', 'regDate', 'clerk']);
   const ungrouped = Object.keys(document.values)
-    .filter((key) => !used.has(key) && !systemKeys.has(key) && visibleValue(document.values[key]));
+    .filter((key) =>
+      !used.has(key)
+      && !systemKeys.has(key)
+      && !customEntryKey.test(key)
+      && visibleValue(document.values[key]));
+  const entries = customEntries(document);
   return [
     ...declared,
     ...(ungrouped.length
       ? [{ id: 'supplement', label: '补充记录 / SUPPLEMENT', fields: ungrouped }]
+      : []),
+    ...(entries.length
+      ? [{ id: 'custom-entries', label: '自定义词条 / CUSTOM ENTRIES', entries }]
       : []),
   ];
 };
 
 const renderSections = (document) => normalizedSections(document)
   .map((section, index) => {
-    const rows = (section.fields || [])
+    const rows = (section.entries || (section.fields || [])
       .map((key) => ({
-        key,
         label: fieldLabel(document, key),
         value: visibleValue(document.values[key]),
-      }))
+      })))
       .filter((row) => row.value);
     if (!rows.length) return '';
     return `
