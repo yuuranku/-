@@ -1,3 +1,11 @@
+import {
+  formatArchiveCategoryCode,
+  formatArchiveFormalNumber,
+  getArchiveCategoryProfile,
+  nextArchiveSequence,
+  stampArchiveSystemFields,
+} from '../category-profiles.js';
+
 export class LocalWorkflowError extends Error {
   constructor(message, code, details = null) {
     super(message);
@@ -36,18 +44,6 @@ const normalizeCategory = (category) => ({
   abnormalities: 'anomaly',
   species: 'species',
 }[category] || category);
-
-const CATEGORY_REGISTRATION = Object.freeze({
-  country: Object.freeze({ prefix: 'N', abbreviation: 'REG' }),
-  organization: Object.freeze({ prefix: 'O', abbreviation: 'CHN' }),
-  station: Object.freeze({ prefix: 'ST', abbreviation: 'LOG' }),
-  entrance: Object.freeze({ prefix: 'EN', abbreviation: 'CRD' }),
-  ecology: Object.freeze({ prefix: 'E', abbreviation: 'ECO' }),
-  person: Object.freeze({ prefix: 'P', abbreviation: 'PER' }),
-  event: Object.freeze({ prefix: 'EV', abbreviation: 'RLL' }),
-  anomaly: Object.freeze({ prefix: 'A', abbreviation: 'TRC' }),
-  species: Object.freeze({ prefix: 'S', abbreviation: 'SPC' }),
-});
 
 const canonicalValue = (value) => {
   if (Array.isArray(value)) return value.map(canonicalValue);
@@ -355,8 +351,10 @@ export const createLocalWorkflowEngine = ({
 
       const template = nextState.templates.find((entry) => entry.id === contribution.template_id);
       const category = normalizeCategory(registration.category ?? template?.category);
-      const categoryRegistration = CATEGORY_REGISTRATION[category];
-      if (!categoryRegistration) {
+      let categoryRegistration;
+      try {
+        categoryRegistration = getArchiveCategoryProfile(category);
+      } catch {
         throw workflowError('invalid_category', 'Publication requires one of the nine archive categories');
       }
       const commandArchiveId = String(
@@ -419,11 +417,11 @@ export const createLocalWorkflowEngine = ({
         if (!Number.isInteger(previousCounter) || previousCounter < 0) {
           throw workflowError('invalid_counter', 'Archive number counter is invalid');
         }
-        const sequenceNumber = previousCounter + 1;
+        const sequenceNumber = nextArchiveSequence(category, previousCounter);
         nextState.numberCounters[category] = sequenceNumber;
         archive = {
           id: randomUUID(),
-          code: `${categoryRegistration.prefix}${sequenceNumber}`,
+          code: formatArchiveCategoryCode(category, sequenceNumber),
           business_code: businessCode,
           category,
           title: String(registration.title ?? contribution.title ?? '').trim() || '未命名档案',
@@ -448,6 +446,7 @@ export const createLocalWorkflowEngine = ({
       }
 
       const owner = nextState.profiles.find((profile) => profile.id === contribution.owner_id);
+      const formalNumber = formatArchiveFormalNumber(category, archive.sequence_number);
       const isAmendment = contribution.kind === 'amendment';
       let submitterId = contribution.submitter_id ?? contribution.owner_id;
       let submitterName = contribution.submitter_name ?? owner?.display_name ?? contribution.owner_id;
@@ -490,7 +489,14 @@ export const createLocalWorkflowEngine = ({
         archive_id: archive.id,
         contribution_id: contribution.id,
         version_label: versionLabel,
-        content: clone(contribution.draft_content),
+        content: stampArchiveSystemFields(contribution.draft_content, {
+          category,
+          sequenceNumber: archive.sequence_number,
+          registeredAt: publishedAt,
+          clerkName: owner?.display_name
+            ?? contribution.submitter_name
+            ?? contribution.owner_id,
+        }),
         approved_at: contribution.reviewed_at ?? publishedAt,
         created_at: publishedAt,
         submitter_id: submitterId,
@@ -602,6 +608,7 @@ export const createLocalWorkflowEngine = ({
         code: archive.code,
         sequenceNumber: archive.sequence_number,
         abbreviation: archive.abbreviation,
+        formalNumber,
         versionLabel,
       };
       nextState.idempotencyResults[idempotencyKey] = {

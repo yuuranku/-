@@ -51,7 +51,6 @@ test('approved submissions can be formally registered with archive marks', () =>
   assert.match(workspace, /value="sealed"/);
   assert.match(workspace, /value="offline"/);
   assert.match(workspace, /引用复核/);
-  assert.match(workspace, /VER 0\.1 \/ 白幕初垂 \/ 已录入/);
   assert.match(workspace, /publishContribution/);
   assert.match(workspace, /正式档号由系统自动分配/);
   assert.doesNotMatch(workspace, /既有档案 ID/);

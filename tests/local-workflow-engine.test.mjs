@@ -759,6 +759,7 @@ test('publishContribution atomically allocates event 27 without overwriting its 
     code: 'EV27',
     sequenceNumber: 27,
     abbreviation: 'RLL',
+    formalNumber: '027.RLL',
     versionLabel: '0.1',
   });
   const committed = await harness.inspectState();
@@ -770,6 +771,20 @@ test('publishContribution atomically allocates event 27 without overwriting its 
   assert.equal(formalNumber(archive), '027.RLL');
   assert.equal(committed.numberCounters.event, 27);
   assert.equal(committed.versions.length, 1);
+  assert.deepEqual(
+    {
+      dossierNo: committed.versions[0].content.values.dossierNo,
+      entryCode: committed.versions[0].content.values.entryCode,
+      regDate: committed.versions[0].content.values.regDate,
+      clerk: committed.versions[0].content.values.clerk,
+    },
+    {
+      dossierNo: '027.RLL',
+      entryCode: 'EV27',
+      regDate: '2026-07-28',
+      clerk: 'Archive Clerk',
+    },
+  );
   assert.equal(committed.indexEntries.length, 1);
   assert.equal(committed.auditEvents.length, 1);
   assert.equal(committed.notifications.length, 1);
@@ -778,15 +793,15 @@ test('publishContribution atomically allocates event 27 without overwriting its 
 
 test('automatic publication maps all nine singular categories to fixed code prefixes and abbreviations', async () => {
   const cases = [
-    ['country', '01', 'N1', 'REG'],
-    ['organization', '02', 'O1', 'CHN'],
-    ['station', '03', 'ST1', 'LOG'],
-    ['entrance', '04', 'EN1', 'CRD'],
-    ['ecology', '05', 'E1', 'ECO'],
-    ['person', '06', 'P1', 'PER'],
-    ['event', '07', 'EV1', 'RLL'],
-    ['anomaly', '08', 'A1', 'TRC'],
-    ['species', '09', 'S1', 'SPC'],
+    ['country', '01', 'N19', '019.REG'],
+    ['organization', '02', 'O25', '025.CHN'],
+    ['station', '03', 'ST21', '021.LOG'],
+    ['entrance', '04', 'EN19', '019.CRD'],
+    ['ecology', '05', 'E08', '008.ECO'],
+    ['person', '06', 'P47', '047.PER'],
+    ['event', '07', 'EV27', '027.RLL'],
+    ['anomaly', '08', 'A26', '026.TRC'],
+    ['species', '09', 'S23', '023.SPC'],
   ];
   const state = createEmptyLocalState();
   state.profiles.push(...structuredClone(LOCAL_PROFILES));
@@ -802,7 +817,7 @@ test('automatic publication maps all nine singular categories to fixed code pref
   const harness = await createLocalWorkflowHarness();
   await harness.seed(state);
 
-  for (const [category, , expectedCode, expectedAbbreviation] of cases) {
+  for (const [category, , expectedCode, expectedFormalNumber] of cases) {
     const published = await harness.repository.publishContribution(`submission-${category}`, {
       category,
       version: '0.1',
@@ -812,7 +827,11 @@ test('automatic publication maps all nine singular categories to fixed code pref
     const committed = await harness.inspectState();
     const archive = committed.archives.find(({ id }) => id === published.archiveId);
     assert.equal(archive.code, expectedCode, `${category} code`);
-    assert.equal(archive.abbreviation, expectedAbbreviation, `${category} abbreviation`);
+    assert.equal(formalNumber(archive), expectedFormalNumber, `${category} formal number`);
+    assert.equal(published.formalNumber, expectedFormalNumber, `${category} publication result`);
+    const version = committed.versions.find(({ id }) => id === published.versionId);
+    assert.equal(version.content.values.entryCode, expectedCode, `${category} stamped code`);
+    assert.equal(version.content.values.dossierNo, expectedFormalNumber, `${category} stamped dossier`);
   }
 });
 
