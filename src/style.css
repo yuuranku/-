@@ -1006,6 +1006,7 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 }
 
 .folder-button {
+  position: relative;
   display: grid;
   width: 160px;
   min-height: 132px;
@@ -1018,6 +1019,25 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
   text-shadow: 2px 2px #000;
   transform: translate(-50%, -50%);
   transition: transform 180ms cubic-bezier(.16, 1, .3, 1), opacity 140ms ease-out, background-color 100ms steps(2, end);
+}
+
+.archive-new-badge {
+  position: absolute;
+  z-index: 8;
+  top: 6px;
+  right: 6px;
+  min-width: 34px;
+  padding: 3px 5px 2px;
+  color: #fff;
+  border: 1px solid #f0e7c6;
+  outline: 1px solid #8f2525;
+  background: var(--cold-red);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .55);
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: .08em;
+  text-align: center;
+  text-shadow: 1px 1px #531010;
+  pointer-events: none;
 }
 
 .folder-button:hover,

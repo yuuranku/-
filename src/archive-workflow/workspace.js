@@ -1242,6 +1242,13 @@ export function initializeArchiveWorkspace({
               </header>
               <p>${escapeHtml(archive.summary || '未填写摘要')}</p>
               <small>${escapeHtml(archive.category)} / ${escapeHtml(archive.published_at ? new Date(archive.published_at).toLocaleString('zh-CN') : '未发布')}</small>
+              <button
+                type="button"
+                role="switch"
+                aria-checked="${archive.new_badge_visible ? 'true' : 'false'}"
+                data-toggle-archive-new
+                data-state="idle"
+              >${archive.new_badge_visible ? 'NEW 标记：开' : 'NEW 标记：关'}</button>
               <button type="button" data-request-archive-delete>永久删除档案</button>
               <form data-archive-delete-form hidden>
                 <label>输入“${escapeHtml(archive.code)}”确认永久删除
@@ -1277,7 +1284,37 @@ export function initializeArchiveWorkspace({
       loadArchives();
     });
     search.querySelector('[data-refresh-admin-archives]').addEventListener('click', loadArchives);
-    list.addEventListener('click', (event) => {
+    list.addEventListener('click', async (event) => {
+      const toggle = event.target.closest('[data-toggle-archive-new]');
+      if (toggle) {
+        const card = toggle.closest('[data-managed-archive]');
+        const archive = archives.find((entry) => entry.id === card?.dataset.managedArchive);
+        if (!archive || !client) return;
+        const visible = !archive.new_badge_visible;
+        toggle.disabled = true;
+        toggle.dataset.state = 'saving';
+        toggle.textContent = '正在保存 NEW 标记…';
+        message.textContent = `正在更新 ${archive.code} 的 NEW 标记…`;
+        try {
+          const updated = await client.setArchiveNewBadge(archive.id, visible);
+          archive.new_badge_visible = Boolean(updated.new_badge_visible);
+          message.textContent = `${archive.code} 的 NEW 标记已${archive.new_badge_visible ? '开启' : '关闭'}。`;
+          window.dispatchEvent(new CustomEvent('palis:archive-directory-changed', {
+            detail: {
+              archiveId: archive.id,
+              code: archive.code,
+              newBadgeVisible: archive.new_badge_visible,
+            },
+          }));
+          renderArchives();
+        } catch (error) {
+          toggle.disabled = false;
+          toggle.dataset.state = 'error';
+          toggle.textContent = archive.new_badge_visible ? 'NEW 标记：开' : 'NEW 标记：关';
+          message.textContent = error.message;
+        }
+        return;
+      }
       const reveal = event.target.closest('[data-request-archive-delete]');
       if (!reveal) return;
       const form = reveal.closest('[data-managed-archive]')?.querySelector('[data-archive-delete-form]');

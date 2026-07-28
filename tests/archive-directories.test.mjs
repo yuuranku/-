@@ -136,6 +136,9 @@ test('current directory renderers are wired into the live archive page', async (
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
   assert.doesNotMatch(source, /classList\.toggle\('is-off-deck'/);
+  assert.match(source, /archive-new-badge/);
+  assert.match(source, /archive\.isNew/);
+  assert.doesNotMatch(source, /archive\?\.code\s*\|\|\s*`S\$\{/);
 });
 
 test('new directory layouts include their responsive workbench styling', async () => {
@@ -156,4 +159,5 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /display: block !important/);
   assert.match(styles, /width: calc\(100vw - 24px\) !important/);
   assert.match(styles, /@media\s*\(min-width:\s*2000px\)/);
+  assert.match(styles, /\.archive-new-badge/);
 });

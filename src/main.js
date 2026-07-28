@@ -15,6 +15,7 @@ import {
   renderPublishedContributionLedger,
 } from './archive-workflow/publication.js';
 import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
+import { projectPublishedArchive } from './archive-workflow/index-projector.js';
 import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -60,33 +61,8 @@ function findArchiveReference(target) {
         .some((value) => String(value).toLocaleLowerCase('zh-CN').includes(normalized)));
 }
 
-const cloudArchiveRecordTypes = Object.freeze({
-  country: 'state-registry',
-  organization: 'chain-ledger',
-  station: 'station-log',
-  entrance: 'descent-chart',
-  ecology: 'strata-profile',
-  person: 'personnel-file',
-  event: 'chronology-reel',
-  anomaly: 'incident-trace',
-  species: 'specimen-plate',
-});
-
 function createCloudArchiveRecord(archive) {
-  const formalNumber = archive.sequence_number && archive.abbreviation
-    ? `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`
-    : archive.code;
-  return {
-    id: `cloud-${archive.id}`,
-    code: archive.code,
-    name: archive.title,
-    heading: archive.title,
-    file: `${formalNumber || archive.code || 'ARCHIVE'}.HTML`,
-    category: archive.category,
-    recordType: cloudArchiveRecordTypes[archive.category] || 'chronology-reel',
-    webContent: true,
-    cloudRecord: archive,
-  };
+  return projectPublishedArchive(archive);
 }
 
 async function openCloudArchiveReference(target, trigger = null) {
@@ -1199,8 +1175,14 @@ function buildOverviewSync() {
 async function syncPublishedArchiveDirectory() {
   if (!archiveWorkflowClient?.listPublishedArchives) return;
   try {
-    const publishedArchives = await archiveWorkflowClient.listPublishedArchives();
-    archiveRoots = mergePublishedArchiveDirectory(ARCHIVE_ROOTS, publishedArchives || []);
+    const pageSize = 100;
+    const publishedArchives = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await archiveWorkflowClient.listPublishedArchives({ limit: pageSize, offset }) || [];
+      publishedArchives.push(...page);
+      if (page.length < pageSize) break;
+    }
+    archiveRoots = mergePublishedArchiveDirectory(ARCHIVE_ROOTS, publishedArchives);
     buildOverviewSync();
     archiveDirectory = resolveArchiveDirectory(archiveDirectory, archiveRoots);
     buildArchiveOrbit(archiveDirectory);
@@ -2114,8 +2096,13 @@ function buildArchiveOrbit(directory = archiveDirectory) {
   const orbit = document.querySelector('#folder-orbit');
   const sourceEntries = directory ? directory.children : archiveRoots;
   const mode = directory ? ARCHIVE_MODES[directory.id] || 'index' : 'orbit';
+  const keepCloudAtTail = (left, right) =>
+    Number(Boolean(left.isCloudArchive)) - Number(Boolean(right.isCloudArchive));
   const entries = mode === 'station-board'
-    ? [...sourceEntries].sort((a, b) => a.operator.localeCompare(b.operator, 'zh-CN') || a.name.localeCompare(b.name, 'zh-CN'))
+    ? [...sourceEntries].sort((a, b) =>
+      keepCloudAtTail(a, b)
+      || String(a.operator ?? '').localeCompare(String(b.operator ?? ''), 'zh-CN')
+      || a.name.localeCompare(b.name, 'zh-CN'))
     : mode === 'country-stack'
       ? [...sourceEntries].sort((a, b) => a.priority - b.priority)
       : sourceEntries;
@@ -2175,6 +2162,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
       ${entryIconMarkup(archive, isFolder, index, mode)}
       <span class="folder-name${displayNameClass}">${displayName}</span>
       <small>${archive.meta}</small>
+      ${archive.isNew ? '<span class="archive-new-badge" aria-label="新档案">NEW</span>' : ''}
     `;
     button.addEventListener('click', () => {
       if (anomalyCarouselSuppressClick || eventPlaneSuppressClick) return;
@@ -4145,7 +4133,7 @@ function specimenPhotoMarkup(archive, index, large = false) {
   const image = archive?.image
     ? `<img src="${archive.image}" alt="" loading="lazy">`
     : '<span class="specimen-photo-missing"><i class="placeholder-head"></i><i class="placeholder-shoulders"></i><em>PHOTOGRAPH<br>NOT FILED</em></span>';
-  return `<span class="specimen-photo-slot${large ? ' is-large' : ''}">${image}<b>${archive?.code || `S${String(index + 1).padStart(2, '0')}`}</b></span>`;
+  return `<span class="specimen-photo-slot${large ? ' is-large' : ''}">${image}<b>${archive?.code || 'S??'}</b></span>`;
 }
 
 function updateArchivePresentation(directory) {

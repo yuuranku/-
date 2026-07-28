@@ -696,6 +696,31 @@
 .archive-admin-archive > header em { padding: 3px 5px; color: #275b42; border: 1px solid currentColor; font: 700 7px/1 var(--font-mono); font-style: normal; }
 .archive-admin-archive > p { margin: 0; color: #3f4541; font: 10px/1.45 var(--font-body); }
 .archive-admin-archive > small { color: #626864; font: 7px/1.3 var(--font-mono); }
+.archive-admin-archive > [data-toggle-archive-new] {
+  justify-self: end;
+  min-width: 108px;
+  color: #172018;
+  border-color: #efefef;
+  background: #c5c5c1;
+}
+.archive-admin-archive > [data-toggle-archive-new][aria-checked='true'] {
+  color: #fff;
+  border-color: #e7b1ae;
+  background: #8c3c39;
+}
+.archive-admin-archive > [data-toggle-archive-new][data-state='saving'] {
+  cursor: progress;
+  color: #152e61;
+  background: #d8d2ad;
+}
+.archive-admin-archive > [data-toggle-archive-new][data-state='error'] {
+  color: #fff;
+  background: #6e1f1f;
+}
+.archive-admin-archive > [data-toggle-archive-new]:focus-visible {
+  outline: 1px dotted currentColor;
+  outline-offset: -5px;
+}
 .archive-admin-archive > [data-request-archive-delete] { justify-self: end; color: #fff; border-color: #6d2525; background: #8c3c39; }
 .archive-admin-archive form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 9px; color: #fff; border: 2px inset #7d2b2a; background: #71312f; }
 .archive-admin-archive form label { display: grid; gap: 4px; font: 8px/1.2 var(--font-body); }

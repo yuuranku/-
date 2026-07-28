@@ -225,9 +225,10 @@ test('published cloud events appear in the event directory without duplicating b
 
   const events = merged.find((directory) => directory.id === 'events');
   assert.equal(events.children.length, 2);
-  assert.equal(events.children[0].name, '新入卷事件');
-  assert.equal(events.children[0].webContent, true);
-  assert.equal(events.children[0].cloudRecord.id, 'cloud-event');
+  assert.equal(events.children[1].name, '新入卷事件');
+  assert.equal(events.children[1].code, 'EV03');
+  assert.equal(events.children[1].webContent, true);
+  assert.equal(events.children[1].cloudRecord.id, 'cloud-event');
 });
 
 test('an open category resolves to its refreshed cloud-backed directory', () => {
@@ -238,6 +239,8 @@ test('an open category resolves to its refreshed cloud-backed directory', () => 
 });
 
 test('cloud directory sync rebuilds the root index before a category is opened', () => {
+  assert.match(main, /listPublishedArchives\(\{\s*limit:\s*pageSize,\s*offset\s*\}\)/);
+  assert.match(main, /if\s*\(page\.length\s*<\s*pageSize\)\s*break/);
   assert.match(main, /archiveDirectory = resolveArchiveDirectory\(archiveDirectory, archiveRoots\);\s*buildArchiveOrbit\(archiveDirectory\);/);
   assert.doesNotMatch(main, /if \(currentChapter === 2\) buildArchiveOrbit\(archiveDirectory\);/);
 });

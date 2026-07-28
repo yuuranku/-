@@ -69,4 +69,8 @@ test('administrator workspace exposes an archive manager with typed-code permane
   assert.match(workspace, /data-delete-archive-confirmation/);
   assert.match(workspace, /client\.deleteArchive\(archive\.id\)/);
   assert.match(workspace, /palis:archive-directory-changed/);
+  assert.match(workspace, /data-toggle-archive-new/);
+  assert.match(workspace, /client\.setArchiveNewBadge\(archive\.id/);
+  assert.match(workspace, /NEW 标记：开/);
+  assert.match(workspace, /NEW 标记：关/);
 });
