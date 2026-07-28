@@ -46,6 +46,29 @@ test('workflow client exposes the complete clerk and administrator API', () => {
   }
 });
 
+test('workflow client enforces the repository contract when it constructs its public API', async () => {
+  const source = await readFile(clientSourceUrl, 'utf8');
+
+  assert.match(source, /import\s+\{\s*assertArchiveWorkflowRepository\s*\}\s+from\s+['"]\.\/repository-contract\.js['"]/);
+  assert.match(source, /return\s+assertArchiveWorkflowRepository\(\{[\s\S]*uploadAttachment,[\s\S]*\}\);/);
+});
+
+test('workflow client preserves validation error codes at its repository boundary', async () => {
+  const client = createArchiveWorkflowClient({
+    from: () => { throw new Error('not used'); },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+  const hasCode = (code) => (error) => error?.code === code;
+
+  await assert.rejects(client.getProfile(''), hasCode('invalid_input'));
+  await assert.rejects(client.saveDraft({ id: 'draft-1', ownerId: 'clerk-1', revision: 0 }), hasCode('invalid_revision'));
+  assert.throws(() => client.reviewSubmission('draft-1', { decision: 'rejected', message: 'No' }), hasCode('invalid_decision'));
+  assert.throws(() => client.reviewSubmission('draft-1', { decision: 'approved', message: ' ' }), hasCode('reply_required'));
+  assert.throws(() => client.createUser({ email: 'clerk@example.com', displayName: 'Clerk', role: 'clerk', password: 'short' }), hasCode('invalid_password'));
+  await assert.rejects(client.uploadAttachment('draft-1', 'clerk-1', { name: 'too-large.bin', size: 5 * 1024 * 1024 + 1 }), hasCode('invalid_attachment'));
+});
+
 test('public archive records use the sanitized RPC and attachments use the private bucket', async () => {
   const calls = [];
   const client = createArchiveWorkflowClient({

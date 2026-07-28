@@ -1,3 +1,5 @@
+import { assertArchiveWorkflowRepository } from './repository-contract.js';
+
 export class ArchiveWorkflowError extends Error {
   constructor(message, { code = 'archive_workflow_error', cause = null, details = null } = {}) {
     super(message, { cause });
@@ -405,7 +407,7 @@ export const createArchiveWorkflowClient = (supabase) => {
     );
   };
 
-  return {
+  return assertArchiveWorkflowRepository({
     getProfile,
     listTemplates,
     listMyDrafts,
@@ -431,5 +433,5 @@ export const createArchiveWorkflowClient = (supabase) => {
     listArchiveContributions,
     listArchiveReferences,
     uploadAttachment,
-  };
+  });
 };
