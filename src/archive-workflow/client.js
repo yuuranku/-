@@ -70,6 +70,17 @@ export const createArchiveWorkflowClient = (supabase) => {
 
   const saveDraft = async (draft) => {
     const ownerId = requireId(draft?.ownerId ?? draft?.owner_id, 'ownerId');
+    let revision = null;
+    if (draft?.id) {
+      revision = Number(draft.revision);
+      if (!Number.isInteger(revision) || revision < 1) {
+        throw new ArchiveWorkflowError('A positive draft revision is required', { code: 'invalid_revision' });
+      }
+    }
+    const content = draft?.content ?? draft?.draft_content;
+    if (!content || content.schemaVersion !== 2) {
+      throw new ArchiveWorkflowError('Archive documents must use schema version 2', { code: 'invalid_document' });
+    }
     const payload = {
       archive_id: draft.archiveId ?? draft.archive_id ?? null,
       template_id: draft.templateId ?? draft.template_id ?? null,
@@ -80,7 +91,7 @@ export const createArchiveWorkflowClient = (supabase) => {
       base_version_id: draft.baseVersionId ?? draft.base_version_id ?? null,
       status: draft.status ?? 'draft',
       draft_content: {
-        ...(draft.content ?? draft.draft_content ?? {}),
+        ...content,
         archiveCode: String(draft.archiveCode ?? draft.archive_code ?? '').trim(),
       },
     };
@@ -92,10 +103,6 @@ export const createArchiveWorkflowClient = (supabase) => {
       );
     }
 
-    const revision = Number(draft.revision);
-    if (!Number.isInteger(revision) || revision < 1) {
-      throw new ArchiveWorkflowError('A positive draft revision is required', { code: 'invalid_revision' });
-    }
     const data = await unwrap(
       supabase
         .from('archive_contributions')

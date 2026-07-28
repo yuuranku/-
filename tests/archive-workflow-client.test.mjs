@@ -69,6 +69,33 @@ test('workflow client preserves validation error codes at its repository boundar
   await assert.rejects(client.uploadAttachment('draft-1', 'clerk-1', { name: 'too-large.bin', size: 5 * 1024 * 1024 + 1 }), hasCode('invalid_attachment'));
 });
 
+test('workflow client only writes current-version archive documents after revision validation', async () => {
+  const writes = [];
+  const client = createArchiveWorkflowClient({
+    from: () => ({
+      insert: (payload) => ({
+        select: () => ({
+          single: async () => {
+            writes.push(payload);
+            return { data: { id: 'draft-1', ...payload, revision: 1, updated_at: '2026-07-28T00:00:00.000Z' }, error: null };
+          },
+        }),
+      }),
+    }),
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+  const hasCode = (code) => (error) => error?.code === code;
+
+  await assert.rejects(client.saveDraft({ ownerId: 'clerk-1', title: 'Legacy', content: { schemaVersion: 1 } }), hasCode('invalid_document'));
+  await assert.rejects(client.saveDraft({ ownerId: 'clerk-1', title: 'Missing document' }), hasCode('invalid_document'));
+  await assert.rejects(client.saveDraft({ id: 'draft-1', ownerId: 'clerk-1', revision: 0, content: { schemaVersion: 1 } }), hasCode('invalid_revision'));
+
+  const saved = await client.saveDraft({ ownerId: 'clerk-1', title: 'Current', content: { schemaVersion: 2, sections: [] } });
+  assert.equal(saved.draft_content.schemaVersion, 2);
+  assert.equal(writes.length, 1);
+});
+
 test('public archive records use the sanitized RPC and attachments use the private bucket', async () => {
   const calls = [];
   const client = createArchiveWorkflowClient({

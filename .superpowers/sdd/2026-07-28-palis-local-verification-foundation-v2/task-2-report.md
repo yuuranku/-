@@ -41,3 +41,17 @@
 - `tests/archive-workflow-repository-shapes.test.mjs`
 - `tests/helpers/archive-workflow-repository-conformance.mjs`
 - `.superpowers/sdd/2026-07-28-palis-local-verification-foundation-v2/task-2-report.md`
+
+## Reviewer fix round
+
+- Added `invalid_document` for new and updated `saveDraft` inputs whose `content`/`draft_content` is absent or whose `schemaVersion` is not `2`.
+- Existing-draft revision validation intentionally precedes document validation, so an existing draft with revision `0` still returns `invalid_revision`.
+- Kept legacy document tolerance limited to read-result validation; old persisted values remain readable and are not rejected by the generic result validator.
+- Tightened `listReviewQueue`: `owner` is now required and non-null, and its selected `display_name` remains required. `archive` remains nullable.
+
+### Fix TDD and verification
+
+1. RED: `node --test tests/archive-workflow-client.test.mjs tests/archive-workflow-repository-shapes.test.mjs` failed because legacy/missing write documents were accepted and `owner: null` was accepted.
+2. GREEN: `node --test tests/archive-workflow-repository-contract.test.mjs tests/archive-workflow-repository-shapes.test.mjs tests/archive-workflow-client.test.mjs` — 23 passing, 0 failing.
+3. `npm.cmd test` — 140 passing, 0 failing.
+4. `npm.cmd run build` — exited 0; only Vite's existing large-chunk advisory was reported.

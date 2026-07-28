@@ -132,6 +132,13 @@ test('result contract rejects a review queue entry without the owner display nam
   );
 });
 
+test('result contract rejects a review queue entry without an owner relation', () => {
+  assert.throws(
+    () => assertArchiveWorkflowResult('listReviewQueue', [{ ...draft, owner: null, archive: null }]),
+    /owner/,
+  );
+});
+
 test('result contract rejects an archive read model missing its sequence number', () => {
   assert.throws(
     () => assertArchiveWorkflowResult('searchArchives', [without(archive, 'sequence_number')]),

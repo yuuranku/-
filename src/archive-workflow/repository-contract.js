@@ -156,9 +156,10 @@ export const assertArchiveWorkflowResult = (method, result) => {
       for (const [index, contribution] of requireList(result, method).entries()) {
         assertContribution(contribution, `${method}[${index}].`);
         requireFields(contribution, ['owner', 'archive'], `${method}[${index}].`);
-        if (contribution.owner !== null && contribution.owner !== undefined) {
-          assertReviewOwner(contribution.owner, `${method}[${index}].owner.`);
+        if (contribution.owner === null || contribution.owner === undefined) {
+          throw new TypeError(`Archive workflow result is missing ${method}[${index}].owner`);
         }
+        assertReviewOwner(contribution.owner, `${method}[${index}].owner.`);
         if (contribution.archive !== null && contribution.archive !== undefined) {
           assertArchive(contribution.archive, `${method}[${index}].archive.`);
         }
