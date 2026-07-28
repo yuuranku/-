@@ -7,9 +7,8 @@ import '@fontsource/ibm-plex-mono/latin-700.css';
 import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
-import { initializeAccessGate } from './auth.js';
-import { createArchiveWorkflowClient } from './archive-workflow/client.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
+import { initializePalisRuntime } from './runtime/palis-runtime.js';
 import {
   buildPublishedArchiveModel,
   renderOfficialArchiveBanner,
@@ -36,12 +35,14 @@ import {
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
-const accessContext = initializeAccessGate({ reducedMotion });
+const palisRuntime = await initializePalisRuntime({ reducedMotion });
 initializeMascotAssistant();
-const archiveWorkflowClient = accessContext?.supabase
-  ? createArchiveWorkflowClient(accessContext.supabase)
-  : null;
-initializeArchiveWorkspace({ client: archiveWorkflowClient });
+const archiveWorkflowClient = palisRuntime.repository;
+initializeArchiveWorkspace({
+  client: archiveWorkflowClient,
+  initialSession: palisRuntime.initialSession,
+});
+palisRuntime.activate();
 
 const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
 let archiveRoots = ARCHIVE_ROOTS;

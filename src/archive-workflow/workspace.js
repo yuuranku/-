@@ -88,7 +88,11 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
   updatedAt: Date.parse(record.updated_at) || fallback.updatedAt || Date.now(),
 });
 
-export function initializeArchiveWorkspace({ client = null, roots = document } = {}) {
+export function initializeArchiveWorkspace({
+  client = null,
+  roots = document,
+  initialSession = null,
+} = {}) {
   const root = roots.querySelector?.('#clerk-desktop') ?? document.querySelector('#clerk-desktop');
   const workspaceEntry = document.querySelector('#clerk-workspace-entry');
   const windowLayer = root?.querySelector('#assistant-window-layer');
@@ -1483,9 +1487,9 @@ export function initializeArchiveWorkspace({ client = null, roots = document } =
       title: detail.title || '档案修改申请',
     });
   });
-  applySession({
+  applySession(initialSession ?? {
     role: document.body.dataset.operatorRole || 'observer',
-    preview: document.body.dataset.accessMode !== 'authenticated',
+    preview: !['authenticated', 'local-admin'].includes(document.body.dataset.accessMode),
   });
 
   return {
