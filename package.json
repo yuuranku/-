@@ -7,6 +7,8 @@
     "archive:sync": "node scripts/generate-archive-longform.mjs",
     "dev": "vite",
     "dev:local-admin": "node scripts/dev-local-admin.mjs",
+    "verify:archive-repair": "node scripts/verify-local-admin.mjs",
+    "verify:local-admin": "node scripts/verify-local-admin.mjs",
     "verify:baseline:update": "npm run build && node scripts/capture-palis-baseline.mjs && node scripts/compare-palis-baseline.mjs --update-baseline",
     "verify:baseline": "npm run build && node scripts/capture-palis-baseline.mjs && node scripts/compare-palis-baseline.mjs",
     "test": "node --test tests/*.test.mjs",

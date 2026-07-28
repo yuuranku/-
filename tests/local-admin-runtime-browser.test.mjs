@@ -43,6 +43,43 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(requests.some((url) => url.includes('/src/auth.js')), false);
     assert.equal(requests.some((url) => url.includes('/src/archive-workflow/client.js')), false);
     assert.equal(requests.some((url) => url.includes('@supabase')), false);
+
+    await page.click('#clerk-workspace-entry');
+    await page.waitForSelector('body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])');
+    const welcomeClose = await page.$(
+      '#clerk-desktop-welcome:not([hidden]) #clerk-desktop-welcome-close',
+    );
+    if (welcomeClose) {
+      await page.$eval('#clerk-desktop-welcome-close', (button) => button.click());
+    }
+    await page.click('[data-archive-template="07"]');
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+    const focusState = await page.evaluate(() => {
+      const dialog = document.querySelector('.archive-editor-window');
+      return {
+        activeIsDialog: document.activeElement === dialog,
+        label: dialog?.getAttribute('aria-label'),
+      };
+    });
+    assert.deepEqual(focusState, {
+      activeIsDialog: true,
+      label: '事件档案',
+    });
+
+    await page.click('.archive-editor-window [data-workflow-minimize]');
+    const minimized = await page.evaluate(() => ({
+      hidden: document.querySelector('.archive-editor-window')?.hidden,
+      taskFocused: document.activeElement?.matches?.('[data-workflow-task="editor-07"]'),
+    }));
+    assert.deepEqual(minimized, { hidden: true, taskFocused: true });
+
+    await page.click('[data-workflow-task="editor-07"]');
+    await page.click('.archive-editor-window [data-workflow-close]');
+    assert.equal(
+      await page.evaluate(() =>
+        document.activeElement?.matches?.('[data-archive-template="07"]')),
+      true,
+    );
   } finally {
     delete process.env.VITE_PALIS_LOCAL_ADMIN;
     await page.close();

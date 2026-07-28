@@ -523,14 +523,20 @@ export function initializeArchiveWorkspace({
     if (existing) {
       existing.windowElement.hidden = false;
       focusWindow(existing.windowElement);
+      existing.windowElement.focus({ preventScroll: true });
       return existing;
     }
 
+    const returnFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     const windowElement = document.createElement('section');
     windowElement.className = `archive-workflow-window retro-window ${className}`.trim();
     windowElement.id = `archive-workflow-${key.replaceAll(/[^a-z0-9-]/gi, '-')}`;
     windowElement.setAttribute('role', 'dialog');
     windowElement.setAttribute('aria-modal', 'false');
+    windowElement.setAttribute('aria-label', title);
+    windowElement.setAttribute('tabindex', '-1');
     windowElement.innerHTML = `
       <div class="title-bar archive-workflow-titlebar" data-workflow-drag-handle>
         <span>${escapeHtml(code)} / ${escapeHtml(title)}</span>
@@ -563,18 +569,25 @@ export function initializeArchiveWorkspace({
       taskButton,
       dispose: null,
       minimized: false,
+      returnFocus,
     };
     windows.set(key, state);
     updateTaskList();
     installWindowDrag(windowElement);
     focusWindow(windowElement);
+    windowElement.focus({ preventScroll: true });
 
     const toggleMinimize = () => {
       state.minimized = !state.minimized;
       windowElement.hidden = state.minimized;
       taskButton.classList.toggle('is-minimized', state.minimized);
       taskButton.setAttribute('aria-pressed', String(!state.minimized));
-      if (!state.minimized) focusWindow(windowElement);
+      if (state.minimized) {
+        taskButton.focus({ preventScroll: true });
+      } else {
+        focusWindow(windowElement);
+        windowElement.focus({ preventScroll: true });
+      }
     };
     taskButton.addEventListener('click', toggleMinimize);
     windowElement.querySelector('[data-workflow-minimize]').addEventListener('click', toggleMinimize);
@@ -584,6 +597,9 @@ export function initializeArchiveWorkspace({
       taskButton.remove();
       windowElement.remove();
       updateTaskList();
+      if (state.returnFocus?.isConnected) {
+        state.returnFocus.focus({ preventScroll: true });
+      }
     });
     windowElement.addEventListener('pointerdown', () => focusWindow(windowElement));
     return state;
@@ -2351,10 +2367,13 @@ export function initializeArchiveWorkspace({
     const workspaceNameEnglish = context.role === 'admin' ? 'ADMIN WORKSPACE' : 'CLERK WORKSPACE';
     const profileName = context.profile?.display_name || context.profile?.email || (context.role === 'admin' ? '管理员' : '书记官');
     const greetingRole = context.role === 'admin' ? '管理员' : '书记官';
+    const greetingName = profileName.includes(greetingRole)
+      ? profileName
+      : `${greetingRole} ${profileName}`;
     workspaceNameOutputs.forEach((output) => { output.textContent = workspaceName; });
     workspaceNameEnglishOutputs.forEach((output) => { output.textContent = workspaceNameEnglish; });
     workspaceGreetingOutputs.forEach((output) => {
-      output.textContent = allowed ? `欢迎您，${greetingRole}${profileName}` : '工作台未授权';
+      output.textContent = allowed ? `欢迎您，${greetingName}` : '工作台未授权';
     });
     root.setAttribute('aria-label', workspaceName);
     root.querySelector('#assistant-taskbar')?.setAttribute('aria-label', `${workspaceName}任务栏`);

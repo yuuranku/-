@@ -197,6 +197,21 @@
 .archive-reference-editor button:active,
 .archive-media-editor button:active { border-style: inset; }
 
+.archive-workflow-window button:focus-visible,
+.archive-workflow-window input:focus-visible,
+.archive-workflow-window select:focus-visible,
+.archive-workflow-window textarea:focus-visible,
+.archive-workflow-window [tabindex]:focus-visible {
+  outline: 1px dotted currentColor;
+  outline-offset: -4px;
+}
+
+.archive-workflow-window button:disabled {
+  cursor: not-allowed;
+  color: #666;
+  text-shadow: 1px 1px #eee;
+}
+
 .archive-editor__split {
   grid-area: content;
   display: grid;
@@ -1055,8 +1070,20 @@
   .archive-autosave-status { min-width: 0; }
   .archive-recovery { grid-template-columns: 1fr 1fr; }
   .archive-recovery div { grid-column: 1 / -1; }
-  .archive-editor__split { grid-template-columns: 1fr; }
-  .archive-editor__canvas { min-height: 72vh; }
+  .archive-editor__split {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .archive-editor__workflow-rail {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .archive-editor__canvas {
+    flex: 0 0 72vh;
+    min-height: 72vh;
+  }
   .archive-media-editor > header,
   .archive-media-slot__command,
   .archive-media-slot__selection article { grid-template-columns: 1fr; }
@@ -1069,6 +1096,19 @@
   .archive-registration__grid { grid-template-columns: 1fr; }
   .archive-admin-users-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(300px, 1fr); overflow: auto; }
   .archive-admin-users { overflow: visible; border-right: 0; border-bottom: 2px groove #eee; }
+  .archive-admin-archives > header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+  .archive-admin-archives header form {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .archive-admin-archives h3 { font-size: 22px; }
+  [data-admin-archive-list] { padding-inline: 10px; }
 }
 
 @media (min-width: 1600px) and (min-height: 800px) {

@@ -27,13 +27,32 @@ test('scrollable workspace panes keep scrolling without reserving a visible scro
 
 test('authenticated operators see a personal workspace greeting', () => {
   assert.match(html, /data-workspace-greeting/);
-  assert.match(workspace, /欢迎您，\$\{greetingRole\}\$\{profileName\}/);
+  assert.match(workspace, /profileName\.includes\(greetingRole\)/);
+  assert.match(workspace, /欢迎您，\$\{greetingName\}/);
 });
 
 test('desktop workflow has an editor loading state and a wide-desktop readability scale', () => {
   assert.match(workspace, /data-template-editor-loading/);
   assert.match(workflowStyles, /\.archive-editor__canvas\.is-loading/);
   assert.match(workflowStyles, /@media \(min-width: 1600px\) and \(min-height: 800px\)/);
+});
+
+test('PALIS Win95 windows expose focus, bevel, and active-window states', () => {
+  assert.match(workflowStyles, /\.archive-workflow-window\.is-active/);
+  assert.match(workflowStyles, /\.archive-workflow-window:not\(\.is-active\) \.archive-workflow-titlebar/);
+  assert.match(workflowStyles, /border:\s*2px outset #efefef/);
+  assert.match(workflowStyles, /border:\s*2px inset #ececec/);
+  assert.match(workflowStyles, /\.archive-workflow-window button:focus-visible[\s\S]*outline:\s*1px dotted/s);
+  assert.match(workspace, /windowElement\.setAttribute\('tabindex', '-1'\)/);
+  assert.match(workspace, /windowElement\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
+});
+
+test('narrow workflow keeps the index rail scrollable and archive management contained', () => {
+  const narrow = workflowStyles.slice(workflowStyles.indexOf('@media (max-width: 760px)'));
+  assert.match(narrow, /\.archive-editor__split\s*\{[^}]*display:\s*flex[^}]*overflow:\s*auto/s);
+  assert.match(narrow, /\.archive-editor__workflow-rail\s*\{[^}]*flex:\s*0 0 auto[^}]*overflow:\s*visible/s);
+  assert.match(narrow, /\.archive-admin-archives > header\s*\{[^}]*flex-direction:\s*column/s);
+  assert.match(narrow, /\.archive-admin-archives header form\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/s);
 });
 
 test('desktop review keeps its decision controls visible while the formal preview scrolls', () => {
