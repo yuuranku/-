@@ -342,13 +342,26 @@ test('state store closes on versionchange and reports a blocked reset within two
       ]);
       const elapsed = performance.now() - startedAt;
       blocker.close();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      const reopenedAfterBlocked = createIndexedDbStateStore({
+        indexedDB,
+        databaseName: resetDatabaseName,
+      });
+      const stateAfterBlocked = await reopenedAfterBlocked.readState();
+      await reopenedAfterBlocked.reset();
+      const reopenedAfterClear = createIndexedDbStateStore({
+        indexedDB,
+        databaseName: resetDatabaseName,
+      });
+      const stateAfterClear = await reopenedAfterClear.readState();
+      await reopenedAfterClear.close();
 
       return {
         objectStoreNames,
         upgradeBlocked,
         resetOutcome,
         elapsed,
+        stateAfterBlocked,
+        stateAfterClear,
       };
     });
 
@@ -358,6 +371,8 @@ test('state store closes on versionchange and reports a blocked reset within two
     assert.equal(result.resetOutcome.code, 'reset_blocked');
     assert.match(result.resetOutcome.message, /blocked/i);
     assert.ok(result.elapsed < 2_000, `blocked reset took ${result.elapsed}ms`);
+    assert.deepEqual(result.stateAfterBlocked, { marker: 'blocked' });
+    assert.equal(result.stateAfterClear, undefined);
   } finally {
     await page.close();
     await browser.close();
@@ -385,6 +400,16 @@ test('local repository persists a draft across pages and uses one write transact
         idPrefix: 'persistence-a',
       });
       await harness.repository.resetLocalDatabase();
+      await harness.repository.saveDraft({
+        ownerId: principal.id,
+        templateId: 'template-event',
+        title: 'Discarded by reset',
+        kind: 'contribution',
+        content: { schemaVersion: 2, sections: [] },
+      });
+      await harness.repository.resetLocalDatabase();
+      const resetDrafts = await harness.repository.listMyDrafts(principal.id);
+      const resetTemplates = await harness.repository.listTemplates();
       const originalTransaction = IDBDatabase.prototype.transaction;
       let readwriteTransactions = 0;
       IDBDatabase.prototype.transaction = function (...args) {
@@ -400,13 +425,20 @@ test('local repository persists a draft across pages and uses one write transact
           content: { schemaVersion: 2, sections: [{ title: 'original' }] },
         });
         draft.draft_content.sections[0].title = 'mutated return';
-        return { draft, readwriteTransactions };
+        return {
+          draft,
+          readwriteTransactions,
+          resetDraftCount: resetDrafts.length,
+          resetTemplateCodes: resetTemplates.map((template) => template.code),
+        };
       } finally {
         IDBDatabase.prototype.transaction = originalTransaction;
       }
     }, { seed, principal: CLERK });
     assert.equal(saved.readwriteTransactions, 1);
     assert.equal(saved.draft.revision, 1);
+    assert.equal(saved.resetDraftCount, 0);
+    assert.deepEqual(saved.resetTemplateCodes, ['07']);
     await pageA.close();
     pageA = null;
 

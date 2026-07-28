@@ -1,4 +1,3 @@
-const DATABASE_VERSION = 1;
 const STORE_NAME = 'state';
 const CURRENT_KEY = 'current';
 
@@ -17,7 +16,7 @@ const resetBlockedError = (databaseName) => {
 };
 
 export const createIndexedDbStateStore = ({ indexedDB, databaseName } = {}) => {
-  if (typeof indexedDB?.open !== 'function' || typeof indexedDB?.deleteDatabase !== 'function') {
+  if (typeof indexedDB?.open !== 'function') {
     throw new TypeError('An IndexedDB factory is required');
   }
   if (!String(databaseName ?? '').trim()) {
@@ -32,7 +31,7 @@ export const createIndexedDbStateStore = ({ indexedDB, databaseName } = {}) => {
     if (opening) return opening;
 
     opening = new Promise((resolve, reject) => {
-      const request = indexedDB.open(databaseName, DATABASE_VERSION);
+      const request = indexedDB.open(databaseName);
       request.onupgradeneeded = () => {
         const upgraded = request.result;
         if (!upgraded.objectStoreNames.contains(STORE_NAME)) {
@@ -128,21 +127,41 @@ export const createIndexedDbStateStore = ({ indexedDB, databaseName } = {}) => {
   };
 
   const reset = async () => {
+    const opened = await openDatabase();
+    const nextVersion = opened.version + 1;
     await close();
     return new Promise((resolve, reject) => {
-      const request = indexedDB.deleteDatabase(databaseName);
+      const request = indexedDB.open(databaseName, nextVersion);
+      let blocked = false;
       let settled = false;
+      let resetError = null;
       const settle = (callback, value) => {
         if (settled) return;
         settled = true;
         callback(value);
       };
-      request.onsuccess = () => settle(resolve);
+      request.onblocked = () => {
+        blocked = true;
+        settle(reject, resetBlockedError(databaseName));
+      };
+      request.onupgradeneeded = () => {
+        if (blocked) return;
+        try {
+          request.transaction.objectStore(STORE_NAME).delete(CURRENT_KEY);
+        } catch (error) {
+          resetError = error;
+          request.transaction?.abort();
+        }
+      };
       request.onerror = () => settle(
         reject,
-        requestError(request, `Unable to reset IndexedDB database ${databaseName}`),
+        resetError
+          || requestError(request, `Unable to reset IndexedDB database ${databaseName}`),
       );
-      request.onblocked = () => settle(reject, resetBlockedError(databaseName));
+      request.onsuccess = () => {
+        request.result.close();
+        if (!blocked) settle(resolve);
+      };
     });
   };
 
