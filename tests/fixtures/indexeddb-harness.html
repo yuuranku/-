@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PALIS IndexedDB test harness</title>
+  </head>
+  <body>
+    <script type="module">
+      try {
+        const repositoryUrl = '/src/archive-workflow/repositories/local-indexeddb-repository.js';
+        const stateStoreUrl = '/src/archive-workflow/local/indexeddb-state-store.js';
+        const [
+          { createLocalIndexedDbRepository },
+          { createIndexedDbStateStore },
+        ] = await Promise.all([
+          import(/* @vite-ignore */ repositoryUrl),
+          import(/* @vite-ignore */ stateStoreUrl),
+        ]);
+        let repository = null;
+        let currentPrincipal = null;
+        let currentFailPoint = null;
+        let nextId = 1;
+        window.palisIndexedDbHarness = {
+          createIndexedDbStateStore,
+          createLocalIndexedDbRepository,
+          installRepository({
+            seed,
+            principal,
+            idPrefix = `page-${crypto.randomUUID()}`,
+          }) {
+            currentPrincipal = structuredClone(principal);
+            currentFailPoint = null;
+            nextId = 1;
+            repository = createLocalIndexedDbRepository({
+              indexedDB,
+              getPrincipal: () => structuredClone(currentPrincipal),
+              seed: structuredClone(seed),
+              now: () => '2026-07-28T12:00:00.000Z',
+              randomUUID: () => `${idPrefix}-${nextId++}`,
+              failAt: (point) => {
+                if (point === currentFailPoint) {
+                  throw new Error(`Injected failure at ${point}`);
+                }
+              },
+            });
+          },
+          get repository() {
+            return repository;
+          },
+          setPrincipal(principal) {
+            currentPrincipal = structuredClone(principal);
+          },
+          setFailPoint(point) {
+            currentFailPoint = point;
+          },
+        };
+      } catch (error) {
+        window.palisIndexedDbHarnessError = String(error?.message || error);
+      }
+    </script>
+  </body>
+</html>
