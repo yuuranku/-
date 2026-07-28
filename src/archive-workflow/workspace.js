@@ -19,6 +19,12 @@ import {
   buildArchiveDocumentChoices,
   resolveArchiveDocumentTarget,
 } from './target-documents.js';
+import {
+  durableArchiveMedia,
+  mediaPolicyForCategory,
+  normalizeArchiveMedia,
+  optimizeArchiveImage,
+} from './media.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
@@ -41,6 +47,14 @@ const CLOUD_SYNC_FAILURE_MESSAGES = Object.freeze({
   'cloud-error': '云端暂存失败，内容仍在本机；请重试或联系管理员检查数据库。',
 });
 
+const MEDIA_SYNC_FAILURES = new Set([
+  'network-error',
+  'session-expired',
+  'permission-denied',
+  'cloud-error',
+  'conflict',
+]);
+
 const escapeHtml = (value) =>
   String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -48,6 +62,304 @@ const escapeHtml = (value) =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+
+const mediaFailure = (code, message) => Object.assign(new Error(message), { code });
+const mediaText = (value, maximum = 1000) =>
+  String(value ?? '').trim().slice(0, maximum);
+const mediaFileKey = (file) => [
+  mediaText(file?.name, 180),
+  Number(file?.size) || 0,
+  Number(file?.lastModified) || 0,
+  mediaText(file?.type, 100),
+].join(':');
+const durableMediaIdentity = (entry) =>
+  entry.attachmentId || entry.storagePath || '';
+const mergeDurableMedia = (...collections) => {
+  const merged = new Map();
+  durableArchiveMedia(collections.flat()).forEach((entry) => {
+    const identity = durableMediaIdentity(entry);
+    if (identity) merged.set(identity, entry);
+  });
+  return durableArchiveMedia([...merged.values()]);
+};
+const countMediaRole = (media, role) =>
+  media.filter((entry) => entry.role === role).length;
+const nextMediaSortOrder = (media, role) =>
+  media
+    .filter((entry) => entry.role === role)
+    .reduce((maximum, entry) => Math.max(maximum, Number(entry.sortOrder) || 0), -1) + 1;
+
+export const persistableWorkspaceMedia = (_category, media) =>
+  durableArchiveMedia(media);
+
+export const renderArchiveMediaEditor = (category, media = []) => {
+  const policy = mediaPolicyForCategory(category);
+  if (!policy.slots.length) return '';
+  const durable = durableArchiveMedia(media);
+  const accept = policy.accept.join(',');
+  return `
+    <section class="archive-media-editor" data-archive-media-editor>
+      <header>
+        <div><b>版面图片</b><span>PALIS IMAGE SLOTS / 仅人物与事件档案</span></div>
+        <em>提交时转为 WEBP / 单张不超过 800KB</em>
+      </header>
+      <p>图片只在本次编辑窗口中暂存；先保存文字草稿，再逐张上传。说明文字会随正式档案一并进入审核。</p>
+      ${policy.slots.map((slot) => {
+        const occupied = countMediaRole(durable, slot.role);
+        const full = occupied >= slot.limit;
+        return `
+          <fieldset class="archive-media-slot" data-archive-media-role="${escapeHtml(slot.role)}">
+            <legend>${escapeHtml(slot.label)}</legend>
+            <div class="archive-media-slot__command">
+              <label>
+                <span>${full ? '槽位已上传' : `选择${slot.limit > 1 ? '图片' : '一张图片'}`}</span>
+                <input
+                  data-archive-media-input="${escapeHtml(slot.role)}"
+                  name="media-${escapeHtml(slot.role)}"
+                  type="file"
+                  accept="${escapeHtml(accept)}"
+                  ${slot.limit > 1 ? 'multiple' : ''}
+                  ${full ? 'disabled' : ''}
+                />
+              </label>
+              <output data-archive-media-count>${occupied} / ${slot.limit} 已上传${slot.limit > 1 ? `，最多 ${slot.limit} 张` : ''}</output>
+            </div>
+            <div class="archive-media-slot__selection" data-archive-media-selection>
+              ${full ? '<p>图片已进入当前草稿；重新打开后不会保存临时访问地址。</p>' : '<p>尚未选择图片。</p>'}
+            </div>
+          </fieldset>
+        `;
+      }).join('')}
+      <output class="archive-media-editor__message" data-archive-media-message></output>
+    </section>
+  `;
+};
+
+export const createArchiveMediaUploadSession = ({
+  category,
+  optimize = optimizeArchiveImage,
+  uploadAttachment,
+} = {}) => {
+  const policy = mediaPolicyForCategory(category);
+  if (policy.slots.length && typeof uploadAttachment !== 'function') {
+    throw new TypeError('Archive media upload requires uploadAttachment');
+  }
+  const uploadedBySelection = new Map();
+
+  const upload = async ({
+    draftId,
+    ownerId,
+    existingMedia = [],
+    selections = {},
+    onProgress = () => {},
+    onUploaded = () => {},
+  } = {}) => {
+    if (!mediaText(draftId, 160)) {
+      throw mediaFailure('missing_draft_id', '图片上传前必须先建立云端草稿');
+    }
+    const allowedRoles = new Set(policy.slots.map((slot) => slot.role));
+    const invalidRole = Object.entries(selections).find(([role, entries]) =>
+      !allowedRoles.has(role) && Array.isArray(entries) && entries.length);
+    if (invalidRole) {
+      throw mediaFailure('invalid_media_role', '该档案类别没有这个图片槽位');
+    }
+
+    let result = mergeDurableMedia(existingMedia);
+    for (const slot of policy.slots) {
+      const entries = Array.isArray(selections[slot.role]) ? selections[slot.role] : [];
+      if (entries.length > slot.limit) {
+        throw mediaFailure(
+          'media_slot_full',
+          `${slot.label}最多允许 ${slot.limit} 张`,
+        );
+      }
+      const cacheKeyFor = (selection, selectionIndex) => [
+        mediaText(draftId, 160),
+        slot.role,
+        selectionIndex,
+        mediaFileKey(selection?.file),
+      ].join(':');
+      const cachedDescriptors = entries
+        .map((selection, selectionIndex) =>
+          uploadedBySelection.get(cacheKeyFor(selection, selectionIndex)))
+        .filter(Boolean);
+      const resultWithCached = mergeDurableMedia(result, cachedDescriptors);
+      const pendingUploadCount = entries.length - cachedDescriptors.length;
+      if (
+        countMediaRole(resultWithCached, slot.role) + pendingUploadCount
+        > slot.limit
+      ) {
+        throw mediaFailure(
+          'media_slot_full',
+          `${slot.label}槽位不足；请减少本次选择的图片`,
+        );
+      }
+      result = resultWithCached;
+      for (const [selectionIndex, selection] of entries.entries()) {
+        const file = selection?.file;
+        const cacheKey = cacheKeyFor(selection, selectionIndex);
+        const cached = uploadedBySelection.get(cacheKey);
+        if (cached) {
+          result = mergeDurableMedia(result, [cached]);
+          continue;
+        }
+        if (countMediaRole(result, slot.role) >= slot.limit) {
+          throw mediaFailure(
+            'media_slot_full',
+            `${slot.label}槽位已满；已上传图片不会重复提交`,
+          );
+        }
+
+        const sortOrder = Number.isInteger(selection?.sortOrder)
+          && selection.sortOrder >= 0
+          ? selection.sortOrder
+          : nextMediaSortOrder(result, slot.role);
+        const altText = mediaText(
+          selection?.altText || `${slot.label} ${sortOrder + 1}`,
+          500,
+        );
+        const caption = mediaText(selection?.caption, 1000);
+        onProgress({
+          phase: 'optimizing',
+          role: slot.role,
+          file,
+          sortOrder,
+        });
+        const optimized = await optimize(file, {
+          maxBytes: policy.maxBytes,
+          maxSourceBytes: policy.maxSourceBytes,
+        });
+        onProgress({
+          phase: 'uploading',
+          role: slot.role,
+          file: optimized,
+          sortOrder,
+        });
+        const uploaded = await uploadAttachment(
+          draftId,
+          ownerId,
+          optimized,
+          {
+            role: slot.role,
+            altText,
+            caption,
+            sortOrder,
+          },
+        );
+        const descriptor = durableArchiveMedia([{
+          attachmentId: uploaded?.id,
+          storagePath: uploaded?.storagePath ?? uploaded?.storage_path,
+          field: slot.field,
+          role: slot.role,
+          altText,
+          caption,
+          sortOrder,
+        }])[0];
+        if (!descriptor) {
+          throw mediaFailure(
+            'invalid_media_upload',
+            '图片已经上传，但服务没有返回可持久化的附件编号',
+          );
+        }
+        uploadedBySelection.set(cacheKey, descriptor);
+        result = mergeDurableMedia(result, [descriptor]);
+        await onUploaded(descriptor);
+      }
+    }
+    return result;
+  };
+
+  return { upload };
+};
+
+const failedSync = (result) =>
+  !result
+  || Boolean(result.conflict)
+  || MEDIA_SYNC_FAILURES.has(String(result.status ?? '').trim());
+
+export async function submitDraftWithArchiveMedia({
+  syncDraft,
+  getDraftId,
+  uploadMedia,
+  persistMedia,
+  uploadAttachments = async () => {},
+  submitDraft,
+} = {}) {
+  const initialSync = await syncDraft();
+  if (failedSync(initialSync)) {
+    return { ok: false, stage: 'initial-sync', syncResult: initialSync };
+  }
+  const draftId = mediaText(getDraftId?.(), 160);
+  if (!draftId) {
+    return { ok: false, stage: 'draft-id', syncResult: initialSync };
+  }
+  const media = await uploadMedia(draftId);
+  persistMedia(media);
+  await uploadAttachments(draftId);
+  const mediaSync = await syncDraft();
+  if (failedSync(mediaSync)) {
+    return { ok: false, stage: 'media-sync', syncResult: mediaSync };
+  }
+  const submission = await submitDraft(draftId);
+  return { ok: true, submission };
+}
+
+export const createReviewMediaLoader = ({
+  loadMedia,
+  revokeObjectURL = (url) => globalThis.URL?.revokeObjectURL?.(url),
+} = {}) => {
+  if (typeof loadMedia !== 'function') {
+    throw new TypeError('Review media loader requires loadMedia');
+  }
+  let selectionSequence = 0;
+  let activeBlobUrls = new Set();
+  const blobUrls = (media) => new Set(
+    normalizeArchiveMedia(media)
+      .map((entry) => entry.publicUrl)
+      .filter((url) => String(url).startsWith('blob:')),
+  );
+  const releaseActive = () => {
+    activeBlobUrls.forEach((url) => revokeObjectURL(url));
+    activeBlobUrls = new Set();
+  };
+  return {
+    select: async (submission) => {
+      const sequence = ++selectionSequence;
+      releaseActive();
+      try {
+        const media = normalizeArchiveMedia(await loadMedia(submission.id));
+        if (sequence !== selectionSequence) {
+          blobUrls(media).forEach((url) => {
+            if (!activeBlobUrls.has(url)) revokeObjectURL(url);
+          });
+          return { stale: true, submission, error: null };
+        }
+        activeBlobUrls = blobUrls(media);
+        return {
+          stale: false,
+          submission: {
+            ...submission,
+            draft_content: {
+              ...(submission.draft_content || {}),
+              media,
+            },
+          },
+          error: null,
+        };
+      } catch (error) {
+        return {
+          stale: sequence !== selectionSequence,
+          submission,
+          error,
+        };
+      }
+    },
+    dispose() {
+      selectionSequence += 1;
+      releaseActive();
+    },
+  };
+};
 
 const templatePreviewUrl = (template) =>
   `/templates/${encodeURIComponent(template.sourceFile)}`;
@@ -382,8 +694,10 @@ export function initializeArchiveWorkspace({
                 <ul data-reference-list><li class="is-empty">尚未引用其他档案</li></ul>
               </section>
 
+              ${renderArchiveMediaEditor(template.category, initial.content?.media)}
+
               <label class="archive-editor-field">
-                <span>附件上传（单个文件不超过 5MB）</span>
+                <span>补充附件（不进入档案图片版面，单个文件不超过 5MB）</span>
                 <input name="attachments" type="file" multiple accept=".html,.doc,.docx,.pdf,.txt,image/*" />
               </label>
 
@@ -435,6 +749,10 @@ export function initializeArchiveWorkspace({
     const formalNumberOutput = form.querySelector('[data-formal-number]');
     const indexPanel = form.querySelector('[data-archive-index-panel]');
     const indexErrors = form.querySelector('[data-index-errors]');
+    const mediaPanel = form.querySelector('[data-archive-media-editor]');
+    const mediaMessage = mediaPanel?.querySelector('[data-archive-media-message]');
+    const mediaPolicy = mediaPolicyForCategory(template.category);
+    const pendingMediaSelections = new Map();
     const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || initial.archiveCode || 'new'}`;
     if (fixedArchive) {
       kindSelect.value = 'amendment';
@@ -466,6 +784,91 @@ export function initializeArchiveWorkspace({
       revision: initial.revision ?? 1,
       key: localKey,
     };
+
+    const mediaSlotForRole = (role) =>
+      mediaPolicy.slots.find((slot) => slot.role === role);
+    const mediaFileCaption = (file) =>
+      mediaText(file?.name, 180).replace(/\.[^.]+$/, '');
+    const currentMediaTitle = () =>
+      mediaText(
+        editorDocument.indexData?.title
+        || editorDocument.title
+        || editorDocument.values?.hero
+        || template.title,
+        180,
+      );
+    const renderPendingMedia = () => {
+      if (!mediaPanel) return;
+      const durable = durableArchiveMedia(editorDocument.media);
+      mediaPolicy.slots.forEach((slot) => {
+        const slotElement = mediaPanel.querySelector(
+          `[data-archive-media-role="${slot.role}"]`,
+        );
+        if (!slotElement) return;
+        const input = slotElement.querySelector('[data-archive-media-input]');
+        const count = countMediaRole(durable, slot.role);
+        const pending = pendingMediaSelections.get(slot.role) || [];
+        input.disabled = count >= slot.limit;
+        slotElement.querySelector('[data-archive-media-count]').textContent =
+          `${count} / ${slot.limit} 已上传${slot.limit > 1 ? `，最多 ${slot.limit} 张` : ''}`;
+        const selection = slotElement.querySelector('[data-archive-media-selection]');
+        selection.innerHTML = [
+          count
+            ? `<p>${count} 张图片已写入草稿；临时访问地址不会保存在正文中。</p>`
+            : '',
+          ...pending.map((entry, index) => `
+            <article data-archive-media-entry="${index}">
+              <header>
+                <b>${escapeHtml(entry.file.name)}</b>
+                <button type="button" data-remove-archive-media="${index}">移除</button>
+              </header>
+              <label>图片说明
+                <input
+                  data-archive-media-meta="caption"
+                  data-archive-media-index="${index}"
+                  value="${escapeHtml(entry.caption)}"
+                  maxlength="1000"
+                />
+              </label>
+              <label>无障碍替代文字
+                <input
+                  data-archive-media-meta="altText"
+                  data-archive-media-index="${index}"
+                  value="${escapeHtml(entry.altText)}"
+                  maxlength="500"
+                  required
+                />
+              </label>
+            </article>
+          `),
+          !count && !pending.length ? '<p>尚未选择图片。</p>' : '',
+        ].join('');
+      });
+    };
+    const clearPendingMedia = () => {
+      pendingMediaSelections.clear();
+      mediaPanel?.querySelectorAll('[data-archive-media-input]').forEach((input) => {
+        input.value = '';
+      });
+      renderPendingMedia();
+    };
+    const durableEditorMedia = () =>
+      persistableWorkspaceMedia(template.category, editorDocument.media);
+    const persistEditorMedia = (media, { clearPending = false } = {}) => {
+      editorDocument = {
+        ...editorDocument,
+        media: mergeDurableMedia(media),
+      };
+      editorBridge?.write(editorDocument);
+      if (clearPending) clearPendingMedia();
+      else renderPendingMedia();
+    };
+    const mediaUploadSession = mediaPolicy.slots.length && client
+      ? createArchiveMediaUploadSession({
+          category: template.category,
+          uploadAttachment: (...arguments_) => client.uploadAttachment(...arguments_),
+        })
+      : null;
 
     const setAutosaveState = (state) => {
       autosaveOutput.dataset.state = state;
@@ -765,6 +1168,7 @@ export function initializeArchiveWorkspace({
         ...editorDocument,
         indexData: readIndexControls(),
         references,
+        media: persistableWorkspaceMedia(template.category, editorDocument.media),
       });
       editorDraft = {
         ...editorDraft,
@@ -796,9 +1200,11 @@ export function initializeArchiveWorkspace({
         || editorDraft.targetDocumentId
         || '';
       editorDocument = draftContentToEditorDocument(template, draft.content, draft);
+      clearPendingMedia();
       fillIndexControls(editorDocument.indexData);
       references = [...editorDocument.references];
       editorBridge?.write(editorDocument);
+      renderPendingMedia();
       renderReferenceList(referenceList, references);
       updateMode();
       if (draft.id && draft.archiveId && draft.kind !== 'new') {
@@ -865,6 +1271,7 @@ export function initializeArchiveWorkspace({
         references,
         media: [],
       });
+      clearPendingMedia();
       renderReferenceList(referenceList, references);
     };
     const mountEditorBridge = ({ waitForLoad = false } = {}) => {
@@ -944,8 +1351,77 @@ export function initializeArchiveWorkspace({
       recoveryPanel.hidden = true;
     });
 
+    mediaPanel?.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-archive-media-input]');
+      if (!input) return;
+      const role = input.dataset.archiveMediaInput;
+      const slot = mediaSlotForRole(role);
+      if (!slot) return;
+      const durableCount = countMediaRole(durableEditorMedia(), role);
+      const available = Math.max(0, slot.limit - durableCount);
+      const files = [...input.files];
+      const invalid = files.find((file) =>
+        !mediaPolicy.accept.includes(String(file.type).toLowerCase())
+        || file.size <= 0
+        || file.size > mediaPolicy.maxSourceBytes);
+      if (invalid) {
+        pendingMediaSelections.delete(role);
+        input.value = '';
+        mediaMessage.textContent =
+          `“${invalid.name}”必须是 JPEG、PNG 或 WebP，且原图不超过 5MB。`;
+        renderPendingMedia();
+        return;
+      }
+      if (files.length > available) {
+        pendingMediaSelections.delete(role);
+        input.value = '';
+        mediaMessage.textContent =
+          `${slot.label}还可选择 ${available} 张；本次选择了 ${files.length} 张，请重新选择。`;
+        renderPendingMedia();
+        return;
+      }
+      const previous = pendingMediaSelections.get(role) || [];
+      const title = currentMediaTitle();
+      pendingMediaSelections.set(role, files.map((file, index) => {
+        const retained = previous.find((entry) =>
+          mediaFileKey(entry.file) === mediaFileKey(file));
+        return {
+          file,
+          caption: retained?.caption || mediaFileCaption(file),
+          altText: retained?.altText
+            || `${title} / ${slot.label}${slot.limit > 1 ? ` ${durableCount + index + 1}` : ''}`,
+        };
+      }));
+      mediaMessage.textContent = files.length
+        ? `已选择 ${files.length} 张${slot.label}；图片会在提交时依次压缩上传。`
+        : '';
+      renderPendingMedia();
+    });
+    mediaPanel?.addEventListener('input', (event) => {
+      const control = event.target.closest('[data-archive-media-meta]');
+      if (!control) return;
+      const role = control.closest('[data-archive-media-role]')?.dataset.archiveMediaRole;
+      const entry = pendingMediaSelections.get(role)?.[Number(control.dataset.archiveMediaIndex)];
+      if (entry) entry[control.dataset.archiveMediaMeta] = control.value;
+    });
+    mediaPanel?.addEventListener('click', (event) => {
+      const remove = event.target.closest('[data-remove-archive-media]');
+      if (!remove) return;
+      const slotElement = remove.closest('[data-archive-media-role]');
+      const role = slotElement?.dataset.archiveMediaRole;
+      const pending = [...(pendingMediaSelections.get(role) || [])];
+      pending.splice(Number(remove.dataset.removeArchiveMedia), 1);
+      if (pending.length) pendingMediaSelections.set(role, pending);
+      else pendingMediaSelections.delete(role);
+      const input = slotElement?.querySelector('[data-archive-media-input]');
+      if (input) input.value = '';
+      mediaMessage.textContent = '已从本次待上传图片中移除。';
+      renderPendingMedia();
+    });
+
     form.addEventListener('input', (event) => {
       if (event.target.closest('[data-reference-search]')) return;
+      if (event.target.closest('[data-archive-media-editor]')) return;
       if (event.target.matches?.('[data-index-key]')) {
         editorDocument.indexData = normalizeArchiveIndexData(
           template.category,
@@ -957,6 +1433,7 @@ export function initializeArchiveWorkspace({
       autosave.queue(collectDraft());
     });
     form.addEventListener('change', (event) => {
+      if (event.target.closest('[data-archive-media-editor]')) return;
       if (event.target === kindSelect) {
         resetEditorForMode();
         updateMode();
@@ -1066,32 +1543,84 @@ export function initializeArchiveWorkspace({
         return;
       }
       submitButton.disabled = true;
-      autosave.queue(collectDraft());
-      const syncResult = await autosave.flushRemote();
-      if (syncResult?.conflict || syncResult?.status === 'conflict') {
-        submitButton.disabled = false;
-        message.textContent = '云端版本已变化，请先处理版本冲突再提交。';
-        return;
-      }
-      if (CLOUD_SYNC_FAILURE_MESSAGES[syncResult?.status]) {
-        submitButton.disabled = false;
-        message.textContent = CLOUD_SYNC_FAILURE_MESSAGES[syncResult.status];
-        return;
-      }
-      if (!editorDraft.id) {
-        submitButton.disabled = false;
-        message.textContent = '云端暂存尚未建立，请检查网络后重试。';
-        return;
-      }
-      try {
+      const syncDraft = async () => {
+        autosave.queue(collectDraft());
+        return autosave.flushRemote();
+      };
+      const uploadGenericAttachments = async (draftId) => {
         for (const file of selectedFiles) {
           const attachmentKey = `${file.name}:${file.size}:${file.lastModified}`;
           if (uploadedAttachmentKeys.has(attachmentKey)) continue;
-          message.textContent = `正在上传附件：${file.name}`;
-          await client.uploadAttachment(editorDraft.id, context.profile.id, file);
+          message.textContent = `正在上传补充附件：${file.name}`;
+          await client.uploadAttachment(draftId, context.profile.id, file);
           uploadedAttachmentKeys.add(attachmentKey);
         }
-        await client.submitDraft(editorDraft.id, context.profile.id);
+      };
+      const showStoppedSubmission = (result) => {
+        submitButton.disabled = false;
+        if (result.stage === 'draft-id') {
+          message.textContent = '云端暂存尚未建立，请检查网络后重试。';
+          return;
+        }
+        if (result.syncResult?.conflict || result.syncResult?.status === 'conflict') {
+          message.textContent = '云端版本已变化，请先处理版本冲突再提交。';
+          return;
+        }
+        message.textContent = CLOUD_SYNC_FAILURE_MESSAGES[result.syncResult?.status]
+          || '云端暂存失败，文字内容仍保存在本机。';
+      };
+      try {
+        let submissionResult;
+        if (mediaUploadSession) {
+          const selections = Object.fromEntries(pendingMediaSelections);
+          submissionResult = await submitDraftWithArchiveMedia({
+            syncDraft,
+            getDraftId: () => editorDraft.id,
+            uploadMedia: (draftId) => mediaUploadSession.upload({
+              draftId,
+              ownerId: context.profile.id,
+              existingMedia: durableEditorMedia(),
+              selections,
+              onProgress: ({ phase, file }) => {
+                message.textContent = phase === 'optimizing'
+                  ? `正在整理档案图片：${file.name}`
+                  : `正在上传档案图片：${file.name}`;
+              },
+              onUploaded: async (descriptor) => {
+                persistEditorMedia([...durableEditorMedia(), descriptor]);
+                autosave.queue(collectDraft());
+                await autosave.flushLocal();
+              },
+            }),
+            persistMedia: (media) => persistEditorMedia(media, { clearPending: true }),
+            uploadAttachments: uploadGenericAttachments,
+            submitDraft: (draftId) =>
+              client.submitDraft(draftId, context.profile.id),
+          });
+        } else {
+          const initialSync = await syncDraft();
+          if (failedSync(initialSync)) {
+            submissionResult = {
+              ok: false,
+              stage: 'initial-sync',
+              syncResult: initialSync,
+            };
+          } else if (!editorDraft.id) {
+            submissionResult = {
+              ok: false,
+              stage: 'draft-id',
+              syncResult: initialSync,
+            };
+          } else {
+            await uploadGenericAttachments(editorDraft.id);
+            const submission = await client.submitDraft(editorDraft.id, context.profile.id);
+            submissionResult = { ok: true, submission };
+          }
+        }
+        if (!submissionResult.ok) {
+          showStoppedSubmission(submissionResult);
+          return;
+        }
         autosave.clear(localKey);
         setAutosaveState('cloud-synced');
         message.textContent = '档案已提交审核；批复会出现在“审核回信”。';
@@ -1516,12 +2045,17 @@ export function initializeArchiveWorkspace({
     });
     const queue = state.windowElement.querySelector('[data-review-queue]');
     const detail = state.windowElement.querySelector('[data-review-detail]');
+    if (state.panelReady) return state;
+    state.panelReady = true;
     if (!client) {
       queue.innerHTML = '<p>档案服务未连接。</p>';
-      return;
+      return state;
     }
 
     let submissions = [];
+    const reviewMediaLoader = createReviewMediaLoader({
+      loadMedia: (contributionId) => client.listContributionMedia(contributionId),
+    });
     const formalReviewPreview = (submission) => {
       if (submission.draft_content?.schemaVersion !== 2) {
         const fields = Object.entries(submission.draft_content?.fields || {});
@@ -1614,7 +2148,7 @@ export function initializeArchiveWorkspace({
       </form>
     `;
 
-    const reviewMarkup = (submission) => `
+    const reviewMarkup = (submission, mediaError = null) => `
       <form class="archive-review-form" data-review-form>
         <header>
           <p>PALIS / CONTENT REVIEW</p>
@@ -1629,6 +2163,11 @@ export function initializeArchiveWorkspace({
         <section class="archive-formal-review-preview" data-formal-review-preview>
           ${formalReviewPreview(submission)}
         </section>
+        ${mediaError ? `
+          <aside class="archive-review-media-warning">
+            正文已载入，但待审图片读取失败：${escapeHtml(mediaError.message || '请稍后重试')}
+          </aside>
+        ` : ''}
         <label>审核批复（必填）
           <textarea data-review-message required rows="5" placeholder="说明通过依据，或逐项写明需要修改的内容"></textarea>
         </label>
@@ -1640,10 +2179,29 @@ export function initializeArchiveWorkspace({
       </form>
     `;
 
-    const showSubmission = (submission) => {
+    const showSubmission = async (selectedSubmission) => {
+      detail.innerHTML = `
+        <div class="archive-admin-empty">
+          <b>正在读取提交记录</b>
+          <span>正文与图片将使用同一份待审版本。</span>
+        </div>
+      `;
+      let loaded;
+      if (selectedSubmission.status === 'approved') {
+        reviewMediaLoader.dispose();
+        loaded = {
+          stale: false,
+          submission: selectedSubmission,
+          error: null,
+        };
+      } else {
+        loaded = await reviewMediaLoader.select(selectedSubmission);
+      }
+      if (loaded.stale) return;
+      const submission = loaded.submission;
       detail.innerHTML = submission.status === 'approved'
         ? registrationMarkup(submission)
-        : reviewMarkup(submission);
+        : reviewMarkup(submission, loaded.error);
       if (submission.status === 'approved') {
         const form = detail.querySelector('[data-registration-form]');
         form.addEventListener('submit', async (event) => {
@@ -1718,7 +2276,7 @@ export function initializeArchiveWorkspace({
           });
           if (reviewed.status === 'approved') {
             submissions = submissions.map((entry) => entry.id === reviewed.id ? { ...entry, ...reviewed } : entry);
-            showSubmission({ ...submission, ...reviewed });
+            void showSubmission({ ...submission, ...reviewed });
           } else {
             output.textContent = '已退回书记官，批复已进入对方回信箱。';
             await loadQueue();
@@ -1751,15 +2309,14 @@ export function initializeArchiveWorkspace({
       }
     };
 
-    if (!state.panelReady) {
-      state.panelReady = true;
-      queue.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-review-submission]');
-        const submission = submissions.find((entry) => entry.id === button?.dataset.reviewSubmission);
-        if (submission) showSubmission(submission);
-      });
-    }
+    queue.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-review-submission]');
+      const submission = submissions.find((entry) => entry.id === button?.dataset.reviewSubmission);
+      if (submission) void showSubmission(submission);
+    });
+    state.dispose = () => reviewMediaLoader.dispose();
     await loadQueue();
+    return state;
   };
 
   templateButtons.forEach((button) => {

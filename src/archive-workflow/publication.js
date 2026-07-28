@@ -2,6 +2,7 @@ import {
   renderFormalArchiveAmendment,
   renderFormalArchiveDocument,
 } from './public-renderer.js';
+import { normalizeArchiveMedia } from './media.js';
 import { buildArchiveRecordTree } from './record-tree.js';
 
 const escapeHtml = (value) =>
@@ -73,6 +74,133 @@ export function buildPublishedArchiveModel({
   };
 }
 
+const renderPublishedMediaMount = (contributionId, markup) => `
+  <div data-published-media-mount="${escapeHtml(contributionId)}">
+    ${markup}
+  </div>
+`;
+
+const mediaIdentity = (entry) =>
+  entry.attachmentId
+    ? `id:${entry.attachmentId}`
+    : entry.storagePath
+      ? `path:${entry.storagePath}`
+      : `url:${entry.publicUrl || entry.dataUrl}`;
+
+const mergeTransientMedia = (durableMedia, transientMedia) => {
+  const current = normalizeArchiveMedia(durableMedia);
+  const incoming = normalizeArchiveMedia(transientMedia);
+  const incomingByIdentity = new Map(incoming.map((entry) => [mediaIdentity(entry), entry]));
+  const merged = current.map((entry) => {
+    const identity = mediaIdentity(entry);
+    const transient = incomingByIdentity.get(identity);
+    if (!transient) return entry;
+    incomingByIdentity.delete(identity);
+    return { ...entry, ...transient };
+  });
+  return normalizeArchiveMedia([...merged, ...incomingByIdentity.values()]);
+};
+
+const replaceLatestVersionMedia = (contribution, media) => {
+  const latest = contribution?.latestVersion;
+  if (!latest?.content) return contribution;
+  const nextVersion = {
+    ...latest,
+    content: {
+      ...latest.content,
+      media: mergeTransientMedia(latest.content.media, media),
+    },
+  };
+  contribution.latestVersion = nextVersion;
+  contribution.versions = contribution.versions.map((version) =>
+    version === latest || version.id === latest.id ? nextVersion : version);
+  return contribution;
+};
+
+const publishedContributionById = (model) => {
+  const entries = [
+    ...(model.contributions || []),
+    ...[...(model.amendmentsByTarget?.values?.() || [])].flat(),
+  ];
+  return new Map(entries.map((contribution) => [contribution.id, contribution]));
+};
+
+const selectedFormalContributions = (model, contributionById, tabId) => {
+  const selected = contributionById.get(tabId);
+  const amendments = model.amendmentsByTarget?.get(tabId) || [];
+  return [selected, ...amendments].filter((contribution) =>
+    contribution?.latestVersion?.content?.schemaVersion === 2);
+};
+
+const renderHydratedContribution = (model, contribution) => {
+  if (contribution.kind === 'amendment') {
+    return renderFormalArchiveAmendment({
+      contribution,
+      version: contribution.latestVersion,
+      targetId: contribution.target_contribution_id || model.officialTargetId,
+    });
+  }
+  return renderFormalArchiveDocument({
+    archive: model.archive,
+    contribution,
+    version: contribution.latestVersion,
+  });
+};
+
+export function createPublishedMediaSession({
+  model,
+  listPublishedMedia,
+  mount,
+  revokeObjectURL = (url) => globalThis.URL?.revokeObjectURL?.(url),
+} = {}) {
+  if (!model || typeof listPublishedMedia !== 'function' || typeof mount !== 'function') {
+    throw new TypeError('A publication model, media loader, and mount adapter are required');
+  }
+  const contributionById = publishedContributionById(model);
+  const requests = new Map();
+  const blobUrls = new Set();
+  let disposed = false;
+
+  const loadContribution = (contribution) => {
+    const cached = requests.get(contribution.id);
+    if (cached) return cached;
+    const request = Promise.resolve()
+      .then(() => listPublishedMedia(contribution.id))
+      .then((media) => {
+        const normalized = normalizeArchiveMedia(media);
+        const transientBlobUrls = normalized
+          .map((entry) => entry.publicUrl)
+          .filter((url) => String(url).startsWith('blob:'));
+        if (disposed) {
+          transientBlobUrls.forEach((url) => revokeObjectURL(url));
+          return null;
+        }
+        transientBlobUrls.forEach((url) => blobUrls.add(url));
+        replaceLatestVersionMedia(contribution, normalized);
+        mount(contribution.id, renderHydratedContribution(model, contribution));
+        return contribution;
+      })
+      .catch(() => null);
+    requests.set(contribution.id, request);
+    return request;
+  };
+
+  return {
+    selectTab(tabId) {
+      if (disposed) return Promise.resolve([]);
+      return Promise.all(
+        selectedFormalContributions(model, contributionById, tabId).map(loadContribution),
+      );
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      blobUrls.forEach((url) => revokeObjectURL(url));
+      blobUrls.clear();
+    },
+  };
+}
+
 const renderReferences = (references = []) => {
   if (!references.length) return '<p class="archive-contribution-empty">本记录没有引用其他档案。</p>';
   return `<ul class="archive-contribution-references">${references.map((reference) => `
@@ -139,11 +267,14 @@ const renderAmendments = (amendments = [], targetId) => {
       <header><b>本记录的补充修改</b><span>${String(amendments.length).padStart(2, '0')} ENTRIES</span></header>
       ${amendments.map((amendment) => (
         amendment.latestVersion.content?.schemaVersion === 2
-          ? renderFormalArchiveAmendment({
-              contribution: amendment,
-              version: amendment.latestVersion,
-              targetId,
-            })
+          ? renderPublishedMediaMount(
+              amendment.id,
+              renderFormalArchiveAmendment({
+                contribution: amendment,
+                version: amendment.latestVersion,
+                targetId,
+              }),
+            )
           : renderLegacyAmendment(amendment, targetId)
       )).join('')}
     </section>
@@ -155,7 +286,10 @@ const renderContribution = (contribution, index, archive, amendments = []) => {
   if (version.content?.schemaVersion === 2) {
     return `
       <article class="archive-contribution-panel archive-contribution-panel--formal" data-contribution-panel="${escapeHtml(contribution.id)}" hidden>
-        ${renderFormalArchiveDocument({ archive, contribution, version })}
+        ${renderPublishedMediaMount(
+          contribution.id,
+          renderFormalArchiveDocument({ archive, contribution, version }),
+        )}
         <section class="archive-contribution-supporting">
           <h4>引用档案</h4>
           ${renderReferences(version.content?.references)}

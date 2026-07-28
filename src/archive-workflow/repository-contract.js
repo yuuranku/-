@@ -24,6 +24,7 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'listArchiveContributions',
   'listArchiveDocuments',
   'listArchiveReferences',
+  'listContributionMedia',
   'listPublishedMedia',
   'setArchiveNewBadge',
   'uploadAttachment',
@@ -229,6 +230,7 @@ export const assertArchiveWorkflowResult = (method, result) => {
         requireFields(reference.source_archive, ['id', 'code', 'title', 'visibility'], `${method}[${index}].source_archive.`);
       }
       return result;
+    case 'listContributionMedia':
     case 'listPublishedMedia':
       for (const [index, media] of requireList(result, method).entries()) {
         requireFields(media, [

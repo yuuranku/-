@@ -5,6 +5,7 @@ import {
   nextArchiveSequence,
   stampArchiveSystemFields,
 } from '../category-profiles.js';
+import { mediaPolicyForCategory } from '../media.js';
 
 export class LocalWorkflowError extends Error {
   constructor(message, code, details = null) {
@@ -88,6 +89,7 @@ export const createLocalWorkflowEngine = ({
   if (failAt !== undefined && typeof failAt !== 'function') {
     throw new TypeError('failAt must be a function when provided');
   }
+  const directoryCoverUrls = new Map();
 
   const readSnapshot = async (select) => {
     const state = await readState();
@@ -917,12 +919,50 @@ export const createLocalWorkflowEngine = ({
       .sort((left, right) => String(left.code).localeCompare(String(right.code)))
       .slice(0, boundedLimit(limit, 20, 50)));
 
+  const directoryCoverUrl = (attachment) => {
+    const cached = directoryCoverUrls.get(attachment.id);
+    if (cached) return cached;
+    const url = attachment.blob instanceof Blob && typeof URL?.createObjectURL === 'function'
+      ? URL.createObjectURL(attachment.blob)
+      : `data:${attachment.mime_type || 'application/octet-stream'},`;
+    directoryCoverUrls.set(attachment.id, url);
+    return url;
+  };
+
+  const projectLocalDirectoryCover = (state, archive) => {
+    const role = normalizeCategory(archive.category) === 'person'
+      ? 'portrait'
+      : normalizeCategory(archive.category) === 'event'
+        ? 'event-cover'
+        : '';
+    if (!role) return archive;
+    const currentVersion = state.versions.find((version) => version.id === archive.current_version_id);
+    const published = state.contributions
+      .filter((contribution) =>
+        contribution.archive_id === archive.id && contribution.status === 'published')
+      .sort((left, right) =>
+        Number(right.id === currentVersion?.contribution_id)
+          - Number(left.id === currentVersion?.contribution_id)
+        || String(right.updated_at ?? right.created_at ?? '')
+          .localeCompare(String(left.updated_at ?? left.created_at ?? '')));
+    const contributionIds = new Set(published.map((contribution) => contribution.id));
+    const cover = state.attachments
+      .filter((attachment) =>
+        contributionIds.has(attachment.contribution_id) && attachment.role === role)
+      .sort((left, right) =>
+        published.findIndex(({ id }) => id === left.contribution_id)
+          - published.findIndex(({ id }) => id === right.contribution_id)
+        || Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0))[0];
+    return cover ? { ...archive, cover_url: directoryCoverUrl(cover) } : archive;
+  };
+
   const listPublishedArchives = ({ limit = 100, offset = 0 } = {}) => readSnapshot((state) => {
     const boundedOffset = Math.max(Number(offset) || 0, 0);
     return state.archives
       .filter((archive) => archive.visibility === 'public')
       .sort((left, right) => String(right.published_at ?? '').localeCompare(String(left.published_at ?? '')))
-      .slice(boundedOffset, boundedOffset + boundedLimit(limit, 100, 100));
+      .slice(boundedOffset, boundedOffset + boundedLimit(limit, 100, 100))
+      .map((archive) => projectLocalDirectoryCover(state, archive));
   });
 
   const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
@@ -1074,12 +1114,7 @@ export const createLocalWorkflowEngine = ({
         }];
       }));
 
-  const listPublishedMedia = (contributionId) => readSnapshot((state) => {
-    const id = String(contributionId ?? '').trim();
-    const contribution = state.contributions.find((entry) =>
-      entry.id === id && entry.status === 'published');
-    if (!contribution) return [];
-    return state.attachments
+  const hydrateContributionMedia = (state, id) => state.attachments
       .filter((attachment) => attachment.contribution_id === id)
       .sort((left, right) =>
         Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0)
@@ -1095,6 +1130,26 @@ export const createLocalWorkflowEngine = ({
         caption: attachment.caption ?? '',
         sortOrder: Number(attachment.sort_order ?? 0),
       }));
+
+  const listContributionMedia = (contributionId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return readSnapshot((state) => {
+      const id = String(contributionId ?? '').trim();
+      const contribution = state.contributions.find((entry) => entry.id === id);
+      if (!contribution) return [];
+      if (principal.role !== 'admin' && contribution.owner_id !== principal.id) {
+        throw workflowError('permission_denied', 'Contribution media is not visible to this principal');
+      }
+      return hydrateContributionMedia(state, id);
+    });
+  };
+
+  const listPublishedMedia = (contributionId) => readSnapshot((state) => {
+    const id = String(contributionId ?? '').trim();
+    const contribution = state.contributions.find((entry) =>
+      entry.id === id && entry.status === 'published');
+    if (!contribution) return [];
+    return hydrateContributionMedia(state, id);
   });
 
   const setArchiveNewBadge = async (archiveId, visible) => {
@@ -1164,6 +1219,12 @@ export const createLocalWorkflowEngine = ({
       if (!contribution || (principal.role !== 'admin' && contribution.owner_id !== principal.id)) {
         throw workflowError('permission_denied', 'Contribution is not editable by this principal');
       }
+      if (
+        principal.role !== 'admin'
+        && !['draft', 'changes_requested'].includes(contribution.status)
+      ) {
+        throw workflowError('attachment_locked', 'Submitted archive attachments are locked');
+      }
       const size = Number(file?.size);
       const blob = file instanceof Blob ? file : file?.blob;
       if (
@@ -1176,6 +1237,32 @@ export const createLocalWorkflowEngine = ({
       ) {
         throw workflowError('invalid_attachment', 'Attachment must be between 1 byte and 5MB');
       }
+      const role = String(metadata.role ?? '').trim();
+      if (role) {
+        const template = nextState.templates.find((entry) => entry.id === contribution.template_id);
+        const archive = nextState.archives.find((entry) => entry.id === contribution.archive_id);
+        const category = normalizeCategory(
+          contribution.draft_content?.category
+          || template?.category
+          || archive?.category,
+        );
+        const slot = mediaPolicyForCategory(category).slots.find((entry) => entry.role === role);
+        if (!slot) {
+          throw workflowError('invalid_media_role', 'Media role is not valid for this archive category');
+        }
+        const mimeType = String(file.type || blob.type || '').toLowerCase();
+        if (mimeType !== 'image/webp' || size > 800 * 1024) {
+          throw workflowError(
+            'invalid_media_file',
+            'Archive media must be WebP and no larger than 800KB',
+          );
+        }
+        const occupied = nextState.attachments.filter((entry) =>
+          entry.contribution_id === contribution.id && entry.role === role).length;
+        if (occupied >= slot.limit) {
+          throw workflowError('media_slot_full', 'Archive media slot limit has been reached');
+        }
+      }
       const timestamp = now();
       const sortOrder = Number(metadata.sortOrder ?? metadata.sort_order ?? 0);
       const attachment = {
@@ -1186,7 +1273,7 @@ export const createLocalWorkflowEngine = ({
         file_name: String(file.name),
         mime_type: String(file.type || blob.type || 'application/octet-stream'),
         byte_size: size,
-        role: String(metadata.role ?? '').trim() || null,
+        role: role || null,
         caption: String(metadata.caption ?? '').trim(),
         alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
         sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
@@ -1224,6 +1311,7 @@ export const createLocalWorkflowEngine = ({
     listArchiveContributions,
     listArchiveDocuments,
     listArchiveReferences,
+    listContributionMedia,
     listPublishedMedia,
     setArchiveNewBadge,
     uploadAttachment,

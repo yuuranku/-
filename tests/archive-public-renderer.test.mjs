@@ -162,3 +162,89 @@ test('freeform entries render as named fields without exposing storage keys', ()
   assert.match(html, /宗教[\s\S]*未公开/);
   assert.doesNotMatch(html, /amendment:item:faith/);
 });
+
+test('person portraits use transient URLs, explicit alternative text, and never expose storage paths', () => {
+  const html = renderFormalArchiveDocument({
+    archive: {
+      code: 'P33',
+      category: 'person',
+      sequence_number: 33,
+      abbreviation: 'PER',
+    },
+    contribution: { kind: 'new', owner: { display_name: '书记官甲' }, versions: [] },
+    version: {
+      version_label: '0.1',
+      content: {
+        ...personDocument,
+        media: [{
+          attachmentId: 'attachment-portrait',
+          role: 'portrait',
+          storagePath: 'private/person/portrait.webp',
+          publicUrl: 'blob:published-portrait',
+          altText: '叶夫根尼正面登记照',
+          caption: '人员档案登记照',
+        }],
+      },
+      submitter: { display_name: '书记官甲' },
+    },
+  });
+
+  assert.match(html, /src="blob:published-portrait"/);
+  assert.match(html, /alt="叶夫根尼正面登记照"/);
+  assert.match(html, /<figcaption>人员档案登记照<\/figcaption>/);
+  assert.doesNotMatch(html, /private\/person\/portrait\.webp/);
+});
+
+test('event records render one cover and an ordered lazy evidence gallery', () => {
+  const html = renderFormalArchiveDocument({
+    archive: {
+      code: 'EV10',
+      category: 'event',
+      sequence_number: 10,
+      abbreviation: 'RLL',
+    },
+    contribution: { kind: 'new', owner: { display_name: '书记官乙' }, versions: [] },
+    version: {
+      version_label: '0.1',
+      content: {
+        ...personDocument,
+        templateCode: '07',
+        category: 'event',
+        abbreviation: 'RLL',
+        media: [
+          {
+            attachmentId: 'evidence-2',
+            role: 'event-evidence',
+            storagePath: 'private/event/evidence-2.webp',
+            publicUrl: 'https://example.test/evidence-2',
+            caption: '证据二',
+            sortOrder: 2,
+          },
+          {
+            attachmentId: 'cover',
+            role: 'event-cover',
+            storagePath: 'private/event/cover.webp',
+            publicUrl: 'https://example.test/cover',
+            altText: '事件封面',
+            sortOrder: 0,
+          },
+          {
+            attachmentId: 'evidence-1',
+            role: 'event-evidence',
+            storagePath: 'private/event/evidence-1.webp',
+            publicUrl: 'https://example.test/evidence-1',
+            caption: '证据一',
+            sortOrder: 1,
+          },
+        ],
+      },
+      submitter: { display_name: '书记官乙' },
+    },
+  });
+
+  assert.match(html, /archive-formal-document__evidence/);
+  assert.match(html, /src="https:\/\/example\.test\/cover"/);
+  assert.match(html, /loading="lazy"/);
+  assert.ok(html.indexOf('证据一') < html.indexOf('证据二'));
+  assert.doesNotMatch(html, /private\/event\//);
+});

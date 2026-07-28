@@ -703,27 +703,136 @@ test('uploadAttachment stores a 1-byte to 5MB Blob and returns an isolated metad
     );
   }
   const attachment = await harness.repository.uploadAttachment(saved.id, 'clerk-1', {
-    name: 'source.txt',
-    type: 'text/plain',
+    name: 'source.webp',
+    type: 'image/webp',
     size: 3,
-    blob: new Blob(['abc'], { type: 'text/plain' }),
+    blob: new Blob(['abc'], { type: 'image/webp' }),
   }, {
     role: 'event-evidence',
     caption: '现场记录',
     altText: '雪面上的设备',
     sortOrder: 2,
   });
-  attachment.file_name = 'mutated.txt';
+  attachment.file_name = 'mutated.webp';
 
   const state = await harness.inspectState();
   assert.equal(state.attachments.length, 1);
-  assert.equal(state.attachments[0].file_name, 'source.txt');
+  assert.equal(state.attachments[0].file_name, 'source.webp');
   assert.equal(state.attachments[0].byte_size, 3);
   assert.equal(state.attachments[0].role, 'event-evidence');
   assert.equal(state.attachments[0].caption, '现场记录');
   assert.equal(state.attachments[0].alt_text, '雪面上的设备');
   assert.equal(state.attachments[0].sort_order, 2);
   assert.equal(await state.attachments[0].blob.text(), 'abc');
+});
+
+test('role-based local media rejects non-WebP and files above 800KB', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seedDefaults();
+  const saved = await saveEventDraft(harness);
+  const invalid = (name, type, size) => harness.repository.uploadAttachment(
+    saved.id,
+    'clerk-1',
+    {
+      name,
+      type,
+      size,
+      blob: new Blob([new Uint8Array(size)], { type }),
+    },
+    { role: 'event-cover' },
+  );
+
+  await assert.rejects(
+    invalid('cover.png', 'image/png', 3),
+    hasCode('invalid_media_file'),
+  );
+  await assert.rejects(
+    invalid('cover.webp', 'image/webp', 800 * 1024 + 1),
+    hasCode('invalid_media_file'),
+  );
+});
+
+test('clerk attachments lock after submission while an administrator may inspect submitted media', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seedDefaults();
+  const saved = await saveEventDraft(harness);
+  await harness.repository.uploadAttachment(saved.id, 'clerk-1', {
+    name: 'cover.webp',
+    type: 'image/webp',
+    size: 3,
+    blob: new Blob(['abc'], { type: 'image/webp' }),
+  }, {
+    role: 'event-cover',
+    altText: '待审事件封面',
+  });
+  await harness.repository.submitDraft(saved.id, 'clerk-1');
+
+  await assert.rejects(
+    harness.repository.uploadAttachment(saved.id, 'clerk-1', {
+      name: 'late.webp',
+      type: 'image/webp',
+      size: 3,
+      blob: new Blob(['xyz'], { type: 'image/webp' }),
+    }, { role: 'event-evidence' }),
+    hasCode('attachment_locked'),
+  );
+
+  await harness.setPrincipal(LOCAL_PROFILES[0]);
+  const media = await harness.repository.listContributionMedia(saved.id);
+  assert.equal(media.length, 1);
+  assert.equal(media[0].role, 'event-cover');
+  assert.match(media[0].publicUrl, /^(blob:|data:)/);
+});
+
+test('a clerk cannot inspect another owner draft media', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seedDefaults();
+  const saved = await saveEventDraft(harness);
+  await harness.repository.uploadAttachment(saved.id, 'clerk-1', {
+    name: 'cover.webp',
+    type: 'image/webp',
+    size: 3,
+    blob: new Blob(['abc'], { type: 'image/webp' }),
+  }, { role: 'event-cover' });
+  await harness.setPrincipal({
+    id: 'clerk-2',
+    email: 'other@example.com',
+    display_name: 'Other Clerk',
+    role: 'clerk',
+    enabled: true,
+  });
+
+  await assert.rejects(
+    harness.repository.listContributionMedia(saved.id),
+    hasCode('permission_denied'),
+  );
+});
+
+test('local media roles enforce one event cover and at most six evidence images', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seedDefaults();
+  const saved = await saveEventDraft(harness);
+  const upload = (name, role, sortOrder) => harness.repository.uploadAttachment(
+    saved.id,
+    'clerk-1',
+    {
+      name,
+      type: 'image/webp',
+      size: 1,
+      blob: new Blob(['x'], { type: 'image/webp' }),
+    },
+    { role, sortOrder },
+  );
+
+  await upload('cover-1.webp', 'event-cover', 0);
+  await assert.rejects(upload('cover-2.webp', 'event-cover', 0), hasCode('media_slot_full'));
+  for (let index = 0; index < 6; index += 1) {
+    await upload(`evidence-${index}.webp`, 'event-evidence', index);
+  }
+  await assert.rejects(
+    upload('evidence-7.webp', 'event-evidence', 6),
+    hasCode('media_slot_full'),
+  );
 });
 
 test('archive directories apply public, editable, administrator, query, and category filters', async () => {
@@ -837,6 +946,45 @@ test('published media returns metadata and a transient readable URL only for pub
     },
   );
   assert.match(media[0].publicUrl, /^(blob:|data:)/);
+});
+
+test('published directory projects only the event cover and never its evidence images', async () => {
+  const state = createPublishedReadState();
+  state.attachments.push(
+    {
+      id: 'attachment-cover',
+      contribution_id: 'contribution-1',
+      owner_id: 'clerk-1',
+      storage_path: 'clerk-1/contribution-1/cover.webp',
+      file_name: 'cover.webp',
+      mime_type: 'image/webp',
+      byte_size: 3,
+      role: 'event-cover',
+      sort_order: 0,
+      blob: new Blob(['abc'], { type: 'image/webp' }),
+      created_at: '2026-07-28T12:00:00.000Z',
+    },
+    {
+      id: 'attachment-evidence',
+      contribution_id: 'contribution-1',
+      owner_id: 'clerk-1',
+      storage_path: 'clerk-1/contribution-1/evidence.webp',
+      file_name: 'evidence.webp',
+      mime_type: 'image/webp',
+      byte_size: 3,
+      role: 'event-evidence',
+      sort_order: 1,
+      blob: new Blob(['xyz'], { type: 'image/webp' }),
+      created_at: '2026-07-28T12:00:00.000Z',
+    },
+  );
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const [archive] = await harness.repository.listPublishedArchives();
+
+  assert.match(archive.cover_url, /^(blob:|data:)/);
+  assert.doesNotMatch(archive.cover_url, /evidence/i);
 });
 
 test('administrator can toggle one archive NEW badge without changing its published identity', async () => {

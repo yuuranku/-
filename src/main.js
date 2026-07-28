@@ -11,6 +11,7 @@ import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
 import {
   buildPublishedArchiveModel,
+  createPublishedMediaSession,
   renderOfficialArchiveBanner,
   renderPublishedContributionLedger,
 } from './archive-workflow/publication.js';
@@ -1997,6 +1998,8 @@ function closeArchiveWindow(windowElement) {
   if (!state || state.closing) return;
   state.closing = true;
   const removeWindow = () => {
+    state.disposePublishedMedia?.();
+    state.disposePublishedMedia = null;
     windowElement.remove();
     state.taskButton.remove();
     archiveWindows.delete(windowElement.dataset.archiveId);
@@ -4677,16 +4680,33 @@ async function hydratePublishedContributions(archive, sheet) {
             markup: officialMarkup,
           },
     });
-    if (!model?.contributions.length || !sheet.isConnected) return;
+    const amendmentCount = model
+      ? [...model.amendmentsByTarget.values()]
+          .reduce((total, amendments) => total + amendments.length, 0)
+      : 0;
+    if (!model || model.contributions.length + amendmentCount === 0 || !sheet.isConnected) return;
 
     sheet.innerHTML = renderPublishedContributionLedger(model);
 
+    const mediaSession = createPublishedMediaSession({
+      model,
+      listPublishedMedia: (contributionId) =>
+        archiveWorkflowClient.listPublishedMedia(contributionId),
+      mount: (contributionId, markup) => {
+        if (!sheet.isConnected) return;
+        const mount = [...sheet.querySelectorAll('[data-published-media-mount]')]
+          .find((candidate) =>
+            candidate.dataset.publishedMediaMount === contributionId);
+        if (mount) mount.innerHTML = markup;
+      },
+    });
     const tabs = [...sheet.querySelectorAll('[data-contribution-tab]')];
     const panels = [...sheet.querySelectorAll('[data-contribution-panel]')];
     const selectTab = (id) => {
       tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.contributionTab === id)));
       panels.forEach((panel) => { panel.hidden = panel.dataset.contributionPanel !== id; });
       sheet.scrollTop = 0;
+      void mediaSession.selectTab(id);
     };
     tabs.forEach((tab) => tab.addEventListener('click', () => selectTab(tab.dataset.contributionTab)));
     selectTab(model.tabs[0].id);
@@ -4696,8 +4716,10 @@ async function hydratePublishedContributions(archive, sheet) {
         requestArchiveAmendment(archive, button.dataset.requestAmendment, publishedArchive);
       });
     });
+    return () => mediaSession.dispose();
   } catch {
     // Static records remain fully usable if the free-tier data service is offline.
+    return null;
   }
 }
 
@@ -4826,7 +4848,6 @@ function openArchive(archive, trigger) {
   }
   const titleElement = sheet.querySelector('[data-dialog-title]');
   if (titleElement) titleElement.id = titleId;
-  hydratePublishedContributions(archive, sheet);
 
   taskButton.type = 'button';
   taskButton.className = 'archive-task-button';
@@ -4834,11 +4855,24 @@ function openArchive(archive, trigger) {
   taskButton.setAttribute('aria-controls', windowId);
   taskButton.setAttribute('aria-label', `切换档案窗口：${archive.name}`);
 
-  const state = { archive, windowElement, taskButton, trigger, minimized: false, closing: false };
+  const state = {
+    archive,
+    windowElement,
+    taskButton,
+    trigger,
+    minimized: false,
+    closing: false,
+    disposePublishedMedia: null,
+  };
   archiveWindows.set(archive.id, state);
   archiveTaskList.appendChild(taskButton);
   archiveDesktop.appendChild(windowElement);
   initializeArchiveFileMenu(state);
+  void hydratePublishedContributions(archive, sheet).then((disposePublishedMedia) => {
+    if (typeof disposePublishedMedia !== 'function') return;
+    if (state.closing) disposePublishedMedia();
+    else state.disposePublishedMedia = disposePublishedMedia;
+  });
 
   windowElement.style.visibility = 'hidden';
   const measuredRect = windowElement.getBoundingClientRect();

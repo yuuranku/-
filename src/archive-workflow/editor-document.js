@@ -1,4 +1,5 @@
 import { ARCHIVE_TEMPLATE_BY_CODE } from './templates.js';
+import { normalizeArchiveMedia } from './media.js';
 
 export const EDITOR_DOCUMENT_SCHEMA_VERSION = 2;
 
@@ -40,7 +41,7 @@ export const createEditorDocument = (templateValue, values = {}, extras = {}) =>
     sections: cloneList(extras.sections),
     fieldLabels: cloneRecord(extras.fieldLabels),
     references: cloneList(extras.references),
-    media: cloneList(extras.media),
+    media: normalizeArchiveMedia(extras.media),
   };
 };
 
@@ -62,6 +63,6 @@ export const normalizeEditorDocument = (value = {}) => {
     sections: cloneList(value.sections),
     fieldLabels: cloneRecord(value.fieldLabels),
     references: cloneList(value.references),
-    media: cloneList(value.media),
+    media: normalizeArchiveMedia(value.media),
   };
 };

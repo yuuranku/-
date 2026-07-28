@@ -127,6 +127,15 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
       ownerName: profile.display_name,
     }]],
     ['listArchiveReferences', [{ id: 'reference-1', source_archive: archive }]],
+    ['listContributionMedia', [{
+      id: 'attachment-1',
+      role: 'event-cover',
+      storagePath: 'operator-1/contribution-1/cover.webp',
+      publicUrl: 'blob:review-cover',
+      altText: '待审事件现场',
+      caption: '待审现场记录',
+      sortOrder: 0,
+    }]],
     ['listPublishedMedia', [{
       id: 'attachment-1',
       role: 'event-cover',
@@ -156,6 +165,17 @@ test('result contract rejects incomplete publication and media identities', () =
   );
   assert.throws(
     () => assertArchiveWorkflowResult('listPublishedMedia', [{
+      id: 'attachment-1',
+      role: 'portrait',
+      storagePath: 'portrait.webp',
+      altText: '',
+      caption: '',
+      sortOrder: 0,
+    }]),
+    /publicUrl/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('listContributionMedia', [{
       id: 'attachment-1',
       role: 'portrait',
       storagePath: 'portrait.webp',

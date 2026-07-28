@@ -35,6 +35,7 @@ const completeRepositoryExcept = (missingMethod) =>
       'listArchiveContributions',
       'listArchiveDocuments',
       'listArchiveReferences',
+      'listContributionMedia',
       'listPublishedMedia',
       'setArchiveNewBadge',
       'uploadAttachment',
@@ -172,13 +173,13 @@ test('repository contract rejects an incomplete repository at the construction b
   );
 });
 
-test('repository contract publishes the frozen 28-method workflow surface and permits extensions', () => {
+test('repository contract publishes the frozen 29-method workflow surface and permits extensions', () => {
   const repository = {
     ...completeRepositoryExcept(),
     reset: () => undefined,
   };
 
-  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 28);
+  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 29);
   assert.equal(Object.isFrozen(ARCHIVE_WORKFLOW_METHODS), true);
   assert.equal(assertArchiveWorkflowRepository(repository), repository);
 });

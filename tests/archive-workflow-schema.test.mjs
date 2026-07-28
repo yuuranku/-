@@ -9,6 +9,7 @@ const editorPipelineMigrationUrl = new URL('supabase/migrations/202607270003_arc
 const versionRepairMigrationUrl = new URL('supabase/migrations/202607270004_repair_archive_version_lineage.sql', projectRoot);
 const automaticIdentityMigrationUrl = new URL('supabase/migrations/202607290001_automatic_archive_identity.sql', projectRoot);
 const archiveIndexRecordRepairMigrationUrl = new URL('supabase/migrations/202607290002_archive_index_record_repair.sql', projectRoot);
+const archiveMediaGuardrailsMigrationUrl = new URL('supabase/migrations/202607290003_archive_media_guardrails.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -151,4 +152,22 @@ test('archive index repair migrates identities, projections, NEW state, and medi
   assert.match(sql, /create trigger validate_archive_contribution_target_before_submit/i);
   assert.match(sql, /synchronize_published_notification_version[\s\S]*formal_number/i);
   assert.match(sql, /notify pgrst,\s*'reload schema'/i);
+});
+
+test('archive media guardrails lock reviewed files and enforce category slot limits', async () => {
+  const sql = await readFile(archiveMediaGuardrailsMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /new\.role = 'portrait'/i);
+  assert.match(sql, /new\.role in \('event-cover', 'event-evidence'\)/i);
+  assert.doesNotMatch(sql, /update public\.archive_attachments\s+set role\s*=\s*null/i);
+  assert.match(sql, /create or replace function public\.validate_archive_attachment_slot/i);
+  assert.match(sql, /mime_type\s*<>\s*'image\/webp'[\s\S]*819200/i);
+  assert.match(sql, /'portrait'[\s\S]*'person'/i);
+  assert.match(sql, /'event-cover'[\s\S]*'event-evidence'[\s\S]*'event'/i);
+  assert.match(sql, /event-evidence[\s\S]*6/i);
+  assert.match(sql, /status in \('draft', 'changes_requested'\)/i);
+  assert.match(sql, /drop policy if exists attachments_owner_all/i);
+  assert.match(sql, /drop policy if exists storage_archive_attachments_insert/i);
+  assert.match(sql, /split_part\(storage_path,\s*'\/',\s*2\)\s*=\s*contribution_id::text/i);
+  assert.match(sql, /archive\.visibility = 'public'/i);
 });

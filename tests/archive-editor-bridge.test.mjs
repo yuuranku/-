@@ -91,6 +91,26 @@ test('template documents round-trip every data-save field and the photo slot', (
   assert.deepEqual(output.sections[0].fields, ['custom_unknown_key']);
 });
 
+test('reading a template keeps the durable person portrait instead of replacing it with an empty legacy slot', () => {
+  const fixture = createFixture();
+  const output = readTemplateDocument(
+    fixture.root,
+    ARCHIVE_TEMPLATE_BY_CODE['06'],
+    {
+      media: [{
+        attachmentId: 'attachment-portrait',
+        field: 'photo',
+        role: 'portrait',
+        storagePath: 'private/person/portrait.webp',
+      }],
+    },
+  );
+
+  assert.equal(output.media.length, 1);
+  assert.equal(output.media[0].attachmentId, 'attachment-portrait');
+  assert.equal(output.media[0].role, 'portrait');
+});
+
 test('freeform amendment page restores every saved custom item before writing values', () => {
   const title = createEditable('amendment:title');
   const body = createEditable('amendment:body');

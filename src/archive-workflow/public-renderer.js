@@ -1,4 +1,5 @@
 import { normalizeEditorDocument } from './editor-document.js';
+import { normalizeArchiveMedia } from './media.js';
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -128,13 +129,53 @@ const renderSections = (document) => normalizedSections(document)
   .join('');
 
 const renderPhoto = (document) => {
-  const photo = document.media.find((entry) => entry?.field === 'photo');
+  const media = normalizeArchiveMedia(document.media);
+  const preferredRole = document.category === 'person'
+    ? 'portrait'
+    : document.category === 'event'
+      ? 'event-cover'
+      : '';
+  const photo = media.find((entry) => preferredRole && entry.role === preferredRole)
+    || media.find((entry) => entry.field === 'photo');
   const source = visibleValue(photo?.publicUrl || photo?.dataUrl);
   if (!source) return '';
+  const alt = visibleValue(photo.altText)
+    || visibleValue(photo.caption)
+    || `${document.title}档案图像`;
   return `
     <figure class="archive-formal-document__photo">
-      <img src="${escapeHtml(source)}" alt="${escapeHtml(document.title)}档案图像" />
+      <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" decoding="async" />
+      ${photo.caption ? `<figcaption>${escapeHtml(photo.caption)}</figcaption>` : ''}
     </figure>
+  `;
+};
+
+const renderEvidenceGallery = (document) => {
+  const evidence = normalizeArchiveMedia(document.media)
+    .filter((entry) => entry.role === 'event-evidence')
+    .filter((entry) => visibleValue(entry.publicUrl || entry.dataUrl));
+  if (!evidence.length) return '';
+  return `
+    <section class="archive-formal-document__evidence" aria-label="事件证据图">
+      <header>
+        <b>事件证据图</b>
+        <span>${String(evidence.length).padStart(2, '0')} / EVIDENCE PLATES</span>
+      </header>
+      <div>
+        ${evidence.map((entry, index) => {
+          const source = visibleValue(entry.publicUrl || entry.dataUrl);
+          const alt = visibleValue(entry.altText)
+            || visibleValue(entry.caption)
+            || `${document.title}事件证据图 ${index + 1}`;
+          return `
+            <figure>
+              <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />
+              ${entry.caption ? `<figcaption>${escapeHtml(entry.caption)}</figcaption>` : ''}
+            </figure>
+          `;
+        }).join('')}
+      </div>
+    </section>
   `;
 };
 
@@ -194,6 +235,7 @@ export const renderFormalArchiveDocument = ({
           ${renderSections(document)}
         </div>
       </div>
+      ${renderEvidenceGallery(document)}
     </article>
   `;
 };
@@ -236,6 +278,7 @@ export const renderFormalArchiveAmendment = ({
       <div class="archive-record-amendment__body">
         ${renderSections(document)}
       </div>
+      ${renderEvidenceGallery(document)}
     </article>
   `;
 };

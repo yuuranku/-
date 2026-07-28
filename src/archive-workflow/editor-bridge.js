@@ -30,6 +30,13 @@ const normalizeLabel = (value) => String(value ?? '').replaceAll(/\s+/g, ' ').tr
 
 const installEditorPerformanceStyles = (root) => {
   if (!root?.getElementById || !root?.createElement || !root?.head) return;
+  const legacyPhotoInput = root.getElementById('photoInput');
+  legacyPhotoInput?.setAttribute?.('disabled', '');
+  const legacyPhotoBox = root.getElementById('photoBox');
+  legacyPhotoBox?.removeAttribute?.('for');
+  legacyPhotoBox?.setAttribute?.('aria-disabled', 'true');
+  const legacyPhotoPrompt = legacyPhotoBox?.querySelector?.('.cap b');
+  if (legacyPhotoPrompt) legacyPhotoPrompt.textContent = '由工作台添加';
   if (root.getElementById('palis-editor-performance-styles')) return;
   const style = root.createElement('style');
   style.id = 'palis-editor-performance-styles';
@@ -42,6 +49,7 @@ const installEditorPerformanceStyles = (root) => {
         font-style: normal;
         opacity: .76;
       }
+      #photoBox[aria-disabled='true'] { cursor: default !important; }
     }
   `;
   root.head?.append(style);
@@ -104,8 +112,11 @@ export const readTemplateDocument = (root, template, extras = {}) => {
     if (key) values[key] = String(element.innerText ?? element.textContent ?? '');
   });
   const retainedMedia = Array.isArray(extras.media)
-    ? extras.media.filter((entry) => entry?.field !== PHOTO_FIELD)
+    ? extras.media.filter((entry) =>
+      entry?.field !== PHOTO_FIELD || entry?.attachmentId || entry?.storagePath)
     : [];
+  const hasDurablePhoto = retainedMedia.some((entry) =>
+    entry?.field === PHOTO_FIELD && (entry?.attachmentId || entry?.storagePath));
   const structure = describeTemplateStructure(root);
   return createEditorDocument(template, values, {
     sections: structure.sections.length ? structure.sections : extras.sections,
@@ -115,7 +126,7 @@ export const readTemplateDocument = (root, template, extras = {}) => {
     },
     indexData: extras.indexData,
     references: extras.references,
-    media: [...retainedMedia, ...photoMedia(root)],
+    media: [...retainedMedia, ...(hasDurablePhoto ? [] : photoMedia(root))],
   });
 };
 

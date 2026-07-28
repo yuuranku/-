@@ -61,7 +61,12 @@ test('normalization upgrades incomplete documents without discarding references 
     templateCode: '6',
     values: { hero: '叶夫根尼', extra: '保留' },
     references: [{ archiveId: 'archive-1', code: 'HZ-6', title: '样本线任务' }],
-    media: [{ field: 'photo', storagePath: 'user/draft/photo.jpg' }],
+    media: [{
+      id: 'attachment-1',
+      role: 'portrait',
+      storage_path: 'user/draft/photo.webp',
+      file: { mustNotPersist: true },
+    }],
     indexData: { title: '叶夫根尼', archiveChain: '人物卷' },
   });
 
@@ -72,6 +77,9 @@ test('normalization upgrades incomplete documents without discarding references 
   assert.equal(normalized.values.extra, '保留');
   assert.equal(normalized.references[0].archiveId, 'archive-1');
   assert.equal(normalized.media[0].field, 'photo');
+  assert.equal(normalized.media[0].attachmentId, 'attachment-1');
+  assert.equal(normalized.media[0].storagePath, 'user/draft/photo.webp');
+  assert.equal(Object.hasOwn(normalized.media[0], 'file'), false);
   assert.equal(normalized.indexData.archiveChain, '人物卷');
 });
 

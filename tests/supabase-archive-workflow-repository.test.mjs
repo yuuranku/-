@@ -49,6 +49,136 @@ test('Supabase archive document choices come from the sanitized document RPC', a
   }]);
 });
 
+test('Supabase review media reads the selected contribution without requiring publication', async () => {
+  const filters = [];
+  const signedBatches = [];
+  const request = {
+    select() { return request; },
+    eq(column, value) {
+      filters.push([column, value]);
+      return request;
+    },
+    order() {
+      return Promise.resolve({
+        data: [{
+          id: 'attachment-1',
+          role: 'event-cover',
+          storage_path: 'clerk-1/submission-1/cover.webp',
+          alt_text: '待审封面',
+          caption: '审核材料',
+          sort_order: 0,
+        }],
+        error: null,
+      });
+    },
+  };
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: (table) => {
+      assert.equal(table, 'archive_attachments');
+      return request;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    storage: {
+      from: (bucket) => ({
+        createSignedUrls: async (paths) => {
+          signedBatches.push(paths);
+          return {
+            data: paths.map((path) => ({
+              signedUrl: `https://signed.test/${bucket}/${path}`,
+            })),
+            error: null,
+          };
+        },
+      }),
+    },
+  });
+
+  const media = await repository.listContributionMedia('submission-1');
+
+  assert.deepEqual(filters, [['contribution_id', 'submission-1']]);
+  assert.deepEqual(signedBatches, [['clerk-1/submission-1/cover.webp']]);
+  assert.equal(media[0].role, 'event-cover');
+  assert.match(media[0].publicUrl, /^https:\/\/signed\.test\//);
+});
+
+test('Supabase role-based media rejects non-WebP and files above 800KB before storage', async () => {
+  let storageCalls = 0;
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: () => { throw new Error('not used'); },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    storage: {
+      from: () => {
+        storageCalls += 1;
+        return {};
+      },
+    },
+  });
+
+  await assert.rejects(
+    repository.uploadAttachment(
+      'submission-1',
+      'clerk-1',
+      new File(['abc'], 'cover.png', { type: 'image/png' }),
+      { role: 'event-cover' },
+    ),
+    (error) => error?.code === 'invalid_media_file',
+  );
+  await assert.rejects(
+    repository.uploadAttachment(
+      'submission-1',
+      'clerk-1',
+      new File([new Uint8Array(800 * 1024 + 1)], 'cover.webp', { type: 'image/webp' }),
+      { role: 'event-cover' },
+    ),
+    (error) => error?.code === 'invalid_media_file',
+  );
+  assert.equal(storageCalls, 0);
+});
+
+test('Supabase attachment registration failure removes the uploaded storage object', async () => {
+  const removed = [];
+  const insertRequest = {
+    insert() { return insertRequest; },
+    select() { return insertRequest; },
+    single: async () => ({
+      data: null,
+      error: { code: '23514', message: 'slot limit exceeded' },
+    }),
+  };
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: (table) => {
+      assert.equal(table, 'archive_attachments');
+      return insertRequest;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    storage: {
+      from: (bucket) => ({
+        upload: async (path) => ({ data: { path }, error: null }),
+        remove: async (paths) => {
+          removed.push({ bucket, paths });
+          return { data: paths, error: null };
+        },
+      }),
+    },
+  });
+
+  await assert.rejects(
+    repository.uploadAttachment(
+      'submission-1',
+      'clerk-1',
+      new File(['abc'], 'cover.webp', { type: 'image/webp' }),
+      { role: 'event-cover' },
+    ),
+    /register attachment/i,
+  );
+  assert.equal(removed.length, 1);
+  assert.equal(removed[0].bucket, 'archive-attachments');
+  assert.equal(removed[0].paths.length, 1);
+});
+
 test('Supabase publication leaves formal numbering to the database and returns its identity', async () => {
   const calls = [];
   const repository = createSupabaseArchiveWorkflowRepository({
@@ -129,6 +259,92 @@ test('published archive pages use bounded offset ranges', async () => {
   await repository.listPublishedArchives({ limit: 25, offset: 50 });
 
   assert.deepEqual(ranges, [[50, 74]]);
+});
+
+test('published archive pages batch-sign only person portraits and event covers', async () => {
+  const filterCalls = [];
+  const archiveRequest = {
+    select() { return archiveRequest; },
+    eq() { return archiveRequest; },
+    order() { return archiveRequest; },
+    range() {
+      return Promise.resolve({
+        data: [
+          { id: 'event-1', category: 'event', visibility: 'public' },
+          { id: 'person-1', category: 'person', visibility: 'public' },
+          { id: 'species-1', category: 'species', visibility: 'public' },
+        ],
+        error: null,
+      });
+    },
+  };
+  const mediaRows = [
+    {
+      id: 'cover-1',
+      role: 'event-cover',
+      storage_path: 'event-cover.webp',
+      sort_order: 0,
+      contribution: {
+        archive_id: 'event-1',
+        status: 'published',
+        created_at: '2026-07-29T00:00:00Z',
+      },
+    },
+    {
+      id: 'portrait-1',
+      role: 'portrait',
+      storage_path: 'portrait.webp',
+      sort_order: 0,
+      contribution: {
+        archive_id: 'person-1',
+        status: 'published',
+        created_at: '2026-07-29T00:00:00Z',
+      },
+    },
+  ];
+  const attachmentRequest = {
+    select() { return attachmentRequest; },
+    in(column, values) {
+      filterCalls.push(['in', column, values]);
+      return attachmentRequest;
+    },
+    eq(column, value) {
+      filterCalls.push(['eq', column, value]);
+      return attachmentRequest;
+    },
+    order() { return attachmentRequest; },
+    then(resolve) {
+      return Promise.resolve({ data: mediaRows, error: null }).then(resolve);
+    },
+  };
+  const signedBatches = [];
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: (table) => table === 'archives' ? archiveRequest : attachmentRequest,
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    storage: {
+      from: () => ({
+        createSignedUrls: async (paths) => {
+          signedBatches.push(paths);
+          return {
+            data: paths.map((path) => ({ signedUrl: `https://signed.test/${path}` })),
+            error: null,
+          };
+        },
+      }),
+    },
+  });
+
+  const archives = await repository.listPublishedArchives();
+
+  assert.deepEqual(signedBatches, [['event-cover.webp', 'portrait.webp']]);
+  assert.equal(archives.find(({ id }) => id === 'event-1').cover_url, 'https://signed.test/event-cover.webp');
+  assert.equal(archives.find(({ id }) => id === 'person-1').cover_url, 'https://signed.test/portrait.webp');
+  assert.equal(Object.hasOwn(archives.find(({ id }) => id === 'species-1'), 'cover_url'), false);
+  assert.ok(filterCalls.some(([kind, column, values]) =>
+    kind === 'in'
+    && column === 'role'
+    && values.join(',') === 'portrait,event-cover'));
 });
 
 const clone = (value) => structuredClone(value);

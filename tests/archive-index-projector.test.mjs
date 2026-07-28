@@ -58,6 +58,23 @@ test('category index data projects into existing event, species, and station ren
   assert.equal(event.eventDate, '1963-08-31');
   assert.equal(event.location, '南极大陆');
 
+  const eventWithCover = projectPublishedArchive({
+    id: 'event-28',
+    category: 'event',
+    title: '带封面的事件',
+    visibility: 'public',
+    sequence_number: 28,
+    cover_url: 'https://signed.example/event-cover.webp',
+    index_payload: {
+      title: '带封面的事件',
+      startDate: '1964',
+      timePrecision: 'YEAR',
+      location: '南极大陆',
+      reviewStatus: 'CONFIRMED',
+    },
+  });
+  assert.equal(eventWithCover.image, 'https://signed.example/event-cover.webp');
+
   const species = projectPublishedArchive({
     id: 'species-23',
     category: 'species',

@@ -162,7 +162,12 @@ export const projectPublishedArchive = (archive) => {
     isCloudArchive: true,
     webContent: true,
     cloudRecord: archive,
-    image: String(indexData.image ?? '').trim() || undefined,
+    image: String(
+      archive.cover_url
+      ?? archive.coverUrl
+      ?? indexData.image
+      ?? '',
+    ).trim() || undefined,
     ...categoryProjection(category, indexData, sequenceNumber),
   };
 };

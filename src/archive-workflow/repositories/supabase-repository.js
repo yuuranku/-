@@ -227,16 +227,71 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to search archives');
   };
-  const listPublishedArchives = ({ limit = 100, offset = 0 } = {}) => {
+  const addPublishedArchiveCovers = async (archives) => {
+    const eligible = (archives || []).filter((archive) =>
+      archive.category === 'person' || archive.category === 'event');
+    if (!eligible.length || !supabase.storage?.from) return archives;
+    try {
+      const rows = await unwrap(
+        supabase.from('archive_attachments')
+          .select('id,role,storage_path,sort_order,contribution:archive_contributions!inner(archive_id,status,created_at,updated_at)')
+          .in('role', ['portrait', 'event-cover'])
+          .in('contribution.archive_id', eligible.map(({ id }) => id))
+          .eq('contribution.status', 'published')
+          .order('sort_order', { ascending: true }),
+        'Unable to load published archive covers',
+      );
+      const expectedRole = new Map(eligible.map((archive) => [
+        archive.id,
+        archive.category === 'person' ? 'portrait' : 'event-cover',
+      ]));
+      const selected = new Map();
+      const orderedRows = [...(rows || [])].sort((left, right) =>
+        String(right.contribution?.updated_at ?? right.contribution?.created_at ?? '')
+          .localeCompare(String(
+            left.contribution?.updated_at ?? left.contribution?.created_at ?? '',
+          ))
+        || Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0));
+      for (const row of orderedRows) {
+        const archiveId = row.contribution?.archive_id;
+        if (
+          archiveId
+          && row.role === expectedRole.get(archiveId)
+          && !selected.has(archiveId)
+        ) selected.set(archiveId, row);
+      }
+      const covers = eligible
+        .map((archive) => ({ archive, row: selected.get(archive.id) }))
+        .filter(({ row }) => row?.storage_path);
+      if (!covers.length) return archives;
+      const signed = await unwrap(
+        supabase.storage.from('archive-attachments')
+          .createSignedUrls(covers.map(({ row }) => row.storage_path), 3600),
+        'Unable to authorize published archive covers',
+      );
+      const coverUrls = new Map(covers.map(({ archive }, index) => [
+        archive.id,
+        signed?.[index]?.signedUrl ?? signed?.[index]?.signed_url ?? '',
+      ]));
+      return archives.map((archive) => {
+        const coverUrl = coverUrls.get(archive.id);
+        return coverUrl ? { ...archive, cover_url: coverUrl } : archive;
+      });
+    } catch {
+      return archives;
+    }
+  };
+  const listPublishedArchives = async ({ limit = 100, offset = 0 } = {}) => {
     const bounded = Math.min(Math.max(Number(limit) || 100, 1), 100);
     const start = Math.max(Number(offset) || 0, 0);
-    return unwrap(
+    const archives = await unwrap(
       supabase.from('archives')
         .select('id,code,business_code,category,title,summary,visibility,published_at,sequence_number,abbreviation,index_payload,new_badge_visible')
       .eq('visibility', 'public').order('published_at', { ascending: false, nullsFirst: false })
         .range(start, start + bounded - 1),
       'Unable to load published archives',
     );
+    return addPublishedArchiveCovers(archives);
   };
   const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
@@ -289,6 +344,43 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       .order('created_at', { ascending: false }),
     'Unable to load archive references',
   );
+  const hydrateMediaRows = async (rows, context) => {
+    const mediaRows = rows || [];
+    if (!mediaRows.length) return [];
+    const bucket = supabase.storage.from('archive-attachments');
+    let signedRows;
+    if (typeof bucket.createSignedUrls === 'function') {
+      signedRows = await unwrap(
+        bucket.createSignedUrls(mediaRows.map((row) => row.storage_path), 3600),
+        context,
+      );
+    } else {
+      signedRows = await Promise.all(mediaRows.map((row) =>
+        unwrap(bucket.createSignedUrl(row.storage_path, 3600), context)));
+    }
+    return mediaRows.map((row, index) => ({
+      id: row.id,
+      role: row.role ?? null,
+      storagePath: row.storage_path,
+      publicUrl: signedRows?.[index]?.signedUrl ?? signedRows?.[index]?.signed_url ?? '',
+      altText: row.alt_text ?? '',
+      caption: row.caption ?? '',
+      sortOrder: Number(row.sort_order ?? 0),
+    }));
+  };
+  const listContributionMedia = async (contributionId) => {
+    if (!supabase.storage?.from) {
+      throw new ArchiveWorkflowError('Attachment storage is unavailable', { code: 'storage_unavailable' });
+    }
+    const rows = await unwrap(
+      supabase.from('archive_attachments')
+        .select('id,role,storage_path,alt_text,caption,sort_order')
+        .eq('contribution_id', requireId(contributionId, 'contributionId'))
+        .order('sort_order', { ascending: true }),
+      'Unable to load contribution media',
+    );
+    return hydrateMediaRows(rows, 'Unable to authorize contribution media');
+  };
   const listPublishedMedia = async (contributionId) => {
     if (!supabase.storage?.from) {
       throw new ArchiveWorkflowError('Attachment storage is unavailable', { code: 'storage_unavailable' });
@@ -302,21 +394,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
         .order('sort_order', { ascending: true }),
       'Unable to load published media',
     );
-    return Promise.all((rows || []).map(async (row) => {
-      const signed = await unwrap(
-        supabase.storage.from('archive-attachments').createSignedUrl(row.storage_path, 3600),
-        'Unable to authorize published media',
-      );
-      return {
-        id: row.id,
-        role: row.role ?? null,
-        storagePath: row.storage_path,
-        publicUrl: signed?.signedUrl ?? signed?.signed_url ?? '',
-        altText: row.alt_text ?? '',
-        caption: row.caption ?? '',
-        sortOrder: Number(row.sort_order ?? 0),
-      };
-    }));
+    return hydrateMediaRows(rows, 'Unable to authorize published media');
   };
   const setArchiveNewBadge = (archiveId, visible) => unwrap(
     supabase.from('archives')
@@ -332,6 +410,12 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (!file?.name || !Number.isFinite(file?.size) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
       throw new ArchiveWorkflowError('Attachment must be between 1 byte and 5MB', { code: 'invalid_attachment' });
     }
+    const role = String(metadata.role ?? '').trim();
+    if (role && (String(file.type).toLowerCase() !== 'image/webp' || file.size > 800 * 1024)) {
+      throw new ArchiveWorkflowError('Archive media must be WebP and no larger than 800KB', {
+        code: 'invalid_media_file',
+      });
+    }
     if (!supabase.storage?.from) {
       throw new ArchiveWorkflowError('Attachment storage is unavailable', { code: 'storage_unavailable' });
     }
@@ -342,14 +426,25 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       cacheControl: '3600', contentType: file.type || 'application/octet-stream', upsert: false,
     }), 'Unable to upload attachment');
     const sortOrder = Number(metadata.sortOrder ?? metadata.sort_order ?? 0);
-    return unwrap(supabase.from('archive_attachments').insert({
-      contribution_id: contribution, owner_id: owner, storage_path: uploaded.path || storagePath,
-      file_name: String(file.name), mime_type: file.type || 'application/octet-stream', byte_size: file.size,
-      role: String(metadata.role ?? '').trim() || null,
-      caption: String(metadata.caption ?? '').trim(),
-      alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
-      sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
-    }).select('*').single(), 'Unable to register attachment');
+    const uploadedPath = uploaded.path || storagePath;
+    try {
+      return await unwrap(supabase.from('archive_attachments').insert({
+        contribution_id: contribution, owner_id: owner, storage_path: uploadedPath,
+        file_name: String(file.name), mime_type: file.type || 'application/octet-stream', byte_size: file.size,
+        role: role || null,
+        caption: String(metadata.caption ?? '').trim(),
+        alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
+        sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
+      }).select('*').single(), 'Unable to register attachment');
+    } catch (error) {
+      try {
+        const cleanup = await supabase.storage.from('archive-attachments').remove?.([uploadedPath]);
+        if (cleanup?.error) error.cleanupError = cleanup.error;
+      } catch {
+        // The original registration error remains the actionable failure.
+      }
+      throw error;
+    }
   };
 
   return assertArchiveWorkflowRepository({
@@ -357,6 +452,6 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     publishContribution, inviteUser, listUsers, createUser, updateUserRole, resetUserPassword, deleteUser,
     listNotifications, markNotificationRead, searchArchives, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
-    listArchiveDocuments, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
+    listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
   });
 };
