@@ -92,6 +92,14 @@ test('successful accession asks the public desktop to open the published archive
   assert.match(workspace, /palis:open-published-archive/);
 });
 
+test('formal accession leaves archive identifiers and versions to the system', () => {
+  assert.match(workspace, /VER AUTO/);
+  assert.match(workspace, /录入时按档案类别自动生成/);
+  assert.match(workspace, /系统按本档案的上一版本自动递增/);
+  assert.doesNotMatch(workspace, /<input name="version"/);
+  assert.doesNotMatch(workspace, /<input name="code"/);
+});
+
 test('typing a slash inside the dossier editor opens archive title suggestions', () => {
   assert.match(workspace, /data-slash-reference-menu/);
   assert.match(workspace, /onReferenceTrigger/);

@@ -152,7 +152,32 @@ test('privileged actions use RPC or the administrator Edge Function', async () =
 
   assert.equal(calls[0].name, 'review_archive_submission');
   assert.equal(calls[1].name, 'publish_archive_contribution');
+  assert.equal(calls[1].args.p_code, 'HZ-6');
+  assert.equal(calls[1].args.p_version, '0.1');
   assert.equal(calls[2].name, 'admin-invite-user');
+});
+
+test('new archive publication uses a server-owned identifier placeholder', async () => {
+  const calls = [];
+  const client = createArchiveWorkflowClient({
+    from: () => {
+      throw new Error('not used');
+    },
+    rpc: async (name, args) => {
+      calls.push({ name, args });
+      return { data: { archiveId: 'archive-1', versionId: 'version-1', status: 'published' }, error: null };
+    },
+    functions: { invoke: async () => ({ data: null, error: null }) },
+  });
+
+  await client.publishContribution('submission-1', {
+    archiveId: null,
+    category: 'event',
+    visibility: 'public',
+  });
+
+  assert.equal(calls[0].args.p_code, 'AUTO:submission-1');
+  assert.equal(calls[0].args.p_version, '0.1');
 });
 
 test('administrator archive client queries every visibility state and deletes a selected archive', async () => {

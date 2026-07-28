@@ -130,9 +130,9 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     supabase.rpc('publish_archive_contribution', {
       p_contribution_id: requireId(submissionId, 'submissionId'),
       p_archive_id: registration.archiveId || null,
-      p_code: requireId(registration.code, 'archiveCode'),
+      p_code: String(registration.code || `AUTO:${submissionId}`).trim(),
       p_category: requireId(registration.category, 'category'),
-      p_version: String(registration.version || '0.1').trim(),
+      p_version: '0.1',
       p_marks: registration.marks || [], p_visibility: registration.visibility || 'public',
     }),
     'Unable to register contribution',

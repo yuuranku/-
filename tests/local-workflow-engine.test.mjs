@@ -756,6 +756,10 @@ test('publishContribution atomically allocates event 27 without overwriting its 
     archiveId: 'archive-1',
     versionId: 'version-1',
     status: 'published',
+    code: 'EV27',
+    sequenceNumber: 27,
+    abbreviation: 'RLL',
+    versionLabel: '0.1',
   });
   const committed = await harness.inspectState();
   const archive = committed.archives[0];
@@ -884,8 +888,7 @@ test('publication idempotency retries before counters and rejects key reuse with
   await assert.rejects(
     harness.repository.publishContribution('submission-1', {
       category: 'event',
-      version: '0.2',
-      visibility: 'public',
+      visibility: 'sealed',
       idempotencyKey: 'publish-once',
     }),
     hasCode('idempotency_conflict'),
@@ -1024,13 +1027,15 @@ test('an amendment public version keeps the target author as submitter and curre
   const published = await harness.repository.publishContribution('submission-1', {
     archiveId: 'archive-attribution',
     category: 'event',
-    version: '0.2',
+    version: '9.9',
     visibility: 'public',
     idempotencyKey: 'publish-attribution',
   });
   const contributions = await harness.repository.listArchiveContributions(published.archiveId);
   const amendment = contributions.find(({ id }) => id === 'submission-1');
 
+  assert.equal(published.versionLabel, '0.2');
+  assert.equal(amendment.versions[0].version_label, '0.2');
   assert.deepEqual(amendment.versions[0].submitter, {
     id: 'original-author',
     display_name: 'Original Author',

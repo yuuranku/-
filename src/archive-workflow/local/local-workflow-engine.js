@@ -64,6 +64,17 @@ const canonicalValue = (value) => {
 
 const canonicalStringify = (value) => JSON.stringify(canonicalValue(value));
 
+const nextArchiveVersionLabel = (state, archiveId) => {
+  if (!archiveId) return '0.1';
+  const latest = state.versions
+    .filter((version) => version.archive_id === archiveId)
+    .map((version) => /^(\d+)\.(\d+)$/.exec(String(version.version_label ?? '').trim()))
+    .filter(Boolean)
+    .map((match) => ({ major: Number(match[1]), minor: Number(match[2]) }))
+    .sort((left, right) => right.major - left.major || right.minor - left.minor)[0];
+  return latest ? `${latest.major}.${latest.minor + 1}` : '0.1';
+};
+
 export const createLocalWorkflowEngine = ({
   readState,
   transactState,
@@ -353,7 +364,14 @@ export const createLocalWorkflowEngine = ({
       ).trim() || null;
       const archiveIdInput = commandArchiveId
         ?? (contribution.status === 'approved' ? contribution.archive_id : null);
-      const versionLabel = String(registration.version ?? '0.1').trim() || '0.1';
+      let archive = archiveIdInput
+        ? nextState.archives.find((entry) => entry.id === archiveIdInput)
+        : null;
+      if (archiveIdInput && !archive) throw workflowError('not_found', 'Archive was not found');
+      if (archive && normalizeCategory(archive.category) !== category) {
+        throw workflowError('invalid_category', 'An amendment must preserve its archive category');
+      }
+      const versionLabel = nextArchiveVersionLabel(nextState, archive?.id);
       const visibility = String(registration.visibility ?? 'public').trim() || 'public';
       const businessCode = String(registration.code ?? registration.businessCode ?? '').trim() || null;
       const marks = Array.isArray(registration.marks) ? [...registration.marks].map(String).sort() : [];
@@ -394,14 +412,6 @@ export const createLocalWorkflowEngine = ({
         throw workflowError('invalid_status', 'Only an approved submission can be published');
       }
       assertDraftDocument(contribution.draft_content);
-
-      let archive = archiveIdInput
-        ? nextState.archives.find((entry) => entry.id === archiveIdInput)
-        : null;
-      if (archiveIdInput && !archive) throw workflowError('not_found', 'Archive was not found');
-      if (archive && normalizeCategory(archive.category) !== category) {
-        throw workflowError('invalid_category', 'An amendment must preserve its archive category');
-      }
 
       const publishedAt = now();
       if (!archive) {
@@ -589,6 +599,10 @@ export const createLocalWorkflowEngine = ({
         archiveId: archive.id,
         versionId: version.id,
         status: 'published',
+        code: archive.code,
+        sequenceNumber: archive.sequence_number,
+        abbreviation: archive.abbreviation,
+        versionLabel,
       };
       nextState.idempotencyResults[idempotencyKey] = {
         fingerprint: requestFingerprint,

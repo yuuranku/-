@@ -7,6 +7,7 @@ const migrationUrl = new URL('supabase/migrations/202607270001_archive_workflow.
 const repairMigrationUrl = new URL('supabase/migrations/202607270002_repair_admin_and_official_archives.sql', projectRoot);
 const editorPipelineMigrationUrl = new URL('supabase/migrations/202607270003_archive_editor_pipeline.sql', projectRoot);
 const versionRepairMigrationUrl = new URL('supabase/migrations/202607270004_repair_archive_version_lineage.sql', projectRoot);
+const automaticIdentityMigrationUrl = new URL('supabase/migrations/202607290001_automatic_archive_identity.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -92,4 +93,14 @@ test('version lineage repair supplies the trigger field for already-migrated pro
   assert.match(sql, /alter table public\.archive_versions[\s\S]*add column if not exists mother_version_id uuid references public\.archive_versions/i);
   assert.match(sql, /create or replace function public\.inherit_archive_version_base/i);
   assert.match(sql, /create trigger inherit_archive_version_base/i);
+});
+
+test('archive identity migration owns category codes and archive-level version increments', async () => {
+  const sql = await readFile(automaticIdentityMigrationUrl, 'utf8');
+  assert.match(sql, /create or replace function public\.archive_code_prefix/i);
+  assert.match(sql, /new\.code\s*:=\s*public\.archive_code_prefix\(new\.category\)\s*\|\|\s*new\.sequence_number/i);
+  assert.match(sql, /pg_advisory_xact_lock/i);
+  assert.match(sql, /create trigger allocate_archive_version_label/i);
+  assert.match(sql, /new\.version_label\s*:=\s*case/i);
+  assert.match(sql, /create trigger synchronize_published_notification_version/i);
 });

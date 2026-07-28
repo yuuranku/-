@@ -1238,7 +1238,7 @@ export function initializeArchiveWorkspace({
         <header>
           <p>PALIS / FORMAL ACCESSION</p>
           <h3>正式录入</h3>
-          <b>VER 0.1 / 白幕初垂 / 已录入</b>
+          <b>VER AUTO / 白幕初垂 / 待录入</b>
         </header>
         <input type="hidden" name="archiveId" value="${escapeHtml(submission.archive_id || '')}" />
         <div class="archive-registration__grid">
@@ -1248,9 +1248,10 @@ export function initializeArchiveWorkspace({
               ? `${escapeHtml(submission.archive?.code || '')} / ${escapeHtml(submission.archive?.title || submission.title)}`
               : `新建${escapeHtml(ARCHIVE_TEMPLATES.find((entry) => entry.id === submission.template_id)?.title || '档案')}`}</b>
           </div>
-          <label>业务编号（来自设定卡）
-            <input name="code" required value="${escapeHtml(submission.archive?.code || submission.draft_content?.businessCode || submission.draft_content?.archiveCode || '')}" placeholder="例如 HZ-6、USVR" />
-          </label>
+          <div class="archive-registration__target">
+            <span>系统编号</span>
+            <b>${escapeHtml(submission.archive?.code || '录入时按档案类别自动生成')}</b>
+          </div>
           <div class="archive-registration__target">
             <span>正式档号</span>
             <b>${submission.archive?.sequence_number && submission.archive?.abbreviation
@@ -1262,9 +1263,10 @@ export function initializeArchiveWorkspace({
               ${ARCHIVE_TEMPLATES.map((template) => `<option value="${template.category}" ${submission.template_id === template.id ? 'selected' : ''}>${escapeHtml(template.title)}</option>`).join('')}
             </select>
           </label>
-          <label>版本
-            <input name="version" required value="0.1" />
-          </label>
+          <div class="archive-registration__target">
+            <span>当前版本</span>
+            <b>系统按本档案的上一版本自动递增</b>
+          </div>
         </div>
         <fieldset>
           <legend>档案标记</legend>
@@ -1332,17 +1334,36 @@ export function initializeArchiveWorkspace({
             if (form.elements.archival.checked) marks.push('archival');
             const result = await client.publishContribution(submission.id, {
               archiveId: form.elements.archiveId.value.trim() || null,
-              code: form.elements.code.value.trim(),
               category: form.elements.category.value,
-              version: form.elements.version.value.trim(),
               marks,
               visibility: form.elements.visibility.value,
             });
-            message.textContent = `录入完成 / ${result.archiveId || ''} / ${result.versionId || ''}`;
+            let completion = result;
+            if (!result.code || !result.versionLabel) {
+              const [archives, contributions] = await Promise.all([
+                client.listPublishedArchives(),
+                client.listArchiveContributions(result.archiveId),
+              ]);
+              const publishedArchive = archives.find((archive) => archive.id === result.archiveId);
+              const publishedVersion = contributions
+                .flatMap((contribution) => contribution.versions || [])
+                .find((version) => version.id === result.versionId);
+              completion = {
+                ...result,
+                code: publishedArchive?.code,
+                sequenceNumber: publishedArchive?.sequence_number,
+                abbreviation: publishedArchive?.abbreviation,
+                versionLabel: publishedVersion?.version_label,
+              };
+            }
+            const formalNumber = completion.sequenceNumber && completion.abbreviation
+              ? `${String(completion.sequenceNumber).padStart(3, '0')}.${completion.abbreviation}`
+              : completion.code || completion.archiveId || '';
+            message.textContent = `录入完成 / ${formalNumber} / VER ${completion.versionLabel || '0.1'}`;
             window.dispatchEvent(new CustomEvent('palis:open-published-archive', {
               detail: {
-                archiveId: result.archiveId || null,
-                code: form.elements.code.value.trim(),
+                archiveId: completion.archiveId || null,
+                code: completion.code || submission.archive?.code || null,
                 title: submission.title,
               },
             }));
