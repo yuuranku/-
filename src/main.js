@@ -16,6 +16,10 @@ import {
 } from './archive-workflow/publication.js';
 import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
 import { projectPublishedArchive } from './archive-workflow/index-projector.js';
+import {
+  buildEventPlaneLayout,
+  eventPlaneVisibleCount,
+} from './archive-workflow/event-plane-layout.js';
 import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -815,37 +819,6 @@ let eventPlaneState = null;
 let eventPlaneAnimationFrame = 0;
 let eventPlaneSuppressClick = false;
 
-const EVENT_PLANE_WIDTH = 3800;
-const EVENT_PLANE_HEIGHT = 2600;
-const EVENT_PLANE_LAYOUT = [
-  { x: 110, y: 150, width: 540, height: 340, rotate: -3.8 },
-  { x: 770, y: 70, width: 350, height: 460, rotate: 2.4 },
-  { x: 1270, y: 180, width: 560, height: 320, rotate: -1.8 },
-  { x: 2020, y: 90, width: 410, height: 430, rotate: 3.2 },
-  { x: 2640, y: 170, width: 570, height: 330, rotate: -2.7 },
-  { x: 3370, y: 80, width: 330, height: 460, rotate: 2.1 },
-  { x: 210, y: 650, width: 410, height: 390, rotate: 2.8 },
-  { x: 790, y: 650, width: 610, height: 350, rotate: -3.3 },
-  { x: 1580, y: 610, width: 350, height: 450, rotate: 1.7 },
-  { x: 2110, y: 670, width: 620, height: 360, rotate: -2.1 },
-  { x: 2960, y: 620, width: 360, height: 450, rotate: 3.6 },
-  { x: 80, y: 1160, width: 650, height: 350, rotate: -2.4 },
-  { x: 930, y: 1120, width: 390, height: 430, rotate: 2.2 },
-  { x: 1510, y: 1180, width: 580, height: 340, rotate: -3.1 },
-  { x: 2290, y: 1120, width: 420, height: 440, rotate: 1.8 },
-  { x: 2890, y: 1190, width: 730, height: 330, rotate: -1.5 },
-  { x: 270, y: 1660, width: 390, height: 420, rotate: 3.1 },
-  { x: 830, y: 1650, width: 640, height: 350, rotate: -2.7 },
-  { x: 1670, y: 1610, width: 450, height: 450, rotate: 1.4 },
-  { x: 2310, y: 1680, width: 570, height: 340, rotate: -3.4 },
-  { x: 3100, y: 1620, width: 450, height: 430, rotate: 2.6 },
-  { x: 100, y: 2180, width: 520, height: 300, rotate: -2.2 },
-  { x: 800, y: 2120, width: 360, height: 400, rotate: 3.3 },
-  { x: 1360, y: 2170, width: 690, height: 310, rotate: -1.7 },
-  { x: 2280, y: 2110, width: 430, height: 410, rotate: 2.1 },
-  { x: 2910, y: 2180, width: 680, height: 300, rotate: -2.9 },
-];
-
 const ARCHIVE_MODES = {
   countries: 'country-stack',
   organizations: 'network',
@@ -867,7 +840,7 @@ const ARCHIVE_SUBTITLES = {
   abnormalities: 'INCIDENT TRACE / FIRST-CONFIRMED DATES / CHRONOLOGY OPEN',
   species: 'MORPHOLOGY / TISSUE & PROTEIN COMPARISON / SPECIMEN CHANNEL 09',
   people: 'PERSONNEL LEDGER / ROSTERS, PHOTOGRAPHS & FIELD POSITIONS',
-  events: 'CASE CHRONOLOGY / TWENTY-SIX FOLDERS / SOURCE CONFLICTS CROSS-INDEXED',
+  events: 'CASE CHRONOLOGY / EXPANDABLE FOLDER PLANE / SOURCE CONFLICTS CROSS-INDEXED',
 };
 
 const southPole = globe.getCoords(-90, 0, 0);
@@ -2173,7 +2146,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
       else if (mode === 'event-plane') {
         openArchive(archive, button);
       }
-      else if ((mode === 'dossier' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor') && index !== archiveSelection) updateArchiveSelection(index, true);
+      else if ((mode === 'dossier' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor' || mode === 'species-helix') && index !== archiveSelection) updateArchiveSelection(index, true);
       else openArchive(archive, button);
     });
     item.appendChild(button);
@@ -2636,6 +2609,7 @@ function renderPeopleNetwork(animate = true) {
 }
 
 function buildEventPlane(orbit, entries, appendArchiveEntry) {
+  const planeLayout = buildEventPlaneLayout(entries.length);
   const scene = document.createElement('section');
   scene.className = 'event-plane';
   scene.tabIndex = 0;
@@ -2676,9 +2650,11 @@ function buildEventPlane(orbit, entries, appendArchiveEntry) {
   orbit.appendChild(scene);
   const world = scene.querySelector('.event-plane-world');
   const mapField = scene.querySelector('.event-plane-map-field');
+  world.style.setProperty('--event-plane-width', `${planeLayout.width}px`);
+  world.style.setProperty('--event-plane-height', `${planeLayout.height}px`);
 
   entries.forEach((archive, index) => {
-    const layout = EVENT_PLANE_LAYOUT[index % EVENT_PLANE_LAYOUT.length];
+    const layout = planeLayout.items[index];
     const { item, button } = appendArchiveEntry(archive, index, world);
     item.style.setProperty('--world-x', `${layout.x}px`);
     item.style.setProperty('--world-y', `${layout.y}px`);
@@ -2690,8 +2666,8 @@ function buildEventPlane(orbit, entries, appendArchiveEntry) {
     const node = document.createElement('button');
     node.type = 'button';
     node.className = 'event-plane-map-node';
-    node.style.left = `${((layout.x + layout.width / 2) / EVENT_PLANE_WIDTH) * 100}%`;
-    node.style.top = `${((layout.y + layout.height / 2) / EVENT_PLANE_HEIGHT) * 100}%`;
+    node.style.left = `${((layout.x + layout.width / 2) / planeLayout.width) * 100}%`;
+    node.style.top = `${((layout.y + layout.height / 2) / planeLayout.height) * 100}%`;
     node.dataset.index = String(index);
     node.setAttribute('aria-label', `定位 ${archive.name}`);
     node.innerHTML = `<i></i><span>${String(index + 1).padStart(2, '0')}</span>`;
@@ -2702,6 +2678,7 @@ function buildEventPlane(orbit, entries, appendArchiveEntry) {
   eventPlaneState = {
     scene,
     world,
+    layout: planeLayout,
     x: 0,
     y: 0,
     scale: 0.6,
@@ -2766,21 +2743,23 @@ function eventPlaneViewportSize() {
 function resetEventPlane(immediate = false) {
   if (!eventPlaneState) return;
   const { width, height } = eventPlaneViewportSize();
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
   const scale = THREE.MathUtils.clamp(
-    Math.min(width / (EVENT_PLANE_WIDTH + 180), height / (EVENT_PLANE_HEIGHT + 180)) * 0.96,
-    0.1,
+    Math.min(width / (worldWidth + 180), height / (worldHeight + 180)) * 0.96,
+    0.02,
     0.62,
   );
-  const x = width / 2 - EVENT_PLANE_WIDTH * scale / 2;
-  const y = height / 2 - EVENT_PLANE_HEIGHT * scale / 2;
+  const x = width / 2 - worldWidth * scale / 2;
+  const y = height / 2 - worldHeight * scale / 2;
   setEventPlaneTarget(x, y, scale, immediate || reducedMotion);
 }
 
 function clampEventPlaneCamera(x, y, scale) {
   const { width, height } = eventPlaneViewportSize();
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
   const edge = Math.min(110, width * 0.22, height * 0.22);
-  const scaledWidth = EVENT_PLANE_WIDTH * scale;
-  const scaledHeight = EVENT_PLANE_HEIGHT * scale;
+  const scaledWidth = worldWidth * scale;
+  const scaledHeight = worldHeight * scale;
   const nextX = scaledWidth <= width
     ? (width - scaledWidth) / 2
     : THREE.MathUtils.clamp(x, width - edge - scaledWidth, edge);
@@ -2793,7 +2772,9 @@ function clampEventPlaneCamera(x, y, scale) {
 function setEventPlaneTarget(x, y, scale, immediate = false) {
   if (!eventPlaneState) return;
   const { width, height } = eventPlaneViewportSize();
-  const minimumScale = Math.max(0.085, Math.min(width / EVENT_PLANE_WIDTH, height / EVENT_PLANE_HEIGHT) * 0.72);
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
+  const fitMinimum = Math.min(width / worldWidth, height / worldHeight) * 0.72;
+  const minimumScale = Math.max(0.02, Math.min(0.085, fitMinimum));
   const nextScale = THREE.MathUtils.clamp(scale, minimumScale, 2.35);
   const next = clampEventPlaneCamera(x, y, nextScale);
   eventPlaneState.targetX = next.x;
@@ -2845,23 +2826,36 @@ function renderEventPlane() {
   scene.style.setProperty('--plane-grid-scale', String(scale));
   scene.dataset.depth = scale < 0.58 ? 'far' : scale < 1.08 ? 'mid' : 'near';
 
-  let visible = 0;
-  EVENT_PLANE_LAYOUT.slice(0, folderButtons.length).forEach((layout) => {
-    const left = x + layout.x * scale;
-    const top = y + layout.y * scale;
-    const right = left + layout.width * scale;
-    const bottom = top + layout.height * scale;
-    if (right > 0 && bottom > 0 && left < scene.clientWidth && top < scene.clientHeight) visible += 1;
-  });
+  const visible = eventPlaneVisibleCount(
+    eventPlaneState.layout,
+    { x, y, scale },
+    { width: scene.clientWidth, height: scene.clientHeight },
+  );
   const hud = scene.querySelector('.event-plane-hud');
   hud.querySelector('strong').textContent = `×${scale.toFixed(2)}`;
-  hud.querySelector('b').textContent = `VISIBLE ${String(visible).padStart(2, '0')} / ${String(folderButtons.length).padStart(2, '0')}`;
+  hud.querySelector('b').textContent = `VISIBLE ${String(visible).padStart(2, '0')} / ${String(eventPlaneState.layout.items.length).padStart(2, '0')}`;
 
   const view = scene.querySelector('.event-plane-map-viewport');
-  const worldLeft = THREE.MathUtils.clamp((-x / scale) / EVENT_PLANE_WIDTH, 0, 1);
-  const worldTop = THREE.MathUtils.clamp((-y / scale) / EVENT_PLANE_HEIGHT, 0, 1);
-  const worldWidth = THREE.MathUtils.clamp(scene.clientWidth / scale / EVENT_PLANE_WIDTH, 0.035, 1);
-  const worldHeight = THREE.MathUtils.clamp(scene.clientHeight / scale / EVENT_PLANE_HEIGHT, 0.035, 1);
+  const worldWidth = THREE.MathUtils.clamp(
+    scene.clientWidth / scale / eventPlaneState.layout.width,
+    0.035,
+    1,
+  );
+  const worldHeight = THREE.MathUtils.clamp(
+    scene.clientHeight / scale / eventPlaneState.layout.height,
+    0.035,
+    1,
+  );
+  const worldLeft = THREE.MathUtils.clamp(
+    (-x / scale) / eventPlaneState.layout.width,
+    0,
+    Math.max(0, 1 - worldWidth),
+  );
+  const worldTop = THREE.MathUtils.clamp(
+    (-y / scale) / eventPlaneState.layout.height,
+    0,
+    Math.max(0, 1 - worldHeight),
+  );
   view.style.left = `${worldLeft * 100}%`;
   view.style.top = `${worldTop * 100}%`;
   view.style.width = `${worldWidth * 100}%`;
@@ -3039,7 +3033,8 @@ function finishEventPlanePointer(event) {
 
 function focusEventPlaneEntry(index, immediate = false) {
   if (!eventPlaneState || !folderButtons[index]) return;
-  const layout = EVENT_PLANE_LAYOUT[index % EVENT_PLANE_LAYOUT.length];
+  const layout = eventPlaneState.layout.items[index];
+  if (!layout) return;
   if (index !== archiveSelection) updateArchiveSelection(index, false);
   const { width, height } = eventPlaneViewportSize();
   const mobile = width <= 760;
@@ -3943,9 +3938,15 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
   speciesHelixVelocity = 0;
   speciesHelixNodes = [];
 
-  const floraCount = entries.filter((archive) => archive.specimenClass === 'FLORA').length;
-  const faunaCount = entries.filter((archive) => archive.specimenClass === 'FAUNA').length;
-  const largestGroup = Math.max(floraCount, faunaCount, 1);
+  const normalizeSpecimenClass = (value) =>
+    ['FLORA', 'FAUNA', 'COMPOSITE'].includes(value) ? value : 'COMPOSITE';
+  const floraCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'FLORA').length;
+  const faunaCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'FAUNA').length;
+  const compositeCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'COMPOSITE').length;
+  const largestGroup = Math.max(floraCount, faunaCount, compositeCount, 1);
   const cardGap = 68;
   const cardTop = 62;
   speciesHelixTrackHeight = Math.max(560, cardTop * 2 + (largestGroup - 1) * cardGap);
@@ -3954,11 +3955,12 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
   consolePanel.innerHTML = `
     <header>
       <div><span>PALIS / TAXONOMIC TRACE CONSOLE</span><b>物种关联链</b></div>
-      <p>FLORA ${String(floraCount).padStart(2, '0')} / FAUNA ${String(faunaCount).padStart(2, '0')}</p>
+      <p>FLORA ${String(floraCount).padStart(2, '0')} / FAUNA ${String(faunaCount).padStart(2, '0')} / COMPOSITE ${String(compositeCount).padStart(2, '0')}</p>
       <aside class="species-sequence-readout" aria-live="polite"><span>ACTIVE SPECIMEN</span><strong>---</strong><small>等待序列节点</small></aside>
     </header>
     <div class="species-helix-stage">
       <div class="species-helix-label flora"><span>FLORA</span><b>BOTANICAL TRACE</b></div>
+      <div class="species-helix-label composite"><span>COMPOSITE</span><b>DUAL TRACE</b></div>
       <div class="species-helix-label fauna"><span>FAUNA</span><b>ZOOLOGICAL TRACE</b></div>
       <div class="species-helix-scroll">
         <div class="species-helix-track" style="--species-track-height: ${speciesHelixTrackHeight}px">
@@ -3984,16 +3986,21 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
   const connectorLayer = consolePanel.querySelector('.species-connectors');
   const nodeLayer = consolePanel.querySelector('.species-nodes');
   const sequenceReadout = consolePanel.querySelector('.species-sequence-readout');
-  const groupIndexes = { FLORA: 0, FAUNA: 0 };
+  const groupIndexes = { FLORA: 0, FAUNA: 0, COMPOSITE: 0 };
   let previous = null;
 
   entries.forEach((archive, index) => {
-    const specimenClass = archive.specimenClass === 'FLORA' ? 'FLORA' : 'FAUNA';
-    const side = specimenClass === 'FLORA' ? 'left' : 'right';
+    const specimenClass = normalizeSpecimenClass(archive.specimenClass);
+    const side = specimenClass === 'FLORA'
+      ? 'left'
+      : specimenClass === 'FAUNA'
+        ? 'right'
+        : 'dual';
     const groupIndex = groupIndexes[specimenClass];
     groupIndexes[specimenClass] += 1;
     const cardY = cardTop + groupIndex * cardGap;
     const { item, button } = appendArchiveEntry(archive, index, cards);
+    item.classList.add('species-helix-card');
     item.dataset.side = side;
     item.style.setProperty('--card-y', `${cardY}px`);
 
@@ -4106,16 +4113,28 @@ function updateSpeciesHelix(delta) {
       node.railB.style.strokeWidth = String(1.45 - averageDepth * 0.55);
     }
 
-    const anchorX = node.side === 'left' ? Math.min(xA, xB) : Math.max(xA, xB);
-    const targetX = node.side === 'left' ? 185 : 815;
-    const elbowX = node.side === 'left' ? anchorX - 48 : anchorX + 48;
-    node.connector.setAttribute('d', `M${anchorX} ${y} L${elbowX} ${y} L${targetX} ${node.cardY}`);
+    if (node.side === 'dual') {
+      const halfCardInSvg = node.item.offsetWidth / (2 * scaleX);
+      node.connector.setAttribute(
+        'd',
+        `M${Math.min(xA, xB)} ${y} L${500 - halfCardInSvg} ${node.cardY} M${Math.max(xA, xB)} ${y} L${500 + halfCardInSvg} ${node.cardY}`,
+      );
+    } else {
+      const anchorX = node.side === 'left' ? Math.min(xA, xB) : Math.max(xA, xB);
+      const targetX = node.side === 'left' ? 185 : 815;
+      const elbowX = node.side === 'left' ? anchorX - 48 : anchorX + 48;
+      node.connector.setAttribute('d', `M${anchorX} ${y} L${elbowX} ${y} L${targetX} ${node.cardY}`);
+    }
     node.connector.classList.toggle('is-selected', index === archiveSelection);
     node.item.style.setProperty('--node-depth', depth.toFixed(3));
     node.button.classList.toggle('is-selected', index === archiveSelection);
     if (index === archiveSelection && node.sequenceReadout) {
       node.sequenceReadout.querySelector('strong').textContent = node.archive.code;
-      const traceLabel = node.archive.specimenClass === 'FLORA' ? 'BOTANICAL TRACE' : 'ZOOLOGICAL TRACE';
+      const traceLabel = node.side === 'left'
+        ? 'BOTANICAL TRACE'
+        : node.side === 'right'
+          ? 'ZOOLOGICAL TRACE'
+          : 'DUAL TRACE';
       node.sequenceReadout.querySelector('small').textContent = `${node.archive.name} / ${traceLabel}`;
     }
   });
@@ -4542,7 +4561,11 @@ function renderArchiveDocument(archive) {
       ${recordFooter(archive, 'OFFSET INDEX / ACCESSION LOCKED')}`;
   }
 
-  const specimenClass = archive.specimenClass === 'FLORA' ? 'BOTANICAL TRACE' : 'ZOOLOGICAL TRACE';
+  const specimenClass = archive.specimenClass === 'FLORA'
+    ? 'BOTANICAL TRACE'
+    : archive.specimenClass === 'FAUNA'
+      ? 'ZOOLOGICAL TRACE'
+      : 'COMPOSITE / DUAL TRACE';
   const specimenImage = archive.image
     ? `<img src="${archive.image}" alt="${archive.name}标本影像">`
     : `<span class="specimen-image-empty"><small>SPECIMEN PLATE / NOT FILED</small><strong>${archive.code}</strong><em>本卷没有可核验的标本影像</em></span>`;

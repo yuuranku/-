@@ -26,6 +26,12 @@ const ARCHIVE_FORMATS = {
   species: { extension: 'SPC', recordType: 'specimen-plate', label: 'SPECIMEN & TAXONOMIC PLATE' },
 };
 
+const specimenClassLabels = Object.freeze({
+  FLORA: '植物',
+  FAUNA: '动物',
+  COMPOSITE: '复合群落',
+});
+
 const statValue = (archive, label, fallback = '未录') => archive.stats.find(([key]) => key === label)?.[1] || fallback;
 
 function buildEventLongform(archive, index) {
@@ -118,7 +124,7 @@ function sealArchiveRecord(category, archive, index) {
     fields = [['通道', archive.code], ['日期', archive.eventDate], ['地点', archive.site], ['事件型', archive.rule]];
     note = `索引卡与处置守则分卷保存。${archive.site}的原始日志、后补报告和人员口述各自封存；偏心轮盘只表达调阅顺序，不替互斥记录判定真伪。`;
   } else if (category === 'species') {
-    fields = [['标本号', archive.code], ['序列轨', archive.specimenClass === 'FLORA' ? '植物' : '动物'], ['学术名', archive.name], ['鉴定', '暂定分类']];
+    fields = [['标本号', archive.code], ['序列轨', specimenClassLabels[archive.specimenClass] || '复合群落'], ['学术名', archive.name], ['鉴定', '暂定分类']];
     note = `${archive.name}以同期临时分类入卷。现有材料包括采样层记录、可见结构、组织切片、培养与蛋白比较，正式科属栏待复核。`;
   }
 

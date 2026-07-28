@@ -2264,14 +2264,17 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .species-rung { stroke-linecap: round; stroke-width: 1.05; vector-effect: non-scaling-stroke; }
 .species-rung.left { stroke: var(--cold-blue); }
 .species-rung.right { stroke: var(--cold-red); }
+.species-rung.dual { stroke: #a884d3; }
 .species-rung.is-selected { stroke-width: 2.7; opacity: 1 !important; filter: drop-shadow(0 0 4px currentColor); }
 .species-node { fill: #07090a; stroke-width: 1.25; vector-effect: non-scaling-stroke; }
 .species-node.left { stroke: var(--cold-blue); }
 .species-node.right { stroke: var(--cold-red); }
+.species-node.dual { stroke: #a884d3; }
 .species-node.is-selected { fill: #f1f1ea; stroke-width: 2.1; filter: drop-shadow(0 0 4px currentColor); }
 .species-connector { fill: none; stroke-width: 1; stroke-dasharray: 4 5; opacity: .34; vector-effect: non-scaling-stroke; }
 .species-connector.left { stroke: var(--cold-blue); }
 .species-connector.right { stroke: var(--cold-red); }
+.species-connector.dual { stroke: #a884d3; }
 .species-connector.is-selected { stroke-width: 1.7; stroke-dasharray: 3 2; opacity: .95; animation: species-connector-flow 700ms linear infinite; }
 
 .species-helix-label {
@@ -2291,6 +2294,14 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .species-helix-label b { color: #7b8489; font-size: 7px; }
 .species-helix-label.flora { left: 3%; color: var(--cold-blue); }
 .species-helix-label.fauna { right: 3%; color: var(--cold-red); background: linear-gradient(270deg, rgba(5, 7, 8, .9), transparent); text-align: right; }
+.species-helix-label.composite {
+  left: 50%;
+  width: 178px;
+  color: #b79ad8;
+  background: linear-gradient(90deg, transparent, rgba(5, 7, 8, .94), transparent);
+  text-align: center;
+  transform: translateX(-50%);
+}
 
 .species-helix-core {
   position: absolute;
@@ -2322,6 +2333,13 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 }
 .mode-species-helix .folder-item[data-side='left'] { right: auto; left: 2.4%; }
 .mode-species-helix .folder-item[data-side='right'] { right: 2.4%; left: auto; }
+.species-helix-card[data-side='dual'] {
+  right: auto;
+  left: 50%;
+  z-index: 6;
+  width: 230px;
+  transform: translate(-50%, -50%);
+}
 
 .mode-species-helix .folder-button {
   display: grid;
@@ -2343,6 +2361,12 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
   transition: background 140ms ease, border-color 140ms ease, transform 180ms cubic-bezier(.16, 1, .3, 1), opacity 140ms linear, box-shadow 180ms ease;
 }
 .mode-species-helix .folder-item[data-side='right'] .folder-button { grid-template-columns: minmax(0, 1fr) 48px; border-right: 3px solid var(--cold-red); border-left: 1px solid #51595d; text-align: right; }
+.mode-species-helix .folder-item[data-side='dual'] .folder-button {
+  border-right: 3px solid #a884d3;
+  border-left: 3px solid #a884d3;
+  background: rgba(24, 17, 29, .96);
+  text-align: center;
+}
 .mode-species-helix .folder-item[data-side='right'] .specimen-photo-slot { grid-column: 2; }
 .mode-species-helix .folder-item[data-side='right'] .folder-name,
 .mode-species-helix .folder-item[data-side='right'] .folder-button small { grid-column: 1; }
@@ -2365,6 +2389,14 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
   background: linear-gradient(270deg, rgba(119, 27, 37, .5), rgba(9, 13, 15, .98) 70%);
   box-shadow: 5px 6px 0 rgba(0, 0, 0, .58), 0 0 18px rgba(143, 39, 52, .16);
   transform: translateX(-8px);
+}
+.mode-species-helix .folder-item[data-side='dual'] .folder-button:hover,
+.mode-species-helix .folder-item[data-side='dual'] .folder-button:focus-visible,
+.mode-species-helix .folder-item[data-side='dual'] .folder-button.is-selected {
+  border-color: #d2b5ef;
+  background: linear-gradient(90deg, rgba(72, 43, 98, .58), rgba(9, 13, 15, .98) 50%, rgba(72, 43, 98, .58));
+  box-shadow: 5px 6px 0 rgba(0, 0, 0, .58), 0 0 18px rgba(168, 132, 211, .2);
+  transform: translateY(-6px);
 }
 .mode-species-helix .folder-name {
   align-self: end;
@@ -6793,8 +6825,8 @@ a:focus-visible,
   position: absolute;
   top: 0;
   left: 0;
-  width: 3800px;
-  height: 2600px;
+  width: var(--event-plane-width, 3800px);
+  height: var(--event-plane-height, 2600px);
   transform-origin: 0 0;
   will-change: transform;
 }
@@ -6854,14 +6886,14 @@ a:focus-visible,
   transition: opacity 320ms ease;
 }
 .monument-19 { top: 70px; left: -40px; font-size: 790px; }
-.monument-64 { right: 80px; bottom: 20px; font-size: 720px; }
+.monument-64 { top: 2062px; right: 80px; font-size: 720px; }
 .monument-palis { top: 680px; left: 220px; color: #315bcf; font-size: 410px; letter-spacing: -.06em; transform: rotate(-8deg); }
 .event-plane[data-depth='far'] .event-plane-monument { opacity: .075; }
 .event-plane-axis { position: absolute; z-index: 0; pointer-events: none; }
 .event-plane-axis::before { position: absolute; color: #5f686a; font: 9px var(--font-mono); }
-.event-plane-axis.axis-x { top: 1300px; left: 0; width: 3800px; border-top: 1px dashed rgba(104, 116, 118, .19); }
+.event-plane-axis.axis-x { top: calc(var(--event-plane-height, 2600px) / 2); left: 0; width: var(--event-plane-width, 3800px); border-top: 1px dashed rgba(104, 116, 118, .19); }
 .event-plane-axis.axis-x::before { top: -18px; left: 18px; content: 'X / ACCESSION FIELD'; }
-.event-plane-axis.axis-y { top: 0; left: 1900px; height: 2600px; border-left: 1px dashed rgba(104, 116, 118, .16); }
+.event-plane-axis.axis-y { top: 0; left: calc(var(--event-plane-width, 3800px) / 2); height: var(--event-plane-height, 2600px); border-left: 1px dashed rgba(104, 116, 118, .16); }
 .event-plane-axis.axis-y::before { top: 18px; left: 10px; width: max-content; content: 'Y / SCALE INDEPENDENT'; }
 
 .mode-event-plane .folder-item {
