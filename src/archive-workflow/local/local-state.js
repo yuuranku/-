@@ -1,0 +1,15 @@
+export const createEmptyLocalState = () => ({
+  profiles: [],
+  templates: [],
+  archives: [],
+  contributions: [],
+  versions: [],
+  reviews: [],
+  indexEntries: [],
+  numberCounters: {},
+  notifications: [],
+  references: [],
+  attachments: [],
+  auditEvents: [],
+  idempotencyResults: {},
+});
