@@ -152,12 +152,13 @@ test('privileged actions use RPC or the administrator Edge Function', async () =
 
   assert.equal(calls[0].name, 'review_archive_submission');
   assert.equal(calls[1].name, 'publish_archive_contribution');
-  assert.equal(calls[1].args.p_code, 'HZ-6');
+  assert.equal(calls[1].args.p_code, null);
+  assert.equal(calls[1].args.p_business_code, 'HZ-6');
   assert.equal(calls[1].args.p_version, '0.1');
   assert.equal(calls[2].name, 'admin-invite-user');
 });
 
-test('new archive publication uses a server-owned identifier placeholder', async () => {
+test('new archive publication leaves the formal identifier empty for the server', async () => {
   const calls = [];
   const client = createArchiveWorkflowClient({
     from: () => {
@@ -176,7 +177,8 @@ test('new archive publication uses a server-owned identifier placeholder', async
     visibility: 'public',
   });
 
-  assert.equal(calls[0].args.p_code, 'AUTO:submission-1');
+  assert.equal(calls[0].args.p_code, null);
+  assert.equal(calls[0].args.p_business_code, null);
   assert.equal(calls[0].args.p_version, '0.1');
 });
 

@@ -8,6 +8,7 @@ const repairMigrationUrl = new URL('supabase/migrations/202607270002_repair_admi
 const editorPipelineMigrationUrl = new URL('supabase/migrations/202607270003_archive_editor_pipeline.sql', projectRoot);
 const versionRepairMigrationUrl = new URL('supabase/migrations/202607270004_repair_archive_version_lineage.sql', projectRoot);
 const automaticIdentityMigrationUrl = new URL('supabase/migrations/202607290001_automatic_archive_identity.sql', projectRoot);
+const archiveIndexRecordRepairMigrationUrl = new URL('supabase/migrations/202607290002_archive_index_record_repair.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -103,4 +104,45 @@ test('archive identity migration owns category codes and archive-level version i
   assert.match(sql, /create trigger allocate_archive_version_label/i);
   assert.match(sql, /new\.version_label\s*:=\s*case/i);
   assert.match(sql, /create trigger synchronize_published_notification_version/i);
+});
+
+test('archive index repair migrates identities, projections, NEW state, and media metadata atomically', async () => {
+  const sql = await readFile(archiveIndexRecordRepairMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /add column if not exists business_code text/i);
+  assert.match(sql, /add column if not exists index_payload jsonb not null default '\{\}'::jsonb/i);
+  assert.match(sql, /add column if not exists new_badge_visible boolean not null default false/i);
+  assert.match(sql, /add column if not exists role text/i);
+  assert.match(sql, /add column if not exists caption text/i);
+  assert.match(sql, /add column if not exists alt_text text/i);
+  assert.match(sql, /add column if not exists sort_order integer not null default 0/i);
+
+  assert.match(sql, /create temporary table archive_identity_repair/i);
+  assert.match(sql, /MIGRATING:/i);
+  assert.match(sql, /AUTO:%/i);
+  assert.match(sql, /greatest[\s\S]*archive_number_floor/i);
+  for (const [category, floor] of [
+    ['country', 18],
+    ['organization', 24],
+    ['station', 20],
+    ['entrance', 18],
+    ['ecology', 7],
+    ['person', 46],
+    ['event', 26],
+    ['anomaly', 25],
+    ['species', 22],
+  ]) {
+    assert.match(sql, new RegExp(`when '${category}' then ${floor}`, 'i'));
+  }
+
+  assert.match(sql, /create or replace function public\.publish_archive_contribution/i);
+  assert.match(sql, /index_payload[\s\S]*draft_content\s*->\s*'indexData'/i);
+  assert.match(sql, /new_badge_visible[\s\S]*true/i);
+  assert.match(sql, /target_contribution_id[\s\S]*archive_id\s*<>\s*v_archive_id/i);
+  assert.match(sql, /'formalNumber'/i);
+  assert.match(sql, /'sequenceNumber'/i);
+  assert.match(sql, /'abbreviation'/i);
+  assert.match(sql, /create or replace function public\.list_archive_documents/i);
+  assert.match(sql, /synchronize_published_notification_version[\s\S]*formal_number/i);
+  assert.match(sql, /notify pgrst,\s*'reload schema'/i);
 });

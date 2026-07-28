@@ -97,7 +97,16 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
     ['submitDraft', draft],
     ['listReviewQueue', [{ ...draft, owner: profile, archive }]],
     ['reviewSubmission', { ...draft, status: 'approved' }],
-    ['publishContribution', { archiveId: 'archive-1', versionId: 'version-1', status: 'published' }],
+    ['publishContribution', {
+      archiveId: 'archive-1',
+      versionId: 'version-1',
+      status: 'published',
+      code: 'EV27',
+      sequenceNumber: 27,
+      abbreviation: 'RLL',
+      formalNumber: '027.RLL',
+      versionLabel: '0.1',
+    }],
     ['listUsers', [profile]],
     ['listNotifications', [{ id: 'notification-1', subject: 'Draft reviewed', created_at: '2026-07-28T00:00:00.000Z', message: 'Please revise', kind: 'changes_requested', read_at: null, contribution: { title: draft.title } }]],
     ['markNotificationRead', { id: 'notification-1', read_at: '2026-07-28T00:00:00.000Z' }],
@@ -109,13 +118,53 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
     ['loadArchiveEditorSource', { archiveId: archive.id, contributionId: draft.id, versionId: version.id, content: version.content }],
     ['loadArchiveEditorSource', null],
     ['listArchiveContributions', [{ id: draft.id, archive_id: draft.archive_id, target_contribution_id: null, title: draft.title, kind: draft.kind, status: 'published', created_at: draft.updated_at, owner: { id: profile.id, display_name: profile.display_name }, versions: [version] }]],
+    ['listArchiveDocuments', [{
+      id: draft.id,
+      title: draft.title,
+      kind: 'contribution',
+      latestVersionId: version.id,
+      versionLabel: version.version_label,
+      ownerName: profile.display_name,
+    }]],
     ['listArchiveReferences', [{ id: 'reference-1', source_archive: archive }]],
+    ['listPublishedMedia', [{
+      id: 'attachment-1',
+      role: 'event-cover',
+      storagePath: 'operator-1/contribution-1/cover.webp',
+      publicUrl: 'blob:local-cover',
+      altText: '事件现场',
+      caption: '现场记录',
+      sortOrder: 0,
+    }]],
+    ['setArchiveNewBadge', { id: archive.id, new_badge_visible: false }],
     ['uploadAttachment', { id: 'attachment-1' }],
   ];
 
   for (const [method, result] of cases) {
     assert.doesNotThrow(() => assertArchiveWorkflowResult(method, result), method);
   }
+});
+
+test('result contract rejects incomplete publication and media identities', () => {
+  assert.throws(
+    () => assertArchiveWorkflowResult('publishContribution', {
+      archiveId: 'archive-1',
+      versionId: 'version-1',
+      status: 'published',
+    }),
+    /code/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('listPublishedMedia', [{
+      id: 'attachment-1',
+      role: 'portrait',
+      storagePath: 'portrait.webp',
+      altText: '',
+      caption: '',
+      sortOrder: 0,
+    }]),
+    /publicUrl/,
+  );
 });
 
 test('result contract rejects a draft missing the persisted document content', () => {

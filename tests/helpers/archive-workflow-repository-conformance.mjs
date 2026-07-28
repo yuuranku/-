@@ -18,7 +18,7 @@ const fixture = Object.freeze({
   }),
   registration: Object.freeze({
     code: 'HZ-6',
-    category: 'events',
+    category: 'event',
     version: '0.1',
     visibility: 'public',
     marks: Object.freeze(['archival']),

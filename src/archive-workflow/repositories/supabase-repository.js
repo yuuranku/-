@@ -126,17 +126,46 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     }), 'Unable to review submission');
   };
 
-  const publishContribution = (submissionId, registration) => unwrap(
-    supabase.rpc('publish_archive_contribution', {
-      p_contribution_id: requireId(submissionId, 'submissionId'),
-      p_archive_id: registration.archiveId || null,
-      p_code: String(registration.code || `AUTO:${submissionId}`).trim(),
-      p_category: requireId(registration.category, 'category'),
-      p_version: '0.1',
-      p_marks: registration.marks || [], p_visibility: registration.visibility || 'public',
-    }),
-    'Unable to register contribution',
-  );
+  const publishContribution = async (submissionId, registration = {}) => {
+    try {
+      const result = await unwrap(
+        supabase.rpc('publish_archive_contribution', {
+          p_contribution_id: requireId(submissionId, 'submissionId'),
+          p_archive_id: registration.archiveId || null,
+          p_code: null,
+          p_category: requireId(registration.category, 'category'),
+          p_version: '0.1',
+          p_marks: registration.marks || [],
+          p_visibility: registration.visibility || 'public',
+          p_business_code: String(registration.code ?? registration.businessCode ?? '').trim() || null,
+        }),
+        'Unable to register contribution',
+      );
+      return {
+        archiveId: result?.archiveId ?? result?.archive_id,
+        versionId: result?.versionId ?? result?.version_id,
+        status: result?.status,
+        code: result?.code,
+        sequenceNumber: result?.sequenceNumber ?? result?.sequence_number,
+        abbreviation: result?.abbreviation,
+        formalNumber: result?.formalNumber ?? result?.formal_number,
+        versionLabel: result?.versionLabel ?? result?.version_label,
+      };
+    } catch (error) {
+      const message = String(error?.message ?? error?.cause?.message ?? '');
+      if (
+        /archive code and category are required/i.test(message)
+        || error?.code === 'PGRST202'
+        || /p_business_code/i.test(message)
+      ) {
+        throw new ArchiveWorkflowError(
+          '数据库尚未安装档案编号修复迁移，正式录入已安全中止。',
+          { code: 'schema_update_required', cause: error },
+        );
+      }
+      throw error;
+    }
+  };
 
   const inviteUser = async ({ email, displayName, role }) => {
     if (!['clerk', 'observer'].includes(role)) {
@@ -198,12 +227,17 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to search archives');
   };
-  const listPublishedArchives = ({ limit = 100 } = {}) => unwrap(
-    supabase.from('archives').select('id,code,category,title,summary,visibility,published_at,sequence_number,abbreviation')
+  const listPublishedArchives = ({ limit = 100, offset = 0 } = {}) => {
+    const bounded = Math.min(Math.max(Number(limit) || 100, 1), 100);
+    const start = Math.max(Number(offset) || 0, 0);
+    return unwrap(
+      supabase.from('archives')
+        .select('id,code,business_code,category,title,summary,visibility,published_at,sequence_number,abbreviation,index_payload,new_badge_visible')
       .eq('visibility', 'public').order('published_at', { ascending: false, nullsFirst: false })
-      .limit(Math.min(Math.max(Number(limit) || 100, 1), 100)),
-    'Unable to load published archives',
-  );
+        .range(start, start + bounded - 1),
+      'Unable to load published archives',
+    );
+  };
   const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
     let request = supabase.from('archives')
@@ -217,7 +251,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const listAdminArchives = ({ query = '', limit = 100 } = {}) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
     let request = supabase.from('archives')
-      .select('id,code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation');
+      .select('id,code,business_code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation,index_payload,new_badge_visible');
     if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
     request = request.order('published_at', { ascending: false, nullsFirst: false })
       .limit(Math.min(Math.max(Number(limit) || 100, 1), 100));
@@ -230,6 +264,12 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const listArchiveContributions = (archiveId) => unwrap(
     supabase.rpc('list_public_archive_contributions', { p_archive_id: requireId(archiveId, 'archiveId') }),
     'Unable to load archive contributions',
+  );
+  const listArchiveDocuments = (archiveId) => unwrap(
+    supabase.rpc('list_archive_documents', {
+      p_archive_id: requireId(archiveId, 'archiveId'),
+    }),
+    'Unable to load archive documents',
   );
   const loadArchiveEditorSource = async (archiveId) => {
     const contributions = await listArchiveContributions(archiveId);
@@ -249,7 +289,44 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       .order('created_at', { ascending: false }),
     'Unable to load archive references',
   );
-  const uploadAttachment = async (contributionId, ownerId, file) => {
+  const listPublishedMedia = async (contributionId) => {
+    if (!supabase.storage?.from) {
+      throw new ArchiveWorkflowError('Attachment storage is unavailable', { code: 'storage_unavailable' });
+    }
+    const contribution = requireId(contributionId, 'contributionId');
+    const rows = await unwrap(
+      supabase.from('archive_attachments')
+        .select('id,role,storage_path,alt_text,caption,sort_order,contribution:archive_contributions!inner(status)')
+        .eq('contribution_id', contribution)
+        .eq('contribution.status', 'published')
+        .order('sort_order', { ascending: true }),
+      'Unable to load published media',
+    );
+    return Promise.all((rows || []).map(async (row) => {
+      const signed = await unwrap(
+        supabase.storage.from('archive-attachments').createSignedUrl(row.storage_path, 3600),
+        'Unable to authorize published media',
+      );
+      return {
+        id: row.id,
+        role: row.role ?? null,
+        storagePath: row.storage_path,
+        publicUrl: signed?.signedUrl ?? signed?.signed_url ?? '',
+        altText: row.alt_text ?? '',
+        caption: row.caption ?? '',
+        sortOrder: Number(row.sort_order ?? 0),
+      };
+    }));
+  };
+  const setArchiveNewBadge = (archiveId, visible) => unwrap(
+    supabase.from('archives')
+      .update({ new_badge_visible: Boolean(visible) })
+      .eq('id', requireId(archiveId, 'archiveId'))
+      .select('id,new_badge_visible')
+      .single(),
+    'Unable to update archive NEW badge',
+  );
+  const uploadAttachment = async (contributionId, ownerId, file, metadata = {}) => {
     const contribution = requireId(contributionId, 'contributionId');
     const owner = requireId(ownerId, 'ownerId');
     if (!file?.name || !Number.isFinite(file?.size) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
@@ -264,9 +341,14 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     const uploaded = await unwrap(supabase.storage.from('archive-attachments').upload(storagePath, file, {
       cacheControl: '3600', contentType: file.type || 'application/octet-stream', upsert: false,
     }), 'Unable to upload attachment');
+    const sortOrder = Number(metadata.sortOrder ?? metadata.sort_order ?? 0);
     return unwrap(supabase.from('archive_attachments').insert({
       contribution_id: contribution, owner_id: owner, storage_path: uploaded.path || storagePath,
       file_name: String(file.name), mime_type: file.type || 'application/octet-stream', byte_size: file.size,
+      role: String(metadata.role ?? '').trim() || null,
+      caption: String(metadata.caption ?? '').trim(),
+      alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
+      sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
     }).select('*').single(), 'Unable to register attachment');
   };
 
@@ -275,6 +357,6 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     publishContribution, inviteUser, listUsers, createUser, updateUserRole, resetUserPassword, deleteUser,
     listNotifications, markNotificationRead, searchArchives, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
-    uploadAttachment,
+    listArchiveDocuments, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
   });
 };

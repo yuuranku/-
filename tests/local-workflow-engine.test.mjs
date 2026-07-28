@@ -652,6 +652,11 @@ test('uploadAttachment stores a 1-byte to 5MB Blob and returns an isolated metad
     type: 'text/plain',
     size: 3,
     blob: new Blob(['abc'], { type: 'text/plain' }),
+  }, {
+    role: 'event-evidence',
+    caption: '现场记录',
+    altText: '雪面上的设备',
+    sortOrder: 2,
   });
   attachment.file_name = 'mutated.txt';
 
@@ -659,6 +664,10 @@ test('uploadAttachment stores a 1-byte to 5MB Blob and returns an isolated metad
   assert.equal(state.attachments.length, 1);
   assert.equal(state.attachments[0].file_name, 'source.txt');
   assert.equal(state.attachments[0].byte_size, 3);
+  assert.equal(state.attachments[0].role, 'event-evidence');
+  assert.equal(state.attachments[0].caption, '现场记录');
+  assert.equal(state.attachments[0].alt_text, '雪面上的设备');
+  assert.equal(state.attachments[0].sort_order, 2);
   assert.equal(await state.attachments[0].blob.text(), 'abc');
 });
 
@@ -676,6 +685,117 @@ test('archive directories apply public, editable, administrator, query, and cate
   assert.deepEqual(editable.map(({ id }) => id), ['archive-2']);
   assert.deepEqual(admin.map(({ id }) => id), ['archive-3']);
   assert.deepEqual(harness.metrics(), { commitCount: 0, transactionCount: 0, readCount: 4 });
+});
+
+test('published archive pagination honors offset without loading document bodies', async () => {
+  const state = createPublishedReadState();
+  state.archives.push(
+    {
+      ...structuredClone(state.archives[0]),
+      id: 'archive-4',
+      code: 'EV28',
+      sequence_number: 28,
+      title: '第二公开事件',
+      published_at: '2026-07-29T12:00:00.000Z',
+    },
+    {
+      ...structuredClone(state.archives[0]),
+      id: 'archive-5',
+      code: 'EV29',
+      sequence_number: 29,
+      title: '第三公开事件',
+      published_at: '2026-07-30T12:00:00.000Z',
+    },
+  );
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const page = await harness.repository.listPublishedArchives({ limit: 1, offset: 1 });
+
+  assert.deepEqual(page.map(({ id }) => id), ['archive-4']);
+  assert.equal(Object.hasOwn(page[0], 'versions'), false);
+});
+
+test('archive documents exclude amendments and expose their latest immutable version', async () => {
+  const state = createPublishedReadState();
+  state.contributions.push({
+    ...structuredClone(state.contributions[0]),
+    id: 'amendment-1',
+    kind: 'amendment',
+    target_contribution_id: 'contribution-1',
+    title: '修订内容',
+  });
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const documents = await harness.repository.listArchiveDocuments('archive-1');
+
+  assert.deepEqual(documents, [{
+    id: 'contribution-1',
+    title: '公开事件材料',
+    kind: 'new',
+    latestVersionId: 'version-2',
+    versionLabel: '0.2',
+    ownerName: 'Archive Clerk',
+  }]);
+});
+
+test('published media returns metadata and a transient readable URL only for published documents', async () => {
+  const state = createPublishedReadState();
+  state.attachments.push({
+    id: 'attachment-1',
+    contribution_id: 'contribution-1',
+    owner_id: 'clerk-1',
+    storage_path: 'clerk-1/contribution-1/cover.webp',
+    file_name: 'cover.webp',
+    mime_type: 'image/webp',
+    byte_size: 3,
+    role: 'event-cover',
+    caption: '现场记录',
+    alt_text: '雪面上的设备',
+    sort_order: 0,
+    blob: new Blob(['abc'], { type: 'image/webp' }),
+    created_at: '2026-07-28T12:00:00.000Z',
+  });
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const media = await harness.repository.listPublishedMedia('contribution-1');
+
+  assert.equal(media.length, 1);
+  assert.deepEqual(
+    {
+      id: media[0].id,
+      role: media[0].role,
+      storagePath: media[0].storagePath,
+      altText: media[0].altText,
+      caption: media[0].caption,
+      sortOrder: media[0].sortOrder,
+    },
+    {
+      id: 'attachment-1',
+      role: 'event-cover',
+      storagePath: 'clerk-1/contribution-1/cover.webp',
+      altText: '雪面上的设备',
+      caption: '现场记录',
+      sortOrder: 0,
+    },
+  );
+  assert.match(media[0].publicUrl, /^(blob:|data:)/);
+});
+
+test('administrator can toggle one archive NEW badge without changing its published identity', async () => {
+  const state = createPublishedReadState();
+  state.archives[0].new_badge_visible = true;
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const changed = await harness.repository.setArchiveNewBadge('archive-1', false);
+  const committed = await harness.inspectState();
+
+  assert.deepEqual(changed, { id: 'archive-1', new_badge_visible: false });
+  assert.equal(committed.archives[0].code, 'EV27');
+  assert.equal(committed.archives[0].new_badge_visible, false);
 });
 
 test('published contribution views expose immutable versions without mutable state aliases', async () => {
@@ -788,6 +908,10 @@ test('publishContribution atomically allocates event 27 without overwriting its 
   assert.equal(committed.indexEntries.length, 1);
   assert.equal(committed.auditEvents.length, 1);
   assert.equal(committed.notifications.length, 1);
+  assert.equal(
+    committed.notifications[0].message,
+    '027.RLL / VER 0.1 / Archive Clerk',
+  );
   assert.deepEqual(harness.metrics(), { commitCount: 1, transactionCount: 1, readCount: 0 });
 });
 

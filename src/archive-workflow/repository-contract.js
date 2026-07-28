@@ -22,7 +22,10 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'deleteArchive',
   'loadArchiveEditorSource',
   'listArchiveContributions',
+  'listArchiveDocuments',
   'listArchiveReferences',
+  'listPublishedMedia',
+  'setArchiveNewBadge',
   'uploadAttachment',
 ]);
 
@@ -166,7 +169,16 @@ export const assertArchiveWorkflowResult = (method, result) => {
       }
       return result;
     case 'publishContribution':
-      requireFields(result, ['archiveId', 'versionId', 'status']);
+      requireFields(result, [
+        'archiveId',
+        'versionId',
+        'status',
+        'code',
+        'sequenceNumber',
+        'abbreviation',
+        'formalNumber',
+        'versionLabel',
+      ]);
       if (result.status !== 'published') throw new TypeError('publishContribution must return status "published"');
       return result;
     case 'listUsers':
@@ -199,12 +211,39 @@ export const assertArchiveWorkflowResult = (method, result) => {
         assertPublicContribution(contribution, `${method}[${index}].`);
       }
       return result;
+    case 'listArchiveDocuments':
+      for (const [index, document] of requireList(result, method).entries()) {
+        requireFields(document, [
+          'id',
+          'title',
+          'kind',
+          'latestVersionId',
+          'versionLabel',
+          'ownerName',
+        ], `${method}[${index}].`);
+      }
+      return result;
     case 'listArchiveReferences':
       for (const [index, reference] of requireList(result, method).entries()) {
         requireFields(reference, ['source_archive'], `${method}[${index}].`);
         requireFields(reference.source_archive, ['id', 'code', 'title', 'visibility'], `${method}[${index}].source_archive.`);
       }
       return result;
+    case 'listPublishedMedia':
+      for (const [index, media] of requireList(result, method).entries()) {
+        requireFields(media, [
+          'id',
+          'role',
+          'storagePath',
+          'publicUrl',
+          'altText',
+          'caption',
+          'sortOrder',
+        ], `${method}[${index}].`);
+      }
+      return result;
+    case 'setArchiveNewBadge':
+      return requireFields(result, ['id', 'new_badge_visible']);
     default:
       return result;
   }

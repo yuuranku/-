@@ -33,7 +33,10 @@ const completeRepositoryExcept = (missingMethod) =>
       'deleteArchive',
       'loadArchiveEditorSource',
       'listArchiveContributions',
+      'listArchiveDocuments',
       'listArchiveReferences',
+      'listPublishedMedia',
+      'setArchiveNewBadge',
       'uploadAttachment',
     ]
       .filter((method) => method !== missingMethod)
@@ -98,12 +101,12 @@ const createMemoryHarness = async () => {
       const contribution = byId(id);
       const archive = {
         id: `archive-${nextArchive++}`,
-        code: registration.code,
+        code: 'EV27',
         category: registration.category,
         title: contribution.title,
         visibility: registration.visibility,
-        sequence_number: null,
-        abbreviation: null,
+        sequence_number: 27,
+        abbreviation: 'RLL',
       };
       const version = {
         id: `version-${contribution.id}`,
@@ -119,7 +122,16 @@ const createMemoryHarness = async () => {
       contribution.status = 'published';
       contribution.versions.push(version);
       archives.push(archive);
-      return { archiveId: archive.id, versionId: version.id, status: 'published' };
+      return {
+        archiveId: archive.id,
+        versionId: version.id,
+        status: 'published',
+        code: 'EV27',
+        sequenceNumber: 27,
+        abbreviation: 'RLL',
+        formalNumber: '027.RLL',
+        versionLabel: version.version_label,
+      };
     },
     listPublishedArchives: async () => clone(archives),
     listArchiveContributions: async (archiveId) => contributions
@@ -160,13 +172,13 @@ test('repository contract rejects an incomplete repository at the construction b
   );
 });
 
-test('repository contract publishes the frozen 25-method workflow surface and permits extensions', () => {
+test('repository contract publishes the frozen 28-method workflow surface and permits extensions', () => {
   const repository = {
     ...completeRepositoryExcept(),
     reset: () => undefined,
   };
 
-  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 25);
+  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 28);
   assert.equal(Object.isFrozen(ARCHIVE_WORKFLOW_METHODS), true);
   assert.equal(assertArchiveWorkflowRepository(repository), repository);
 });

@@ -437,6 +437,8 @@ export const createLocalWorkflowEngine = ({
           is_archived: marks.includes('archival'),
           sequence_number: sequenceNumber,
           abbreviation: categoryRegistration.abbreviation,
+          index_payload: clone(contribution.draft_content?.indexData ?? {}),
+          new_badge_visible: true,
           current_version_id: null,
           published_at: publishedAt,
           created_at: publishedAt,
@@ -594,7 +596,9 @@ export const createLocalWorkflowEngine = ({
         recipient_id: contribution.owner_id,
         contribution_id: contribution.id,
         subject: '档案材料已正式录入',
-        message: `${archive.code} / VER ${versionLabel} / 白幕初垂`,
+        message: `${formalNumber} / VER ${versionLabel} / ${
+          owner?.display_name ?? contribution.submitter_name ?? contribution.owner_id
+        }`,
         kind: 'published',
         read_at: null,
         created_at: publishedAt,
@@ -837,11 +841,13 @@ export const createLocalWorkflowEngine = ({
       .sort((left, right) => String(left.code).localeCompare(String(right.code)))
       .slice(0, boundedLimit(limit, 20, 50)));
 
-  const listPublishedArchives = ({ limit = 100 } = {}) => readSnapshot((state) =>
-    state.archives
+  const listPublishedArchives = ({ limit = 100, offset = 0 } = {}) => readSnapshot((state) => {
+    const boundedOffset = Math.max(Number(offset) || 0, 0);
+    return state.archives
       .filter((archive) => archive.visibility === 'public')
       .sort((left, right) => String(right.published_at ?? '').localeCompare(String(left.published_at ?? '')))
-      .slice(0, boundedLimit(limit, 100, 100)));
+      .slice(boundedOffset, boundedOffset + boundedLimit(limit, 100, 100));
+  });
 
   const listEditableArchives = ({ query = '', category = null, limit = 50 } = {}) => {
     const principal = requirePrincipal(getPrincipal);
@@ -925,6 +931,33 @@ export const createLocalWorkflowEngine = ({
       });
   });
 
+  const listArchiveDocuments = (archiveId) => readSnapshot((state) => {
+    const id = String(archiveId ?? '').trim();
+    return state.contributions
+      .filter((contribution) =>
+        contribution.archive_id === id
+        && contribution.status === 'published'
+        && contribution.kind !== 'amendment')
+      .map((contribution) => {
+        const owner = state.profiles.find((profile) => profile.id === contribution.owner_id);
+        const latestVersion = state.versions
+          .filter((version) => version.contribution_id === contribution.id)
+          .sort((left, right) =>
+            String(right.created_at ?? right.approved_at ?? '')
+              .localeCompare(String(left.created_at ?? left.approved_at ?? '')))[0] ?? null;
+        return {
+          id: contribution.id,
+          title: contribution.title,
+          kind: contribution.kind,
+          latestVersionId: latestVersion?.id ?? null,
+          versionLabel: latestVersion?.version_label ?? null,
+          ownerName: contribution.submitter_name
+            ?? owner?.display_name
+            ?? contribution.owner_id,
+        };
+      });
+  });
+
   const loadArchiveEditorSource = (archiveId) => readSnapshot((state) => {
     const id = String(archiveId ?? '').trim();
     const contributionIds = new Set(
@@ -965,6 +998,49 @@ export const createLocalWorkflowEngine = ({
         }];
       }));
 
+  const listPublishedMedia = (contributionId) => readSnapshot((state) => {
+    const id = String(contributionId ?? '').trim();
+    const contribution = state.contributions.find((entry) =>
+      entry.id === id && entry.status === 'published');
+    if (!contribution) return [];
+    return state.attachments
+      .filter((attachment) => attachment.contribution_id === id)
+      .sort((left, right) =>
+        Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0)
+        || String(left.created_at ?? '').localeCompare(String(right.created_at ?? '')))
+      .map((attachment) => ({
+        id: attachment.id,
+        role: attachment.role ?? null,
+        storagePath: attachment.storage_path,
+        publicUrl: attachment.blob instanceof Blob && typeof URL?.createObjectURL === 'function'
+          ? URL.createObjectURL(attachment.blob)
+          : `data:${attachment.mime_type || 'application/octet-stream'},`,
+        altText: attachment.alt_text ?? '',
+        caption: attachment.caption ?? '',
+        sortOrder: Number(attachment.sort_order ?? 0),
+      }));
+  });
+
+  const setArchiveNewBadge = async (archiveId, visible) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const id = String(archiveId ?? '').trim();
+      const archive = nextState.archives.find((entry) => entry.id === id);
+      if (!archive) throw workflowError('not_found', 'Archive was not found');
+      archive.new_badge_visible = Boolean(visible);
+      archive.updated_at = now();
+      return {
+        nextState,
+        result: {
+          id: archive.id,
+          new_badge_visible: archive.new_badge_visible,
+        },
+      };
+    });
+  };
+
   const deleteArchive = async (archiveId) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
@@ -996,7 +1072,7 @@ export const createLocalWorkflowEngine = ({
     });
   };
 
-  const uploadAttachment = async (contributionId, ownerId, file) => {
+  const uploadAttachment = async (contributionId, ownerId, file, metadata = {}) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
       const nextState = clone(currentState);
@@ -1025,6 +1101,7 @@ export const createLocalWorkflowEngine = ({
         throw workflowError('invalid_attachment', 'Attachment must be between 1 byte and 5MB');
       }
       const timestamp = now();
+      const sortOrder = Number(metadata.sortOrder ?? metadata.sort_order ?? 0);
       const attachment = {
         id: randomUUID(),
         contribution_id: contribution.id,
@@ -1033,6 +1110,10 @@ export const createLocalWorkflowEngine = ({
         file_name: String(file.name),
         mime_type: String(file.type || blob.type || 'application/octet-stream'),
         byte_size: size,
+        role: String(metadata.role ?? '').trim() || null,
+        caption: String(metadata.caption ?? '').trim(),
+        alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
+        sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
         blob: clone(blob),
         created_at: timestamp,
       };
@@ -1065,7 +1146,10 @@ export const createLocalWorkflowEngine = ({
     deleteArchive,
     loadArchiveEditorSource,
     listArchiveContributions,
+    listArchiveDocuments,
     listArchiveReferences,
+    listPublishedMedia,
+    setArchiveNewBadge,
     uploadAttachment,
   };
 };
