@@ -6,6 +6,8 @@
   "scripts": {
     "archive:sync": "node scripts/generate-archive-longform.mjs",
     "dev": "vite",
+    "verify:baseline:update": "npm run build && node scripts/capture-palis-baseline.mjs && node scripts/compare-palis-baseline.mjs --update-baseline",
+    "verify:baseline": "npm run build && node scripts/capture-palis-baseline.mjs && node scripts/compare-palis-baseline.mjs",
     "test": "node --test tests/*.test.mjs",
     "build": "vite build",
     "preview": "vite preview"
@@ -21,6 +23,8 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
     "puppeteer-core": "^25.3.0",
     "vite": "^7.0.4"
   }

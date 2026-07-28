@@ -1,0 +1,4245 @@
+{
+  "schemaVersion": 2,
+  "browser": "Edg/151.0.4129.50",
+  "puppeteer": "25.3.0",
+  "os": "win32 10.0.26300",
+  "locale": "zh-CN",
+  "timezone": "Asia/Shanghai",
+  "deviceScaleFactor": 1,
+  "viewports": [
+    "1440x900",
+    "390x844",
+    "844x390"
+  ],
+  "fontCheck": true,
+  "webgl": {
+    "vendor": "Google Inc. (NVIDIA)",
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Laptop GPU (0x00002860) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "distEntrySha256": "1e2b13c01ffe8924b51936b2278b3ffa5daee89664a01d6724813297872ee045",
+  "captures": [
+    {
+      "scene": "first-entry-home",
+      "viewport": "1440x900",
+      "file": "1440x900-first-entry-home.png",
+      "sha256": "2cedb08830d81b62387155cc4596155709333c6bad23d2ca3717cffc6f196f03"
+    },
+    {
+      "scene": "clean-home",
+      "viewport": "1440x900",
+      "file": "1440x900-clean-home.png",
+      "sha256": "068375da6b7b996201c2919a6a2ba4c4a338c6d77ddfe8b86431a8cf652fa478"
+    },
+    {
+      "scene": "clerk-workspace",
+      "viewport": "1440x900",
+      "file": "1440x900-clerk-workspace.png",
+      "sha256": "2bd80c9dde42378a250effd842f8bbefa791e440635dba6100ce920d63c8b7b5"
+    },
+    {
+      "scene": "admin-workspace",
+      "viewport": "1440x900",
+      "file": "1440x900-admin-workspace.png",
+      "sha256": "5b8e105cc792168da8b5917be303f9271362b031d3fc5fa44d58db67a9d9ff7e"
+    },
+    {
+      "scene": "directory-countries",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-countries.png",
+      "sha256": "dd2f331b9e942ad077c094bdbf41e8baab9f36a2ed002a2d56c873f9d022a9fa"
+    },
+    {
+      "scene": "directory-organizations",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-organizations.png",
+      "sha256": "7c086f78a2eb673ea98e79c459f21f08bc39e81ee6c57ca72bc89ab667adf11c"
+    },
+    {
+      "scene": "directory-stations",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-stations.png",
+      "sha256": "cd9ef1ac1f1fb013c5c273f44c08b880e7bfed07efbbb94c4d572b3df11141bf"
+    },
+    {
+      "scene": "directory-entrances",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-entrances.png",
+      "sha256": "c4b869300c73d46b9ed0e24e0937527b87b3287c88ec3584a9212782d292e943"
+    },
+    {
+      "scene": "directory-ecology",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-ecology.png",
+      "sha256": "6cccd498245492fa2fa9dfc91c912b72f078509fe1c7419e18fbbcab1cf75cc8"
+    },
+    {
+      "scene": "directory-people",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-people.png",
+      "sha256": "f6d90d191c5724565700a06ff1742b5de664576258d8cac89b7cfd91ddd0ae83"
+    },
+    {
+      "scene": "directory-events",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-events.png",
+      "sha256": "4eee89fb4c6b16f6fede70a9b757d6704a9f423ea8ce6c03dd6e07e637678993"
+    },
+    {
+      "scene": "directory-abnormalities",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-abnormalities.png",
+      "sha256": "36ba6b75c3f2bdea21462191db485072991153950906e803bdf19776c461ea83"
+    },
+    {
+      "scene": "directory-species",
+      "viewport": "1440x900",
+      "file": "1440x900-directory-species.png",
+      "sha256": "71c98585c7a1a66391983520e7608e8c9656f31dcf43aa00898ea1fc3d452a37"
+    },
+    {
+      "scene": "first-entry-home",
+      "viewport": "390x844",
+      "file": "390x844-first-entry-home.png",
+      "sha256": "f2a2fddd842264d3661ad2c9319d27c2eaae2d33afcc34fdd30726842cf545b5"
+    },
+    {
+      "scene": "clean-home",
+      "viewport": "390x844",
+      "file": "390x844-clean-home.png",
+      "sha256": "8a9a99089a8acf2de3eb43185691f94f891474c0abefb2cf22c970c449537cb1"
+    },
+    {
+      "scene": "clerk-workspace",
+      "viewport": "390x844",
+      "file": "390x844-clerk-workspace.png",
+      "sha256": "e26598504cc55c7a21f2313d2f3935efc6fe2e10ac5f0ae2df549155da04fcdf"
+    },
+    {
+      "scene": "admin-workspace",
+      "viewport": "390x844",
+      "file": "390x844-admin-workspace.png",
+      "sha256": "8800923ed5ab0608258e7449e529f127ac004ffc8d38a3e38d1667875c147a53"
+    },
+    {
+      "scene": "directory-countries",
+      "viewport": "390x844",
+      "file": "390x844-directory-countries.png",
+      "sha256": "109420987602f3198ead5f2736ed1e1bd4ef2bc1483282856c8ae9ed73e1dabf"
+    },
+    {
+      "scene": "directory-organizations",
+      "viewport": "390x844",
+      "file": "390x844-directory-organizations.png",
+      "sha256": "87cfb30673ac3771bfa0bf18d504d5af91c5ad85d05ce89b51494fa0b3d00fa3"
+    },
+    {
+      "scene": "directory-stations",
+      "viewport": "390x844",
+      "file": "390x844-directory-stations.png",
+      "sha256": "4526452efadf0969e7f18371a605f0b1c59f599f537e17bf38ffb8bddc95baa8"
+    },
+    {
+      "scene": "directory-entrances",
+      "viewport": "390x844",
+      "file": "390x844-directory-entrances.png",
+      "sha256": "72af2792bdf4f4d411436b7715477c64c4a578c1b65892f56be7f9313670a408"
+    },
+    {
+      "scene": "directory-ecology",
+      "viewport": "390x844",
+      "file": "390x844-directory-ecology.png",
+      "sha256": "77e803da3e87875d4fc6ce05ae75d790a957f5bd026a4ba8f3636c46935addd3"
+    },
+    {
+      "scene": "directory-people",
+      "viewport": "390x844",
+      "file": "390x844-directory-people.png",
+      "sha256": "a733c2035ea3cbb4afbfec6866d2f1aab5e3e48e8663dcbc3d86115d6191453e"
+    },
+    {
+      "scene": "directory-events",
+      "viewport": "390x844",
+      "file": "390x844-directory-events.png",
+      "sha256": "a0db4fce83f86fcd6857e43b5d3ae0a99b19f16bae04863b76dd04e0e4adb011"
+    },
+    {
+      "scene": "directory-abnormalities",
+      "viewport": "390x844",
+      "file": "390x844-directory-abnormalities.png",
+      "sha256": "e2600e2507c5fe193013e04ffcb9d90a5a046d10c2f1ed3cd98d8d8075e2454a"
+    },
+    {
+      "scene": "directory-species",
+      "viewport": "390x844",
+      "file": "390x844-directory-species.png",
+      "sha256": "c0f211980b163da83a33ee311da22c8a9e2b4b79b846a0e3c7889a708056d605"
+    },
+    {
+      "scene": "first-entry-home",
+      "viewport": "844x390",
+      "file": "844x390-first-entry-home.png",
+      "sha256": "85207e812abdfe1975855fdd7f6a507d0ca3c3a6f2cd38d477cab9731b5e74e9"
+    },
+    {
+      "scene": "clean-home",
+      "viewport": "844x390",
+      "file": "844x390-clean-home.png",
+      "sha256": "460b6c290674d656343e2bac406bfa65f1e09d85564b28599241f0e83521b121"
+    },
+    {
+      "scene": "clerk-workspace",
+      "viewport": "844x390",
+      "file": "844x390-clerk-workspace.png",
+      "sha256": "b591452dfaa8cbe424691c0e33ae104c5dee970181772fc62e98aefd2233652e"
+    },
+    {
+      "scene": "admin-workspace",
+      "viewport": "844x390",
+      "file": "844x390-admin-workspace.png",
+      "sha256": "464500983a41276da182c60c1fbb171e527399554a73508e1ca1c762fd8a503a"
+    },
+    {
+      "scene": "directory-countries",
+      "viewport": "844x390",
+      "file": "844x390-directory-countries.png",
+      "sha256": "6dda6b32c94ede16c9dd080927f49217abeb5e575fc1eebc99a62dbceb0672a4"
+    },
+    {
+      "scene": "directory-organizations",
+      "viewport": "844x390",
+      "file": "844x390-directory-organizations.png",
+      "sha256": "f60ab58616caeba01babc16b5b76e6b88c713fee8bb131478201e87f99f0040e"
+    },
+    {
+      "scene": "directory-stations",
+      "viewport": "844x390",
+      "file": "844x390-directory-stations.png",
+      "sha256": "07d30ba6021ca0ab52b3cd9d223513aa94828fe771753bc4492716a4cf61efdf"
+    },
+    {
+      "scene": "directory-entrances",
+      "viewport": "844x390",
+      "file": "844x390-directory-entrances.png",
+      "sha256": "cad80f6aebeb348060a6780bb91f0a0fcec6ca1bffec84e4eb1f8407171b8016"
+    },
+    {
+      "scene": "directory-ecology",
+      "viewport": "844x390",
+      "file": "844x390-directory-ecology.png",
+      "sha256": "23920d3ad67511ea9210bfa40a4e21eaea774bc2c46a4d0473fe8830829680de"
+    },
+    {
+      "scene": "directory-people",
+      "viewport": "844x390",
+      "file": "844x390-directory-people.png",
+      "sha256": "8395acd0f7ece3d724d92a5137e1c6edd971ae257bb9fb961e17792932dcd22a"
+    },
+    {
+      "scene": "directory-events",
+      "viewport": "844x390",
+      "file": "844x390-directory-events.png",
+      "sha256": "7a2ab37fb3f5642f59343ac97baa510bab297a6e71ad28e701117dedbb4a8adc"
+    },
+    {
+      "scene": "directory-abnormalities",
+      "viewport": "844x390",
+      "file": "844x390-directory-abnormalities.png",
+      "sha256": "330b0c50432b476c063012a6df8a697756948d82ab1caaaf708703a69f125811"
+    },
+    {
+      "scene": "directory-species",
+      "viewport": "844x390",
+      "file": "844x390-directory-species.png",
+      "sha256": "09bdccec32666a414870cb36730b9576b9a8629ab7557ea635d1cc77635caab9"
+    }
+  ],
+  "diagnostics": [],
+  "requestLog": {
+    "allowed": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N15.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N16.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N01.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N17.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N12.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N13.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N08.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N07.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N10.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N18.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N02.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N03.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N04.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N05.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N06.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N09.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N11.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N14.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/document.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p28-howard-rusk.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p29-helen-klein.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p30-daniel-keene.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p31-thomas-mallory.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p32-samuel-vance.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-grab.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f01.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-base.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-ronne.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-machinery.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-638.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-wyandot.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-819.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-466.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f25.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N15.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/document.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p28-howard-rusk.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p29-helen-klein.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p30-daniel-keene.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p31-thomas-mallory.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p32-samuel-vance.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-grab.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f01.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-base.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-ronne.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-machinery.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-wyandot.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-638.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-819.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-466.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f25.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-B6urIR82.js"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/index-DYsd3Uml.css"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-empty.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/capsule-real-window-pixel.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-country.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-organization.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-station.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/palis-key.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/target.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-entrance.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-ecology.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-person.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-event.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-anomaly.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-species.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-draft.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-inbox.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-review.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/icons/archive-users.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ver-0-1-cover.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/wei-yi-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-profile.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/yinnar-light-notes.jpg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-1.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-2.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-3.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jean-moreau-4.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-profile.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/clerks/jing-quan-c-notes.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-02.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-arrow.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-hand.svg"
+      },
+      {
+        "method": "GET",
+        "url": "data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-latin-wght-normal-C94SydbU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-latin-wght-normal-DYAKOyvl.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-118-wght-normal-BPEb0gM9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-117-wght-normal-Dsz3vkzU.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-116-wght-normal-vdFVzbO2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-113-wght-normal-OgQXOX6x.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-118-wght-normal-DgpSdJgq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-117-wght-normal-XTbr9ZZT.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-116-wght-normal-dLgproop.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-115-wght-normal-CLw93OJ2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-113-wght-normal-DyuoesZ9.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-88-wght-normal-ClNDOCGW.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-119-wght-normal-BO-8DIcz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-114-wght-normal-CRH9SDZu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-119-wght-normal-BfzSEbFz.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-109-wght-normal-CnjNbNmw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-105-wght-normal-BFoiJwz2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-115-wght-normal-BN__2iBG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-110-wght-normal-BSy0JP4E.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-105-wght-normal-BgSod39R.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-103-wght-normal-DUyihgdX.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-112-wght-normal-CiZxJMyY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-110-wght-normal-D2JBr045.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-114-wght-normal-rN6TP-iN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-111-wght-normal-ClFr5QXM.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-108-wght-normal-BmakWj8P.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-108-wght-normal-7aXvqIa2.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-106-wght-normal-D6uUHw3w.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-104-wght-normal-CJT2ioDJ.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-107-wght-normal-kFQzJDLH.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-103-wght-normal-DGHo20nu.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-90-wght-normal-BWcrRNoG.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/folder.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-03.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-04.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-05.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-06.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/mascot/idle-07.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-text.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N15.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N16.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N01.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N17.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N12.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N13.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N08.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N07.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N10.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N18.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N02.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N03.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N04.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N05.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N06.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N09.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N11.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/flags/N14.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-106-wght-normal-CniXU52I.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-109-wght-normal-DomK5QIN.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-107-wght-normal-D141098S.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-112-wght-normal-MAZT2qqq.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-111-wght-normal-DOsFafg3.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/document.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-100-wght-normal-DrqXJETY.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-39-wght-normal-Ddtm1XVC.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-60-wght-normal-C1lngC61.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p28-howard-rusk.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p29-helen-klein.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p30-daniel-keene.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p31-thomas-mallory.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/people/hz6-p32-samuel-vance.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-44-wght-normal-cbKJlTUe.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-64-wght-normal-CbIuD2Eg.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-48-wght-normal-DFMjDDY6.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-57-wght-normal-DU8YBsDj.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-sans-sc-102-wght-normal-C1RtbCZr.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/cursors/retro-grab.svg"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f01.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-base.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-ronne.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-highjump-machinery.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-wyandot.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-638.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-819.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-101-wght-normal-D1afnVTV.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/archive/event-deepfreeze-466.webp"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/noto-serif-sc-62-wght-normal-BetEYZyP.woff2"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f25.png"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:63381/assets/hz6/photos/hz6-r06-f07.png"
+      }
+    ],
+    "archives": [
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "OPTIONS",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      },
+      {
+        "method": "GET",
+        "url": "https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives?select=id%2Ccode%2Ccategory%2Ctitle%2Csummary%2Cvisibility%2Cpublished_at%2Csequence_number%2Cabbreviation&visibility=eq.public&order=published_at.desc.nullslast&limit=100"
+      }
+    ],
+    "fatal": [],
+    "allowedExternal": []
+  }
+}
