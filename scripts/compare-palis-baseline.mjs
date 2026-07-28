@@ -1,4 +1,5 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -17,6 +18,8 @@ const SCENES = [
   'directory-events', 'directory-abnormalities', 'directory-species',
 ];
 const EXPECTED_KEYS = new Set(VIEWPORTS.flatMap((viewport) => SCENES.map((scene) => `${viewport}:${scene}`)));
+const ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
+const DIRECTORY_PROOFS = Object.freeze({ countries:['country-stack',18], organizations:['network',23], stations:['station-board',20], entrances:['entrance-network',18], ecology:['ecology-strata',7], people:['dossier',36], events:['event-plane',26], abnormalities:['anomaly-monitor',25], species:['species-helix',22] });
 
 const resolveCapturePath = (manifestPath, capture) => path.resolve(
   capture.file.startsWith('tmp/') ? workspace : path.dirname(manifestPath), capture.file,
@@ -39,21 +42,52 @@ export function validatePalisManifest(manifest) {
     if (capture.width !== width || capture.height !== height) problems.push(`capture dimensions invalid: ${key}`);
     const workspace = ['clerk-workspace', 'admin-workspace'].includes(capture.scene);
     const accessMode = workspace ? 'authenticated' : 'preview';
-    if (!capture.state || capture.state.accessMode !== accessMode || capture.state.chapter !== '2') problems.push(`capture state invalid: ${key}`);
-    if (!capture.proof || capture.proof.scene !== capture.scene) problems.push(`capture proof invalid: ${key}`);
+    const notice = capture.scene === 'first-entry-home';
+    if (!capture.state || capture.state.accessMode !== accessMode || capture.state.chapter !== '2' || capture.state.versionNoticeVisible !== notice) problems.push(`capture state invalid: ${key}`);
+    const directory = capture.scene.replace('directory-', '');
+    const [mode, entries] = DIRECTORY_PROOFS[directory] ?? ['orbit', 9];
+    if (!capture.proof || capture.proof.scene !== capture.scene || capture.proof.workspaceOpen !== workspace || capture.proof.archive?.category !== (DIRECTORY_PROOFS[directory] ? directory : 'root') || capture.proof.archive?.mode !== mode || capture.proof.archive?.entries !== entries) problems.push(`capture proof invalid: ${key}`);
   }
   for (const key of EXPECTED_KEYS) if (!keys.has(key)) problems.push(`missing capture key ${key}`);
-  for (const field of ['browser', 'puppeteer', 'os', 'locale', 'timezone', 'distEntrySha256']) {
+  for (const field of ['browser', 'puppeteer', 'os']) {
     if (!manifest?.[field]) problems.push(`environment field missing: ${field}`);
   }
-  if (manifest?.deviceScaleFactor !== 1 || !manifest?.fonts || !Object.values(manifest.fonts).every(Boolean)) problems.push('environment font/device evidence invalid');
+  if (manifest?.locale !== 'zh-CN' || manifest?.timezone !== 'Asia/Shanghai' || !/^[a-f0-9]{64}$/i.test(manifest?.distEntrySha256 ?? '')) problems.push('environment identity invalid');
+  if (manifest?.deviceScaleFactor !== 1 || !manifest?.fonts || Object.keys(manifest.fonts).sort().join(',') !== 'ibmPlexMono,notoSans,notoSerif' || !Object.values(manifest.fonts).every((value) => value === true)) problems.push('environment font/device evidence invalid');
+  if (manifest?.webgl !== null && !(typeof manifest?.webgl?.vendor === 'string' && manifest.webgl.vendor && typeof manifest.webgl.renderer === 'string' && manifest.webgl.renderer)) problems.push('webgl evidence invalid');
   for (const field of ['allowed', 'archives', 'fatal', 'unknownExternal']) {
     if (!Array.isArray(manifest?.requestLog?.[field])) problems.push(`request log missing: ${field}`);
+  }
+  for (const [kind, entries] of Object.entries(manifest?.requestLog ?? {})) for (const entry of entries ?? []) {
+    if (!entry || typeof entry.method !== 'string' || !entry.method || typeof entry.url !== 'string' || !entry.url) problems.push(`request entry invalid: ${kind}`);
+    else if (kind === 'allowed' && !/^(data:|blob:|http:\/\/127\.0\.0\.1:\d+\/)/.test(entry.url)) problems.push('allowed request origin invalid');
+    else if (kind === 'archives' && (!['GET','OPTIONS'].includes(entry.method) || (() => { try { const u=new URL(entry.url); return u.origin !== ARCHIVE_ORIGIN || u.pathname !== '/rest/v1/archives'; } catch { return true; } })())) problems.push('archive request invalid');
   }
   if (manifest?.diagnostics?.length) problems.push('diagnostics are not empty');
   if (manifest?.requestLog?.fatal?.length) problems.push('external requests were blocked');
   if (manifest?.requestLog?.unknownExternal?.length) problems.push('unknown external requests were allowed');
   return problems;
+}
+
+export async function validatePalisArtifacts(manifest, currentPath) {
+  const problems = validatePalisManifest(manifest); const root = path.dirname(currentPath);
+  for (const capture of manifest?.captures ?? []) try {
+    const file = resolveCapturePath(currentPath, capture); if (!file.startsWith(`${root}${path.sep}`)) throw new Error('escape');
+    const image = PNG.sync.read(await readFile(file));
+    if (image.width !== capture.width || image.height !== capture.height) problems.push(`artifact dimensions invalid: ${capture.viewport}:${capture.scene}`);
+    if (createHash('sha256').update(await readFile(file)).digest('hex') !== capture.sha256) problems.push(`artifact hash invalid: ${capture.viewport}:${capture.scene}`);
+  } catch { problems.push(`artifact missing or unsafe: ${capture.viewport}:${capture.scene}`); }
+  return problems;
+}
+
+export async function acceptPalisBaseline({ currentPath = defaultCurrentPath, baselinePath = defaultBaselinePath, docsManifestPath } = {}) {
+  const manifest = JSON.parse(await readFile(currentPath, 'utf8')); const validation = await validatePalisArtifacts(manifest, currentPath);
+  if (validation.length) throw new Error(`PALIS baseline update rejected: ${validation.join('; ')}`);
+  const baselineRoot = path.dirname(baselinePath); const staging = `${baselineRoot}.staging`;
+  await rm(staging, { recursive:true, force:true }); await cp(path.dirname(currentPath), staging, { recursive:true });
+  await rm(baselineRoot, { recursive:true, force:true }); await cp(staging, baselineRoot, { recursive:true }); await rm(staging, { recursive:true, force:true });
+  if (docsManifestPath) { await mkdir(path.dirname(docsManifestPath), { recursive:true }); await cp(baselinePath, docsManifestPath); }
+  return manifest;
 }
 
 export async function comparePalisManifests({
@@ -114,14 +148,7 @@ export async function comparePalisManifests({
 async function main() {
   const update = process.argv.includes('--update-baseline');
   if (update) {
-    const current = JSON.parse(await readFile(defaultCurrentPath, 'utf8'));
-    const validation = validatePalisManifest(current);
-    if (validation.length) throw new Error(`PALIS baseline update rejected: ${validation.join('; ')}`);
-    const baselineRoot = path.dirname(defaultBaselinePath);
-    await rm(baselineRoot, { recursive: true, force: true });
-    await cp(path.dirname(defaultCurrentPath), baselineRoot, { recursive: true });
-    await mkdir(path.join(workspace, 'docs/verification'), { recursive: true });
-    await cp(defaultBaselinePath, path.join(workspace, 'docs/verification/palis-baseline-manifest.json'));
+    const current = await acceptPalisBaseline({ docsManifestPath: path.join(workspace, 'docs/verification/palis-baseline-manifest.json') });
     console.log(`PALIS baseline updated: ${current.captures.length} captures`);
     return;
   }

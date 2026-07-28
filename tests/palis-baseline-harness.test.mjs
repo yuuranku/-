@@ -5,10 +5,10 @@ import { startPalisPreview, waitForPalisScene } from '../scripts/palis-browser-h
 import { installPalisPageFixture } from '../scripts/palis-page-fixture.mjs';
 import puppeteer from 'puppeteer-core';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
-import { comparePalisManifests, validatePalisManifest } from '../scripts/compare-palis-baseline.mjs';
+import { acceptPalisBaseline, comparePalisManifests, validatePalisManifest } from '../scripts/compare-palis-baseline.mjs';
 import { capturePalisScenes } from '../scripts/capture-palis-baseline.mjs';
 import { PNG } from 'pngjs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -115,9 +115,33 @@ test('manifest comparison reports a one-pixel 1.000% regression', { timeout: 15_
   await writeFile(baselinePath, JSON.stringify({ captures: [{ scene: 'home', viewport: '10x10', file: baseImage }] }));
   await writeFile(currentPath, JSON.stringify({ captures: [{ scene: 'home', viewport: '10x10', file: changedImage }] }));
   await assert.rejects(
-    comparePalisManifests({ baselinePath, currentPath, threshold: 0.005 }),
+    comparePalisManifests({ baselinePath, currentPath, threshold: 0.005, diffRoot: path.join(root, 'diff') }),
     /1\.000%/,
   );
+});
+
+test('strict manifest validator rejects forged environment, request, and proof evidence', async () => {
+  const manifest = JSON.parse(await (await import('node:fs/promises')).readFile('tmp/verification/baseline/manifest.json', 'utf8'));
+  manifest.fonts = { forged: true };
+  manifest.locale = 'en-US';
+  manifest.requestLog.allowed = [{ method: 'GET', url: 'https://evil.invalid/' }];
+  manifest.captures[0].proof.archive.entries = 0;
+  assert.match(validatePalisManifest(manifest).join('; '), /identity|font|origin|proof/);
+});
+
+test('baseline acceptance copies only validated artifacts and preserves old baseline on rejection', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'palis-accept-'));
+  const currentRoot = path.join(root, 'current'); const baselinePath = path.join(root, 'baseline', 'manifest.json');
+  await cp(path.resolve('tmp/verification/baseline'), currentRoot, { recursive: true });
+  const currentPath = path.join(currentRoot, 'manifest.json');
+  await mkdir(path.dirname(baselinePath), { recursive: true });
+  await writeFile(baselinePath, 'old baseline');
+  await acceptPalisBaseline({ currentPath, baselinePath });
+  assert.notEqual(await readFile(baselinePath, 'utf8'), 'old baseline');
+  const corrupt = JSON.parse(await readFile(currentPath, 'utf8')); corrupt.captures[0].sha256 = '0'.repeat(64);
+  await writeFile(currentPath, JSON.stringify(corrupt)); const before = await readFile(baselinePath, 'utf8');
+  await assert.rejects(acceptPalisBaseline({ currentPath, baselinePath }), /artifact hash invalid/);
+  assert.equal(await readFile(baselinePath, 'utf8'), before);
 });
 
 test('baseline update validation rejects duplicate scene keys and incomplete capture evidence', () => {
