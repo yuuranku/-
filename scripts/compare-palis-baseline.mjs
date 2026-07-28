@@ -83,17 +83,31 @@ export async function validatePalisArtifacts(manifest, currentPath) {
   return problems;
 }
 
-export async function acceptPalisBaseline({ currentPath = defaultCurrentPath, baselinePath = defaultBaselinePath, docsManifestPath } = {}) {
+export async function acceptPalisBaseline({ currentPath = defaultCurrentPath, baselinePath = defaultBaselinePath, docsManifestPath, renamePath = rename } = {}) {
   const manifest = JSON.parse(await readFile(currentPath, 'utf8')); const validation = await validatePalisArtifacts(manifest, currentPath);
   if (validation.length) throw new Error(`PALIS baseline update rejected: ${validation.join('; ')}`);
   const baselineRoot = path.dirname(baselinePath); const staging = `${baselineRoot}.staging`; const backup = `${baselineRoot}.backup`;
+  const docsStage = docsManifestPath && `${docsManifestPath}.staging`; const docsBackup = docsManifestPath && `${docsManifestPath}.backup`;
+  const exists = async (target) => lstat(target).then(() => true, () => false);
+  const hadBaseline = await exists(baselineRoot); const hadDocs = docsManifestPath && await exists(docsManifestPath);
   await rm(staging, { recursive:true, force:true }); await rm(backup, { recursive:true, force:true });
-  try { await cp(path.dirname(currentPath), staging, { recursive:true }); await validatePalisArtifacts(JSON.parse(await readFile(path.join(staging,'manifest.json'),'utf8')), path.join(staging,'manifest.json'));
-    try { await rename(baselineRoot, backup); } catch {} await rename(staging, baselineRoot);
-    if (docsManifestPath) { await mkdir(path.dirname(docsManifestPath), { recursive:true }); await cp(baselinePath, docsManifestPath); }
-    await rm(backup, { recursive:true, force:true });
-  } catch (error) { if (await lstat(backup).then(() => true, () => false)) { await rm(baselineRoot, { recursive:true, force:true }); await rename(backup, baselineRoot); } throw error; }
-  finally { await rm(staging, { recursive:true, force:true }); await rm(backup, { recursive:true, force:true }); }
+  if (docsStage) { await rm(docsStage, { force:true }); await rm(docsBackup, { force:true }); }
+  try {
+    await cp(path.dirname(currentPath), staging, { recursive:true });
+    const stagedValidation = await validatePalisArtifacts(JSON.parse(await readFile(path.join(staging,'manifest.json'),'utf8')), path.join(staging,'manifest.json'));
+    if (stagedValidation.length) throw new Error(`PALIS baseline stage rejected: ${stagedValidation.join('; ')}`);
+    if (docsStage) { await mkdir(path.dirname(docsStage), { recursive:true }); await cp(path.join(staging,'manifest.json'), docsStage); }
+    if (hadBaseline) await renamePath(baselineRoot, backup);
+    if (hadDocs) await renamePath(docsManifestPath, docsBackup);
+    await renamePath(staging, baselineRoot);
+    if (docsStage) await renamePath(docsStage, docsManifestPath);
+    await rm(backup, { recursive:true, force:true }); if (docsBackup) await rm(docsBackup, { force:true });
+  } catch (error) {
+    await rm(baselineRoot, { recursive:true, force:true }); if (docsManifestPath) await rm(docsManifestPath, { force:true });
+    if (hadBaseline && await exists(backup)) await rename(backup, baselineRoot);
+    if (hadDocs && await exists(docsBackup)) await rename(docsBackup, docsManifestPath);
+    throw error;
+  } finally { await rm(staging, { recursive:true, force:true }); await rm(backup, { recursive:true, force:true }); if (docsStage) { await rm(docsStage, { force:true }); await rm(docsBackup, { force:true }); } }
   return manifest;
 }
 

@@ -149,6 +149,19 @@ test('baseline acceptance copies only validated artifacts and preserves old base
   assert.equal(await readFile(baselinePath, 'utf8'), before);
 });
 
+test('baseline acceptance rolls back baseline and docs after either commit rename failure', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'palis-rollback-')); const currentRoot = path.join(root, 'current');
+  await cp(path.resolve('tmp/verification/baseline'), currentRoot, { recursive: true });
+  const currentPath = path.join(currentRoot, 'manifest.json'); const seeded = JSON.parse(await readFile(currentPath, 'utf8'));
+  seeded.previewOrigin = new URL(seeded.requestLog.allowed.find((entry) => entry.url.startsWith('http:')).url).origin; seeded.archiveOrigin = 'https://hpzdccfrouhljqlzczuv.supabase.co'; for (const capture of seeded.captures) capture.state.operatorRole = capture.scene === 'clerk-workspace' ? 'clerk' : capture.scene === 'admin-workspace' ? 'admin' : 'observer'; await writeFile(currentPath, JSON.stringify(seeded));
+  const baselinePath = path.join(root, 'baseline', 'manifest.json'); const docsPath = path.join(root, 'docs', 'manifest.json'); await mkdir(path.dirname(baselinePath), { recursive:true }); await mkdir(path.dirname(docsPath), { recursive:true }); await writeFile(baselinePath, 'old baseline'); await writeFile(docsPath, 'old docs');
+  for (const failDocs of [false, true]) {
+    let calls = 0; const renamePath = async (from, to) => { calls++; if ((failDocs && to === docsPath) || (!failDocs && calls === 3)) throw new Error('commit rename failure'); return (await import('node:fs/promises')).rename(from, to); };
+    await assert.rejects(acceptPalisBaseline({ currentPath, baselinePath, docsManifestPath: docsPath, renamePath }), /commit rename failure/);
+    assert.equal(await readFile(baselinePath, 'utf8'), 'old baseline'); assert.equal(await readFile(docsPath, 'utf8'), 'old docs');
+  }
+});
+
 test('baseline update validation rejects duplicate scene keys and incomplete capture evidence', () => {
   const duplicate = {
     schemaVersion: 2,
