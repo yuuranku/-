@@ -36,7 +36,7 @@ const contributions = Array.from({ length: 5 }, (_, index) => ({
   }],
 }));
 
-test('five approved HZ-6 records become exactly five switchable records', () => {
+test('four independent HZ-6 documents remain four tabs while an amendment stays nested', () => {
   const model = buildPublishedArchiveModel({
     archive: {
       id: 'hz6',
@@ -48,9 +48,10 @@ test('five approved HZ-6 records become exactly five switchable records', () => 
     },
     contributions,
   });
-  assert.equal(model.tabs.length, 5);
-  assert.deepEqual(model.tabs.map((tab) => tab.id), contributions.map(({ id }) => id));
+  assert.equal(model.tabs.length, 4);
+  assert.deepEqual(model.tabs.map((tab) => tab.id), contributions.slice(0, 4).map(({ id }) => id));
   assert.ok(model.tabs.every((tab) => tab.id !== 'overview'));
+  assert.equal(model.amendmentsByTarget.get('record-1').length, 1);
   assert.deepEqual(model.marks, ['mother', 'archival']);
 });
 
@@ -62,12 +63,13 @@ test('published contribution ledger shows attribution, history, references and r
   const markup = renderPublishedContributionLedger(model);
   assert.doesNotMatch(markup, /data-contribution-panel="overview"/);
   assert.match(markup, /档案提交者/);
-  assert.match(markup, /提交者5/);
+  assert.match(markup, /提交者1/);
   assert.match(markup, /档案修改者/);
   assert.match(markup, /修改者甲/);
   assert.match(markup, /data-open-archive-reference="S05"/);
   assert.match(markup, /VER 0\.1 \/ 白幕初垂 \/ 已录入/);
-  assert.match(markup, /data-request-amendment="record-5"/);
+  assert.match(markup, /data-request-amendment="record-1"/);
+  assert.match(markup, /data-amendment-for="record-1"/);
 });
 
 test('approved editor documents publish through the formal archive renderer', () => {

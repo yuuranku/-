@@ -141,6 +141,62 @@ export const createLocalWorkflowEngine = ({
     return { archiveId, category, kind, templateId };
   };
 
+  const validateDocumentTarget = (state, contribution) => {
+    if (contribution.kind !== 'amendment') {
+      if (contribution.target_contribution_id || contribution.base_version_id) {
+        throw workflowError(
+          'invalid_target',
+          'Only an amendment can target an existing archive document',
+        );
+      }
+      return;
+    }
+    const archive = state.archives.find((entry) => entry.id === contribution.archive_id);
+    if (!archive) {
+      throw workflowError('invalid_target', 'An amendment requires an existing archive');
+    }
+    if (!contribution.target_contribution_id) {
+      if (archive.origin !== 'official' || contribution.base_version_id) {
+        throw workflowError(
+          'invalid_target',
+          'Only an official archive record can be amended without a document target',
+        );
+      }
+      return;
+    }
+    const target = state.contributions.find((entry) =>
+      entry.id === contribution.target_contribution_id);
+    if (
+      !target
+      || target.archive_id !== archive.id
+      || target.kind === 'amendment'
+      || target.status !== 'published'
+    ) {
+      throw workflowError(
+        'invalid_target',
+        'The amendment target must be a published independent document in the same archive',
+      );
+    }
+    if (!contribution.base_version_id) {
+      throw workflowError(
+        'invalid_target',
+        'A targeted amendment requires an immutable base version',
+      );
+    }
+    const baseVersion = state.versions.find((entry) =>
+      entry.id === contribution.base_version_id);
+    if (
+      !baseVersion
+      || baseVersion.archive_id !== archive.id
+      || baseVersion.contribution_id !== target.id
+    ) {
+      throw workflowError(
+        'invalid_target',
+        'The amendment base version must belong to its selected document',
+      );
+    }
+  };
+
   const getProfile = (userId) => readSnapshot((state) => {
     const profile = state.profiles.find((entry) => entry.id === String(userId ?? '').trim());
     if (!profile) throw workflowError('not_found', 'Profile was not found');
@@ -257,6 +313,7 @@ export const createLocalWorkflowEngine = ({
       if (!['draft', 'changes_requested'].includes(contribution.status)) {
         throw workflowError('invalid_status', 'Only a draft or change request can be submitted');
       }
+      validateDocumentTarget(nextState, contribution);
       const submittedAt = now();
       contribution.status = 'submitted';
       contribution.submitter_id = principal.id;
@@ -360,8 +417,26 @@ export const createLocalWorkflowEngine = ({
       const commandArchiveId = String(
         registration.archiveId ?? registration.archive_id ?? '',
       ).trim() || null;
-      const archiveIdInput = commandArchiveId
-        ?? (contribution.status === 'approved' ? contribution.archive_id : null);
+      const bindsExistingArchive = ['amendment', 'contribution'].includes(contribution.kind);
+      if (bindsExistingArchive && !contribution.archive_id) {
+        throw workflowError(
+          'invalid_target',
+          'This submission requires its originally selected archive',
+        );
+      }
+      if (
+        bindsExistingArchive
+        && commandArchiveId
+        && commandArchiveId !== contribution.archive_id
+      ) {
+        throw workflowError(
+          'invalid_target',
+          'An approved submission cannot be redirected to another archive',
+        );
+      }
+      const archiveIdInput = bindsExistingArchive
+        ? contribution.archive_id
+        : commandArchiveId;
       let archive = archiveIdInput
         ? nextState.archives.find((entry) => entry.id === archiveIdInput)
         : null;
@@ -409,6 +484,7 @@ export const createLocalWorkflowEngine = ({
       if (contribution.status !== 'approved') {
         throw workflowError('invalid_status', 'Only an approved submission can be published');
       }
+      validateDocumentTarget(nextState, contribution);
       assertDraftDocument(contribution.draft_content);
 
       const publishedAt = now();

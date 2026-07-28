@@ -74,7 +74,14 @@ test('the right-side dossier card is the single structured editor', () => {
 test('amendments choose a visible archive instead of asking for internal record IDs', () => {
   assert.match(workspace, /data-editable-archive-picker/);
   assert.match(workspace, /listEditableArchives/);
-  assert.match(workspace, /loadArchiveEditorSource/);
+  assert.match(workspace, /data-target-document-picker/);
+  assert.match(workspace, /listArchiveDocuments/);
+  assert.match(workspace, /name="targetDocumentId"/);
+  assert.match(workspace, /kind === 'amendment'\s*\?\s*FREEFORM_AMENDMENT_TEMPLATE/);
+  assert.match(workspace, /kindSelect\.value === 'contribution'/);
+  assert.match(workspace, /targetDocumentRequestSequence/);
+  assert.match(workspace, /requestSequence\s*!==\s*targetDocumentRequestSequence/);
+  assert.match(workspace, /editableArchiveSelect\.value\s*!==\s*archive\.id/);
   assert.doesNotMatch(workspace, /目标投稿 ID/);
 });
 

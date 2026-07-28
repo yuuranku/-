@@ -239,6 +239,96 @@ as $$
   end;
 $$;
 
+create or replace function public.validate_archive_contribution_target()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  archive_record public.archives;
+  target_record public.archive_contributions;
+  base_record public.archive_versions;
+begin
+  if new.status not in ('submitted', 'in_review', 'approved', 'published') then
+    return new;
+  end if;
+
+  if new.kind <> 'amendment' then
+    if new.target_contribution_id is not null
+      or new.base_version_id is not null then
+      raise exception 'only amendments may target an archive document'
+        using errcode = '22023';
+    end if;
+    return new;
+  end if;
+
+  select *
+  into archive_record
+  from public.archives
+  where id = new.archive_id;
+
+  if archive_record.id is null then
+    raise exception 'amendment requires an existing archive'
+      using errcode = '22023';
+  end if;
+
+  if new.target_contribution_id is null then
+    if archive_record.origin <> 'official'
+      or new.base_version_id is not null then
+      raise exception 'only an official archive record may omit a document target'
+        using errcode = '22023';
+    end if;
+    return new;
+  end if;
+
+  select *
+  into target_record
+  from public.archive_contributions
+  where id = new.target_contribution_id;
+
+  if target_record.id is null
+    or target_record.archive_id <> new.archive_id
+    or target_record.kind = 'amendment'
+    or target_record.status <> 'published' then
+    raise exception 'amendment target must be a published independent document in the same archive'
+      using errcode = '22023';
+  end if;
+
+  if new.base_version_id is null then
+    raise exception 'amendment base version is required for a targeted document'
+      using errcode = '22023';
+  end if;
+
+  select *
+  into base_record
+  from public.archive_versions
+  where id = new.base_version_id;
+
+  if base_record.id is null
+    or base_record.archive_id <> new.archive_id
+    or base_record.contribution_id <> new.target_contribution_id then
+    raise exception 'amendment base version must belong to its selected document'
+      using errcode = '22023';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists validate_archive_contribution_target_before_submit
+  on public.archive_contributions;
+create trigger validate_archive_contribution_target_before_submit
+before insert or update of
+  status,
+  kind,
+  archive_id,
+  target_contribution_id,
+  base_version_id
+on public.archive_contributions
+for each row
+execute function public.validate_archive_contribution_target();
+
 create or replace function public.synchronize_published_notification_version()
 returns trigger
 language plpgsql
@@ -358,7 +448,20 @@ begin
     raise exception 'approved contribution not found' using errcode = 'P0002';
   end if;
 
-  v_archive_id := p_archive_id;
+  if contribution.kind in ('amendment', 'contribution') then
+    if contribution.archive_id is null then
+      raise exception 'existing-archive contribution has no selected archive'
+        using errcode = '22023';
+    end if;
+    if p_archive_id is not null
+      and p_archive_id <> contribution.archive_id then
+      raise exception 'approved contribution cannot be redirected to another archive'
+        using errcode = '22023';
+    end if;
+    v_archive_id := contribution.archive_id;
+  else
+    v_archive_id := p_archive_id;
+  end if;
   if v_archive_id is null then
     insert into public.archives (
       code,

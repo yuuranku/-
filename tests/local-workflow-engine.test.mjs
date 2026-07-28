@@ -199,6 +199,58 @@ const createFixedCategoryPolicyState = () => {
   return state;
 };
 
+const createDocumentTargetPolicyState = () => {
+  const state = createFixedCategoryPolicyState();
+  state.archives.find(({ id }) => id === 'station-archive').origin = 'local';
+  state.contributions.push(
+    {
+      id: 'station-document',
+      archive_id: 'station-archive',
+      template_id: '03',
+      owner_id: 'clerk-1',
+      target_contribution_id: null,
+      base_version_id: null,
+      title: 'Station document',
+      kind: 'new',
+      status: 'published',
+      draft_content: { schemaVersion: 2, templateCode: '03', values: {} },
+      revision: 1,
+    },
+    {
+      id: 'event-document',
+      archive_id: 'event-archive',
+      template_id: '07',
+      owner_id: 'clerk-1',
+      target_contribution_id: null,
+      base_version_id: null,
+      title: 'Event document',
+      kind: 'new',
+      status: 'published',
+      draft_content: { schemaVersion: 2, templateCode: '07', values: {} },
+      revision: 1,
+    },
+  );
+  state.versions.push(
+    {
+      id: 'station-version',
+      archive_id: 'station-archive',
+      contribution_id: 'station-document',
+      version_label: '0.1',
+      content: { schemaVersion: 2, templateCode: '03', values: {} },
+      created_at: '2026-07-28T00:00:00.000Z',
+    },
+    {
+      id: 'event-version',
+      archive_id: 'event-archive',
+      contribution_id: 'event-document',
+      version_label: '0.1',
+      content: { schemaVersion: 2, templateCode: '07', values: {} },
+      created_at: '2026-07-28T00:00:00.000Z',
+    },
+  );
+  return state;
+};
+
 const createAmendmentAttributionState = (targetContributionId = 'original-contribution') => {
   const archive = {
     id: 'archive-attribution',
@@ -258,6 +310,9 @@ const createAmendmentAttributionState = (targetContributionId = 'original-contri
   amendment.submitter_id = 'clerk-1';
   amendment.submitter_name = 'Archive Clerk';
   amendment.target_contribution_id = targetContributionId;
+  amendment.base_version_id = targetContributionId === 'original-contribution'
+    ? 'original-version'
+    : null;
   return state;
 };
 
@@ -968,7 +1023,7 @@ test('publishing an amendment preserves the existing archive code, sequence, and
     title: 'Existing event',
     summary: '',
     visibility: 'public',
-    origin: 'local',
+    origin: 'official',
     sequence_number: 26,
     abbreviation: 'RLL',
     current_version_id: null,
@@ -1163,6 +1218,95 @@ test('a clerk can save a station amendment against a real station archive', asyn
   assert.equal(saved.template_id, '03');
 });
 
+test('submitting an amendment rejects a document from another archive', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seed(createDocumentTargetPolicyState());
+  const saved = await harness.repository.saveDraft({
+    ownerId: 'clerk-1',
+    templateId: '03',
+    archiveId: 'station-archive',
+    kind: 'amendment',
+    targetContributionId: 'event-document',
+    baseVersionId: 'event-version',
+    title: 'Cross archive amendment',
+    content: { schemaVersion: 2, templateCode: '03', values: {} },
+  });
+
+  await assert.rejects(
+    harness.repository.submitDraft(saved.id, 'clerk-1'),
+    hasCode('invalid_target'),
+  );
+});
+
+test('submitting an amendment rejects a base version from another document', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seed(createDocumentTargetPolicyState());
+  const saved = await harness.repository.saveDraft({
+    ownerId: 'clerk-1',
+    templateId: '03',
+    archiveId: 'station-archive',
+    kind: 'amendment',
+    targetContributionId: 'station-document',
+    baseVersionId: 'event-version',
+    title: 'Wrong base version amendment',
+    content: { schemaVersion: 2, templateCode: '03', values: {} },
+  });
+
+  await assert.rejects(
+    harness.repository.submitDraft(saved.id, 'clerk-1'),
+    hasCode('invalid_target'),
+  );
+});
+
+test('submitting a targeted amendment requires an immutable base version', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seed(createDocumentTargetPolicyState());
+  const saved = await harness.repository.saveDraft({
+    ownerId: 'clerk-1',
+    templateId: '03',
+    archiveId: 'station-archive',
+    kind: 'amendment',
+    targetContributionId: 'station-document',
+    baseVersionId: null,
+    title: 'Missing base version amendment',
+    content: { schemaVersion: 2, templateCode: '03', values: {} },
+  });
+
+  await assert.rejects(
+    harness.repository.submitDraft(saved.id, 'clerk-1'),
+    hasCode('invalid_target'),
+  );
+});
+
+test('only an official archive can submit an amendment without a document target', async () => {
+  for (const [origin, expectedStatus] of [['local', 'invalid_target'], ['official', 'submitted']]) {
+    const state = createDocumentTargetPolicyState();
+    state.archives.find(({ id }) => id === 'station-archive').origin = origin;
+    const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+    await harness.seed(state);
+    const saved = await harness.repository.saveDraft({
+      ownerId: 'clerk-1',
+      templateId: '03',
+      archiveId: 'station-archive',
+      kind: 'amendment',
+      title: 'Official base amendment',
+      content: { schemaVersion: 2, templateCode: '03', values: {} },
+    });
+
+    if (origin === 'official') {
+      assert.equal(
+        (await harness.repository.submitDraft(saved.id, 'clerk-1')).status,
+        expectedStatus,
+      );
+    } else {
+      await assert.rejects(
+        harness.repository.submitDraft(saved.id, 'clerk-1'),
+        hasCode(expectedStatus),
+      );
+    }
+  }
+});
+
 test('an amendment public version keeps the target author as submitter and current owner as modifier', async () => {
   const harness = await createLocalWorkflowHarness();
   await harness.seed(createAmendmentAttributionState());
@@ -1189,25 +1333,23 @@ test('an amendment public version keeps the target author as submitter and curre
   });
 });
 
-test('an amendment without a resolvable target falls back to the archive version submitter', async () => {
+test('publication rejects an amendment whose target is no longer resolvable', async () => {
   const harness = await createLocalWorkflowHarness();
   await harness.seed(createAmendmentAttributionState('missing-contribution'));
 
-  const published = await harness.repository.publishContribution('submission-1', {
-    archiveId: 'archive-attribution',
-    category: 'event',
-    version: '0.2',
-    visibility: 'public',
-    idempotencyKey: 'publish-attribution-fallback',
-  });
-  const contributions = await harness.repository.listArchiveContributions(published.archiveId);
-  const amendment = contributions.find(({ id }) => id === 'submission-1');
-
-  assert.equal(amendment.versions[0].submitter.id, 'original-author');
-  assert.equal(amendment.versions[0].modifier.id, 'clerk-1');
+  await assert.rejects(
+    harness.repository.publishContribution('submission-1', {
+      archiveId: 'archive-attribution',
+      category: 'event',
+      version: '0.2',
+      visibility: 'public',
+      idempotencyKey: 'publish-attribution-fallback',
+    }),
+    hasCode('invalid_target'),
+  );
 });
 
-test('a resolvable target contribution author takes precedence over an unrelated archive version', async () => {
+test('publication rejects an amendment when the base no longer belongs to its target', async () => {
   const state = createAmendmentAttributionState();
   state.versions[0].contribution_id = 'unrelated-contribution';
   state.versions[0].submitter_id = 'clerk-1';
@@ -1215,18 +1357,38 @@ test('a resolvable target contribution author takes precedence over an unrelated
   const harness = await createLocalWorkflowHarness();
   await harness.seed(state);
 
-  const published = await harness.repository.publishContribution('submission-1', {
-    archiveId: 'archive-attribution',
-    category: 'event',
-    version: '0.2',
-    visibility: 'public',
-    idempotencyKey: 'publish-target-precedence',
-  });
-  const contributions = await harness.repository.listArchiveContributions(published.archiveId);
-  const amendment = contributions.find(({ id }) => id === 'submission-1');
+  await assert.rejects(
+    harness.repository.publishContribution('submission-1', {
+      archiveId: 'archive-attribution',
+      category: 'event',
+      version: '0.2',
+      visibility: 'public',
+      idempotencyKey: 'publish-target-precedence',
+    }),
+    hasCode('invalid_target'),
+  );
+});
 
-  assert.equal(amendment.versions[0].submitter.id, 'original-author');
-  assert.equal(amendment.versions[0].modifier.id, 'clerk-1');
+test('publication cannot redirect an approved amendment into another archive', async () => {
+  const state = createAmendmentAttributionState();
+  state.archives.push({
+    ...structuredClone(state.archives[0]),
+    id: 'archive-other',
+    code: 'EV10',
+    sequence_number: 10,
+  });
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  await assert.rejects(
+    harness.repository.publishContribution('submission-1', {
+      archiveId: 'archive-other',
+      category: 'event',
+      visibility: 'public',
+      idempotencyKey: 'redirect-amendment',
+    }),
+    hasCode('invalid_target'),
+  );
 });
 
 test('sealed and offline archives expose no public contribution records', async () => {

@@ -15,6 +15,10 @@ import {
   canReview,
 } from './domain.js';
 import { renderFormalArchiveDocument } from './public-renderer.js';
+import {
+  buildArchiveDocumentChoices,
+  resolveArchiveDocumentTarget,
+} from './target-documents.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
@@ -54,7 +58,7 @@ const isFixedArchiveCategory = (category) =>
   category === 'station' || category === 'entrance';
 
 const editorPreviewUrl = (template, kind) =>
-  kind === 'new' ? templatePreviewUrl(template) : FREEFORM_AMENDMENT_TEMPLATE;
+  kind === 'amendment' ? FREEFORM_AMENDMENT_TEMPLATE : templatePreviewUrl(template);
 
 const draftContentToEditorDocument = (template, content = {}, fallback = {}) => {
   if (content?.schemaVersion === 2 || content?.values) {
@@ -88,6 +92,10 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
   kind: record.kind ?? fallback.kind ?? 'new',
   targetContributionId: record.target_contribution_id ?? fallback.targetContributionId ?? null,
   baseVersionId: record.base_version_id ?? fallback.baseVersionId ?? null,
+  targetDocumentId: record.draft_content?.targetDocumentId
+    ?? record.target_contribution_id
+    ?? fallback.targetDocumentId
+    ?? '',
   status: record.status ?? fallback.status ?? 'draft',
   content: record.draft_content ?? fallback.content ?? {},
   revision: record.revision ?? fallback.revision ?? 1,
@@ -351,6 +359,15 @@ export function initializeArchiveWorkspace({
                   </select>
                 </label>
                 <p data-editable-archive-status>切换为补充或修改后，从当前可见档案中选择。</p>
+                <div class="archive-target-document-picker" data-target-document-picker hidden>
+                  <label>
+                    <span>要修改的具体文档</span>
+                    <select name="targetDocumentId">
+                      <option value="">请先选择上方档案</option>
+                    </select>
+                  </label>
+                  <p data-target-document-status>修改申请必须指向一份具体文档；不会新建同级记录。</p>
+                </div>
               </section>
 
               <section class="archive-reference-editor">
@@ -412,6 +429,9 @@ export function initializeArchiveWorkspace({
     const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
     const editableArchiveSelect = form.elements.archiveId;
     const editableArchiveStatus = form.querySelector('[data-editable-archive-status]');
+    const targetDocumentPicker = form.querySelector('[data-target-document-picker]');
+    const targetDocumentSelect = form.elements.targetDocumentId;
+    const targetDocumentStatus = form.querySelector('[data-target-document-status]');
     const formalNumberOutput = form.querySelector('[data-formal-number]');
     const indexPanel = form.querySelector('[data-archive-index-panel]');
     const indexErrors = form.querySelector('[data-index-errors]');
@@ -438,6 +458,9 @@ export function initializeArchiveWorkspace({
       kind: initialKind,
       targetContributionId: initial.targetContributionId ?? null,
       baseVersionId: initial.baseVersionId ?? null,
+      targetDocumentId: initial.targetDocumentId
+        || initial.targetContributionId
+        || (initial.officialBase && initial.archiveId ? `official:${initial.archiveId}` : ''),
       status: initial.status ?? 'draft',
       content: initial.content ?? {},
       revision: initial.revision ?? 1,
@@ -575,6 +598,8 @@ export function initializeArchiveWorkspace({
 
     let editableArchives = [];
     let archiveTargetsLoaded = false;
+    let targetDocumentChoices = [];
+    let targetDocumentRequestSequence = 0;
 
     const formatFormalNumber = (archive) => {
       if (!archive) return '审核录入时自动分配';
@@ -614,31 +639,100 @@ export function initializeArchiveWorkspace({
       }
     };
 
-    const applySelectedArchive = async ({ loadSource = true } = {}) => {
+    const clearTargetDocument = () => {
+      targetDocumentRequestSequence += 1;
+      targetDocumentChoices = [];
+      targetDocumentSelect.innerHTML = '<option value="">请先选择上方档案</option>';
+      targetDocumentSelect.value = '';
+      editorDraft.targetDocumentId = '';
+      editorDraft.targetContributionId = null;
+      editorDraft.baseVersionId = null;
+      form.elements.targetContributionId.value = '';
+    };
+
+    const applyTargetDocument = () => {
+      const selected = resolveArchiveDocumentTarget(
+        targetDocumentChoices,
+        targetDocumentSelect.value,
+      );
+      editorDraft.targetDocumentId = selected?.value || '';
+      editorDraft.targetContributionId = selected?.targetContributionId ?? null;
+      editorDraft.baseVersionId = selected?.baseVersionId ?? null;
+      form.elements.targetContributionId.value = selected?.targetContributionId || '';
+      targetDocumentStatus.textContent = selected
+        ? selected.official
+          ? '修改对象：网站原有的官方档案正文。'
+          : `修改对象：${selected.label}`
+        : '请选择要修改的具体文档。';
+      return selected;
+    };
+
+    const loadTargetDocuments = async (archive) => {
+      targetDocumentPicker.hidden = false;
+      const preferredTarget = editorDraft.targetDocumentId
+        || editorDraft.targetContributionId
+        || initial.targetDocumentId
+        || initial.targetContributionId
+        || (initial.officialBase ? `official:${archive.id}` : '');
+      clearTargetDocument();
+      const requestSequence = ++targetDocumentRequestSequence;
+      if (!client || !archive) {
+        targetDocumentStatus.textContent = '当前无法读取该档案下的文档。';
+        return;
+      }
+      targetDocumentStatus.textContent = '正在读取该档案下的独立文档…';
+      try {
+        const documents = await client.listArchiveDocuments(archive.id);
+        if (
+          requestSequence !== targetDocumentRequestSequence
+          || editableArchiveSelect.value !== archive.id
+          || kindSelect.value !== 'amendment'
+        ) return;
+        targetDocumentChoices = buildArchiveDocumentChoices({ archive, documents });
+        targetDocumentSelect.innerHTML = [
+          '<option value="">请选择具体文档</option>',
+          ...targetDocumentChoices.map((choice) => (
+            `<option value="${escapeHtml(choice.value)}">${escapeHtml(choice.label)}</option>`
+          )),
+        ].join('');
+        if (targetDocumentChoices.some((choice) => choice.value === preferredTarget)) {
+          targetDocumentSelect.value = preferredTarget;
+          applyTargetDocument();
+        } else {
+          targetDocumentStatus.textContent = targetDocumentChoices.length
+            ? '请选择要修改的具体文档。'
+            : '该档案目前没有可修改的独立文档。';
+        }
+      } catch (error) {
+        if (
+          requestSequence !== targetDocumentRequestSequence
+          || editableArchiveSelect.value !== archive.id
+          || kindSelect.value !== 'amendment'
+        ) return;
+        targetDocumentStatus.textContent = `读取文档失败：${error?.message || '请稍后重试'}`;
+      }
+    };
+
+    const applySelectedArchive = async () => {
       const archive = editableArchives.find((entry) => entry.id === editableArchiveSelect.value);
       editorDraft.archiveId = archive?.id || null;
       formalNumberOutput.textContent = formatFormalNumber(archive);
       if (!archive) {
-        editorDraft.targetContributionId = null;
-        editorDraft.baseVersionId = null;
-        form.elements.targetContributionId.value = '';
+        clearTargetDocument();
+        targetDocumentPicker.hidden = true;
         editableArchiveStatus.textContent = '请选择要补充或修改的档案。';
         return;
       }
       editorDraft.archiveCode = archive.code || '';
       editableArchiveStatus.textContent = `已选择：${archive.title}`;
-      if (!loadSource || !client || kindSelect.value === 'new') return;
-      editableArchiveStatus.textContent = `正在载入“${archive.title}”的最新正式内容…`;
-      try {
-        const source = await client.loadArchiveEditorSource(archive.id);
-        editorDraft.targetContributionId = source?.contributionId || null;
-        editorDraft.baseVersionId = source?.versionId || null;
-        form.elements.targetContributionId.value = source?.contributionId || '';
-        editableArchiveStatus.textContent = '已关联最新正式版本；右侧空白页只记录本次补充或修订。';
-        autosave.queue(collectDraft());
-      } catch (error) {
-        editableArchiveStatus.textContent = `正式内容载入失败：${error?.message || '请稍后重试'}`;
+      if (kindSelect.value === 'contribution') {
+        clearTargetDocument();
+        targetDocumentPicker.hidden = true;
+        editableArchiveStatus.textContent = `将在“${archive.title}”下建立一份新的独立文档。`;
+      } else if (kindSelect.value === 'amendment') {
+        await loadTargetDocuments(archive);
       }
+      autosave.queue(collectDraft());
     };
 
     const updateMode = () => {
@@ -646,14 +740,15 @@ export function initializeArchiveWorkspace({
       const existingArchive = kindSelect.value !== 'new';
       const amendment = kindSelect.value === 'amendment';
       editableArchivePicker.hidden = !existingArchive;
+      targetDocumentPicker.hidden = !amendment || !editorDraft.archiveId;
       modifierRow.hidden = !amendment;
       if (!existingArchive) {
         editableArchiveSelect.value = '';
         editorDraft.archiveId = null;
-        editorDraft.targetContributionId = null;
-        editorDraft.baseVersionId = null;
-        form.elements.targetContributionId.value = '';
+        clearTargetDocument();
         formalNumberOutput.textContent = '审核录入时自动分配';
+      } else if (kindSelect.value === 'contribution') {
+        clearTargetDocument();
       } else if (!archiveTargetsLoaded) {
         loadEditableArchives();
       }
@@ -678,12 +773,14 @@ export function initializeArchiveWorkspace({
         kind: kindSelect.value,
         archiveCode: editorDocument.businessCode || editorDraft.archiveCode,
         archiveId: editorDraft.archiveId,
+        targetDocumentId: targetDocumentSelect.value,
         targetContributionId: form.elements.targetContributionId.value.trim() || null,
         baseVersionId: editorDraft.baseVersionId,
         content: {
           ...editorDocument,
           references,
           attachments: attachmentFiles,
+          targetDocumentId: targetDocumentSelect.value,
         },
       };
       return editorDraft;
@@ -694,12 +791,23 @@ export function initializeArchiveWorkspace({
       editorDraft = { ...editorDraft, ...draft };
       form.elements.kind.value = draft.kind || 'new';
       form.elements.targetContributionId.value = draft.targetContributionId || '';
+      editorDraft.targetDocumentId = draft.targetDocumentId
+        || draft.targetContributionId
+        || editorDraft.targetDocumentId
+        || '';
       editorDocument = draftContentToEditorDocument(template, draft.content, draft);
       fillIndexControls(editorDocument.indexData);
       references = [...editorDocument.references];
       editorBridge?.write(editorDocument);
       renderReferenceList(referenceList, references);
       updateMode();
+      if (draft.id && draft.archiveId && draft.kind !== 'new') {
+        void (async () => {
+          await loadEditableArchives();
+          editableArchiveSelect.value = draft.archiveId;
+          await applySelectedArchive();
+        })();
+      }
     };
 
     populateDraft(editorDraft);
@@ -747,6 +855,18 @@ export function initializeArchiveWorkspace({
     });
 
     let activePreviewUrl = null;
+    const resetEditorForMode = () => {
+      editorBridge?.dispose();
+      editorBridge = null;
+      activePreviewUrl = null;
+      references = [];
+      editorDocument = createEditorDocument(template, {}, {
+        indexData: readIndexControls(),
+        references,
+        media: [],
+      });
+      renderReferenceList(referenceList, references);
+    };
     const mountEditorBridge = ({ waitForLoad = false } = {}) => {
       const previewUrl = editorPreviewUrl(template, kindSelect.value);
       if (editorBridge && activePreviewUrl === previewUrl) return;
@@ -785,7 +905,7 @@ export function initializeArchiveWorkspace({
     if (initial.archiveId && !initial.id && initial.kind !== 'new') {
       await loadEditableArchives();
       editableArchiveSelect.value = initial.archiveId;
-      await applySelectedArchive({ loadSource: true });
+      await applySelectedArchive();
     }
     const localRecovery = autosave.loadRecovery(localKey, null);
     let recovery = localRecovery;
@@ -837,9 +957,20 @@ export function initializeArchiveWorkspace({
       autosave.queue(collectDraft());
     });
     form.addEventListener('change', (event) => {
-      updateMode();
-      if (event.target === kindSelect) mountEditorBridge({ waitForLoad: true });
-      if (event.target === editableArchiveSelect) applySelectedArchive({ loadSource: true });
+      if (event.target === kindSelect) {
+        resetEditorForMode();
+        updateMode();
+        mountEditorBridge({ waitForLoad: true });
+        if (kindSelect.value !== 'new' && editableArchiveSelect.value) {
+          void applySelectedArchive();
+        }
+      } else if (event.target === editableArchiveSelect) {
+        void applySelectedArchive();
+      } else if (event.target === targetDocumentSelect) {
+        applyTargetDocument();
+      } else {
+        updateMode();
+      }
       autosave.queue(collectDraft());
     });
     form.querySelector('[data-refresh-editable-archives]').addEventListener('click', async () => {
@@ -917,8 +1048,13 @@ export function initializeArchiveWorkspace({
         setAutosaveState('offline-saved');
         return;
       }
-      if (kindSelect.value === 'amendment' && !editorDraft.archiveId) {
-        message.textContent = '请先选择要修改的既有档案。';
+      if (kindSelect.value !== 'new' && !editorDraft.archiveId) {
+        message.textContent = '请先选择要补充或修改的既有档案。';
+        return;
+      }
+      if (kindSelect.value === 'amendment' && !targetDocumentSelect.value) {
+        message.textContent = '请再选择要修改的具体文档。';
+        targetDocumentSelect.focus();
         return;
       }
       const submitButton = form.querySelector('[data-submit-draft]');
@@ -1681,6 +1817,9 @@ export function initializeArchiveWorkspace({
       archiveId: detail.archiveId || null,
       archiveCode: detail.archiveCode || '',
       targetContributionId: detail.targetContributionId || null,
+      targetDocumentId: detail.targetContributionId
+        || (detail.officialBase && detail.archiveId ? `official:${detail.archiveId}` : ''),
+      officialBase: Boolean(detail.officialBase),
       kind: 'amendment',
       title: detail.title || '档案修改申请',
     });

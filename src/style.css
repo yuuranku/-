@@ -3514,6 +3514,60 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
   background: #132d29;
   cursor: pointer;
 }
+.archive-record-amendments {
+  display: grid;
+  gap: 12px;
+  margin: 34px 0 0;
+  padding: 15px;
+  border: 3px double currentColor;
+}
+.archive-record-amendments > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid currentColor;
+  font: 800 10px/1.3 var(--font-mono);
+  letter-spacing: .06em;
+}
+.archive-record-amendment {
+  padding: 14px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, .08);
+}
+.archive-record-amendment > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+.archive-record-amendment > header p,
+.archive-record-amendment > header h5 { margin: 0; }
+.archive-record-amendment > header p {
+  opacity: .65;
+  font: 700 9px/1.3 var(--font-mono);
+}
+.archive-record-amendment > header h5 {
+  margin-top: 5px;
+  font: 700 18px/1.2 var(--font-display);
+}
+.archive-record-amendment > header > b {
+  font: 800 10px/1.3 var(--font-mono);
+}
+.archive-record-amendment > dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 13px 0;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+}
+.archive-record-amendment > dl div {
+  padding: 7px 9px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+.archive-record-amendment > dl dt { opacity: .65; font: 700 9px/1.3 var(--font-mono); }
+.archive-record-amendment > dl dd { margin: 4px 0 0; font: 700 11px/1.4 var(--font-mono); }
+.archive-record-amendment .archive-formal-section { margin-top: 12px; }
 body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-request-amendment] { display: none; }
 .archive-contribution-empty { color: #65675f; font-style: italic; }
 .archive-reverse-references {
@@ -3530,7 +3584,8 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
   .archive-contribution-panel > header { grid-template-columns: 1fr; }
   .archive-registration-stamp { justify-self: start; }
   .archive-contribution-attribution,
-  .archive-contribution-fields { grid-template-columns: 1fr; }
+  .archive-contribution-fields,
+  .archive-record-amendment > dl { grid-template-columns: 1fr; }
   .archive-version-history li { grid-template-columns: 82px 1fr; }
   .archive-version-history time { grid-column: 2; }
 }

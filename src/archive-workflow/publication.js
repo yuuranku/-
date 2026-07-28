@@ -1,4 +1,8 @@
-import { renderFormalArchiveDocument } from './public-renderer.js';
+import {
+  renderFormalArchiveAmendment,
+  renderFormalArchiveDocument,
+} from './public-renderer.js';
+import { buildArchiveRecordTree } from './record-tree.js';
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -49,21 +53,23 @@ export function buildPublishedArchiveModel({
   const marks = [];
   if (archive.is_mother) marks.push('mother');
   if (archive.is_archived) marks.push('archival');
+  const recordTree = buildArchiveRecordTree({
+    officialRecord,
+    contributions: published,
+  });
 
   return {
     archive,
     marks,
-    contributions: published,
+    contributions: recordTree.records,
+    records: recordTree.records,
+    amendmentsByTarget: recordTree.amendmentsByTarget,
+    orphanAmendments: recordTree.orphanAmendments,
+    officialTargetId: recordTree.officialTargetId,
     officialRecord,
     reverseReferences: reverseReferences.filter((reference) =>
       !reference.source_archive || reference.source_archive.visibility === 'public'),
-    tabs: [
-      ...(officialRecord ? [{ id: officialRecord.id, label: '官方档案' }] : []),
-      ...published.map((contribution, index) => ({
-        id: contribution.id,
-        label: `记录 ${String(index + 1).padStart(2, '0')}`,
-      })),
-    ],
+    tabs: recordTree.tabs,
   };
 }
 
@@ -98,7 +104,53 @@ const renderVersionHistory = (versions = []) => `
   </ol>
 `;
 
-const renderContribution = (contribution, index, archive) => {
+const renderLegacyAmendment = (amendment, targetId) => {
+  const version = amendment.latestVersion;
+  return `
+    <article class="archive-record-amendment" data-amendment-for="${escapeHtml(targetId)}" data-amendment-id="${escapeHtml(amendment.id)}">
+      <header>
+        <div>
+          <p>PALIS / TARGETED AMENDMENT</p>
+          <h5>${escapeHtml(amendment.title || '补充修改')}</h5>
+        </div>
+        <b>VER ${escapeHtml(version.version_label || '0.1')}</b>
+      </header>
+      <dl>
+        ${!amendment.target_contribution_id
+          ? '<div><dt>原始档案</dt><dd>官方档案</dd></div>'
+          : ''}
+        <div><dt>档案修改者</dt><dd>${escapeHtml(displayName(version.modifier, displayName(amendment.owner)))}</dd></div>
+        <div><dt>审核者</dt><dd>${escapeHtml(displayName(version.reviewer, '审核记录未署名'))}</dd></div>
+        <div><dt>收录日期</dt><dd>${escapeHtml(version.approved_at ? new Date(version.approved_at).toLocaleDateString('zh-CN') : '日期未录入')}</dd></div>
+      </dl>
+      <section>
+        <h6>本次修改</h6>
+        ${renderFields(version.content?.fields)}
+      </section>
+      ${renderReferences(version.content?.references)}
+    </article>
+  `;
+};
+
+const renderAmendments = (amendments = [], targetId) => {
+  if (!amendments.length) return '';
+  return `
+    <section class="archive-record-amendments" aria-label="本记录的修改历史">
+      <header><b>本记录的补充修改</b><span>${String(amendments.length).padStart(2, '0')} ENTRIES</span></header>
+      ${amendments.map((amendment) => (
+        amendment.latestVersion.content?.schemaVersion === 2
+          ? renderFormalArchiveAmendment({
+              contribution: amendment,
+              version: amendment.latestVersion,
+              targetId,
+            })
+          : renderLegacyAmendment(amendment, targetId)
+      )).join('')}
+    </section>
+  `;
+};
+
+const renderContribution = (contribution, index, archive, amendments = []) => {
   const version = contribution.latestVersion;
   if (version.content?.schemaVersion === 2) {
     return `
@@ -112,6 +164,7 @@ const renderContribution = (contribution, index, archive) => {
           <h4>版本历史</h4>
           ${renderVersionHistory(contribution.versions)}
         </section>
+        ${renderAmendments(amendments, contribution.id)}
         <footer>
           <button type="button" data-request-amendment="${escapeHtml(contribution.id)}" data-archive-id="${escapeHtml(contribution.archive_id || archive?.id || '')}">提交本记录的修改申请</button>
         </footer>
@@ -153,6 +206,7 @@ const renderContribution = (contribution, index, archive) => {
         <h4>版本历史</h4>
         ${renderVersionHistory(contribution.versions)}
       </section>
+      ${renderAmendments(amendments, contribution.id)}
       <footer>
         <button type="button" data-request-amendment="${escapeHtml(contribution.id)}" data-archive-id="${escapeHtml(contribution.archive_id || '')}">提交本记录的修改申请</button>
       </footer>
@@ -177,13 +231,22 @@ export function renderPublishedContributionLedger(model) {
           <button type="button" data-contribution-tab="${escapeHtml(tab.id)}" aria-selected="${index === 0 ? 'true' : 'false'}">${escapeHtml(tab.label)}</button>
         `).join('')}
       </nav>
-      ${model.officialRecord ? `
-        <article class="archive-contribution-panel archive-contribution-panel--official" data-contribution-panel="${escapeHtml(model.officialRecord.id)}" hidden>
-          ${model.officialRecord.markup}
+      ${model.officialTargetId ? `
+        <article class="archive-contribution-panel archive-contribution-panel--official" data-contribution-panel="${escapeHtml(model.officialTargetId)}" hidden>
+          ${model.officialRecord?.markup || ''}
+          ${renderAmendments(
+            model.amendmentsByTarget.get(model.officialTargetId),
+            model.officialTargetId,
+          )}
         </article>
       ` : ''}
       ${model.contributions.map((contribution, index) =>
-        renderContribution(contribution, index, model.archive)).join('')}
+        renderContribution(
+          contribution,
+          index,
+          model.archive,
+          model.amendmentsByTarget.get(contribution.id),
+        )).join('')}
       ${model.reverseReferences.length ? `
         <aside class="archive-reverse-references">
           <b>引用本档案的公开记录</b>

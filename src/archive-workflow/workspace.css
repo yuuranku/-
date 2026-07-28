@@ -377,6 +377,16 @@
   font: 8px/1.45 var(--font-sans);
 }
 
+.archive-target-document-picker {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  padding-top: 9px;
+  border-top: 1px dotted #696d69;
+}
+
+.archive-target-document-picker[hidden] { display: none !important; }
+
 .archive-editor__canvas {
   position: relative;
   display: grid;

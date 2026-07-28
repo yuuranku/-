@@ -197,3 +197,45 @@ export const renderFormalArchiveDocument = ({
     </article>
   `;
 };
+
+export const renderFormalArchiveAmendment = ({
+  contribution = {},
+  version,
+  targetId,
+} = {}) => {
+  if (!version?.content) return '';
+  const document = normalizeEditorDocument(version.content);
+  const modifier = displayName(version.modifier || contribution.owner);
+  const reviewer = displayName(version.reviewer, '审核记录未署名');
+  const approvedDate = version.approved_at
+    ? new Date(version.approved_at).toLocaleDateString('zh-CN')
+    : '日期未录入';
+  const title = visibleValue(document.values?.['amendment:title'])
+    || document.title
+    || contribution.title
+    || '补充修改';
+
+  return `
+    <article class="archive-record-amendment archive-record-amendment--formal" data-amendment-for="${escapeHtml(targetId)}" data-amendment-id="${escapeHtml(contribution.id)}">
+      <header>
+        <div>
+          <p>PALIS / TARGETED AMENDMENT</p>
+          <h5>${escapeHtml(title)}</h5>
+        </div>
+        <b>VER ${escapeHtml(version.version_label || '0.1')}</b>
+      </header>
+      <dl>
+        ${!contribution.target_contribution_id
+          ? '<div><dt>原始档案</dt><dd>官方档案</dd></div>'
+          : ''}
+        <div><dt>档案修改者</dt><dd>${escapeHtml(modifier)}</dd></div>
+        <div><dt>审核者</dt><dd>${escapeHtml(reviewer)}</dd></div>
+        <div><dt>收录日期</dt><dd>${escapeHtml(approvedDate)}</dd></div>
+      </dl>
+      ${renderPhoto(document)}
+      <div class="archive-record-amendment__body">
+        ${renderSections(document)}
+      </div>
+    </article>
+  `;
+};

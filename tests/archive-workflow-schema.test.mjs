@@ -143,6 +143,12 @@ test('archive index repair migrates identities, projections, NEW state, and medi
   assert.match(sql, /'sequenceNumber'/i);
   assert.match(sql, /'abbreviation'/i);
   assert.match(sql, /create or replace function public\.list_archive_documents/i);
+  assert.match(sql, /create or replace function public\.validate_archive_contribution_target/i);
+  assert.match(sql, /target_record\.kind\s*=\s*'amendment'/i);
+  assert.match(sql, /base_record\.contribution_id\s*<>\s*new\.target_contribution_id/i);
+  assert.match(sql, /new\.base_version_id\s+is\s+null[\s\S]*base version is required/i);
+  assert.match(sql, /p_archive_id\s*<>\s*contribution\.archive_id/i);
+  assert.match(sql, /create trigger validate_archive_contribution_target_before_submit/i);
   assert.match(sql, /synchronize_published_notification_version[\s\S]*formal_number/i);
   assert.match(sql, /notify pgrst,\s*'reload schema'/i);
 });

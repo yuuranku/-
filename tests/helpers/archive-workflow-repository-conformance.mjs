@@ -13,7 +13,7 @@ const fixture = Object.freeze({
     ownerId: 'clerk-1',
     templateId: 'template-1',
     title: 'HZ-6 incident record',
-    kind: 'contribution',
+    kind: 'new',
     content: Object.freeze({ schemaVersion: 2, sections: [] }),
   }),
   registration: Object.freeze({
