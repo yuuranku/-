@@ -134,6 +134,11 @@ test('baseline acceptance copies only validated artifacts and preserves old base
   const currentRoot = path.join(root, 'current'); const baselinePath = path.join(root, 'baseline', 'manifest.json');
   await cp(path.resolve('tmp/verification/baseline'), currentRoot, { recursive: true });
   const currentPath = path.join(currentRoot, 'manifest.json');
+  const seeded = JSON.parse(await readFile(currentPath, 'utf8'));
+  seeded.previewOrigin = new URL(seeded.requestLog.allowed.find((entry) => entry.url.startsWith('http:')).url).origin;
+  seeded.archiveOrigin = 'https://hpzdccfrouhljqlzczuv.supabase.co';
+  for (const capture of seeded.captures) capture.state.operatorRole = capture.scene === 'clerk-workspace' ? 'clerk' : capture.scene === 'admin-workspace' ? 'admin' : 'observer';
+  await writeFile(currentPath, JSON.stringify(seeded));
   await mkdir(path.dirname(baselinePath), { recursive: true });
   await writeFile(baselinePath, 'old baseline');
   await acceptPalisBaseline({ currentPath, baselinePath });
@@ -177,10 +182,10 @@ test('scene capture records preview and clean-home state before their screenshot
   const firstEntry = manifest.captures.find((capture) => capture.scene === 'first-entry-home');
   const cleanHome = manifest.captures.find((capture) => capture.scene === 'clean-home');
   assert.deepEqual(firstEntry.state, {
-    accessMode: 'preview', chapter: '2', versionNoticeVisible: true,
+    accessMode: 'preview', operatorRole: 'observer', chapter: '2', versionNoticeVisible: true,
   });
   assert.deepEqual(cleanHome.state, {
-    accessMode: 'preview', chapter: '2', versionNoticeVisible: false,
+    accessMode: 'preview', operatorRole: 'observer', chapter: '2', versionNoticeVisible: false,
   });
   assert.ok(manifest.captures.every((capture) => capture.file.endsWith('.png')));
   assert.deepEqual(manifest.diagnostics, []);

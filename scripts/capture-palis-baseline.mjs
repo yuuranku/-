@@ -12,6 +12,7 @@ import { installPalisPageFixture, waitForPalisVisuals } from './palis-page-fixtu
 import { parseViewport, resolveBrowserExecutable } from './palis-browser-runtime.mjs';
 
 const require = createRequire(import.meta.url);
+const ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
 const puppeteerVersion = require('puppeteer-core/package.json').version;
 const sha256 = async (file) => createHash('sha256').update(await readFile(file)).digest('hex');
 const defaultViewports = Object.freeze(['1440x900', '390x844', '844x390'].map(parseViewport));
@@ -108,6 +109,7 @@ export async function capturePalisScenes({
         await page.screenshot({ path: file, fullPage: false });
         const state = await page.evaluate(() => ({
           accessMode: document.body.dataset.accessMode,
+          operatorRole: document.body.dataset.operatorRole || 'observer',
           chapter: document.body.dataset.chapter,
           versionNoticeVisible: !document.querySelector('#version-notice')?.hidden,
         }));
@@ -164,9 +166,11 @@ export async function capturePalisScenes({
       puppeteer: puppeteerVersion,
       os: `${os.platform()} ${os.release()}`,
       locale: 'zh-CN', timezone: 'Asia/Shanghai', deviceScaleFactor: 1,
+      previewOrigin: new URL(preview.url).origin, archiveOrigin: ARCHIVE_ORIGIN,
       viewports: viewports.map(({ width, height }) => `${width}x${height}`),
       ...environment, captures, diagnostics, requestLog,
     };
+    if (!environment.webgl?.vendor || !environment.webgl?.renderer) diagnostics.push({ level: 'webgl', message: 'WebGL vendor/renderer unavailable' });
     await writeFile(path.join(captureRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     if (diagnostics.length || requestLog.fatal.length || requestLog.unknownExternal.length) {
       throw new Error(`PALIS capture recorded diagnostics or external network activity: ${JSON.stringify({
