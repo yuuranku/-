@@ -30,6 +30,20 @@
 11. RED: the three C01 conformance groups failed because the harness had not yet converted the shared fixture to local state.
 12. GREEN: the focused suite, including all C01 conformance groups, passed 27/27.
 
+## Important review fix round
+
+- Moved the fixed-category draft policy into one resolver used by both new and updated saves. A clerk can only save station/entrance material as an `amendment` to a real archive of the matching category; `new`/`contribution`, missing targets, false targets, category mismatches, and event-to-station update bypasses are rejected. Administrator behavior remains unrestricted by this category policy.
+- Amendment publication now resolves the original submitter from `target_contribution_id` first. If the target cannot be resolved, it falls back to the existing archive version or published base contribution. The current amendment owner is stored only as modifier, and the public version view preserves both people.
+- `listArchiveContributions` now requires the archive itself to have `visibility: 'public'`; sealed and offline archives return no public contribution records. `loadArchiveEditorSource` remains visibility-independent for administrator editing.
+- Account deletion history now includes review authors and audit actors in addition to contribution/version attribution. Historical accounts are disabled, and deletion results expose the workspace-compatible `status: 'disabled' | 'deleted'` while retaining the boolean fields.
+
+### Fix TDD evidence
+
+1. RED: the expanded focused suite passed 29 and failed 8. The failures proved all four reported gaps: three fixed-category bypasses, two amendment-attribution errors, a sealed/offline public leak, physical deletion of review/audit authors, and missing deletion status.
+2. GREEN: the first minimal implementation passed 37/37.
+3. RED: a narrow lineage-precedence test then proved that an existing target contribution without its own version was incorrectly losing to an unrelated archive current version.
+4. GREEN: target contribution attribution now precedes archive fallback, and the complete focused suite passes 38/38.
+
 ## Mutation checks
 
 1. Temporarily allowing a clerk to create a new station made the focused permission test fail with `Missing expected rejection`.
@@ -38,8 +52,8 @@
 
 ## Final verification
 
-- `node --test tests/local-workflow-engine.test.mjs` — 27 passing, 0 failing.
-- `npm.cmd test` — 172 passing, 0 failing.
+- `node --test tests/local-workflow-engine.test.mjs` — 38 passing, 0 failing.
+- `npm.cmd test` — 186 passing, 0 failing.
 - No deployment was performed.
 
 ## Task files

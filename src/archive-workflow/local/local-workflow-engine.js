@@ -106,6 +106,34 @@ export const createLocalWorkflowEngine = ({
     });
   };
 
+  const resolveDraftClassification = (state, principal, draft, saved = null) => {
+    const templateId = draft.templateId ?? draft.template_id ?? saved?.template_id ?? null;
+    const template = state.templates.find((entry) =>
+      entry.id === templateId || entry.code === templateId);
+    if (templateId && (!template || template.active === false)) {
+      throw workflowError('invalid_template', 'An active archive template is required');
+    }
+    const archiveId = draft.archiveId ?? draft.archive_id ?? saved?.archive_id ?? null;
+    const kind = draft.kind ?? saved?.kind ?? 'new';
+    const category = normalizeCategory(template?.category);
+    if (principal.role !== 'admin' && ['station', 'entrance'].includes(category)) {
+      const archive = archiveId
+        ? state.archives.find((entry) => entry.id === archiveId)
+        : null;
+      if (
+        kind !== 'amendment'
+        || !archive
+        || normalizeCategory(archive.category) !== category
+      ) {
+        throw workflowError(
+          'permission_denied',
+          'A clerk can only amend an existing archive in this fixed category',
+        );
+      }
+    }
+    return { archiveId, category, kind, templateId };
+  };
+
   const getProfile = (userId) => readSnapshot((state) => {
     const profile = state.profiles.find((entry) => entry.id === String(userId ?? '').trim());
     if (!profile) throw workflowError('not_found', 'Profile was not found');
@@ -157,23 +185,8 @@ export const createLocalWorkflowEngine = ({
       const timestamp = now();
       const ownerId = principal.id;
       if (!draft.id) {
-        const templateId = draft.templateId ?? draft.template_id ?? null;
-        const template = nextState.templates.find((entry) =>
-          entry.id === templateId || entry.code === templateId);
-        if (templateId && (!template || template.active === false)) {
-          throw workflowError('invalid_template', 'An active archive template is required');
-        }
-        const category = normalizeCategory(template?.category);
-        const archiveId = draft.archiveId ?? draft.archive_id ?? null;
-        const kind = draft.kind ?? 'new';
-        if (
-          principal.role !== 'admin'
-          && !archiveId
-          && ['new', 'contribution'].includes(kind)
-          && ['station', 'entrance'].includes(category)
-        ) {
-          throw workflowError('permission_denied', 'Only an administrator can create this archive category');
-        }
+        const { archiveId, kind, templateId } =
+          resolveDraftClassification(nextState, principal, draft);
         const saved = {
           id: randomUUID(),
           archive_id: archiveId,
@@ -203,10 +216,11 @@ export const createLocalWorkflowEngine = ({
           result: { status: 'conflict', conflict: true, cloud: clone(saved) },
         };
       }
-      saved.archive_id = draft.archiveId ?? draft.archive_id ?? saved.archive_id ?? null;
-      saved.template_id = draft.templateId ?? draft.template_id ?? saved.template_id ?? null;
+      const classification = resolveDraftClassification(nextState, principal, draft, saved);
+      saved.archive_id = classification.archiveId;
+      saved.template_id = classification.templateId;
       saved.title = String(draft.title ?? saved.title ?? '').trim() || '未命名档案';
-      saved.kind = draft.kind ?? saved.kind ?? 'new';
+      saved.kind = classification.kind;
       saved.target_contribution_id =
         draft.targetContributionId ?? draft.target_contribution_id ?? saved.target_contribution_id ?? null;
       saved.base_version_id = draft.baseVersionId ?? draft.base_version_id ?? saved.base_version_id ?? null;
@@ -424,7 +438,43 @@ export const createLocalWorkflowEngine = ({
       }
 
       const owner = nextState.profiles.find((profile) => profile.id === contribution.owner_id);
-      const isAmendment = Boolean(archiveIdInput);
+      const isAmendment = contribution.kind === 'amendment';
+      let submitterId = contribution.submitter_id ?? contribution.owner_id;
+      let submitterName = contribution.submitter_name ?? owner?.display_name ?? contribution.owner_id;
+      if (isAmendment) {
+        const targetContribution = contribution.target_contribution_id
+          ? nextState.contributions.find((entry) => entry.id === contribution.target_contribution_id)
+          : null;
+        const targetVersion = targetContribution
+          ? nextState.versions
+            .filter((entry) => entry.contribution_id === targetContribution.id)
+            .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))[0]
+          : null;
+        const archiveVersion = nextState.versions.find((entry) => entry.id === archive.current_version_id)
+          ?? nextState.versions
+            .filter((entry) => entry.archive_id === archive.id)
+            .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)))[0]
+          ?? null;
+        const archiveContribution = nextState.contributions.find((entry) =>
+          entry.archive_id === archive.id
+          && entry.status === 'published'
+          && entry.kind !== 'amendment') ?? null;
+        const targetSubmitterId = targetVersion?.submitter_id
+          ?? targetContribution?.submitter_id
+          ?? targetContribution?.owner_id
+          ?? null;
+        const archiveSubmitterId = archiveVersion?.submitter_id
+          ?? archiveContribution?.submitter_id
+          ?? archiveContribution?.owner_id
+          ?? null;
+        submitterId = targetSubmitterId ?? archiveSubmitterId ?? submitterId;
+        const submitterProfile = nextState.profiles.find((profile) => profile.id === submitterId);
+        submitterName = (targetSubmitterId
+          ? targetVersion?.submitter_name ?? targetContribution?.submitter_name
+          : archiveVersion?.submitter_name ?? archiveContribution?.submitter_name)
+          ?? submitterProfile?.display_name
+          ?? submitterId;
+      }
       const version = {
         id: randomUUID(),
         archive_id: archive.id,
@@ -433,8 +483,8 @@ export const createLocalWorkflowEngine = ({
         content: clone(contribution.draft_content),
         approved_at: contribution.reviewed_at ?? publishedAt,
         created_at: publishedAt,
-        submitter_id: contribution.submitter_id ?? contribution.owner_id,
-        submitter_name: contribution.submitter_name ?? owner?.display_name ?? contribution.owner_id,
+        submitter_id: submitterId,
+        submitter_name: submitterName,
         modifier_id: isAmendment ? contribution.owner_id : null,
         modifier_name: isAmendment ? (owner?.display_name ?? contribution.owner_id) : null,
         reviewer_id: principal.id,
@@ -675,7 +725,9 @@ export const createLocalWorkflowEngine = ({
       }
       const hasHistory = nextState.contributions.some((entry) => entry.owner_id === targetId)
         || nextState.versions.some((entry) =>
-          [entry.submitter_id, entry.modifier_id, entry.reviewer_id].includes(targetId));
+          [entry.submitter_id, entry.modifier_id, entry.reviewer_id].includes(targetId))
+        || nextState.reviews.some((entry) => entry.reviewer_id === targetId)
+        || nextState.auditEvents.some((entry) => entry.actor_id === targetId);
       const timestamp = now();
       if (hasHistory) {
         profile.enabled = false;
@@ -695,7 +747,12 @@ export const createLocalWorkflowEngine = ({
       );
       return {
         nextState,
-        result: { id: targetId, disabled: hasHistory, deleted: !hasHistory },
+        result: {
+          id: targetId,
+          status: hasHistory ? 'disabled' : 'deleted',
+          disabled: hasHistory,
+          deleted: !hasHistory,
+        },
       };
     });
   };
@@ -816,10 +873,13 @@ export const createLocalWorkflowEngine = ({
     reviewer: versionPerson(state, version, 'reviewer'),
   });
 
-  const listArchiveContributions = (archiveId) => readSnapshot((state) =>
-    state.contributions
+  const listArchiveContributions = (archiveId) => readSnapshot((state) => {
+    const id = String(archiveId ?? '').trim();
+    const archive = state.archives.find((entry) => entry.id === id);
+    if (!archive || archive.visibility !== 'public') return [];
+    return state.contributions
       .filter((contribution) =>
-        contribution.archive_id === String(archiveId ?? '').trim()
+        contribution.archive_id === id
         && contribution.status === 'published')
       .map((contribution) => {
         const owner = state.profiles.find((profile) => profile.id === contribution.owner_id);
@@ -841,7 +901,8 @@ export const createLocalWorkflowEngine = ({
           },
           versions,
         };
-      }));
+      });
+  });
 
   const loadArchiveEditorSource = (archiveId) => readSnapshot((state) => {
     const id = String(archiveId ?? '').trim();

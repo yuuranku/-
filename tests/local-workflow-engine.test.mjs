@@ -172,6 +172,95 @@ const createApprovedPublicationState = ({
 const formalNumber = (archive) =>
   `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`;
 
+const createFixedCategoryPolicyState = () => {
+  const state = createEmptyLocalState();
+  state.profiles.push(...structuredClone(LOCAL_PROFILES));
+  state.templates.push(...structuredClone(LOCAL_TEMPLATES));
+  state.archives.push(
+    {
+      id: 'station-archive',
+      code: 'ST4',
+      category: 'station',
+      title: 'Existing station',
+      visibility: 'public',
+      sequence_number: 4,
+      abbreviation: 'LOG',
+    },
+    {
+      id: 'event-archive',
+      code: 'EV2',
+      category: 'event',
+      title: 'Existing event',
+      visibility: 'public',
+      sequence_number: 2,
+      abbreviation: 'RLL',
+    },
+  );
+  return state;
+};
+
+const createAmendmentAttributionState = (targetContributionId = 'original-contribution') => {
+  const archive = {
+    id: 'archive-attribution',
+    code: 'EV9',
+    business_code: 'ORIGINAL-EVENT',
+    category: 'event',
+    title: 'Attribution event',
+    summary: '',
+    visibility: 'public',
+    origin: 'local',
+    sequence_number: 9,
+    abbreviation: 'RLL',
+    current_version_id: 'original-version',
+    published_at: '2026-07-27T12:00:00.000Z',
+  };
+  const state = createApprovedPublicationState({ archive });
+  state.profiles.push({
+    id: 'original-author',
+    email: 'original@example.com',
+    display_name: 'Original Author',
+    role: 'clerk',
+    enabled: true,
+  });
+  state.contributions.unshift({
+    id: 'original-contribution',
+    archive_id: archive.id,
+    template_id: '07',
+    owner_id: 'original-author',
+    target_contribution_id: null,
+    title: 'Original contribution',
+    kind: 'new',
+    status: 'published',
+    draft_content: { schemaVersion: 2, sections: [{ title: 'original' }] },
+    revision: 1,
+    submitter_id: 'original-author',
+    submitter_name: 'Original Author',
+    created_at: '2026-07-27T10:00:00.000Z',
+    updated_at: '2026-07-27T12:00:00.000Z',
+  });
+  state.versions.push({
+    id: 'original-version',
+    archive_id: archive.id,
+    contribution_id: 'original-contribution',
+    version_label: '0.1',
+    content: { schemaVersion: 2, sections: [{ title: 'original' }] },
+    approved_at: '2026-07-27T12:00:00.000Z',
+    created_at: '2026-07-27T12:00:00.000Z',
+    submitter_id: 'original-author',
+    submitter_name: 'Original Author',
+    modifier_id: null,
+    modifier_name: null,
+    reviewer_id: 'local-admin',
+    reviewer_name: 'Local Administrator',
+  });
+  const amendment = state.contributions.find(({ id }) => id === 'submission-1');
+  amendment.owner_id = 'clerk-1';
+  amendment.submitter_id = 'clerk-1';
+  amendment.submitter_name = 'Archive Clerk';
+  amendment.target_contribution_id = targetContributionId;
+  return state;
+};
+
 test('empty local state exposes only the thirteen unseeded workflow stores', () => {
   const state = createEmptyLocalState();
 
@@ -846,6 +935,257 @@ test('each publication failpoint rolls back the entire state and commit count', 
       `${point} metrics`,
     );
   }
+});
+
+test('a clerk cannot reclassify an existing event draft as a station draft', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seed(createFixedCategoryPolicyState());
+  const saved = await saveEventDraft(harness);
+
+  await assert.rejects(
+    harness.repository.saveDraft({
+      id: saved.id,
+      ownerId: 'clerk-1',
+      revision: saved.revision,
+      templateId: '03',
+      archiveId: 'station-archive',
+      kind: 'new',
+      title: 'Reclassified station',
+      content: { schemaVersion: 2, templateCode: '03', values: {} },
+    }),
+    hasCode('permission_denied'),
+  );
+
+  const state = await harness.inspectState();
+  assert.equal(state.contributions[0].template_id, '07');
+  assert.equal(state.contributions[0].revision, 1);
+});
+
+test('fixed-category clerk drafts reject new or contribution kinds even with a real archive', async () => {
+  for (const kind of ['new', 'contribution']) {
+    const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+    await harness.seed(createFixedCategoryPolicyState());
+
+    await assert.rejects(
+      harness.repository.saveDraft({
+        ownerId: 'clerk-1',
+        templateId: '03',
+        archiveId: 'station-archive',
+        kind,
+        title: `Blocked ${kind}`,
+        content: { schemaVersion: 2, templateCode: '03', values: {} },
+      }),
+      hasCode('permission_denied'),
+    );
+  }
+});
+
+test('fixed-category clerk amendments require a real archive of the same category', async () => {
+  for (const archiveId of [null, 'missing-station', 'event-archive']) {
+    const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+    await harness.seed(createFixedCategoryPolicyState());
+
+    await assert.rejects(
+      harness.repository.saveDraft({
+        ownerId: 'clerk-1',
+        templateId: '03',
+        archiveId,
+        kind: 'amendment',
+        title: 'Invalid station amendment',
+        content: { schemaVersion: 2, templateCode: '03', values: {} },
+      }),
+      hasCode('permission_denied'),
+    );
+  }
+});
+
+test('a clerk can save a station amendment against a real station archive', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seed(createFixedCategoryPolicyState());
+
+  const saved = await harness.repository.saveDraft({
+    ownerId: 'clerk-1',
+    templateId: '03',
+    archiveId: 'station-archive',
+    kind: 'amendment',
+    title: 'Station supplement',
+    content: { schemaVersion: 2, templateCode: '03', values: {} },
+  });
+
+  assert.equal(saved.kind, 'amendment');
+  assert.equal(saved.archive_id, 'station-archive');
+  assert.equal(saved.template_id, '03');
+});
+
+test('an amendment public version keeps the target author as submitter and current owner as modifier', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(createAmendmentAttributionState());
+
+  const published = await harness.repository.publishContribution('submission-1', {
+    archiveId: 'archive-attribution',
+    category: 'event',
+    version: '0.2',
+    visibility: 'public',
+    idempotencyKey: 'publish-attribution',
+  });
+  const contributions = await harness.repository.listArchiveContributions(published.archiveId);
+  const amendment = contributions.find(({ id }) => id === 'submission-1');
+
+  assert.deepEqual(amendment.versions[0].submitter, {
+    id: 'original-author',
+    display_name: 'Original Author',
+  });
+  assert.deepEqual(amendment.versions[0].modifier, {
+    id: 'clerk-1',
+    display_name: 'Archive Clerk',
+  });
+});
+
+test('an amendment without a resolvable target falls back to the archive version submitter', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(createAmendmentAttributionState('missing-contribution'));
+
+  const published = await harness.repository.publishContribution('submission-1', {
+    archiveId: 'archive-attribution',
+    category: 'event',
+    version: '0.2',
+    visibility: 'public',
+    idempotencyKey: 'publish-attribution-fallback',
+  });
+  const contributions = await harness.repository.listArchiveContributions(published.archiveId);
+  const amendment = contributions.find(({ id }) => id === 'submission-1');
+
+  assert.equal(amendment.versions[0].submitter.id, 'original-author');
+  assert.equal(amendment.versions[0].modifier.id, 'clerk-1');
+});
+
+test('a resolvable target contribution author takes precedence over an unrelated archive version', async () => {
+  const state = createAmendmentAttributionState();
+  state.versions[0].contribution_id = 'unrelated-contribution';
+  state.versions[0].submitter_id = 'clerk-1';
+  state.versions[0].submitter_name = 'Archive Clerk';
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const published = await harness.repository.publishContribution('submission-1', {
+    archiveId: 'archive-attribution',
+    category: 'event',
+    version: '0.2',
+    visibility: 'public',
+    idempotencyKey: 'publish-target-precedence',
+  });
+  const contributions = await harness.repository.listArchiveContributions(published.archiveId);
+  const amendment = contributions.find(({ id }) => id === 'submission-1');
+
+  assert.equal(amendment.versions[0].submitter.id, 'original-author');
+  assert.equal(amendment.versions[0].modifier.id, 'clerk-1');
+});
+
+test('sealed and offline archives expose no public contribution records', async () => {
+  for (const visibility of ['sealed', 'offline']) {
+    const state = createPublishedReadState();
+    state.archives[0].visibility = visibility;
+    const harness = await createLocalWorkflowHarness();
+    await harness.seed(state);
+
+    assert.deepEqual(await harness.repository.listArchiveContributions('archive-1'), []);
+  }
+});
+
+test('a sealed archive remains available to the editor source reader', async () => {
+  const state = createPublishedReadState();
+  state.archives[0].visibility = 'sealed';
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const source = await harness.repository.loadArchiveEditorSource('archive-1');
+
+  assert.equal(source.archiveId, 'archive-1');
+  assert.equal(source.versionId, 'version-2');
+});
+
+test('review and audit authors are disabled instead of physically deleted', async () => {
+  const state = createEmptyLocalState();
+  state.profiles.push(
+    structuredClone(LOCAL_PROFILES[0]),
+    {
+      id: 'reviewer-only',
+      email: 'reviewer@example.com',
+      display_name: 'Historical Reviewer',
+      role: 'clerk',
+      enabled: true,
+    },
+    {
+      id: 'auditor-only',
+      email: 'auditor@example.com',
+      display_name: 'Historical Auditor',
+      role: 'clerk',
+      enabled: true,
+    },
+  );
+  state.reviews.push({
+    id: 'review-1',
+    contribution_id: 'historical-contribution',
+    reviewer_id: 'reviewer-only',
+    decision: 'approved',
+    message: 'Historical approval',
+    created_at: '2026-07-27T12:00:00.000Z',
+  });
+  state.auditEvents.push({
+    id: 'audit-historical',
+    actor_id: 'auditor-only',
+    action: 'historical_action',
+    target_type: 'archive',
+    target_id: 'archive-historical',
+    created_at: '2026-07-27T12:00:00.000Z',
+  });
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const reviewed = await harness.repository.deleteUser('reviewer-only');
+  const audited = await harness.repository.deleteUser('auditor-only');
+
+  assert.deepEqual(reviewed, {
+    id: 'reviewer-only',
+    status: 'disabled',
+    disabled: true,
+    deleted: false,
+  });
+  assert.deepEqual(audited, {
+    id: 'auditor-only',
+    status: 'disabled',
+    disabled: true,
+    deleted: false,
+  });
+  const committed = await harness.inspectState();
+  assert.equal(committed.profiles.find(({ id }) => id === 'reviewer-only').enabled, false);
+  assert.equal(committed.profiles.find(({ id }) => id === 'auditor-only').enabled, false);
+});
+
+test('deleting a user without attribution history reports deleted status', async () => {
+  const state = createEmptyLocalState();
+  state.profiles.push(
+    structuredClone(LOCAL_PROFILES[0]),
+    {
+      id: 'unused-user',
+      email: 'unused@example.com',
+      display_name: 'Unused User',
+      role: 'clerk',
+      enabled: true,
+    },
+  );
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const result = await harness.repository.deleteUser('unused-user');
+
+  assert.deepEqual(result, {
+    id: 'unused-user',
+    status: 'deleted',
+    disabled: false,
+    deleted: true,
+  });
+  assert.equal((await harness.inspectState()).profiles.some(({ id }) => id === 'unused-user'), false);
 });
 
 defineArchiveWorkflowRepositoryConformance(
