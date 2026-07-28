@@ -36,6 +36,7 @@ export const createEditorDocument = (templateValue, values = {}, extras = {}) =>
       documentValues[template.businessCodeKey] ?? extras.businessCode ?? '',
     ).trim(),
     values: documentValues,
+    indexData: cloneRecord(extras.indexData),
     sections: cloneList(extras.sections),
     fieldLabels: cloneRecord(extras.fieldLabels),
     references: cloneList(extras.references),
@@ -49,6 +50,7 @@ export const normalizeEditorDocument = (value = {}) => {
   const normalized = createEditorDocument(template, values, {
     title: value.title,
     businessCode: value.businessCode ?? value.archiveCode,
+    indexData: value.indexData,
     sections: value.sections,
     fieldLabels: value.fieldLabels,
     references: value.references,
@@ -56,6 +58,7 @@ export const normalizeEditorDocument = (value = {}) => {
   });
   return {
     ...normalized,
+    indexData: cloneRecord(value.indexData),
     sections: cloneList(value.sections),
     fieldLabels: cloneRecord(value.fieldLabels),
     references: cloneList(value.references),

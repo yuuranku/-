@@ -4,6 +4,14 @@ import {
 } from './editor-document.js';
 
 const PHOTO_FIELD = 'photo';
+export const ARCHIVE_SYSTEM_FIELD_KEYS = Object.freeze([
+  'dossierNo',
+  'entryCode',
+  'regDate',
+  'clerk',
+]);
+const ARCHIVE_SYSTEM_FIELD_SET = new Set(ARCHIVE_SYSTEM_FIELD_KEYS);
+const SYSTEM_FIELD_PLACEHOLDER = '审核录入时自动生成';
 
 const extractBackgroundUrl = (value) => {
   const background = String(value ?? '').trim();
@@ -25,7 +33,17 @@ const installEditorPerformanceStyles = (root) => {
   if (root.getElementById('palis-editor-performance-styles')) return;
   const style = root.createElement('style');
   style.id = 'palis-editor-performance-styles';
-  style.textContent = '@media screen { .page:not(:first-child) { content-visibility: auto; contain-intrinsic-size: 210mm 297mm; } }';
+  style.textContent = `
+    @media screen {
+      .page:not(:first-child) { content-visibility: auto; contain-intrinsic-size: 210mm 297mm; }
+      [data-system-field]:empty::before {
+        content: attr(data-system-placeholder);
+        color: #868b88;
+        font-style: normal;
+        opacity: .76;
+      }
+    }
+  `;
   root.head?.append(style);
 };
 
@@ -50,8 +68,12 @@ const describeTemplateStructure = (root) => {
   root.querySelectorAll('[data-save]').forEach((element) => {
     const key = String(element?.dataset?.save ?? '').trim();
     if (!key) return;
-    const container = element.closest?.('.f, .fieldbox, .block, .titlecard-foot, .titlecard-tag');
-    const label = normalizeLabel(container?.querySelector?.('dt, .blabel, label')?.textContent);
+    const container = element.closest?.(
+      '.f, .fieldbox, .block, .titlecard-foot, .titlecard-tag, .pr, .bigyear',
+    );
+    const label = normalizeLabel(
+      container?.querySelector?.('dt, .blabel, label, b, em')?.textContent,
+    );
     if (label) fieldLabels[key] = label;
   });
   const sections = [...root.querySelectorAll('.sect')].map((section, index) => ({
@@ -63,6 +85,15 @@ const describeTemplateStructure = (root) => {
       .filter(Boolean),
   })).filter((section) => section.fields.length);
   return { sections, fieldLabels };
+};
+
+const fieldLabel = (element) => {
+  const container = element.closest?.(
+    '.f, .fieldbox, .block, .titlecard-foot, .titlecard-tag, .pr, .bigyear',
+  );
+  return normalizeLabel(
+    container?.querySelector?.('dt, .blabel, label, b, em')?.textContent,
+  );
 };
 
 export const readTemplateDocument = (root, template, extras = {}) => {
@@ -82,6 +113,7 @@ export const readTemplateDocument = (root, template, extras = {}) => {
       ...(extras.fieldLabels ?? {}),
       ...structure.fieldLabels,
     },
+    indexData: extras.indexData,
     references: extras.references,
     media: [...retainedMedia, ...photoMedia(root)],
   });
@@ -136,10 +168,55 @@ export const createTemplateEditorBridge = ({
   const setReadOnly = (readOnly) => {
     if (!root) return;
     root.querySelectorAll('[data-save]').forEach((element) => {
-      element.setAttribute?.('contenteditable', readOnly ? 'false' : 'true');
+      const key = String(element?.dataset?.save ?? '').trim();
+      const locked = readOnly || ARCHIVE_SYSTEM_FIELD_SET.has(key);
+      element.setAttribute?.('contenteditable', locked ? 'false' : 'true');
+      if (ARCHIVE_SYSTEM_FIELD_SET.has(key)) element.setAttribute?.('aria-readonly', 'true');
     });
     const input = root.querySelector?.('#photoInput');
     if (input) input.disabled = Boolean(readOnly);
+  };
+
+  const writeElementValue = (element, value, { notify = true } = {}) => {
+    if (!element) return false;
+    const key = String(element?.dataset?.save ?? '').trim();
+    element.textContent = String(value ?? '');
+    if (key) {
+      current.values = {
+        ...current.values,
+        [key]: String(value ?? ''),
+      };
+    }
+    root?.defaultView?.updateHero?.();
+    root?.defaultView?.syncMirrors?.();
+    if (notify) emitChange();
+    return true;
+  };
+
+  const applySystemFields = (fields = {}, { notify = true } = {}) => {
+    if (!root) return false;
+    let changed = false;
+    root.querySelectorAll('[data-save]').forEach((element) => {
+      const key = String(element?.dataset?.save ?? '').trim();
+      if (!ARCHIVE_SYSTEM_FIELD_SET.has(key)) return;
+      element.dataset.systemField = key;
+      element.dataset.systemPlaceholder = SYSTEM_FIELD_PLACEHOLDER;
+      element.setAttribute?.('data-ph', SYSTEM_FIELD_PLACEHOLDER);
+      element.setAttribute?.('contenteditable', 'false');
+      element.setAttribute?.('aria-readonly', 'true');
+      const nextValue = String(fields[key] ?? current.values?.[key] ?? '');
+      if (String(element.textContent ?? '') !== nextValue) {
+        element.textContent = nextValue;
+        changed = true;
+      }
+      current.values = {
+        ...current.values,
+        [key]: nextValue,
+      };
+    });
+    root.defaultView?.syncMirrors?.();
+    if (notify && changed) emitChange();
+    return true;
   };
 
   const attach = () => {
@@ -154,6 +231,7 @@ export const createTemplateEditorBridge = ({
     }
     installEditorPerformanceStyles(root);
     writeTemplateDocument(root, current);
+    applySystemFields(current.values, { notify: false });
     const handleEditorInput = (element) => {
       emitChange();
       const query = detectArchiveReferenceQuery(element?.innerText ?? element?.textContent);
@@ -206,8 +284,32 @@ export const createTemplateEditorBridge = ({
     },
     write(value) {
       current = normalizeEditorDocument(value);
-      if (root) writeTemplateDocument(root, current);
+      if (root) {
+        writeTemplateDocument(root, current);
+        applySystemFields(current.values, { notify: false });
+      }
       return structuredClone(current);
+    },
+    writeFieldValue(key, value) {
+      if (!root) return false;
+      const normalizedKey = String(key ?? '').trim();
+      const element = [...root.querySelectorAll('[data-save]')]
+        .find((candidate) => String(candidate?.dataset?.save ?? '').trim() === normalizedKey);
+      return writeElementValue(element, value);
+    },
+    writeFieldByLabel(label, value) {
+      if (!root) return false;
+      const normalizedLabel = normalizeLabel(label);
+      const element = [...root.querySelectorAll('[data-save]')].find((candidate) => {
+        const candidateLabel = fieldLabel(candidate);
+        return candidateLabel === normalizedLabel
+          || candidateLabel.startsWith(normalizedLabel)
+          || candidateLabel.includes(normalizedLabel);
+      });
+      return writeElementValue(element, value);
+    },
+    setSystemFields(fields) {
+      return applySystemFields(fields);
     },
     insertReference(reference) {
       if (!root || !activeReferenceElement) return false;

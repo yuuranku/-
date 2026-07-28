@@ -15,7 +15,11 @@ const createEditable = (key, text = '') => {
   const listeners = new Map();
   return {
     dataset: { save: key },
+    attributes: {},
     textContent: text,
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
     addEventListener(type, listener) {
       const entries = listeners.get(type) || [];
       entries.push(listener);
@@ -33,6 +37,9 @@ const createEditable = (key, text = '') => {
 const createFixture = () => {
   const hero = createEditable('hero', '旧标题');
   const code = createEditable('entryCode', '');
+  const dossierNo = createEditable('dossierNo', '');
+  const regDate = createEditable('regDate', '');
+  const clerk = createEditable('clerk', '');
   const unknown = createEditable('custom_unknown_key', '');
   const photoBox = {
     style: { backgroundImage: '' },
@@ -45,7 +52,7 @@ const createFixture = () => {
   const root = {
     readyState: 'complete',
     querySelectorAll: (selector) => {
-      if (selector === '[data-save]') return [hero, code, unknown];
+      if (selector === '[data-save]') return [hero, code, dossierNo, regDate, clerk, unknown];
       if (selector === '.sect') {
         return [{
           id: 'identity',
@@ -60,7 +67,7 @@ const createFixture = () => {
     querySelector: (selector) => selector === '#photoBox' ? photoBox : null,
     defaultView: { saveForm: () => { throw new Error('template local save must be disabled'); } },
   };
-  return { root, hero, code, unknown, photoBox };
+  return { root, hero, code, dossierNo, regDate, clerk, unknown, photoBox };
 };
 
 test('template documents round-trip every data-save field and the photo slot', () => {
@@ -149,6 +156,39 @@ test('the iframe bridge turns template input into editor document changes', asyn
   assert.equal(changes.at(-1).title, 'HZ-6 修订稿');
   assert.equal(changes.at(-1).businessCode, 'HZ-6');
   assert.equal(fixture.root.defaultView.saveForm(), undefined);
+  bridge.dispose();
+});
+
+test('the iframe bridge writes synchronized fields and protects system-owned values', async () => {
+  const fixture = createFixture();
+  const iframe = {
+    contentDocument: fixture.root,
+    contentWindow: fixture.root.defaultView,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const bridge = createTemplateEditorBridge({
+    iframe,
+    template: ARCHIVE_TEMPLATE_BY_CODE['07'],
+    initialDocument: createEditorDocument(ARCHIVE_TEMPLATE_BY_CODE['07']),
+  });
+
+  await bridge.ready;
+  assert.equal(bridge.writeFieldValue('hero', '白幕初垂'), true);
+  assert.equal(fixture.hero.textContent, '白幕初垂');
+  assert.equal(bridge.setSystemFields({
+    dossierNo: '',
+    entryCode: '',
+    regDate: '',
+    clerk: '',
+  }), true);
+  for (const element of [fixture.dossierNo, fixture.code, fixture.regDate, fixture.clerk]) {
+    assert.equal(element.attributes.contenteditable, 'false');
+    assert.equal(element.dataset.systemPlaceholder, '审核录入时自动生成');
+  }
+  bridge.setReadOnly(false);
+  assert.equal(fixture.hero.attributes.contenteditable, 'true');
+  assert.equal(fixture.code.attributes.contenteditable, 'false');
   bridge.dispose();
 });
 

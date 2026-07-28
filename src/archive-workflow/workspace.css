@@ -244,6 +244,95 @@
   font: 10px/1.6 var(--font-sans);
 }
 
+.archive-index-editor {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px;
+  color: #202621;
+  border: 2px inset #f2f2ef;
+  background: #c9cbc5;
+}
+
+.archive-index-editor > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #858a84;
+}
+
+.archive-index-editor > header div { display: grid; gap: 3px; }
+.archive-index-editor > header b { font: 700 10px/1.2 var(--font-body); }
+.archive-index-editor > header span { color: #505852; font: 7px/1.35 var(--font-mono); }
+.archive-index-editor > header em {
+  padding: 3px 5px;
+  color: #eee;
+  background: #173a6d;
+  font: normal 7px/1 var(--font-mono);
+}
+
+.archive-index-editor__errors {
+  padding: 7px;
+  color: #6f1717;
+  border: 1px solid #9d3131;
+  background: #ead0ca;
+  font: 8px/1.4 var(--font-body);
+}
+.archive-index-editor__errors[hidden] { display: none !important; }
+
+.archive-index-editor__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.archive-index-editor__fields label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.archive-index-editor__fields label > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: #343b36;
+  font: 700 8px/1.2 var(--font-body);
+}
+
+.archive-index-editor__fields label i {
+  color: #6c736e;
+  font: normal 6px/1 var(--font-mono);
+}
+
+.archive-index-editor__fields input,
+.archive-index-editor__fields select {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 5px;
+  color: #111;
+  border: 2px inset #f4f4f4;
+  border-radius: 0;
+  background: #f3f0e4;
+  font: 9px/1.2 var(--font-body);
+}
+
+.archive-index-editor__fields input:focus,
+.archive-index-editor__fields select:focus {
+  outline: 1px dotted #111;
+  outline-offset: -4px;
+}
+
+.archive-index-editor__fields label.is-invalid input,
+.archive-index-editor__fields label.is-invalid select {
+  color: #681818;
+  border-color: #a83e3e;
+  background: #f4ded8;
+}
+
 .archive-editable-picker {
   display: grid;
   gap: 8px;

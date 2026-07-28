@@ -1,6 +1,18 @@
+const defineIndexField = (key, label, definition = {}) => Object.freeze({
+  key,
+  label,
+  type: 'text',
+  required: true,
+  ...definition,
+  options: definition.options
+    ? Object.freeze(definition.options.map((option) => Object.freeze({ ...option })))
+    : undefined,
+});
+
 const defineProfile = (category, definition) => Object.freeze({
   category,
   ...definition,
+  indexFields: Object.freeze(definition.indexFields),
 });
 
 export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
@@ -9,54 +21,157 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
     abbreviation: 'REG',
     floor: 18,
     templateCode: '01',
+    indexFields: [
+      defineIndexField('title', '正式国名', { syncField: 'hero' }),
+      defineIndexField('archivePeriod', '档案时期'),
+      defineIndexField('bloc', '阵营／归档链'),
+    ],
   }),
   organization: defineProfile('organization', {
     prefix: 'O',
     abbreviation: 'CHN',
     floor: 24,
     templateCode: '02',
+    indexFields: [
+      defineIndexField('title', '正式名称', { syncField: 'hero' }),
+      defineIndexField('channel', '阵营通道'),
+      defineIndexField('foundedAt', '成立或首次确认时期'),
+    ],
   }),
   station: defineProfile('station', {
     prefix: 'ST',
     abbreviation: 'LOG',
     floor: 20,
     templateCode: '03',
+    indexFields: [
+      defineIndexField('title', '站名', { syncField: 'hero' }),
+      defineIndexField('latitude', '纬度', {
+        type: 'number',
+        min: -90,
+        max: 90,
+        step: 'any',
+      }),
+      defineIndexField('longitude', '经度', {
+        type: 'number',
+        min: -180,
+        max: 180,
+        step: 'any',
+      }),
+      defineIndexField('owner', '所属方'),
+      defineIndexField('stationType', '站点类型'),
+      defineIndexField('status', '当前状态'),
+    ],
   }),
   entrance: defineProfile('entrance', {
     prefix: 'EN',
     abbreviation: 'CRD',
     floor: 18,
     templateCode: '04',
+    indexFields: [
+      defineIndexField('title', '名称', { syncField: 'hero' }),
+      defineIndexField('latitude', '纬度', {
+        type: 'number',
+        min: -90,
+        max: 90,
+        step: 'any',
+      }),
+      defineIndexField('longitude', '经度', {
+        type: 'number',
+        min: -180,
+        max: 180,
+        step: 'any',
+      }),
+      defineIndexField('owner', '所属方'),
+      defineIndexField('entranceType', '入口类型'),
+      defineIndexField('status', '当前状态'),
+      defineIndexField('hazard', '危险级'),
+    ],
   }),
   ecology: defineProfile('ecology', {
     prefix: 'E',
     abbreviation: 'ECO',
     floor: 7,
     templateCode: '05',
+    indexFields: [
+      defineIndexField('title', '名称', { syncField: 'hero' }),
+      defineIndexField('recordType', '记录类型'),
+      defineIndexField('firstObservedAt', '首次记录时期'),
+      defineIndexField('scope', '覆盖范围／所属地层'),
+      defineIndexField('status', '状态'),
+    ],
   }),
   person: defineProfile('person', {
     prefix: 'P',
     abbreviation: 'PER',
     floor: 46,
     templateCode: '06',
+    indexFields: [
+      defineIndexField('title', '姓名／代称', { syncField: 'hero' }),
+      defineIndexField('archiveChain', '档案归属'),
+      defineIndexField('organization', '主要组织'),
+      defineIndexField('role', '职务'),
+      defineIndexField('activePeriod', '活跃时期／最后状态'),
+      defineIndexField('status', '当前状态'),
+    ],
   }),
   event: defineProfile('event', {
     prefix: 'EV',
     abbreviation: 'RLL',
     floor: 26,
     templateCode: '07',
+    indexFields: [
+      defineIndexField('title', '名称', { syncField: 'hero' }),
+      defineIndexField('startDate', '开始时间', { type: 'date' }),
+      defineIndexField('endDate', '结束时间', { type: 'date', required: false }),
+      defineIndexField('timePrecision', '时间精度', {
+        type: 'select',
+        options: [
+          { value: 'DAY', label: '精确到日' },
+          { value: 'MONTH', label: '精确到月' },
+          { value: 'YEAR', label: '精确到年' },
+          { value: 'APPROXIMATE', label: '模糊时期' },
+          { value: 'UNKNOWN', label: '时间未定' },
+        ],
+      }),
+      defineIndexField('location', '地点'),
+      defineIndexField('reviewStatus', '复核状态'),
+    ],
   }),
   anomaly: defineProfile('anomaly', {
     prefix: 'A',
     abbreviation: 'TRC',
     floor: 25,
     templateCode: '08',
+    indexFields: [
+      defineIndexField('title', '名称', { syncField: 'hero' }),
+      defineIndexField('parentEvent', '母事件'),
+      defineIndexField('occurredAt', '发生时间'),
+      defineIndexField('location', '地点'),
+      defineIndexField('anomalyType', '异常类型'),
+      defineIndexField('severity', '严重度'),
+      defineIndexField('status', '卷内状态'),
+    ],
   }),
   species: defineProfile('species', {
     prefix: 'S',
     abbreviation: 'SPC',
     floor: 22,
     templateCode: '09',
+    indexFields: [
+      defineIndexField('title', '名称', { syncField: 'hero' }),
+      defineIndexField('specimenClass', '植物／动物／复合群落', {
+        type: 'select',
+        options: [
+          { value: 'FLORA', label: '植物 / FLORA' },
+          { value: 'FAUNA', label: '动物 / FAUNA' },
+          { value: 'COMPOSITE', label: '复合群落 / COMPOSITE' },
+        ],
+      }),
+      defineIndexField('discoveredAt', '首次发现时间'),
+      defineIndexField('location', '地点'),
+      defineIndexField('specimenStatus', '标本状态'),
+      defineIndexField('hazard', '危险级'),
+    ],
   }),
 });
 

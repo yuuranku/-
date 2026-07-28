@@ -64,6 +64,11 @@ test('the right-side dossier card is the single structured editor', () => {
   assert.match(workspace, /档案提交者/);
   assert.match(workspace, /档案修改者/);
   assert.match(workspace, /type="file"/);
+  assert.match(workspace, /renderArchiveIndexFields/);
+  assert.match(workspace, /data-archive-index-panel/);
+  assert.match(workspace, /validateArchiveIndexData/);
+  assert.match(workspace, /focusIndexField/);
+  assert.match(styles, /archive-index-editor/);
 });
 
 test('amendments choose a visible archive instead of asking for internal record IDs', () => {

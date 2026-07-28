@@ -33,6 +33,15 @@ test('editor documents preserve every template value and derive public metadata'
     entryCode: 'HZ-6',
     dossierNo: '',
     custom_unknown_key: '不能丢失',
+  }, {
+    indexData: {
+      title: 'HZ-6 样本线任务',
+      startDate: '1963-08-31',
+      endDate: '',
+      timePrecision: 'DAY',
+      location: '南极大陆',
+      reviewStatus: 'CONFIRMED',
+    },
   });
 
   assert.equal(document.schemaVersion, 2);
@@ -42,6 +51,7 @@ test('editor documents preserve every template value and derive public metadata'
   assert.equal(document.title, 'HZ-6 样本线任务');
   assert.equal(document.businessCode, 'HZ-6');
   assert.equal(document.values.custom_unknown_key, '不能丢失');
+  assert.equal(document.indexData.startDate, '1963-08-31');
   assert.deepEqual(document.references, []);
   assert.deepEqual(document.media, []);
 });
@@ -52,6 +62,7 @@ test('normalization upgrades incomplete documents without discarding references 
     values: { hero: '叶夫根尼', extra: '保留' },
     references: [{ archiveId: 'archive-1', code: 'HZ-6', title: '样本线任务' }],
     media: [{ field: 'photo', storagePath: 'user/draft/photo.jpg' }],
+    indexData: { title: '叶夫根尼', archiveChain: '人物卷' },
   });
 
   assert.equal(normalized.templateCode, '06');
@@ -61,6 +72,7 @@ test('normalization upgrades incomplete documents without discarding references 
   assert.equal(normalized.values.extra, '保留');
   assert.equal(normalized.references[0].archiveId, 'archive-1');
   assert.equal(normalized.media[0].field, 'photo');
+  assert.equal(normalized.indexData.archiveChain, '人物卷');
 });
 
 test('normalization preserves the dossier section order and human field labels', () => {

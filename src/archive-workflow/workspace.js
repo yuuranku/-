@@ -5,6 +5,11 @@ import {
   normalizeEditorDocument,
 } from './editor-document.js';
 import {
+  normalizeArchiveIndexData,
+  renderArchiveIndexFields,
+  validateArchiveIndexData,
+} from './index-fields.js';
+import {
   buildArchiveReference,
   canEnterWorkspace,
   canReview,
@@ -66,6 +71,7 @@ const draftContentToEditorDocument = (template, content = {}, fallback = {}) => 
     entryCode: fallback.archiveCode ?? content?.archiveCode ?? '',
     ...legacyValues,
   }, {
+    indexData: content?.indexData,
     references: content?.references,
     media: content?.media,
   });
@@ -328,6 +334,11 @@ export function initializeArchiveWorkspace({
                 请直接在右侧设定卡中填写。正式档案会沿用网站原有风格，并按本卡分区生成。
               </p>
 
+              ${renderArchiveIndexFields(template.category, {
+                ...(initial.content?.indexData ?? {}),
+                title: initial.content?.indexData?.title || initial.title || '',
+              })}
+
               <section class="archive-editable-picker" data-editable-archive-picker hidden>
                 <header>
                   <b>选择要补充或修改的档案</b>
@@ -402,12 +413,18 @@ export function initializeArchiveWorkspace({
     const editableArchiveSelect = form.elements.archiveId;
     const editableArchiveStatus = form.querySelector('[data-editable-archive-status]');
     const formalNumberOutput = form.querySelector('[data-formal-number]');
+    const indexPanel = form.querySelector('[data-archive-index-panel]');
+    const indexErrors = form.querySelector('[data-index-errors]');
     const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || initial.archiveCode || 'new'}`;
     if (fixedArchive) {
       kindSelect.value = 'amendment';
       kindSelect.disabled = true;
     }
     let editorDocument = draftContentToEditorDocument(template, initial.content, initial);
+    editorDocument.indexData = normalizeArchiveIndexData(template.category, {
+      title: editorDocument.title || initial.title || '',
+      ...editorDocument.indexData,
+    });
     let references = [...editorDocument.references];
     let editorBridge = null;
     const uploadedAttachmentKeys = new Set();
@@ -430,6 +447,115 @@ export function initializeArchiveWorkspace({
     const setAutosaveState = (state) => {
       autosaveOutput.dataset.state = state;
       autosaveOutput.textContent = AUTOSAVE_LABELS[state] || state;
+    };
+
+    const indexInputFor = (key) =>
+      indexPanel?.querySelector?.(`[data-index-key="${CSS.escape(key)}"]`) ?? null;
+
+    const readIndexControls = () => Object.fromEntries(
+      [...(indexPanel?.querySelectorAll?.('[data-index-key]') ?? [])].map((control) => [
+        control.dataset.indexKey,
+        control.value,
+      ]),
+    );
+
+    const fillIndexControls = (value) => {
+      const normalized = normalizeArchiveIndexData(template.category, value);
+      Object.entries(normalized).forEach(([key, fieldValue]) => {
+        const control = indexInputFor(key);
+        if (control) control.value = String(fieldValue ?? '');
+      });
+      editorDocument.indexData = normalized;
+    };
+
+    const focusIndexField = (key) => {
+      const control = indexInputFor(key);
+      control?.focus?.();
+      control?.scrollIntoView?.({ block: 'nearest' });
+      return Boolean(control);
+    };
+
+    const showIndexErrors = (missing = []) => {
+      indexPanel?.querySelectorAll?.('[data-archive-index-field]').forEach((field) => {
+        const invalid = missing.includes(field.dataset.archiveIndexField);
+        field.classList.toggle('is-invalid', invalid);
+        field.querySelector?.('[data-index-key]')?.setAttribute?.('aria-invalid', String(invalid));
+      });
+      if (!indexErrors) return;
+      indexErrors.hidden = missing.length === 0;
+      indexErrors.textContent = missing.length
+        ? `请补全或修正目录索引：${missing.map((key) => (
+          indexPanel.querySelector(`[data-archive-index-field="${CSS.escape(key)}"] > span`)
+            ?.textContent.replace(/必填|可空/g, '').trim() || key
+        )).join('、')}`
+        : '';
+    };
+
+    const coordinateText = (indexData) => {
+      const latitude = indexData.latitude;
+      const longitude = indexData.longitude;
+      if (latitude === '' || longitude === '') return '';
+      return `${latitude}°, ${longitude}°`;
+    };
+
+    const syncIndexFieldToTemplate = (key) => {
+      if (!editorBridge) return;
+      const indexData = editorDocument.indexData;
+      if (key === 'title') editorBridge.writeFieldValue('hero', indexData.title);
+      if (
+        (template.category === 'station' || template.category === 'entrance')
+        && (key === 'latitude' || key === 'longitude')
+      ) editorBridge.writeFieldByLabel('坐标', coordinateText(indexData));
+      if (template.category === 'species' && key === 'specimenClass') {
+        editorBridge.writeFieldByLabel('植物／动物／复合群落', indexData.specimenClass);
+      }
+      if (template.category === 'event' && key === 'startDate') {
+        editorBridge.writeFieldByLabel('发生时期 / PERIOD', indexData.startDate);
+      }
+    };
+
+    const findDocumentValueByLabel = (document, search) => {
+      const match = Object.entries(document.fieldLabels ?? {})
+        .find(([, label]) => String(label).includes(search));
+      return match ? String(document.values?.[match[0]] ?? '').trim() : '';
+    };
+
+    const parseCoordinateText = (value) => {
+      const text = String(value ?? '').trim();
+      const matches = [...text.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+      if (matches.length < 2) return null;
+      let [latitude, longitude] = matches;
+      if (/[南S]/i.test(text) && latitude > 0) latitude *= -1;
+      if (/[西W]/i.test(text) && longitude > 0) longitude *= -1;
+      if (
+        !Number.isFinite(latitude)
+        || !Number.isFinite(longitude)
+        || Math.abs(latitude) > 90
+        || Math.abs(longitude) > 180
+      ) return null;
+      return { latitude, longitude };
+    };
+
+    const syncTemplateToIndex = (document) => {
+      const next = {
+        ...editorDocument.indexData,
+        title: String(document.values?.hero ?? document.title ?? '').trim(),
+      };
+      if (template.category === 'station' || template.category === 'entrance') {
+        const coordinates = parseCoordinateText(findDocumentValueByLabel(document, '坐标'));
+        if (coordinates) Object.assign(next, coordinates);
+      }
+      if (template.category === 'species') {
+        const specimenText = findDocumentValueByLabel(document, '植物／动物／复合群落').toUpperCase();
+        const specimenClass = ['FLORA', 'FAUNA', 'COMPOSITE']
+          .find((option) => specimenText.includes(option));
+        if (specimenClass) next.specimenClass = specimenClass;
+      }
+      if (template.category === 'event') {
+        const startDate = findDocumentValueByLabel(document, '发生时期');
+        if (startDate) next.startDate = startDate;
+      }
+      fillIndexControls(next);
     };
 
     const remote = client
@@ -542,6 +668,7 @@ export function initializeArchiveWorkspace({
       }));
       editorDocument = normalizeEditorDocument({
         ...editorDocument,
+        indexData: readIndexControls(),
         references,
       });
       editorDraft = {
@@ -568,6 +695,7 @@ export function initializeArchiveWorkspace({
       form.elements.kind.value = draft.kind || 'new';
       form.elements.targetContributionId.value = draft.targetContributionId || '';
       editorDocument = draftContentToEditorDocument(template, draft.content, draft);
+      fillIndexControls(editorDocument.indexData);
       references = [...editorDocument.references];
       editorBridge?.write(editorDocument);
       renderReferenceList(referenceList, references);
@@ -637,13 +765,17 @@ export function initializeArchiveWorkspace({
         onChange: (document) => {
           editorDocument = {
             ...document,
+            indexData: editorDocument.indexData,
             references,
           };
+          syncTemplateToIndex(document);
           autosave.queue(collectDraft());
         },
         waitForLoad,
       });
       editorBridge.ready.then(() => {
+        editorBridge?.setSystemFields(editorDocument.values);
+        Object.keys(editorDocument.indexData).forEach(syncIndexFieldToTemplate);
         editorCanvas?.classList.remove('is-loading');
         editorCanvas?.setAttribute('aria-busy', 'false');
         if (editorLoading) editorLoading.hidden = true;
@@ -694,6 +826,14 @@ export function initializeArchiveWorkspace({
 
     form.addEventListener('input', (event) => {
       if (event.target.closest('[data-reference-search]')) return;
+      if (event.target.matches?.('[data-index-key]')) {
+        editorDocument.indexData = normalizeArchiveIndexData(
+          template.category,
+          readIndexControls(),
+        );
+        showIndexErrors([]);
+        syncIndexFieldToTemplate(event.target.dataset.indexKey);
+      }
       autosave.queue(collectDraft());
     });
     form.addEventListener('change', (event) => {
@@ -759,6 +899,18 @@ export function initializeArchiveWorkspace({
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const validation = validateArchiveIndexData(
+        template.category,
+        collectDraft().content.indexData,
+      );
+      if (!validation.valid) {
+        fillIndexControls(validation.value);
+        showIndexErrors(validation.missing);
+        focusIndexField(validation.missing[0]);
+        message.textContent = '请先补全左侧“目录归类与索引登记”的必填内容。';
+        return;
+      }
+      editorDocument.indexData = validation.value;
       if (!form.reportValidity()) return;
       if (!client) {
         message.textContent = '当前未连接档案服务，仅保留了本地暂存。';
