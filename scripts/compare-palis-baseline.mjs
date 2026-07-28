@@ -9,6 +9,14 @@ const workspace = process.cwd();
 const defaultBaselinePath = path.join(workspace, 'tmp/verification/baseline/manifest.json');
 const defaultCurrentPath = path.join(workspace, 'tmp/verification/current/manifest.json');
 const defaultDiffRoot = path.join(workspace, 'tmp/verification/diff');
+const VIEWPORTS = ['1440x900', '390x844', '844x390'];
+const SCENES = [
+  'first-entry-home', 'clean-home', 'clerk-workspace', 'admin-workspace',
+  'directory-countries', 'directory-organizations', 'directory-stations',
+  'directory-entrances', 'directory-ecology', 'directory-people',
+  'directory-events', 'directory-abnormalities', 'directory-species',
+];
+const EXPECTED_KEYS = new Set(VIEWPORTS.flatMap((viewport) => SCENES.map((scene) => `${viewport}:${scene}`)));
 
 const resolveCapturePath = (manifestPath, capture) => path.resolve(
   capture.file.startsWith('tmp/') ? workspace : path.dirname(manifestPath), capture.file,
@@ -19,9 +27,32 @@ export function validatePalisManifest(manifest) {
   if (!Array.isArray(manifest?.captures) || manifest.captures.length !== 39) {
     problems.push(`expected 39 captures, received ${manifest?.captures?.length ?? 0}`);
   }
+  const keys = new Set();
+  for (const capture of manifest?.captures ?? []) {
+    const key = `${capture.viewport}:${capture.scene}`;
+    if (!EXPECTED_KEYS.has(key)) problems.push(`unexpected capture key ${key}`);
+    if (keys.has(key)) problems.push(`capture key must be unique: ${key}`);
+    keys.add(key);
+    if (!/^[a-f0-9]{64}$/i.test(capture.sha256 ?? '')) problems.push(`capture sha256 invalid: ${key}`);
+    if (typeof capture.file !== 'string' || path.isAbsolute(capture.file) || capture.file.includes('..') || !capture.file.endsWith('.png')) problems.push(`capture file unsafe: ${key}`);
+    const [width, height] = String(capture.viewport).split('x').map(Number);
+    if (capture.width !== width || capture.height !== height) problems.push(`capture dimensions invalid: ${key}`);
+    const workspace = ['clerk-workspace', 'admin-workspace'].includes(capture.scene);
+    const accessMode = workspace ? 'authenticated' : 'preview';
+    if (!capture.state || capture.state.accessMode !== accessMode || capture.state.chapter !== '2') problems.push(`capture state invalid: ${key}`);
+    if (!capture.proof || capture.proof.scene !== capture.scene) problems.push(`capture proof invalid: ${key}`);
+  }
+  for (const key of EXPECTED_KEYS) if (!keys.has(key)) problems.push(`missing capture key ${key}`);
+  for (const field of ['browser', 'puppeteer', 'os', 'locale', 'timezone', 'distEntrySha256']) {
+    if (!manifest?.[field]) problems.push(`environment field missing: ${field}`);
+  }
+  if (manifest?.deviceScaleFactor !== 1 || !manifest?.fonts || !Object.values(manifest.fonts).every(Boolean)) problems.push('environment font/device evidence invalid');
+  for (const field of ['allowed', 'archives', 'fatal', 'unknownExternal']) {
+    if (!Array.isArray(manifest?.requestLog?.[field])) problems.push(`request log missing: ${field}`);
+  }
   if (manifest?.diagnostics?.length) problems.push('diagnostics are not empty');
   if (manifest?.requestLog?.fatal?.length) problems.push('external requests were blocked');
-  if (manifest?.requestLog?.allowedExternal?.length) problems.push('external requests were allowed');
+  if (manifest?.requestLog?.unknownExternal?.length) problems.push('unknown external requests were allowed');
   return problems;
 }
 

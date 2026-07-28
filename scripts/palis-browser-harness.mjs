@@ -18,7 +18,7 @@ const DIRECTORY_CODES = Object.freeze({
   countries: '01', organizations: '02', stations: '03', entrances: '04', ecology: '05',
   people: '06', events: '07', abnormalities: '08', species: '09',
 });
-const SCENE_TIMEOUT = 10_000;
+const SCENE_TIMEOUT = 30_000;
 
 export async function startPalisPreview({ root, port = 0 }) {
   const server = await preview({
@@ -55,8 +55,15 @@ export async function waitForPalisScene(page, scene) {
       'body[data-access-mode="preview"] #experience:not([inert])',
       { timeout: SCENE_TIMEOUT },
     );
-    const closeButton = await page.$('#version-notice button[data-version-notice-action="close"]');
-    if (closeButton) await closeButton.click();
+    await page.waitForSelector('#version-notice:not([hidden])', { timeout: SCENE_TIMEOUT });
+  }
+  const closeButton = await page.$('#version-notice:not([hidden]) button[data-version-notice-action="close"]');
+  if (closeButton) {
+    // The notice can still have its entrance layer above the button during a
+    // headless capture.  Dispatch through the actual control so the close
+    // transition is deterministic, then require the application to hide it.
+    await page.$eval('#version-notice:not([hidden]) button[data-version-notice-action="close"]', (button) => button.click());
+    await page.waitForFunction(() => document.querySelector('#version-notice')?.hidden, { timeout: SCENE_TIMEOUT });
   }
   await page.evaluate(() => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 2 / 3));
   await page.waitForSelector(

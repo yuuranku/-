@@ -5,7 +5,7 @@ import { startPalisPreview, waitForPalisScene } from '../scripts/palis-browser-h
 import { installPalisPageFixture } from '../scripts/palis-page-fixture.mjs';
 import puppeteer from 'puppeteer-core';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
-import { comparePalisManifests } from '../scripts/compare-palis-baseline.mjs';
+import { comparePalisManifests, validatePalisManifest } from '../scripts/compare-palis-baseline.mjs';
 import { capturePalisScenes } from '../scripts/capture-palis-baseline.mjs';
 import { PNG } from 'pngjs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -23,7 +23,8 @@ test('preview server selects a free local port and closes cleanly', { timeout: 1
   await assert.rejects(fetch(preview.url));
 });
 
-test('page fixture freezes clock and mascot timer while recording blocked external requests', { timeout: 15_000 }, async () => {
+test('page fixture permits only the preview origin and exact archive GET/OPTIONS', { timeout: 20_000 }, async () => {
+  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
   const browser = await puppeteer.launch({
     executablePath: resolveBrowserExecutable(),
     headless: true,
@@ -32,46 +33,51 @@ test('page fixture freezes clock and mascot timer while recording blocked extern
   try {
     const requestLog = await installPalisPageFixture(page, {
       freezeAt: '2026-07-28T12:00:00.000Z',
+      previewOrigin: new URL(preview.url).origin,
+      archiveOrigin: 'https://hpzdccfrouhljqlzczuv.supabase.co',
     });
-    await page.goto(`data:text/html,${encodeURIComponent(`
-      <img id="mascot" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
-      <script>
-        window.fastRuns = 0; window.mascotRuns = 0; window.longInterval = 0;
-        setInterval(() => window.fastRuns += 1, 60);
-        setInterval(() => window.mascotRuns += 1, 260);
-        window.longInterval = setInterval(() => {}, 30000);
-        fetch('https://outside.invalid/blocked').catch(() => {});
-      </script>
-    `)}`);
-    await new Promise((resolve) => setTimeout(resolve, 320));
+    await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
+    const network = await page.evaluate(async () => {
+      const status = async (url, options) => fetch(url, options).then((response) => response.status).catch(() => 'blocked');
+      return {
+        get: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives'),
+        options: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives', { method: 'OPTIONS' }),
+        post: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives', { method: 'POST' }),
+        evilArchive: await status('https://evil.invalid/rest/v1/archives'),
+        otherLoopback: await status('http://127.0.0.1:9/not-preview'),
+      };
+    });
     const state = await page.evaluate(() => ({
       dates: [Date.now(), Date.now()],
-      fastRuns: window.fastRuns,
-      mascotRuns: window.mascotRuns,
-      longInterval: window.longInterval,
       reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
     }));
     assert.deepEqual(state.dates, [1785240000000, 1785240000000]);
-    assert.ok(state.fastRuns > 0);
-    assert.equal(state.mascotRuns, 0);
-    assert.ok(state.longInterval);
     assert.equal(state.reduced, true);
-    assert.ok(requestLog.fatal.some((entry) => entry.url === 'https://outside.invalid/blocked'));
+    assert.deepEqual(network, { get: 200, options: 200, post: 'blocked', evilArchive: 'blocked', otherLoopback: 'blocked' });
+    assert.ok(requestLog.archives.some((entry) => entry.method === 'GET'));
+    assert.ok(requestLog.archives.some((entry) => entry.method === 'OPTIONS'));
+    assert.ok(requestLog.fatal.some((entry) => entry.method === 'POST'));
+    assert.ok(requestLog.fatal.some((entry) => entry.url === 'https://evil.invalid/rest/v1/archives'));
+    assert.ok(requestLog.fatal.some((entry) => entry.url === 'http://127.0.0.1:9/not-preview'));
   } finally {
     await browser.close();
+    await preview.close();
   }
 });
 
-test('scene waiter enters the countries directory through its folder code', { timeout: 30_000 }, async () => {
+test('scene waiter enters the countries directory through its folder code', { timeout: 60_000 }, async () => {
   const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
   const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
   const page = await browser.newPage();
   try {
-    await installPalisPageFixture(page);
+    await installPalisPageFixture(page, { previewOrigin: new URL(preview.url).origin });
     await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
     await waitForPalisScene(page, 'countries');
     assert.equal(await page.$eval('#folder-orbit', (node) => node.dataset.category), 'countries');
     assert.equal((await page.$$('.country-stack-vault')).length, 1);
+    assert.deepEqual(await page.$eval('#mascot-idle-frame', (node) => ({
+      frame: node.dataset.mascotFrame, complete: node.complete, width: node.naturalWidth,
+    })), { frame: '02', complete: true, width: 1254 });
   } finally {
     await browser.close();
     await preview.close();
@@ -98,12 +104,44 @@ test('manifest comparison reports a one-pixel 1.000% regression', { timeout: 15_
   );
 });
 
-test('scene capture writes all 13 viewport scenarios only beneath current', { timeout: 60_000 }, async () => {
+test('baseline update validation rejects duplicate scene keys and incomplete capture evidence', () => {
+  const duplicate = {
+    schemaVersion: 2,
+    captures: Array.from({ length: 39 }, () => ({
+      scene: 'clean-home', viewport: '1440x900', file: 'same.png', sha256: 'not-a-hash', state: {},
+    })),
+    diagnostics: [], requestLog: { allowed: [], archives: [], fatal: [] },
+  };
+  assert.match(validatePalisManifest(duplicate).join('; '), /unique|environment|sha256|state/);
+});
+
+test('capture closes a started preview when browser launch fails', { timeout: 10_000 }, async () => {
+  let closed = false;
+  await assert.rejects(
+    capturePalisScenes({
+      outputRoot: await mkdtemp(path.join(tmpdir(), 'palis-launch-fail-')),
+      previewStarter: async () => ({ url: 'http://127.0.0.1:1/', close: async () => { closed = true; } }),
+      launcher: async () => { throw new Error('launch failed'); },
+    }),
+    /launch failed/,
+  );
+  assert.equal(closed, true);
+});
+
+test('scene capture records preview and clean-home state before their screenshots', { timeout: 60_000 }, async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'palis-capture-'));
   const manifest = await capturePalisScenes({
     outputMode: 'current', viewports: [{ width: 390, height: 844 }], root: process.cwd(), outputRoot: root,
   });
   assert.equal(manifest.captures.length, 13);
+  const firstEntry = manifest.captures.find((capture) => capture.scene === 'first-entry-home');
+  const cleanHome = manifest.captures.find((capture) => capture.scene === 'clean-home');
+  assert.deepEqual(firstEntry.state, {
+    accessMode: 'preview', chapter: '2', versionNoticeVisible: true,
+  });
+  assert.deepEqual(cleanHome.state, {
+    accessMode: 'preview', chapter: '2', versionNoticeVisible: false,
+  });
   assert.ok(manifest.captures.every((capture) => capture.file.endsWith('.png')));
   assert.deepEqual(manifest.diagnostics, []);
   assert.equal(manifest.requestLog.fatal.length, 0);

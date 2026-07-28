@@ -1,15 +1,12 @@
 const DEFAULT_FREEZE_AT = '2026-07-28T12:00:00.000Z';
 
-const isLoopback = (url) => {
-  try {
-    const { hostname } = new URL(url);
-    return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1';
-  } catch {
-    return false;
-  }
-};
+const DEFAULT_ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
 
-export async function installPalisPageFixture(page, { freezeAt = DEFAULT_FREEZE_AT } = {}) {
+export async function installPalisPageFixture(page, {
+  freezeAt = DEFAULT_FREEZE_AT,
+  previewOrigin,
+  archiveOrigin = DEFAULT_ARCHIVE_ORIGIN,
+} = {}) {
   const frozenTimestamp = Date.parse(freezeAt);
   if (!Number.isFinite(frozenTimestamp)) throw new TypeError('freezeAt must be a valid date');
 
@@ -33,21 +30,33 @@ export async function installPalisPageFixture(page, { freezeAt = DEFAULT_FREEZE_
       if (Number(delay) === 260) return 0;
       return nativeSetInterval(callback, delay, ...args);
     };
+
   }, frozenTimestamp);
 
-  const requestLog = { allowed: [], archives: [], fatal: [] };
+  const requestLog = { allowed: [], archives: [], fatal: [], unknownExternal: [] };
   await page.setRequestInterception(true);
   page.on('request', (request) => {
     const url = request.url();
     const resource = { method: request.method(), url };
-    if (url.startsWith('data:') || url.startsWith('blob:') || isLoopback(url)) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      requestLog.fatal.push(resource);
+      void request.abort('blockedbyclient');
+      return;
+    }
+    if (url.startsWith('data:') || url.startsWith('blob:') || parsed.origin === previewOrigin) {
       requestLog.allowed.push(resource);
       void request.continue();
       return;
     }
     try {
-      const parsed = new URL(url);
-      if (parsed.pathname === '/rest/v1/archives') {
+      if (
+        parsed.origin === archiveOrigin
+        && parsed.pathname === '/rest/v1/archives'
+        && ['GET', 'OPTIONS'].includes(request.method())
+      ) {
         requestLog.archives.push(resource);
         void request.respond({
           status: 200,
@@ -72,16 +81,19 @@ export async function installPalisPageFixture(page, { freezeAt = DEFAULT_FREEZE_
 
 export async function freezePalisMascot(page) {
   await page.evaluate(async () => {
-    const mascot = document.querySelector(
-      '#mascot, .mascot img, img[src*="mascot"]',
-    );
-    if (!mascot) return;
+    const mascot = document.querySelector('#mascot-idle-frame');
+    if (!mascot) throw new Error('PALIS mascot idle frame is missing');
+    mascot.dataset.mascotFrame = '02';
     mascot.src = '/assets/mascot/idle-02.png';
-    await mascot.decode?.().catch(() => {});
+    if (!mascot.complete || mascot.naturalWidth <= 0) {
+      await mascot.decode();
+    }
+    if (!mascot.complete || mascot.naturalWidth <= 0) throw new Error('PALIS mascot idle frame did not load');
   });
 }
 
 export async function waitForPalisVisuals(page) {
+  await freezePalisMascot(page);
   await page.evaluate(async () => {
     const within = (promise, label) => Promise.race([
       promise,
@@ -90,13 +102,33 @@ export async function waitForPalisVisuals(page) {
     await within(document.fonts?.ready ?? Promise.resolve(), 'font loading');
     const images = [...document.images].filter((image) => {
       const style = getComputedStyle(image);
-      return style.display !== 'none' && style.visibility !== 'hidden';
+      const rect = image.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     });
-    await Promise.all(images.map((image) => Promise.race([
-      image.decode?.().catch(() => {}) ?? Promise.resolve(),
-      new Promise((resolve) => setTimeout(resolve, 1_000)),
-    ])));
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await Promise.all(images.map(async (image) => {
+      if (!image.complete || image.naturalWidth <= 0) {
+        await within(image.decode(), `visible image decode: ${image.currentSrc || image.src}`);
+      }
+      if (!image.complete || image.naturalWidth <= 0) {
+        throw new Error(`visible image did not load: ${image.currentSrc || image.src}`);
+      }
+    }));
+    for (const animation of document.getAnimations({ subtree: true })) {
+      const timing = animation.effect?.getComputedTiming();
+      if (timing?.iterations === Infinity) {
+        animation.currentTime = 0;
+        animation.pause();
+      } else {
+        try { animation.finish(); } catch { animation.pause(); }
+      }
+    }
+    // The event plane performs a second camera-layout pass after its initial
+    // render.  Two frames can preserve that intermediate transform on a busy
+    // machine, so capture only after a deterministic settle window.
+    await new Promise((resolve) => {
+      let frames = 8;
+      const settle = () => (frames-- > 0 ? requestAnimationFrame(settle) : resolve());
+      requestAnimationFrame(settle);
+    });
   });
-  await freezePalisMascot(page);
 }
