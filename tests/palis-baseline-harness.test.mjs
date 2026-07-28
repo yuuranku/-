@@ -8,7 +8,7 @@ import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
 import { acceptPalisBaseline, comparePalisManifests, validatePalisManifest } from '../scripts/compare-palis-baseline.mjs';
 import { capturePalisScenes } from '../scripts/capture-palis-baseline.mjs';
 import { PNG } from 'pngjs';
-import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -160,6 +160,33 @@ test('baseline acceptance rolls back baseline and docs after either commit renam
     await assert.rejects(acceptPalisBaseline({ currentPath, baselinePath, docsManifestPath: docsPath, renamePath }), /commit rename failure/);
     assert.equal(await readFile(baselinePath, 'utf8'), 'old baseline'); assert.equal(await readFile(docsPath, 'utf8'), 'old docs');
   }
+  let copyCalls = 0;
+  const copyPath = async (...args) => {
+    copyCalls += 1;
+    if (copyCalls === 2) throw new Error('docs stage copy failure');
+    return cp(...args);
+  };
+  await assert.rejects(
+    acceptPalisBaseline({ currentPath, baselinePath, docsManifestPath: docsPath, copyPath }),
+    /docs stage copy failure/,
+  );
+  assert.equal(await readFile(baselinePath, 'utf8'), 'old baseline');
+  assert.equal(await readFile(docsPath, 'utf8'), 'old docs');
+
+  await rm(path.dirname(baselinePath), { recursive: true, force: true });
+  await rm(path.dirname(docsPath), { recursive: true, force: true });
+  let renameCalls = 0;
+  const renamePath = async (from, to) => {
+    renameCalls += 1;
+    if (to === docsPath) throw new Error('new docs commit failure');
+    return (await import('node:fs/promises')).rename(from, to);
+  };
+  await assert.rejects(
+    acceptPalisBaseline({ currentPath, baselinePath, docsManifestPath: docsPath, renamePath }),
+    /new docs commit failure/,
+  );
+  assert.equal(await lstat(path.dirname(baselinePath)).then(() => true, () => false), false);
+  assert.equal(await lstat(docsPath).then(() => true, () => false), false);
 });
 
 test('baseline update validation rejects duplicate scene keys and incomplete capture evidence', () => {
