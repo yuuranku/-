@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const projectRoot = new URL('../', import.meta.url);
-const [workspace, client, migration, userFunction, html] = await Promise.all([
+const [workspace, repository, migration, userFunction, html] = await Promise.all([
   readFile(new URL('src/archive-workflow/workspace.js', projectRoot), 'utf8'),
-  readFile(new URL('src/archive-workflow/client.js', projectRoot), 'utf8'),
+  readFile(new URL('src/archive-workflow/repositories/supabase-repository.js', projectRoot), 'utf8'),
   readFile(new URL('supabase/migrations/202607270001_archive_workflow.sql', projectRoot), 'utf8'),
   readFile(new URL('supabase/functions/admin-manage-user/index.ts', projectRoot), 'utf8'),
   readFile(new URL('index.html', projectRoot), 'utf8'),
@@ -21,11 +21,11 @@ test('administrator directly creates and manages clerk or observer accounts', ()
   assert.match(workspace, /value="observer"/);
   const userPanel = workspace.slice(workspace.indexOf('data-admin-user-management'));
   assert.doesNotMatch(userPanel.slice(0, userPanel.indexOf('</form>')), /value="admin"/);
-  assert.match(client, /admin-manage-user/);
-  assert.match(client, /createUser/);
-  assert.match(client, /updateUserRole/);
-  assert.match(client, /resetUserPassword/);
-  assert.match(client, /deleteUser/);
+  assert.match(repository, /admin-manage-user/);
+  assert.match(repository, /createUser/);
+  assert.match(repository, /updateUserRole/);
+  assert.match(repository, /resetUserPassword/);
+  assert.match(repository, /deleteUser/);
   assert.match(userFunction, /auth\.admin\.createUser/);
   assert.match(userFunction, /auth\.admin\.updateUserById/);
   assert.match(userFunction, /auth\.admin\.listUsers/);
@@ -40,7 +40,7 @@ test('review pane requires a written reply before approval or return', () => {
   assert.match(workspace, /data-review-decision="approved"/);
   assert.match(workspace, /data-review-decision="changes_requested"/);
   assert.match(workspace, /reviewSubmission/);
-  assert.match(client, /Review reply is required/);
+  assert.match(repository, /Review reply is required/);
 });
 
 test('approved submissions can be formally registered with archive marks', () => {

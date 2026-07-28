@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import { createArchiveWorkflowClient } from '../src/archive-workflow/client.js';
+import { createSupabaseArchiveWorkflowRepository } from '../src/archive-workflow/repositories/supabase-repository.js';
+import { ARCHIVE_WORKFLOW_METHODS } from '../src/archive-workflow/repository-contract.js';
 
 const projectRoot = new URL('../', import.meta.url);
 const clientSourceUrl = new URL('src/archive-workflow/client.js', projectRoot);
+const repositorySourceUrl = new URL('src/archive-workflow/repositories/supabase-repository.js', projectRoot);
 const authSourceUrl = new URL('src/auth.js', projectRoot);
 
 test('workflow client exposes the complete clerk and administrator API', () => {
@@ -18,39 +21,20 @@ test('workflow client exposes the complete clerk and administrator API', () => {
     },
     functions: { invoke: () => { throw new Error('not used'); } },
   });
-  for (const method of [
-    'getProfile',
-    'listTemplates',
-    'listMyDrafts',
-    'saveDraft',
-    'submitDraft',
-    'listReviewQueue',
-    'reviewSubmission',
-    'publishContribution',
-    'inviteUser',
-    'listUsers',
-    'createUser',
-    'updateUserRole',
-    'resetUserPassword',
-    'deleteUser',
-    'listNotifications',
-    'markNotificationRead',
-    'searchArchives',
-    'listEditableArchives',
-    'loadArchiveEditorSource',
-    'listArchiveContributions',
-    'listArchiveReferences',
-    'uploadAttachment',
-  ]) {
+  for (const method of ARCHIVE_WORKFLOW_METHODS) {
     assert.equal(typeof client[method], 'function', `${method} should be exported`);
   }
 });
 
-test('workflow client enforces the repository contract when it constructs its public API', async () => {
-  const source = await readFile(clientSourceUrl, 'utf8');
+test('workflow client reexports the Supabase repository factory by identity', async () => {
+  const [clientSource, repositorySource] = await Promise.all([
+    readFile(clientSourceUrl, 'utf8'),
+    readFile(repositorySourceUrl, 'utf8'),
+  ]);
 
-  assert.match(source, /import\s+\{\s*assertArchiveWorkflowRepository\s*\}\s+from\s+['"]\.\/repository-contract\.js['"]/);
-  assert.match(source, /return\s+assertArchiveWorkflowRepository\(\{[\s\S]*uploadAttachment,[\s\S]*\}\);/);
+  assert.equal(createArchiveWorkflowClient, createSupabaseArchiveWorkflowRepository);
+  assert.match(clientSource, /createSupabaseArchiveWorkflowRepository\s+as\s+createArchiveWorkflowClient/);
+  assert.match(repositorySource, /return\s+assertArchiveWorkflowRepository\(\{/);
 });
 
 test('workflow client preserves validation error codes at its repository boundary', async () => {
@@ -225,7 +209,7 @@ test('administrator archive client queries every visibility state and deletes a 
 });
 
 test('client source scopes owner writes and uses optimistic draft revisions', async () => {
-  const source = await readFile(clientSourceUrl, 'utf8');
+  const source = await readFile(repositorySourceUrl, 'utf8');
   assert.match(source, /\.eq\(['"]owner_id['"]/);
   assert.match(source, /\.eq\(['"]revision['"]/);
   assert.match(source, /status:\s*['"]submitted['"]/);
