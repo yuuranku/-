@@ -84,6 +84,22 @@ test('scene waiter enters the countries directory through its folder code', { ti
   }
 });
 
+test('scene waiter canonicalizes the event-plane camera for capture', { timeout: 60_000 }, async () => {
+  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
+  const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 844, height: 390, deviceScaleFactor: 1 });
+    await installPalisPageFixture(page, { previewOrigin: new URL(preview.url).origin });
+    await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
+    await waitForPalisScene(page, 'events');
+    assert.match(await page.$eval('.event-plane', (node) => node.dataset.captureCamera), /^\d+x\d+:-?\d/);
+  } finally {
+    await browser.close();
+    await preview.close();
+  }
+});
+
 test('manifest comparison reports a one-pixel 1.000% regression', { timeout: 15_000 }, async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'palis-compare-'));
   const baselinePath = path.join(root, 'baseline.json');

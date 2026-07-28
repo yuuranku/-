@@ -122,6 +122,20 @@ export async function waitForPalisVisuals(page) {
         try { animation.finish(); } catch { animation.pause(); }
       }
     }
+    const eventPlane = document.querySelector('.event-plane');
+    const eventWorld = eventPlane?.querySelector('.event-plane-world');
+    if (eventPlane && eventWorld) {
+      const width = eventPlane.clientWidth;
+      const height = eventPlane.clientHeight;
+      const scale = Math.min(0.62, Math.max(0.1, Math.min(width / 3980, height / 2780) * 0.96));
+      const x = width / 2 - 3800 * scale / 2;
+      const y = height / 2 - 2600 * scale / 2;
+      eventWorld.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+      eventPlane.style.setProperty('--plane-grid-x', `${x % 64}px`);
+      eventPlane.style.setProperty('--plane-grid-y', `${y % 64}px`);
+      eventPlane.style.setProperty('--plane-grid-scale', String(scale));
+      eventPlane.dataset.captureCamera = `${width}x${height}:${x}:${y}:${scale}`;
+    }
     // The event plane performs a second camera-layout pass after its initial
     // render.  Two frames can preserve that intermediate transform on a busy
     // machine, so capture only after a deterministic settle window.
