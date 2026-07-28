@@ -251,6 +251,7 @@ const stations = RESEARCH_STATIONS.map((station) => ({
   network: station.network,
   operator: station.operator,
   type: station.type,
+  webContent: true,
 }));
 
 const entrances = ABYSS_POINTS.filter((point) => !point.datum).map((point) => ({
@@ -270,6 +271,7 @@ const entrances = ABYSS_POINTS.filter((point) => !point.datum).map((point) => ({
   type: point.type,
   status: point.status,
   datum: point.datum,
+  webContent: true,
 }));
 
 const ecology = [

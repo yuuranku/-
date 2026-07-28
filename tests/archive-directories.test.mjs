@@ -78,6 +78,16 @@ test('every entrance carries the survey fields the section drawings are generate
   assert.ok(measured.length >= 14, 'most descents should provide a parsable depth or route length');
 });
 
+test('station and entrance dossiers are all available in the public archive', () => {
+  const stations = ARCHIVE_ROOTS.find((root) => root.id === 'stations').children;
+  const entrances = ARCHIVE_ROOTS.find((root) => root.id === 'entrances').children;
+
+  assert.ok(stations.length > 0);
+  assert.ok(entrances.length > 0);
+  assert.ok(stations.every((record) => record.webContent), 'every research station should open online');
+  assert.ok(entrances.every((record) => record.webContent), 'every White Abyss entrance should open online');
+});
+
 test('ecology cabinet provides seven distinct specimen drawer readings', () => {
   const readings = Array.from({ length: 7 }, (_, index) => getEcologySpecimenReading(index));
 

@@ -450,7 +450,7 @@ function initializeMascotAssistant() {
         <h2>在案书记官</h2>
       </div>
       <section>
-        <p class="assistant-clerk-index__lead">当前工作台可调阅两份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
+        <p class="assistant-clerk-index__lead">当前工作台可调阅四份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
         <ol class="assistant-clerk-index__list">
           ${Array.from({ length: 10 }, (_, index) => {
             const number = String(index + 1).padStart(2, '0');
@@ -599,8 +599,10 @@ function initializeMascotAssistant() {
   startMenu.classList.add('mascot-start-menu');
 
   const clerkRecords = [
-    { documentId: 'clerk-wei-yi', entry: '助理见习书记官 · 笔名：魏伊', title: '助理见习书记官 · 笔名：魏伊', code: 'SC-01 / PEN NAME / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-yinnar-light', entry: '助理见习书记官 · 笔名：主行', title: '助理见习书记官 · 笔名：主行', code: 'SC-II / PEN NAME / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-wei-yi', entry: '助理书记官：魏伊', title: '助理书记官：魏伊', code: 'SC-01 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-yinnar-light', entry: '助理书记官：主行', title: '助理书记官：主行', code: 'SC-02 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-jean-moreau', entry: '助理书记官：FourreTout', title: '助理书记官：FourreTout', code: 'SC-03 / ONLINE / 4 PAGES' },
+    { documentId: 'clerk-jing-quan-c', entry: '助理书记官：精犬C', title: '助理书记官：精犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
   ];
   clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');

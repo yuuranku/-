@@ -27,13 +27,17 @@ test('assistant files and workspace files use independent window surfaces', () =
   assert.match(script, /openDocument\(entry\.dataset\.mascotDocument, entry, 'workspace'\)/);
 });
 
-test('both recorded clerks use pen names and the assistant trainee clerk title', () => {
-  assert.match(script, /\u7b14\u540d\uff1a\u9b4f\u4f0a/);
-  assert.match(script, /\u7b14\u540d\uff1a\u4e3b\u884c/);
-  assert.equal((script.match(/\u52a9\u7406\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a/g) || []).length, 4);
-  assert.equal((html.match(/<h2>\u52a9\u7406\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7\s*\u7b14\u540d\uff1a/g) || []).length, 2);
-  assert.doesNotMatch(script, /title: '\u52a9\u7406\u4e66\u8bb0\u5b98\s*\u00b7/);
-  assert.doesNotMatch(script, /title: '\u89c1\u4e60\u4e66\u8bb0\u5b98\s*\u00b7/);
+test('all recorded clerks use the simple assistant clerk pen-name format', () => {
+  for (const name of ['魏伊', '主行', 'FourreTout', '精犬C']) {
+    assert.match(script, new RegExp(`助理书记官：${name}`));
+    assert.match(html, new RegExp(`<h2>助理书记官：${name}`));
+  }
+  assert.match(html, /data-mascot-document-content="clerk-jean-moreau"/);
+  assert.match(html, /\/assets\/clerks\/jean-moreau-1\.png/);
+  assert.match(html, /data-mascot-document-content="clerk-jing-quan-c"/);
+  assert.match(html, /\/assets\/clerks\/jing-quan-c-profile\.png/);
+  assert.doesNotMatch(script, /助理见习书记官|笔名：/);
+  assert.doesNotMatch(script, /让·莫罗/);
 });
 
 test('the clerk desktop exposes the nine archive template shortcuts', () => {

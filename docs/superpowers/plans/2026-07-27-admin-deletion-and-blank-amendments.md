@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 管理员能检索并永久删除任意正式档案；科考站点、白渊入口仅可修订既有档案，且所有修订使用可添加自定义条目的空白补充页。
+**Goal:** 管理员能检索并永久删除任意正式档案；科考站点、白幕入口仅可修订既有档案，且所有修订使用可添加自定义条目的空白补充页。
 
 **Architecture:** 复用现有 `archives_admin_write` RLS 策略，在浏览器 Supabase 客户端添加管理员全档案查询和删除方法；工作台把该能力放到一个管理员专用的档案管理窗口。修订编辑器继续保存到 `draft_content`，但在修订模式切换到新的、同源 iframe 空白模板，复用现有编辑桥的读写与自动保存机制。
 
@@ -13,7 +13,7 @@
 - 管理员删除为永久操作，必须在客户端核对输入的正式档案编号后才发请求。
 - 不新增 service-role 密钥、数据库迁移、Edge Function 或新的生产部署权限。
 - 非管理员只能使用现有档案阅读/投稿能力，不能看见或调用管理员删除操作。
-- 科考站点 `station` 和白渊入口 `entrance` 没有新建或普通补充模式，只能提交修订。
+- 科考站点 `station` 和白幕入口 `entrance` 没有新建或普通补充模式，只能提交修订。
 - 修订内容使用 `draft_content.schemaVersion = 2`，并保留既有引用、附件、自动保存和审核流程。
 
 ---

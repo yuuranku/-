@@ -100,12 +100,12 @@ test('submission transitions require the correct role and state', () => {
 
 test('archive references serialize into stable clickable tokens', () => {
   assert.deepEqual(
-    buildArchiveReference({ id: 'species-09', code: 'S-09', title: '白渊样本' }),
+    buildArchiveReference({ id: 'species-09', code: 'S-09', title: '白幕样本' }),
     {
       type: 'archive-reference',
       archiveId: 'species-09',
       code: 'S-09',
-      label: '白渊样本',
+      label: '白幕样本',
     },
   );
 });
