@@ -82,6 +82,10 @@ test('local administrator opens the workspace without loading cloud authenticati
         await page.screenshot({ path: resolve(shellCaptureDirectory, `desktop-${viewport.width}x${viewport.height}.png`) });
       }
     }
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.waitForFunction(() => getComputedStyle(
+      document.querySelector('.clerk-desktop__icons'),
+    ).gridAutoFlow === 'column');
     await page.keyboard.press('Escape');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="cabinet"]', { count: 2, delay: 40 });
