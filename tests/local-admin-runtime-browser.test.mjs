@@ -168,6 +168,127 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(await page.evaluate(() => document.activeElement?.matches?.(
       '[data-workspace-shortcut][data-workspace-command="new-archive"]',
     )), true);
+
+    const modificationFixture = await page.evaluate(async () => {
+      const [
+        { createLocalIndexedDbRepository },
+        { createEmptyLocalState },
+        { ARCHIVE_TEMPLATES },
+      ] = await Promise.all([
+        import('/src/archive-workflow/repositories/local-indexeddb-repository.js'),
+        import('/src/archive-workflow/local/local-state.js'),
+        import('/src/archive-workflow/templates.js'),
+      ]);
+      const principal = {
+        id: 'local-admin',
+        email: 'local-admin@palis.local',
+        display_name: '本地管理员',
+        role: 'admin',
+        enabled: true,
+      };
+      const repository = createLocalIndexedDbRepository({
+        indexedDB,
+        getPrincipal: () => principal,
+        seed: {
+          ...createEmptyLocalState(),
+          profiles: [principal],
+          templates: ARCHIVE_TEMPLATES.map((template) => ({
+            id: template.id,
+            code: template.code,
+            category: template.category,
+            abbreviation: template.abbreviation,
+            title: template.title,
+            schema: { schemaVersion: 2, fields: [...template.fields] },
+            active: true,
+          })),
+        },
+        now: () => new Date().toISOString(),
+        randomUUID: () => crypto.randomUUID(),
+      });
+      const content = {
+        schemaVersion: 2,
+        templateCode: '07',
+        category: 'event',
+        title: '浏览器修改回归档案',
+        values: { hero: '浏览器修改回归档案', body: '事件正文' },
+        indexData: { title: '浏览器修改回归档案' },
+        sections: [],
+        fieldLabels: {},
+        references: [],
+        media: [],
+      };
+      const base = await repository.saveDraft({
+        ownerId: principal.id,
+        templateId: '07',
+        kind: 'new',
+        title: content.title,
+        content,
+      });
+      await repository.submitDraft(base.id, principal.id);
+      await repository.reviewSubmission(base.id, {
+        decision: 'approved',
+        message: '准予录入',
+      });
+      const published = await repository.publishContribution(base.id, {
+        category: 'event',
+        visibility: 'public',
+        idempotencyKey: `browser-base-${crypto.randomUUID()}`,
+      });
+      const amendment = await repository.saveDraft({
+        ownerId: principal.id,
+        templateId: '07',
+        archiveId: published.archiveId,
+        kind: 'amendment',
+        targetContributionId: base.id,
+        baseVersionId: published.versionId,
+        title: '浏览器待修改记录',
+        content: {
+          ...content,
+          title: '浏览器待修改记录',
+          indexData: { title: '浏览器待修改记录' },
+          targetDocumentId: base.id,
+        },
+      });
+      await repository.submitDraft(amendment.id, principal.id);
+      const returned = await repository.reviewSubmission(amendment.id, {
+        decision: 'changes_requested',
+        message: '管理员批注：请补充事件证据',
+      });
+      return {
+        archiveId: published.archiveId,
+        amendmentId: returned.id,
+      };
+    });
+
+    await page.$eval(
+      '[data-workspace-shortcut][data-workspace-command="modify-archive"]',
+      (button) => button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })),
+    );
+    await page.waitForSelector('[data-modify-category="event"]');
+    await page.click('[data-modify-category="event"]');
+    await page.waitForSelector(
+      `[data-modify-archive="${modificationFixture.archiveId}"]`,
+    );
+    await page.click(`[data-modify-archive="${modificationFixture.archiveId}"]`);
+    const returnedAmendment = `[data-open-returned-draft][data-draft-id="${modificationFixture.amendmentId}"]`;
+    await page.waitForSelector(returnedAmendment);
+    assert.match(
+      await page.$eval(returnedAmendment, (button) => button.textContent),
+      /管理员批注：请补充事件证据/,
+    );
+    await page.click(returnedAmendment);
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+    await page.click('.archive-editor-window [data-workflow-close]');
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-editor-window')
+      || document.querySelector('#workspace-exit-dialog')?.open);
+    if (await page.$eval('#workspace-exit-dialog', (dialog) => dialog.open)) {
+      await page.click('[data-workspace-exit-action="discard"]');
+    }
+    await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
+    assert.equal(await page.evaluate(() => document.activeElement?.matches?.(
+      '[data-workspace-shortcut][data-workspace-command="modify-archive"]',
+    )), true);
   } finally {
     delete process.env.VITE_PALIS_LOCAL_ADMIN;
     await page.close();

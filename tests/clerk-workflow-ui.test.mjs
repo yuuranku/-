@@ -207,6 +207,10 @@ test('each returned submission reopens from its matching action and keeps the re
   assert.match(workspace, /管理员批注|驳回原因/);
   assert.match(workspace, /listEditableArchives\(\{\s*category:/);
   assert.match(workspace, /listArchiveDocuments\(archive\.id\)/);
+  assert.equal(
+    (workspace.match(/replaceChooserWithEditor\(state,\s*editor,\s*'modify-archive'\)/g) || []).length,
+    2,
+  );
 });
 
 test('modify chooser retries an exact-source failure without opening a blank amendment', () => {
