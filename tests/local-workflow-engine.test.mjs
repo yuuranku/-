@@ -1266,6 +1266,20 @@ test('loadArchiveEditorSource never substitutes a sibling when the selected sour
   assert.equal(source, null);
 });
 
+test('loadArchiveEditorSource rejects a selected version whose archive lineage mismatches its document', async () => {
+  const state = createPublishedReadState();
+  state.versions[0].archive_id = 'archive-2';
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const source = await harness.repository.loadArchiveEditorSource('archive-1', {
+    contributionId: 'contribution-1',
+    versionId: 'version-1',
+  });
+
+  assert.equal(source, null);
+});
+
 test('official editor source uses static content until a later official amendment is published', async () => {
   const state = createPublishedReadState();
   state.archives[0] = {

@@ -1085,7 +1085,7 @@ export const createLocalWorkflowEngine = ({
     );
     const versions = state.versions
       .filter((version) =>
-        (version.archive_id === id || publishedContributionIds.has(version.contribution_id))
+        version.archive_id === id
         && publishedContributionIds.has(version.contribution_id))
       .sort((left, right) =>
         String(right.created_at ?? right.approved_at ?? '')
