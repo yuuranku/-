@@ -1,10 +1,13 @@
 .archive-cabinet { display: grid; min-height: 420px; grid-template-rows: auto auto 1fr auto; gap: 8px; padding: 8px; color: #111; background: #c0c0c0; }
-.archive-cabinet__menubar { display: flex; gap: 4px; }
+.archive-cabinet__menubar { display: flex; gap: 2px; border-bottom: 1px solid #808080; }
 .archive-cabinet__menubar details { position: relative; }
-.archive-cabinet__menubar summary { padding: 3px 7px; cursor: pointer; }
-.archive-cabinet__menubar details > div { position: absolute; z-index: 4; min-width: 110px; padding: 3px; background: #c0c0c0; border: 2px outset #efefef; }
+.archive-cabinet__menubar summary { padding: 4px 9px; color: #000; list-style: none; cursor: default; }
+.archive-cabinet__menubar details[open] > summary { color: #fff; background: #000080; }
+.archive-cabinet__menubar [role='menu'] { position: absolute; z-index: 6; top: 100%; left: 0; min-width: 148px; padding: 2px; border: 2px outset #fff; background: #c0c0c0; }
 .archive-cabinet__menubar details:not([open]) > div { display: none; }
-.archive-cabinet__menubar button { display: block; width: 100%; text-align: left; }
+.archive-cabinet__menubar [role='menu'] button { display: block; width: 100%; min-height: 28px; border: 0; text-align: left; }
+.archive-cabinet__menubar [role='menu'] button:hover { color: #fff; background: #000080; }
+.archive-cabinet__menubar [role='menu'] button:focus-visible { color: #fff; outline: 1px dotted #fff; outline-offset: -3px; background: #000080; }
 .archive-cabinet__address { display: grid; grid-template-columns: auto 1fr; gap: 6px; align-items: center; font-size: 12px; }
 .archive-cabinet__address input { min-width: 0; border: 2px inset #ececec; background: #fff; }
 .archive-cabinet__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); align-content: start; gap: 10px; padding: 10px; border: 2px inset #ececec; background: #fff; }

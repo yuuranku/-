@@ -50,6 +50,8 @@ test('workspace shell renders the Win95 desktop and icon grid from its CSS rules
   assert.equal(declaration('.clerk-desktop__icons button', 'min-height'), '72px');
   assert.equal(declaration('.clerk-desktop__icon', 'width'), '32px');
   assert.equal(declaration('.clerk-desktop__icon', 'height'), '32px');
+  assert.equal(declaration('.clerk-desktop__icon', 'background'), '#fff');
+  assert.equal(declaration('.clerk-desktop__icon', 'box-shadow'), 'inset 0 0 0 1px #000');
   assert.equal(declaration('.clerk-desktop__taskbar', 'min-height'), '38px');
   assert.ok(ruleFor('.clerk-desktop__start-menu'));
   assert.ok(ruleFor('.clerk-desktop__tray'));

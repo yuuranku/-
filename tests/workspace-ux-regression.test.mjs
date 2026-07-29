@@ -60,6 +60,17 @@ test('PALIS Win95 windows expose focus, bevel, active-window, cabinet, and maxim
   assert.match(workspace, /windowElement\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
 });
 
+test('archive cabinet menus use the classic Win95 open and keyboard-visible states', () => {
+  assert.equal(workflowDeclaration('.archive-cabinet__menubar', 'gap'), '2px');
+  assert.equal(workflowDeclaration('.archive-cabinet__menubar', 'border-bottom'), '1px solid #808080');
+  assert.equal(workflowDeclaration('.archive-cabinet__menubar details[open] > summary', 'background'), '#000080');
+  assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu']", 'min-width'), '148px');
+  assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu']", 'border'), '2px outset #fff');
+  assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu'] button", 'min-height'), '28px');
+  assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu'] button:hover", 'background'), '#000080');
+  assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu'] button:focus-visible", 'background'), '#000080');
+});
+
 test('narrow workflow keeps the index rail scrollable and archive management contained', () => {
   const narrow = workflowStyles.slice(workflowStyles.indexOf('@media (max-width: 760px)'));
   assert.match(narrow, /\.archive-editor__split\s*\{[^}]*display:\s*flex[^}]*overflow:\s*auto/s);
