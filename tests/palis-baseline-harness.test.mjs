@@ -5,7 +5,9 @@ import { startPalisPreview, waitForPalisScene } from '../scripts/palis-browser-h
 import { installPalisPageFixture } from '../scripts/palis-page-fixture.mjs';
 import puppeteer from 'puppeteer-core';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
-import { acceptPalisBaseline, comparePalisManifests, validatePalisManifest } from '../scripts/compare-palis-baseline.mjs';
+import * as baselineHarness from '../scripts/compare-palis-baseline.mjs';
+
+const { acceptPalisBaseline, comparePalisManifests, validatePalisManifest } = baselineHarness;
 import { capturePalisScenes } from '../scripts/capture-palis-baseline.mjs';
 import { PNG } from 'pngjs';
 import { cp, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -118,6 +120,17 @@ test('manifest comparison reports a one-pixel 1.000% regression', { timeout: 15_
     comparePalisManifests({ baselinePath, currentPath, threshold: 0.005, diffRoot: path.join(root, 'diff') }),
     /1\.000%/,
   );
+});
+
+test('public-only baseline comparison preserves public PALIS scenes and excludes workspace captures', async () => {
+  assert.equal(typeof baselineHarness.shouldCompareCapture, 'function');
+  const manifest = JSON.parse(await readFile('docs/verification/palis-baseline-manifest.json', 'utf8'));
+  const captures = manifest.captures.filter((capture) => baselineHarness.shouldCompareCapture(capture, { publicOnly: true }));
+
+  assert.equal(captures.length, 33);
+  assert.equal(captures.some((capture) => capture.scene === 'clean-home'), true);
+  assert.equal(captures.some((capture) => capture.scene === 'clerk-workspace'), false);
+  assert.equal(captures.some((capture) => capture.scene === 'admin-workspace'), false);
 });
 
 test('strict manifest validator rejects forged environment, request, and proof evidence', async () => {

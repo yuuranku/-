@@ -17,6 +17,9 @@ const SCENES = [
   'directory-entrances', 'directory-ecology', 'directory-people',
   'directory-events', 'directory-abnormalities', 'directory-species',
 ];
+const WORKSPACE_SCENES = new Set(['clerk-workspace', 'admin-workspace']);
+export const shouldCompareCapture = (capture, { publicOnly = false } = {}) =>
+  !publicOnly || !WORKSPACE_SCENES.has(capture.scene);
 const EXPECTED_KEYS = new Set(VIEWPORTS.flatMap((viewport) => SCENES.map((scene) => `${viewport}:${scene}`)));
 const ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
 const DIRECTORY_PROOFS = Object.freeze({ countries:['country-stack',18], organizations:['network',23], stations:['station-board',20], entrances:['entrance-network',18], ecology:['ecology-strata',7], people:['dossier',36], events:['event-plane',26], abnormalities:['anomaly-monitor',25], species:['species-helix',22] });
@@ -142,6 +145,7 @@ export async function comparePalisManifests({
   currentPath = defaultCurrentPath,
   threshold = 0.005,
   diffRoot = defaultDiffRoot,
+  publicOnly = false,
 } = {}) {
   const [baseline, current] = await Promise.all([
     readFile(baselinePath, 'utf8').then(JSON.parse),
@@ -152,7 +156,7 @@ export async function comparePalisManifests({
   ]));
   const report = { threshold, comparisons: [], failures: [], validation: validatePalisManifest(current) };
   await mkdir(diffRoot, { recursive: true });
-  for (const currentCapture of current.captures) {
+  for (const currentCapture of current.captures.filter((capture) => shouldCompareCapture(capture, { publicOnly }))) {
     const key = `${currentCapture.viewport}:${currentCapture.scene}`;
     const baselineCapture = baselineByKey.get(key);
     if (!baselineCapture) {
@@ -178,8 +182,9 @@ export async function comparePalisManifests({
     report.comparisons.push(comparison);
     if (ratio > threshold) report.failures.push(`${key}: ${(ratio * 100).toFixed(3)}% changed`);
   }
-  for (const key of baselineByKey.keys()) {
-    if (!current.captures.some((capture) => `${capture.viewport}:${capture.scene}` === key)) {
+  for (const baselineCapture of baseline.captures.filter((capture) => shouldCompareCapture(capture, { publicOnly }))) {
+    const key = `${baselineCapture.viewport}:${baselineCapture.scene}`;
+    if (!current.captures.some((capture) => shouldCompareCapture(capture, { publicOnly }) && `${capture.viewport}:${capture.scene}` === key)) {
       report.failures.push(`${key}: missing current capture`);
     }
   }
@@ -194,12 +199,13 @@ export async function comparePalisManifests({
 
 async function main() {
   const update = process.argv.includes('--update-baseline');
+  const publicOnly = process.argv.includes('--public-only');
   if (update) {
     const current = await acceptPalisBaseline({ docsManifestPath: path.join(workspace, 'docs/verification/palis-baseline-manifest.json') });
     console.log(`PALIS baseline updated: ${current.captures.length} captures`);
     return;
   }
-  const report = await comparePalisManifests({});
+  const report = await comparePalisManifests({ publicOnly });
   console.log(`PALIS baseline comparison passed: ${report.comparisons.length} captures`);
 }
 

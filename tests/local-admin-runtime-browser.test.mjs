@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 import puppeteer from 'puppeteer-core';
 
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
 import { startPalisTestServer } from './helpers/palis-test-server.mjs';
+
+const shellCaptureDirectory = resolve(process.cwd(), 'tmp', 'ui-check', 'win95-shell');
 
 test('local administrator opens the workspace without loading cloud authentication', { timeout: 120_000 }, async () => {
   process.env.VITE_PALIS_LOCAL_ADMIN = '1';
@@ -55,6 +59,29 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('#clerk-desktop-start');
     await page.waitForSelector('#clerk-desktop-start-menu:not([hidden])');
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'true');
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 2048, height: 1152 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewport(viewport);
+      const metrics = await page.evaluate(() => ({
+        taskbarHeight: document.querySelector('#assistant-taskbar').getBoundingClientRect().height,
+        startVisible: !document.querySelector('#clerk-desktop-start-menu').hidden,
+        utilities: Boolean(document.querySelector('.clerk-desktop__utilities')),
+        iconFlow: getComputedStyle(document.querySelector('.clerk-desktop__icons')).gridAutoFlow,
+        iconWidth: document.querySelector('.clerk-desktop__icon').getBoundingClientRect().width,
+      }));
+      assert.equal(metrics.startVisible, true);
+      assert.equal(metrics.utilities, false);
+      assert.equal(metrics.iconFlow, viewport.width <= 760 ? 'row' : 'column');
+      assert.equal(metrics.iconWidth, 32);
+      assert.ok(metrics.taskbarHeight >= (viewport.width <= 760 ? 44 : 34));
+      if (process.env.PALIS_CAPTURE_UI === '1') {
+        await mkdir(shellCaptureDirectory, { recursive: true });
+        await page.screenshot({ path: resolve(shellCaptureDirectory, `desktop-${viewport.width}x${viewport.height}.png`) });
+      }
+    }
     await page.keyboard.press('Escape');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="cabinet"]', { count: 2, delay: 40 });

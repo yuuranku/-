@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import postcss from 'postcss';
 import { renderFormalArchiveDocument } from '../src/archive-workflow/public-renderer.js';
 
 const projectRoot = new URL('../', import.meta.url);
@@ -12,6 +13,13 @@ const [html, workspace, workflowStyles, main, styles] = await Promise.all([
   readFile(new URL('src/main.js', projectRoot), 'utf8'),
   readFile(new URL('src/style.css', projectRoot), 'utf8'),
 ]);
+
+const workflowRules = postcss.parse(workflowStyles).nodes.filter((node) => node.type === 'rule');
+const workflowRuleFor = (selector) => workflowRules.findLast((rule) => rule.selector === selector);
+const workflowHasSelector = (selector) => workflowRules.some((rule) => rule.selectors?.includes(selector));
+const workflowDeclaration = (selector, property) => workflowRuleFor(selector)?.nodes.find(
+  (node) => node.type === 'decl' && node.prop === property,
+)?.value;
 
 test('workflow panels retain wheel scrolling inside their visible lists', () => {
   assert.match(main, /\.archive-workflow-window/);
@@ -37,12 +45,17 @@ test('desktop workflow has an editor loading state and a wide-desktop readabilit
   assert.match(workflowStyles, /@media \(min-width: 1600px\) and \(min-height: 800px\)/);
 });
 
-test('PALIS Win95 windows expose focus, bevel, and active-window states', () => {
-  assert.match(workflowStyles, /\.archive-workflow-window\.is-active/);
-  assert.match(workflowStyles, /\.archive-workflow-window:not\(\.is-active\) \.archive-workflow-titlebar/);
-  assert.match(workflowStyles, /border:\s*2px outset #efefef/);
-  assert.match(workflowStyles, /border:\s*2px inset #ececec/);
-  assert.match(workflowStyles, /\.archive-workflow-window button:focus-visible[\s\S]*outline:\s*1px dotted/s);
+test('PALIS Win95 windows expose focus, bevel, active-window, cabinet, and maximized states', () => {
+  assert.equal(workflowDeclaration('.archive-workflow-window', 'border'), '2px outset #fff');
+  assert.equal(workflowDeclaration('.archive-workflow-window', 'background'), '#c0c0c0');
+  assert.equal(workflowDeclaration('.archive-workflow-window.is-active .archive-workflow-titlebar', 'background'), '#000080');
+  assert.equal(workflowDeclaration('.archive-workflow-window:not(.is-active) .archive-workflow-titlebar', 'background'), '#7f7f7f');
+  assert.ok(workflowRuleFor('.archive-cabinet__grid'));
+  assert.equal(workflowHasSelector('.archive-workflow-window.is-maximized'), true);
+  assert.equal(workflowRuleFor('.clerk-desktop__icons'), undefined);
+  assert.equal(workflowRuleFor('.clerk-desktop__utilities'), undefined);
+  assert.equal(workflowRuleFor('.clerk-desktop__welcome'), undefined);
+  assert.equal(workflowHasSelector('.archive-workflow-window button:focus-visible'), true);
   assert.match(workspace, /windowElement\.setAttribute\('tabindex', '-1'\)/);
   assert.match(workspace, /windowElement\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
 });
