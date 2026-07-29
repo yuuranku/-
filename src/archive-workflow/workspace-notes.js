@@ -72,6 +72,8 @@ const normalizeDraft = (draft = {}) => ({
   title: String(draft.title ?? ''),
 });
 
+const workspaceNoteName = (note) => String(note?.title ?? '').trim() || '未命名便签';
+
 const normalizeLayouts = (records, profileId) => {
   const layouts = new Map();
   for (const record of Array.isArray(records) ? records : []) {
@@ -197,6 +199,9 @@ export const initializeWorkspaceNotes = ({
   const layoutErrors = new Map();
   const mutationErrors = new Map();
   const cards = new Map();
+  const dragHandles = new Map();
+  let keyboardDraggingNoteId = null;
+  let keyboardDragDirty = false;
 
   const isActiveScope = (candidate = session) => (
     candidate.desktopOpen
@@ -242,6 +247,8 @@ export const initializeWorkspaceNotes = ({
     closedNoteIds: sortSet(sessionClosedNoteIds),
     drafts: Object.fromEntries([...drafts.entries()].map(([key, value]) => [key, clone(value)])),
     editingNoteIds: sortSet(editingNoteIds),
+    keyboardDragDirty,
+    keyboardDraggingNoteId,
     layoutErrors: Object.fromEntries(layoutErrors.entries()),
     layouts: mapToObject(layouts),
     loadError,
@@ -264,12 +271,22 @@ export const initializeWorkspaceNotes = ({
     card.style.top = `${position.top}px`;
   };
 
+  const focusDragHandle = (noteId) => dragHandles.get(noteId)?.focus?.();
+
   const render = () => {
     cards.clear();
+    dragHandles.clear();
     if (!isActiveScope()) {
+      keyboardDraggingNoteId = null;
+      keyboardDragDirty = false;
       root.replaceChildren();
       emit();
       return;
+    }
+
+    if (keyboardDraggingNoteId && !visibleNotes().some((note) => note.id === keyboardDraggingNoteId)) {
+      keyboardDraggingNoteId = null;
+      keyboardDragDirty = false;
     }
 
     const document = root.ownerDocument;
@@ -279,16 +296,26 @@ export const initializeWorkspaceNotes = ({
       const card = document.createElement('article');
       card.dataset.workspaceNoteId = note.id;
       card.classList.add('workspace-sticky-note');
+      card.setAttribute('aria-label', `便签：${workspaceNoteName(note)}`);
       card.style.left = `${position.left}px`;
       card.style.position = 'absolute';
       card.style.top = `${position.top}px`;
+      const isLayoutSaving = hasPendingOperation(`layout:${note.id}`);
       if (tearingNotes.has(note.id)) card.classList.add('is-tearing');
-      if (hasPendingOperation(`layout:${note.id}`)) card.classList.add('is-layout-saving');
+      if (isLayoutSaving) card.classList.add('is-layout-saving');
+      if (editingNoteIds.has(note.id)) card.classList.add('is-editing');
+      if (keyboardDraggingNoteId === note.id) card.classList.add('is-keyboard-dragging');
 
       const dragHandle = document.createElement('div');
       dragHandle.dataset.workspaceNoteDragHandle = 'true';
       dragHandle.classList.add('workspace-sticky-note-drag-handle');
-      dragHandle.textContent = 'Move note';
+      dragHandle.setAttribute('aria-label', `拖动便签：${workspaceNoteName(note)}`);
+      dragHandle.setAttribute('aria-pressed', String(keyboardDraggingNoteId === note.id));
+      dragHandle.setAttribute('aria-disabled', String(isLayoutSaving));
+      dragHandle.setAttribute('role', 'button');
+      dragHandle.setAttribute('tabindex', '0');
+      dragHandle.setAttribute('title', '按空格键或回车键开始移动，再用方向键调整位置');
+      dragHandle.textContent = '拖动';
       dragHandle.addEventListener('pointerdown', (event) => {
         beginDrag(note.id, {
           card,
@@ -298,62 +325,147 @@ export const initializeWorkspaceNotes = ({
         });
         event.preventDefault?.();
       });
+      dragHandle.addEventListener('keydown', (event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault?.();
+          toggleKeyboardDrag(note.id);
+          return;
+        }
+        if (event.key === 'Escape' && keyboardDraggingNoteId === note.id) {
+          event.preventDefault?.();
+          toggleKeyboardDrag(note.id, { forceStop: true });
+          return;
+        }
+        const distance = event.shiftKey ? 32 : 12;
+        const offsets = {
+          ArrowDown: { left: 0, top: distance },
+          ArrowLeft: { left: -distance, top: 0 },
+          ArrowRight: { left: distance, top: 0 },
+          ArrowUp: { left: 0, top: -distance },
+        };
+        const offset = offsets[event.key];
+        if (
+          !offset
+          || keyboardDraggingNoteId !== note.id
+          || tearingNotes.has(note.id)
+          || !isActiveScope()
+        ) return;
+        const current = positions.get(note.id) ?? positionFor(note, noteIndex(note.id));
+        positions.set(note.id, clampWorkspaceNotePosition({
+          left: current.left + offset.left,
+          top: current.top + offset.top,
+        }, bounds, normalizedNoteSize));
+        keyboardDragDirty = true;
+        updateCardPosition(note.id);
+        event.preventDefault?.();
+        emit();
+      });
       card.append(dragHandle);
 
       const heading = document.createElement('h3');
+      heading.classList.add('workspace-sticky-note-title');
       heading.textContent = note.title;
       const body = document.createElement('p');
+      body.classList.add('workspace-sticky-note-body');
       body.textContent = note.content;
       card.append(heading, body);
 
+      const actions = document.createElement('div');
+      actions.classList.add('workspace-sticky-note-actions');
       const closeButton = document.createElement('button');
+      closeButton.dataset.workspaceNoteClose = 'true';
+      closeButton.classList.add('workspace-sticky-note-close');
       closeButton.type = 'button';
-      closeButton.textContent = 'Close';
+      closeButton.setAttribute('aria-label', `关闭便签：${workspaceNoteName(note)}`);
+      closeButton.setAttribute('title', '关闭便签');
+      closeButton.textContent = '关闭';
       closeButton.addEventListener('click', () => closeNote(note.id));
-      card.append(closeButton);
+      actions.append(closeButton);
 
       if (canManageWorkspaceNotes(session.role)) {
         const editButton = document.createElement('button');
+        editButton.dataset.workspaceNoteEdit = 'true';
+        editButton.classList.add('workspace-sticky-note-edit');
         editButton.type = 'button';
-        editButton.textContent = 'Edit';
+        editButton.setAttribute('aria-label', `编辑便签：${workspaceNoteName(note)}`);
+        editButton.setAttribute('title', '编辑便签');
+        editButton.textContent = '编辑';
         editButton.addEventListener('click', () => startEditing(note.id));
 
         const deleteButton = document.createElement('button');
+        deleteButton.dataset.workspaceNoteDelete = 'true';
+        deleteButton.classList.add('workspace-sticky-note-delete');
         deleteButton.type = 'button';
-        deleteButton.textContent = 'Delete';
+        deleteButton.setAttribute('aria-label', `删除便签：${workspaceNoteName(note)}`);
+        deleteButton.setAttribute('title', '删除便签');
+        deleteButton.textContent = '删除';
         deleteButton.addEventListener('click', () => { void deleteNote(note.id); });
-        card.append(editButton, deleteButton);
+        actions.append(editButton, deleteButton);
       }
 
       if (editingNoteIds.has(note.id) && canManageWorkspaceNotes(session.role)) {
         const draft = drafts.get(note.id) ?? normalizeDraft(note);
+        const editor = document.createElement('div');
+        editor.classList.add('workspace-sticky-note-editor');
         const titleInput = document.createElement('input');
+        titleInput.dataset.workspaceNoteTitleInput = 'true';
+        titleInput.classList.add('workspace-sticky-note-title-input');
         titleInput.type = 'text';
+        titleInput.setAttribute('aria-label', '便签标题');
+        titleInput.setAttribute('placeholder', '标题');
         titleInput.value = draft.title;
         titleInput.addEventListener('input', (event) => {
           setDraft(note.id, { ...drafts.get(note.id), title: event.target.value });
         });
 
         const contentInput = document.createElement('textarea');
+        contentInput.dataset.workspaceNoteContentInput = 'true';
+        contentInput.classList.add('workspace-sticky-note-content-input');
+        contentInput.setAttribute('aria-label', '便签正文');
+        contentInput.setAttribute('placeholder', '正文');
         contentInput.value = draft.content;
         contentInput.addEventListener('input', (event) => {
           setDraft(note.id, { ...drafts.get(note.id), content: event.target.value });
         });
 
         const saveButton = document.createElement('button');
+        saveButton.dataset.workspaceNoteSave = 'true';
+        saveButton.classList.add('workspace-sticky-note-save');
         saveButton.type = 'button';
-        saveButton.textContent = 'Save';
+        saveButton.setAttribute('aria-label', `保存便签：${workspaceNoteName(note)}`);
+        saveButton.textContent = '保存';
         saveButton.addEventListener('click', () => { void updateNote(note.id, drafts.get(note.id)); });
-        card.append(titleInput, contentInput, saveButton);
+        editor.append(titleInput, contentInput, saveButton);
+        card.append(editor);
+      }
+
+      card.append(actions);
+
+      const mutationError = mutationErrors.get(note.id);
+      if (mutationError) {
+        const error = document.createElement('p');
+        error.dataset.workspaceNoteMutationError = 'true';
+        error.classList.add('workspace-sticky-note-error');
+        error.setAttribute('role', 'status');
+        error.setAttribute('aria-live', 'polite');
+        error.textContent = `便签操作未完成：${mutationError}`;
+        card.append(error);
       }
 
       const layoutError = layoutErrors.get(note.id);
       if (layoutError) {
         const error = document.createElement('p');
-        error.textContent = `Position not synced: ${layoutError}`;
+        error.dataset.workspaceNoteLayoutError = 'true';
+        error.classList.add('workspace-sticky-note-error');
+        error.setAttribute('role', 'status');
+        error.setAttribute('aria-live', 'polite');
+        error.textContent = `位置未同步：${layoutError}`;
         const retry = document.createElement('button');
+        retry.dataset.workspaceNoteLayoutRetry = 'true';
+        retry.classList.add('workspace-sticky-note-layout-retry');
         retry.type = 'button';
-        retry.textContent = 'Retry position sync';
+        retry.setAttribute('aria-label', `重新同步便签位置：${workspaceNoteName(note)}`);
+        retry.textContent = '重新同步位置';
         retry.addEventListener('click', () => { void retryLayout(note.id); });
         card.append(error, retry);
       }
@@ -367,12 +479,48 @@ export const initializeWorkspaceNotes = ({
       card.addEventListener('pointercancel', (event) => {
         void endDrag({ clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId });
       });
-      card.addEventListener('animationend', () => { void completeTear(note.id); });
+      card.addEventListener('animationend', (event) => {
+        if (event.animationName && event.animationName !== 'workspace-note-tear-off') return;
+        void completeTear(note.id);
+      });
       cards.set(note.id, card);
+      dragHandles.set(note.id, dragHandle);
       elements.push(card);
     }
     root.replaceChildren(...elements);
     emit();
+  };
+
+  const toggleKeyboardDrag = (noteId, { forceStop = false } = {}) => {
+    const id = String(noteId ?? '').trim();
+    if (
+      !id
+      || !getNote(id)
+      || tearingNotes.has(id)
+      || hasPendingOperation(`layout:${id}`)
+      || !isActiveScope()
+    ) return false;
+    const wasKeyboardDragging = keyboardDraggingNoteId === id;
+    if (forceStop && !wasKeyboardDragging) return false;
+
+    if (!wasKeyboardDragging) {
+      keyboardDraggingNoteId = id;
+      keyboardDragDirty = false;
+      render();
+      focusDragHandle(id);
+      return true;
+    }
+
+    const shouldPersist = keyboardDragDirty;
+    keyboardDraggingNoteId = null;
+    keyboardDragDirty = false;
+    if (shouldPersist) {
+      void persistLayout(id, session.profileId, { restoreFocus: true });
+    } else {
+      render();
+      focusDragHandle(id);
+    }
+    return true;
   };
 
   const load = async () => {
@@ -422,6 +570,8 @@ export const initializeWorkspaceNotes = ({
       sessionClosedNoteIds.clear();
       tearingNotes.clear();
       drag = null;
+      keyboardDraggingNoteId = null;
+      keyboardDragDirty = false;
       pendingOperations.clear();
       drafts.clear();
       editingNoteIds.clear();
@@ -453,7 +603,13 @@ export const initializeWorkspaceNotes = ({
     pointerId,
   } = {}) => {
     const id = String(noteId ?? '').trim();
-    if (!id || !isActiveScope() || !getNote(id) || tearingNotes.has(id)) return false;
+    if (
+      !id
+      || !isActiveScope()
+      || !getNote(id)
+      || tearingNotes.has(id)
+      || hasPendingOperation(`layout:${id}`)
+    ) return false;
     const startPosition = positions.get(id) ?? positionFor(getNote(id), noteIndex(id));
     drag = {
       card,
@@ -480,12 +636,17 @@ export const initializeWorkspaceNotes = ({
     return true;
   };
 
-  const persistLayout = async (noteId, profileId) => {
+  const persistLayout = async (noteId, profileId, { restoreFocus = false } = {}) => {
     const position = positions.get(noteId);
     if (!position || !profileId) return false;
+    const shouldRestoreFocus = restoreFocus && root.ownerDocument.activeElement === dragHandles.get(noteId);
+    const restoreDragHandleFocus = () => {
+      if (shouldRestoreFocus) focusDragHandle(noteId);
+    };
     const operation = beginPendingOperation(`layout:${noteId}`);
     const targetSession = clone(session);
     render();
+    restoreDragHandleFocus();
     const payload = {
       leftPx: Math.round(position.left),
       noteId,
@@ -510,7 +671,10 @@ export const initializeWorkspaceNotes = ({
       return false;
     } finally {
       endPendingOperation(operation);
-      if (isCurrentScope(targetSession)) render();
+      if (isCurrentScope(targetSession)) {
+        render();
+        restoreDragHandleFocus();
+      }
     }
   };
 
@@ -621,6 +785,10 @@ export const initializeWorkspaceNotes = ({
     tearingNotes.delete(id);
 
     if (action === 'close') {
+      if (keyboardDraggingNoteId === id) {
+        keyboardDraggingNoteId = null;
+        keyboardDragDirty = false;
+      }
       sessionClosedNoteIds.add(id);
       render();
       return true;
@@ -632,6 +800,10 @@ export const initializeWorkspaceNotes = ({
     try {
       await client.deleteWorkspaceNote(id);
       if (isCurrentScope(targetSession)) {
+        if (keyboardDraggingNoteId === id) {
+          keyboardDraggingNoteId = null;
+          keyboardDragDirty = false;
+        }
         notes = notes.filter((note) => note.id !== id);
         layouts.delete(id);
         positions.delete(id);
@@ -655,6 +827,10 @@ export const initializeWorkspaceNotes = ({
   const beginTear = (noteId, action) => {
     const id = String(noteId ?? '').trim();
     if (!getNote(id) || tearingNotes.has(id)) return false;
+    if (keyboardDraggingNoteId === id) {
+      keyboardDraggingNoteId = null;
+      keyboardDragDirty = false;
+    }
     tearingNotes.set(id, action);
     render();
     return reducedMotion ? completeTear(id) : true;
@@ -674,7 +850,10 @@ export const initializeWorkspaceNotes = ({
     disposed = true;
     loadGeneration += 1;
     drag = null;
+    keyboardDraggingNoteId = null;
+    keyboardDragDirty = false;
     cards.clear();
+    dragHandles.clear();
   };
 
   const controller = {

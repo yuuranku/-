@@ -8874,3 +8874,371 @@ body.clerk-desktop-open { overflow: hidden; }
   #clerk-desktop [data-workflow-maximize],
   #clerk-desktop .mascot-document-maximize { display: none; }
 }
+
+/* Shared workspace notes are deliberately loose paper strips rather than another
+   desktop window. Their host sits above shortcuts but below the real window layer
+   and taskbar, so an empty part of the host must never catch a desktop click. */
+#clerk-desktop #workspace-note-region {
+  position: absolute !important;
+  z-index: 9 !important;
+  inset: 0 !important;
+  overflow: hidden;
+  pointer-events: none !important;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note {
+  --workspace-note-ink: #352a18;
+  --workspace-note-line: rgba(103, 76, 34, .16);
+  --workspace-note-paper: #faedaa;
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  width: min(264px, calc(100% - 32px));
+  height: 180px;
+  min-width: 0;
+  box-sizing: border-box;
+  flex-direction: column;
+  padding: 0 12px 10px;
+  overflow: hidden;
+  color: var(--workspace-note-ink);
+  border: 1px solid #ae914c;
+  border-radius: 1px;
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, .48), transparent 26%, rgba(159, 121, 42, .08) 100%),
+    repeating-linear-gradient(to bottom, transparent 0 24px, var(--workspace-note-line) 24px 25px),
+    var(--workspace-note-paper);
+  box-shadow: 4px 5px 0 rgba(38, 28, 10, .33), inset 0 1px 0 rgba(255, 255, 255, .78);
+  isolation: isolate;
+  pointer-events: auto !important;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note::before {
+  position: absolute;
+  z-index: -1;
+  top: -2px;
+  left: 18%;
+  width: 54%;
+  height: 8px;
+  opacity: .48;
+  background: rgba(236, 221, 157, .86);
+  box-shadow: 0 1px 0 rgba(112, 85, 35, .26);
+  content: '';
+  transform: rotate(-.7deg);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 7px;
+  opacity: .74;
+  background: linear-gradient(135deg, transparent 0 4px, rgba(116, 89, 39, .2) 4px 5px, transparent 5px 10px) 0 0 / 10px 7px repeat-x;
+  content: '';
+  pointer-events: none;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
+  display: flex;
+  width: calc(100% - 42px);
+  min-height: 27px;
+  align-items: center;
+  color: #715520;
+  border-bottom: 1px dashed rgba(110, 82, 30, .35);
+  font: 700 9px/1 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  touch-action: none;
+  user-select: none;
+  cursor: var(--cursor-retro-grab) !important;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle:active {
+  cursor: var(--cursor-retro-grabbing) !important;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-title {
+  margin: 10px 34px 3px 0;
+  overflow: hidden;
+  color: #252013;
+  font: 700 15px/1.1 var(--font-body);
+  letter-spacing: -.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  overflow: auto;
+  color: #493b22;
+  font: 12px/1.48 var(--font-body);
+  overflow-wrap: anywhere;
+  scrollbar-color: rgba(92, 67, 27, .55) transparent;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 7px;
+  border-top: 1px solid rgba(103, 76, 34, .2);
+  padding-top: 6px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note button,
+#clerk-desktop .workspace-note-controls button {
+  min-height: 26px;
+  padding: 3px 7px;
+  color: #241d11;
+  border: 1px solid #8e7139;
+  border-radius: 0;
+  background: #f8de83;
+  box-shadow: 1px 1px 0 rgba(83, 59, 21, .32);
+  font: 700 10px/1.1 var(--font-mono);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note button:hover,
+#clerk-desktop #workspace-note-region .workspace-sticky-note button:focus-visible,
+#clerk-desktop .workspace-note-controls button:hover,
+#clerk-desktop .workspace-note-controls button:focus-visible {
+  color: #17120a;
+  outline: 2px solid #174b8a;
+  outline-offset: 1px;
+  background: #ffe99d;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note button:active,
+#clerk-desktop .workspace-note-controls button:active {
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 31px;
+  padding-inline: 4px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-edit { margin-left: auto; }
+#clerk-desktop #workspace-note-region .workspace-sticky-note-delete { background: #e6c576; }
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note.is-editing .workspace-sticky-note-title,
+#clerk-desktop #workspace-note-region .workspace-sticky-note.is-editing .workspace-sticky-note-body { display: none; }
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor input,
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: #201a0e;
+  border: 1px solid #9d7f42;
+  border-radius: 0;
+  outline: 0;
+  background: rgba(255, 250, 217, .83);
+  font: 11px/1.35 var(--font-body);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor input {
+  grid-column: 1 / -1;
+  height: 27px;
+  padding: 4px 5px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor textarea {
+  min-height: 0;
+  padding: 5px;
+  resize: none;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor input:focus-visible,
+#clerk-desktop #workspace-note-region .workspace-sticky-note-editor textarea:focus-visible {
+  outline: 2px solid #174b8a;
+  outline-offset: 1px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-save {
+  align-self: end;
+  min-width: 42px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-error {
+  margin: 5px 0 0;
+  color: #8d241d;
+  font: 700 9px/1.3 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-layout-retry {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note.is-layout-saving {
+  box-shadow: 4px 5px 0 rgba(38, 28, 10, .33), inset 0 0 0 2px rgba(29, 74, 131, .35);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note.is-tearing {
+  pointer-events: none !important;
+  will-change: opacity, transform;
+  animation: workspace-note-tear-off 360ms cubic-bezier(.55, 0, .82, .25) both;
+}
+
+@keyframes workspace-note-tear-off {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  28% {
+    transform: translate3d(-2px, 2px, 0) rotate(-1.1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(18px, 34px, 0) rotate(4deg);
+  }
+}
+
+/* The controller completes the tear synchronously under reduced motion. Keeping
+   this one-millisecond fallback avoids reintroducing a long visual transition if
+   a platform reports the preference after the note has mounted. */
+@media (prefers-reduced-motion: reduce) {
+  #clerk-desktop #workspace-note-region .workspace-sticky-note,
+  #clerk-desktop #workspace-note-region .workspace-sticky-note * {
+    transition-duration: 0ms !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note.is-tearing { animation-duration: 1ms; }
+}
+
+#clerk-desktop .workspace-note-controls {
+  position: absolute !important;
+  z-index: 10 !important;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  pointer-events: none !important;
+}
+
+#clerk-desktop .workspace-note-controls [data-workspace-note-create],
+#clerk-desktop .workspace-note-controls [data-workspace-note-create-form],
+#clerk-desktop .workspace-note-controls [data-workspace-note-retry] {
+  pointer-events: auto !important;
+}
+
+#clerk-desktop .workspace-note-controls [data-workspace-note-create-form] {
+  display: grid;
+  width: min(264px, 100%);
+  gap: 6px;
+  padding: 9px;
+  color: #261f12;
+  border: 1px solid #8c713e;
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, .45), transparent 34%),
+    #f8e69a;
+  box-shadow: 4px 5px 0 rgba(38, 28, 10, .3);
+  font: 700 10px/1.3 var(--font-mono);
+}
+
+#clerk-desktop .workspace-note-controls [data-workspace-note-create-form][hidden] { display: none; }
+
+#clerk-desktop .workspace-note-controls label {
+  display: grid;
+  gap: 3px;
+}
+
+#clerk-desktop .workspace-note-controls input,
+#clerk-desktop .workspace-note-controls textarea {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 5px;
+  color: #201a0e;
+  border: 1px solid #9d7f42;
+  border-radius: 0;
+  background: rgba(255, 250, 217, .9);
+  font: 12px/1.3 var(--font-body);
+}
+
+#clerk-desktop .workspace-note-controls textarea { min-height: 66px; resize: vertical; }
+#clerk-desktop .workspace-note-controls [role='status'] { margin: 0; color: #8d241d; font: 700 9px/1.3 var(--font-mono); }
+
+@media (max-width: 760px) {
+  #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    width: min(244px, calc(100% - 20px));
+    height: 176px;
+  }
+  #clerk-desktop .workspace-note-controls {
+    top: 8px !important;
+    right: 8px !important;
+    width: min(236px, calc(100% - 16px)) !important;
+  }
+  #clerk-desktop .workspace-note-controls button { min-height: 36px; }
+}
+
+/* Leave the right-gutter stack visually clear when room permits. On compact
+   screens the create controls step aside, then move above the taskbar once the
+   desktop is too narrow to keep two independent paper surfaces side-by-side. */
+@media (min-width: 900px) {
+  #clerk-desktop .workspace-note-controls { right: 312px !important; }
+}
+
+@media (min-width: 761px) and (max-width: 899px) {
+  #clerk-desktop .workspace-note-controls { right: min(312px, calc(100% - 328px)) !important; }
+}
+
+@media (min-width: 560px) and (max-width: 760px) {
+  #clerk-desktop .workspace-note-controls { right: 288px !important; }
+}
+
+@media (max-width: 559px) {
+  #clerk-desktop .workspace-note-controls {
+    top: auto !important;
+    right: 8px !important;
+    bottom: calc(44px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    height: 180px;
+    padding-bottom: 6px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
+    width: calc(100% - 54px);
+    min-height: 44px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
+    margin-top: 5px;
+    margin-right: 50px;
+    margin-bottom: 1px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-body { font-size: 11px; line-height: 1.32; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
+    margin-top: 4px;
+    padding-top: 3px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note button {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 5px;
+  }
+  #clerk-desktop .workspace-note-controls button { min-height: 44px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-close {
+    top: 3px;
+    right: 3px;
+    min-width: 44px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-editor { margin-top: 2px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note:has(.workspace-sticky-note-error) { overflow-y: auto; }
+}

@@ -583,8 +583,8 @@ test('workspace notes reload per desktop session and respect administrator and c
     assert.deepEqual(await page.$eval('[data-workspace-note-id]', (note) => ({
       title: note.querySelector('h3')?.textContent,
       content: note.querySelector('p')?.textContent,
-      hasEdit: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Edit'),
-      hasDelete: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Delete'),
+      hasEdit: Boolean(note.querySelector('[data-workspace-note-edit]')),
+      hasDelete: Boolean(note.querySelector('[data-workspace-note-delete]')),
     })), {
       title: '交接便签',
       content: '管理员留下的共享正文。',
@@ -599,7 +599,7 @@ test('workspace notes reload per desktop session and respect administrator and c
       ) === handle;
     }), true);
 
-    await page.$eval('[data-workspace-note-id] button', (button) => button.click());
+    await page.$eval('[data-workspace-note-id] [data-workspace-note-close]', (button) => button.click());
     await page.$eval('[data-workspace-note-id]', (note) => note.dispatchEvent(new Event('animationend')));
     await page.waitForFunction(() => !document.querySelector('[data-workspace-note-id]'));
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-exit-request')));
@@ -628,9 +628,9 @@ test('workspace notes reload per desktop session and respect administrator and c
       title: note.querySelector('h3')?.textContent,
       content: note.querySelector('p')?.textContent,
       hasDragHandle: Boolean(note.querySelector('[data-workspace-note-drag-handle]')),
-      hasClose: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Close'),
-      hasEdit: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Edit'),
-      hasDelete: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Delete'),
+      hasClose: Boolean(note.querySelector('[data-workspace-note-close]')),
+      hasEdit: Boolean(note.querySelector('[data-workspace-note-edit]')),
+      hasDelete: Boolean(note.querySelector('[data-workspace-note-delete]')),
       createHidden: document.querySelector('[data-workspace-note-create]')?.hidden,
       archivesHidden: document.querySelector('[data-workspace-shortcut][data-workspace-command="archives"]')?.hidden,
     })), {

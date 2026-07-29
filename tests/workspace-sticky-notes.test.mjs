@@ -92,6 +92,7 @@ class FakeElement {
     this.tagName = tagName.toUpperCase();
     this.ownerDocument = ownerDocument;
     this.children = [];
+    this.attributes = new Map();
     this.classList = new FakeClassList();
     this.dataset = {};
     this.style = {};
@@ -126,6 +127,14 @@ class FakeElement {
     const listeners = this.#listeners.get(type) ?? [];
     listeners.push(listener);
     this.#listeners.set(type, listeners);
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(String(name)) ?? null;
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(String(name), String(value));
   }
 
   dispatch(type, event = {}) {
@@ -597,4 +606,158 @@ test('note text is rendered literally with textContent rather than injected mark
   const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
   assert.match(card.textContent, /<img src=x>/);
   assert.match(card.textContent, /<script>break\(\)<\/script>/);
+});
+
+test('note controls use Chinese accessible labels and expose retryable Chinese sync feedback', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: '请在换班前确认', id: 'note-1', title: '交接事项' }] });
+  client.saveWorkspaceNoteLayout = async (input) => {
+    client.calls.saveWorkspaceNoteLayout.push(clone(input));
+    throw new Error('网络暂不可用');
+  };
+
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: ADMIN_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  let card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  const close = root.find((element) => element.dataset.workspaceNoteClose === 'true');
+  const edit = root.find((element) => element.dataset.workspaceNoteEdit === 'true');
+  const remove = root.find((element) => element.dataset.workspaceNoteDelete === 'true');
+
+  assert.equal(card.getAttribute('aria-label'), '便签：交接事项');
+  assert.equal(handle.textContent, '拖动');
+  assert.equal(handle.getAttribute('aria-label'), '拖动便签：交接事项');
+  assert.equal(close.textContent, '关闭');
+  assert.equal(close.getAttribute('aria-label'), '关闭便签：交接事项');
+  assert.equal(edit.textContent, '编辑');
+  assert.equal(remove.textContent, '删除');
+
+  edit.dispatch('click');
+  const titleInput = root.find((element) => element.dataset.workspaceNoteTitleInput === 'true');
+  const contentInput = root.find((element) => element.dataset.workspaceNoteContentInput === 'true');
+  const save = root.find((element) => element.dataset.workspaceNoteSave === 'true');
+  assert.equal(titleInput.getAttribute('aria-label'), '便签标题');
+  assert.equal(contentInput.getAttribute('aria-label'), '便签正文');
+  assert.equal(save.textContent, '保存');
+
+  card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const refreshedHandle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  refreshedHandle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 41 });
+  card.dispatch('pointermove', { clientX: 20, clientY: 10, pointerId: 41 });
+  card.dispatch('pointerup', { clientX: 20, clientY: 10, pointerId: 41 });
+  await Promise.resolve();
+
+  const syncError = root.find((element) => element.dataset.workspaceNoteLayoutError === 'true');
+  const retry = root.find((element) => element.dataset.workspaceNoteLayoutRetry === 'true');
+  assert.match(syncError.textContent, /^位置未同步：网络暂不可用$/);
+  assert.equal(syncError.getAttribute('role'), 'status');
+  assert.equal(retry.textContent, '重新同步位置');
+  assert.equal(retry.getAttribute('aria-label'), '重新同步便签位置：交接事项');
+});
+
+test('keyboard drag mode retains focus, coalesces arrows, and locks a pending layout save', async () => {
+  const root = createRoot({ height: 360, width: 520 });
+  const client = createClient({ notes: [{ content: '正文', id: 'note-1', title: '键盘交接' }] });
+  const pendingSaves = [deferred(), deferred()];
+  client.saveWorkspaceNoteLayout = (input) => {
+    const pendingSave = pendingSaves[client.calls.saveWorkspaceNoteLayout.length];
+    client.calls.saveWorkspaceNoteLayout.push(clone(input));
+    return pendingSave.promise;
+  };
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 360, taskbarHeight: 0, width: 520 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 90, width: 140 },
+    root,
+  });
+  await controller.ready;
+
+  let handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  handle.focus();
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'true');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  const initialPosition = controller.getState().positions['note-1'];
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  assert.equal(controller.getState().positions['note-1'].left, initialPosition.left + 12);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: 'ArrowDown' });
+  assert.equal(controller.getState().positions['note-1'].top, initialPosition.top + 12);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'false');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, [{
+    leftPx: initialPosition.left + 12,
+    noteId: 'note-1',
+    profileId: 'clerk-1',
+    topPx: initialPosition.top + 12,
+  }]);
+
+  const settledPosition = controller.getState().positions['note-1'];
+  assert.equal(handle.getAttribute('aria-disabled'), 'true');
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'false');
+  assert.equal(handle.getAttribute('aria-disabled'), 'true');
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  assert.deepEqual(controller.getState().positions['note-1'], settledPosition);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 1);
+
+  pendingSaves[0].resolve({
+    left_px: initialPosition.left + 12,
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    top_px: initialPosition.top + 12,
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-disabled'), 'false');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'true');
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  handle.dispatch('keydown', { key: ' ' });
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, [
+    {
+      leftPx: initialPosition.left + 12,
+      noteId: 'note-1',
+      profileId: 'clerk-1',
+      topPx: initialPosition.top + 12,
+    },
+    {
+      leftPx: initialPosition.left + 24,
+      noteId: 'note-1',
+      profileId: 'clerk-1',
+      topPx: initialPosition.top + 12,
+    },
+  ]);
+  pendingSaves[1].resolve({
+    left_px: initialPosition.left + 24,
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    top_px: initialPosition.top + 12,
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
 });
