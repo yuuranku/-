@@ -484,12 +484,12 @@
     right: 0;
     left: auto;
     width: clamp(560px, 34vw, 680px);
-    height: calc(100dvh - var(--desktop-taskbar-height));
+    height: 100%;
     max-width: calc(100vw - 12px);
   }
   .archive-editor__scroll { min-height: 0; overflow: auto; }
   @media (max-width: 760px) {
-    .archive-editor-window.is-docked-right { inset: 0 0 var(--desktop-taskbar-height) 0; width: auto; max-width: none; }
+    .archive-editor-window.is-docked-right { inset: 0; width: auto; max-width: none; }
   }
   ```
 
