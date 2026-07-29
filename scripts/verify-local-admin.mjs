@@ -29,16 +29,23 @@ const REPORT_PATH = path.join(OUTPUT_ROOT, 'report.json');
 const openWorkspaceCommand = async (page, command) => {
   await page.click(`[data-workspace-shortcut][data-workspace-command="${command}"]`, { count: 2, delay: 40 });
 };
-const openCabinetTemplate = async (page, code) => {
-  if (!await page.$('.archive-cabinet-window:not([hidden])')) {
-    await openWorkspaceCommand(page, 'cabinet');
-    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
+const openNewArchiveTemplate = async (page, code) => {
+  if (!await page.$('[data-new-archive-chooser]')) {
+    await openWorkspaceCommand(page, 'new-archive');
+    await page.waitForSelector('[data-new-archive-chooser]');
   }
-  await page.click(`.archive-cabinet-window [data-archive-template="${code}"]`, { count: 2, delay: 40 });
+  await page.$eval(
+    `[data-new-archive-template="${code}"]`,
+    (button) => button.click(),
+  );
 };
 const exitWorkspace = async (page) => {
-  await page.click('#clerk-desktop-start');
-  await page.click('#clerk-desktop-start-menu [data-workspace-command="exit"]');
+  await page.$eval('#clerk-desktop-start', (button) => button.click());
+  await page.waitForSelector('#clerk-desktop-start-menu:not([hidden])');
+  await page.$eval(
+    '#clerk-desktop-start-menu [data-workspace-command="exit"]',
+    (button) => button.click(),
+  );
   await page.waitForFunction(() => !document.body.classList.contains('clerk-desktop-open'), { timeout: 10_000 });
 };
 
@@ -641,13 +648,13 @@ export async function verifyLocalAdministrator({
     );
     const welcomeClose = await page.$('#clerk-desktop-welcome:not([hidden]) #clerk-desktop-welcome-close');
     if (welcomeClose) await welcomeClose.click();
-    await openWorkspaceCommand(page, 'cabinet');
-    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
+    await openWorkspaceCommand(page, 'new-archive');
+    await page.waitForSelector('[data-new-archive-chooser]');
     const desktopEvidence = await page.evaluate(() => ({
       title: document.querySelector('[data-workspace-name]')?.textContent?.trim(),
       englishTitle: document.querySelector('[data-workspace-name-en]')?.textContent?.trim(),
-      templateCodes: [...document.querySelectorAll('[data-archive-template]')]
-        .map((button) => button.dataset.archiveTemplate),
+      templateCodes: [...document.querySelectorAll('[data-new-archive-template]')]
+        .map((button) => button.dataset.newArchiveTemplate),
       adminUtilities: [...document.querySelectorAll('[data-admin-only]:not([hidden])')].length,
     }));
     report.uiEvidence.desktop = desktopEvidence;
@@ -659,18 +666,18 @@ export async function verifyLocalAdministrator({
         title: '管理员工作台',
         englishTitle: 'ADMIN WORKSPACE',
         templateCodes: ['01', '02', '03', '04', '05', '06', '07', '08', '09'],
-        adminUtilities: 3,
+        adminUtilities: 4,
       },
       evidence: ['01-local-admin-win95.png'],
     });
     await capture(page, report, 'local-admin-win95', desktopEvidence);
 
-    await openCabinetTemplate(page, '09');
+    await openNewArchiveTemplate(page, '09');
     await page.waitForSelector(
-      '.archive-editor-window [data-archive-index-panel][data-index-category="species"]',
+      '.archive-editor-window [data-native-form-root] [name="index:specimenClass"]',
       { timeout: 20_000 },
     );
-    const speciesSelect = '.archive-editor-window select[data-index-key="specimenClass"]';
+    const speciesSelect = '.archive-editor-window select[name="index:specimenClass"]';
     await page.waitForSelector(speciesSelect, { timeout: 20_000 });
     const speciesOptions = await page.$$eval(
       `${speciesSelect} option`,
@@ -695,6 +702,16 @@ export async function verifyLocalAdministrator({
     });
     await capture(page, report, 'species-three-options', speciesEditorEvidence);
     await page.click('.archive-editor-window [data-workflow-close]');
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-editor-window')
+      || document.querySelector('#workspace-exit-dialog')?.open);
+    if (await page.$eval('#workspace-exit-dialog', (dialog) => dialog.open)) {
+      await page.$eval(
+        '[data-workspace-exit-action="discard"]',
+        (button) => button.click(),
+      );
+    }
+    await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
     await exitWorkspace(page);
 
     await enterDirectory(page, ROOT_DIRECTORY.anomaly);
@@ -918,9 +935,9 @@ export async function verifyLocalAdministrator({
       'body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])',
       { timeout: 20_000 },
     );
-    await openCabinetTemplate(page, '07');
+    await openNewArchiveTemplate(page, '07');
     await page.waitForSelector(
-      '.archive-editor-window:not([hidden]) [data-archive-index-panel][data-index-category="event"]',
+      '.archive-editor-window:not([hidden]) [data-native-form-root] [name="index:startDate"]',
       { timeout: 20_000 },
     );
     const narrowEditorEvidence = await page.evaluate(() => {
@@ -956,7 +973,7 @@ export async function verifyLocalAdministrator({
       expected: {
         viewportWidth: 390,
         dialogContained: true,
-        outlineVisible: true,
+        outlineVisible: false,
         oneScrollOwner: true,
         focusInside: true,
       },

@@ -546,7 +546,10 @@ export function initializeArchiveWorkspace({
     setWorkspaceMessage('观察员无权进入书记官工作台');
     workspaceEntry.dataset.accessDenied = 'observer';
     window.dispatchEvent(new CustomEvent('palis:workspace-denied', {
-      detail: { role: context.role },
+      detail: {
+        role: context.role,
+        kind: context.profile?.id ? 'observer' : 'visitor',
+      },
     }));
     return false;
   };
@@ -977,7 +980,7 @@ export function initializeArchiveWorkspace({
           <footer class="archive-editor__footer">
             <p data-editor-message>内容会先保存到本机；停止输入 5 秒后再同步云端。</p>
             <button type="button" data-save-now>立即暂存</button>
-            <button type="submit" data-submit-draft>提交审核</button>
+            <button type="submit" data-submit-draft data-submit-review>提交审核</button>
           </footer>
         </form>
       `,
@@ -1556,8 +1559,8 @@ export function initializeArchiveWorkspace({
         fieldset.dataset.nativeCustomId = id;
         fieldset.innerHTML = `
           <button type="button" data-remove-native-custom-entry aria-label="删除这条自定义内容">删除</button>
-          <label>自定义标题<input name="custom:${escapeHtml(id)}:title"></label>
-          <label>内容<textarea name="custom:${escapeHtml(id)}:content"></textarea></label>
+          <label>自定义标题<input name="custom:${escapeHtml(id)}:title" data-native-custom-title></label>
+          <label>内容<textarea name="custom:${escapeHtml(id)}:content" data-native-custom-content></textarea></label>
         `;
         nativeFormRoot.querySelector('[data-native-custom]').append(fieldset);
         fieldset.querySelector('input')?.focus();
@@ -1623,7 +1626,7 @@ export function initializeArchiveWorkspace({
         const matches = await client.searchArchives(query);
         referenceResults.innerHTML = matches.length
           ? matches.map((archive) => `
-              <button type="button" data-add-reference="${escapeHtml(archive.id)}" data-code="${escapeHtml(archive.code)}" data-label="${escapeHtml(archive.title)}">
+              <button type="button" data-reference-result data-add-reference="${escapeHtml(archive.id)}" data-code="${escapeHtml(archive.code)}" data-label="${escapeHtml(archive.title)}">
                 <b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span><small>${escapeHtml(archive.category)}</small>
               </button>
             `).join('')
@@ -2133,7 +2136,8 @@ export function initializeArchiveWorkspace({
                   returnedAttribute: 'data-open-returned-draft',
                   draftAttribute: 'data-open-modify-draft',
                 })).join('')}
-                <button type="button" data-modify-document="${escapeHtml(document.id)}">
+                <button type="button" data-modify-document="${escapeHtml(document.id)}"
+                  data-document-version-id="${escapeHtml(document.latestVersionId || '')}">
                   <b>${escapeHtml(document.title || '未命名文档')}</b>
                   <span>VER ${escapeHtml(document.versionLabel || '原始正文')} · ${escapeHtml(document.ownerName || '未署名')}</span>
                 </button>
@@ -2190,7 +2194,9 @@ export function initializeArchiveWorkspace({
             <b>档案正文载入失败</b>
             <p>${escapeHtml(error.message || '未找到可修改的档案正文，请重试')}</p>
             <button type="button"
-              data-retry-amendment-source="${escapeHtml(selectedDocument.id)}">重试载入这份文档</button>
+              data-retry-amendment-source="${escapeHtml(selectedDocument.id)}"
+              data-editor-source-retry
+              data-editor-source-document="${escapeHtml(selectedDocument.id)}">重试载入这份文档</button>
           </article>
         `;
       }
@@ -2733,7 +2739,7 @@ export function initializeArchiveWorkspace({
           <span>母本或归档档案更新后，所有引用它的后续档案都会被标记为需要复核。</span>
         </aside>
         <p data-registration-message>确认编号、类别与可见性后再执行正式录入。</p>
-        <button type="submit">盖章并录入档案系统</button>
+        <button type="submit" data-admin-accession>盖章并录入档案系统</button>
       </form>
     `;
 
@@ -2761,8 +2767,8 @@ export function initializeArchiveWorkspace({
           <textarea data-review-message required rows="5" placeholder="说明通过依据，或逐项写明需要修改的内容"></textarea>
         </label>
         <footer>
-          <button type="button" data-review-decision="changes_requested">退回修改</button>
-          <button type="button" data-review-decision="approved">审核通过，进入正式录入</button>
+          <button type="button" data-review-decision="changes_requested" data-admin-return>退回修改</button>
+          <button type="button" data-review-decision="approved" data-admin-approval>审核通过，进入正式录入</button>
         </footer>
         <p data-review-message-output></p>
       </form>
@@ -2948,8 +2954,11 @@ export function initializeArchiveWorkspace({
     context.role = role || 'observer';
     context.preview = preview;
     const allowed = canEnterWorkspace(context.role) && !preview;
-    workspaceEntry.hidden = !allowed;
-    workspaceEntry.disabled = !allowed;
+    workspaceEntry.hidden = false;
+    workspaceEntry.disabled = false;
+    workspaceEntry.dataset.workspaceAccess = allowed
+      ? 'granted'
+      : context.profile?.id ? 'observer' : 'visitor';
     workspaceEntry.removeAttribute('data-access-denied');
     adminButtons.forEach((button) => { button.hidden = !canReview(context.role); });
     const workspaceName = context.role === 'admin' ? '管理员工作台' : '书记官工作台';

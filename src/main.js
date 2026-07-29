@@ -172,6 +172,10 @@ function initializeMascotAssistant() {
   const syncDialog = document.querySelector('#workspace-sync-dialog');
   const syncSummary = syncDialog?.querySelector('[data-workspace-sync-summary]');
   const syncTrayButton = desktop.querySelector('[data-workspace-tray="sync"]');
+  const workspacePermissionDialog = document.querySelector('[data-workspace-permission-dialog]');
+  const workspacePermissionMessage = workspacePermissionDialog?.querySelector(
+    '[data-workspace-permission-message]',
+  );
   const narrowDocumentQuery = matchMedia('(max-width: 760px)');
   const syncDocumentViewport = () => openDocuments.forEach((state) => {
     if (state.surface === 'workspace') {
@@ -220,7 +224,10 @@ function initializeMascotAssistant() {
   function setDesktopOpen(open) {
     if (open && !['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
       window.dispatchEvent(new CustomEvent('palis:workspace-denied', {
-        detail: { role: document.body.dataset.operatorRole || 'observer' },
+        detail: {
+          role: document.body.dataset.operatorRole || 'observer',
+          kind: desktopEntry.dataset.workspaceAccess || 'visitor',
+        },
       }));
       return;
     }
@@ -247,6 +254,15 @@ function initializeMascotAssistant() {
     }, reducedMotion ? 0 : 220);
   }
 
+  window.addEventListener('palis:workspace-denied', (event) => {
+    if (!workspacePermissionDialog || !workspacePermissionMessage) return;
+    workspacePermissionDialog.dataset.workspaceDeniedKind =
+      event.detail?.kind === 'visitor' ? 'visitor' : 'observer';
+    workspacePermissionMessage.textContent =
+      '权限不足：当前账号未获书记官工作台操作授权。';
+    if (!workspacePermissionDialog.open) workspacePermissionDialog.showModal();
+  });
+
   function setDesktopStartMenuOpen(open) {
     desktopStartMenu.hidden = !open;
     desktopStart.setAttribute('aria-expanded', String(open));
@@ -271,10 +287,12 @@ function initializeMascotAssistant() {
     desktop.querySelectorAll('[data-workspace-watermark-role]').forEach((node) => { node.textContent = roleCode; });
     const states = [...workspaceSyncStates.values()];
     const offlineStates = new Set(['offline-saved', 'network-error', 'session-expired', 'permission-denied', 'cloud-error']);
+    const localDemo = document.body.dataset.accessMode === 'local-admin';
     const connection = states.some((state) => offlineStates.has(state)) ? 'OFFLINE'
       : states.some((state) => state === 'cloud-syncing') ? 'SYNCING'
-        : states.some((state) => state === 'local-saving' || state === 'local-saved') ? 'LOCAL'
-          : document.body.dataset.accessMode === 'local-admin' ? 'LOCAL' : 'ONLINE';
+        : states.some((state) => state === 'local-saving' || state === 'local-saved')
+          ? (localDemo ? '本机演示' : 'LOCAL')
+          : localDemo ? '本机演示' : '跨账号';
     desktop.querySelectorAll('[data-workspace-connection], [data-workspace-watermark-connection]').forEach((node) => { node.textContent = connection; });
     if (syncTrayButton) syncTrayButton.dataset.state = connection.toLowerCase();
     if (syncSummary) syncSummary.textContent = states.length

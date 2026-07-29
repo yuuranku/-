@@ -33,11 +33,19 @@ test('all nine archive templates remain registered for the PALIS cabinet', async
   }
 });
 
-test('workflow entry and programmatic opening are both role gated', () => {
+test('workflow entry remains clickable but editor opening stays role gated', () => {
   assert.match(workspace, /canEnterWorkspace/);
   assert.match(workspace, /palis:session-change/);
   assert.match(workspace, /role === 'observer'/);
-  assert.match(workspace, /workspaceEntry\.hidden/);
+  assert.match(workspace, /workspaceEntry\.hidden\s*=\s*false/);
+  assert.match(workspace, /workspaceEntry\.disabled\s*=\s*false/);
+  assert.match(workspace, /workspaceEntry\.dataset\.workspaceAccess/);
+  assert.match(html, /data-workspace-permission-dialog/);
+  assert.match(
+    html,
+    /权限不足：当前账号未获书记官工作台操作授权。/,
+  );
+  assert.match(main, /workspacePermissionDialog\.showModal/);
   assert.match(main, /operatorRole/);
 });
 

@@ -56,6 +56,10 @@ test('local administrator opens the workspace without loading cloud authenticati
     if (welcomeClose) {
       await page.$eval('#clerk-desktop-welcome-close', (button) => button.click());
     }
+    assert.equal(
+      await page.$eval('[data-workflow-mode-badge]', (node) => node.textContent.trim()),
+      '本机演示',
+    );
     await page.click('#clerk-desktop-start');
     await page.waitForSelector('#clerk-desktop-start-menu:not([hidden])');
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'true');

@@ -197,7 +197,7 @@ export const renderNativeArchiveForm = (profile, document, options = {}) => {
   const renderContent = (field) => controlHtml(`${field.section}:${field.key}`, field, state[field.section][field.key]);
   const legacy = Object.entries(state.legacyFields).map(([key, value]) => `<li><b>${escapeHtml(key)}</b>: ${escapeHtml(value)}</li>`).join('');
   const custom = state.customEntries.map(({ id, title, content }) => (
-    `<fieldset data-native-custom-id="${escapeHtml(id)}"><input name="custom:${escapeHtml(id)}:title" value="${escapeHtml(title)}"><textarea name="custom:${escapeHtml(id)}:content">${escapeHtml(content)}</textarea></fieldset>`
+    `<fieldset data-native-custom-id="${escapeHtml(id)}"><input name="custom:${escapeHtml(id)}:title" data-native-custom-title value="${escapeHtml(title)}"><textarea name="custom:${escapeHtml(id)}:content" data-native-custom-content>${escapeHtml(content)}</textarea></fieldset>`
   )).join('');
   return `<form data-native-archive-form="${escapeHtml(profile.category)}" ${options.readOnly ? 'data-readonly="true"' : ''}>
     <section data-native-index>${profile.indexFields.map(renderIndex).join('')}</section>
