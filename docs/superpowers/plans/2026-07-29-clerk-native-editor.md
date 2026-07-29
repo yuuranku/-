@@ -31,7 +31,7 @@
 - Modify `src/archive-workflow/workspace.css`: native form layout, right docking, one scroll container, and narrow-screen behavior.
 - Modify `index.html` and `src/style.css`: two large clerk actions and matching desktop/start-menu icon treatment.
 - Modify `src/archive-workflow/archive-cabinet.js`, `src/archive-workflow/local/local-workflow-engine.js`, `src/archive-workflow/repository-contract.js`, and `src/archive-workflow/repositories/supabase-repository.js`: remove the old two-category restriction and load an exact immutable edit baseline.
-- Create `supabase/migrations/202607290003_clerk_native_editor_sources.sql`: secure exact editor-source RPC plus amendment index projection repair.
+- Create `supabase/migrations/202607290004_clerk_native_editor_sources.sql`: secure exact editor-source RPC plus amendment index projection repair.
 - Modify workflow tests and add `tests/native-form-profiles.test.mjs` plus `tests/clerk-native-editor-browser.test.mjs`.
 
 ### Task 1: Define the nine native form profiles and lossless document adapter
@@ -162,7 +162,7 @@
 **Files:**
 - Modify: `src/archive-workflow/archive-cabinet.js`
 - Modify: `src/archive-workflow/local/local-workflow-engine.js:118-143, 575-640`
-- Modify: `supabase/migrations/202607290003_clerk_native_editor_sources.sql`
+- Modify: `supabase/migrations/202607290004_clerk_native_editor_sources.sql`
 - Modify: `tests/archive-cabinet.test.mjs`
 - Modify: `tests/local-workflow-engine.test.mjs`
 - Modify: `tests/archive-workflow-schema.test.mjs`
@@ -232,7 +232,7 @@
 - [ ] **Step 5: Commit the policy/projection repair**
 
   ```bash
-  git add src/archive-workflow/archive-cabinet.js src/archive-workflow/local/local-workflow-engine.js supabase/migrations/202607290003_clerk_native_editor_sources.sql tests/archive-cabinet.test.mjs tests/local-workflow-engine.test.mjs tests/archive-workflow-schema.test.mjs
+  git add src/archive-workflow/archive-cabinet.js src/archive-workflow/local/local-workflow-engine.js supabase/migrations/202607290004_clerk_native_editor_sources.sql tests/archive-cabinet.test.mjs tests/local-workflow-engine.test.mjs tests/archive-workflow-schema.test.mjs
   git commit -m "fix: allow all clerk archive categories and refresh index projection"
   ```
 
@@ -243,7 +243,7 @@
 - Modify: `src/archive-workflow/repository-contract.js`
 - Modify: `src/archive-workflow/local/local-workflow-engine.js:1077-1097`
 - Modify: `src/archive-workflow/repositories/supabase-repository.js:323-340`
-- Modify: `supabase/migrations/202607290003_clerk_native_editor_sources.sql`
+- Modify: `supabase/migrations/202607290004_clerk_native_editor_sources.sql`
 - Modify: `tests/archive-workflow-repository-contract.test.mjs`
 - Modify: `tests/archive-workflow-repository-shapes.test.mjs`
 - Modify: `tests/local-workflow-engine.test.mjs`
@@ -308,7 +308,7 @@
 - [ ] **Step 5: Commit the source-loading path**
 
   ```bash
-  git add src/archive-workflow/official-archive-source.js src/archive-workflow/repository-contract.js src/archive-workflow/local/local-workflow-engine.js src/archive-workflow/repositories/supabase-repository.js supabase/migrations/202607290003_clerk_native_editor_sources.sql tests/archive-workflow-repository-contract.test.mjs tests/archive-workflow-repository-shapes.test.mjs tests/local-workflow-engine.test.mjs tests/supabase-archive-workflow-repository.test.mjs
+  git add src/archive-workflow/official-archive-source.js src/archive-workflow/repository-contract.js src/archive-workflow/local/local-workflow-engine.js src/archive-workflow/repositories/supabase-repository.js supabase/migrations/202607290004_clerk_native_editor_sources.sql tests/archive-workflow-repository-contract.test.mjs tests/archive-workflow-repository-shapes.test.mjs tests/local-workflow-engine.test.mjs tests/supabase-archive-workflow-repository.test.mjs
   git commit -m "feat: load exact archive sources for clerk modifications"
   ```
 

@@ -125,21 +125,6 @@ export const createLocalWorkflowEngine = ({
     const archiveId = draft.archiveId ?? draft.archive_id ?? saved?.archive_id ?? null;
     const kind = draft.kind ?? saved?.kind ?? 'new';
     const category = normalizeCategory(template?.category);
-    if (principal.role !== 'admin' && ['station', 'entrance'].includes(category)) {
-      const archive = archiveId
-        ? state.archives.find((entry) => entry.id === archiveId)
-        : null;
-      if (
-        kind !== 'amendment'
-        || !archive
-        || normalizeCategory(archive.category) !== category
-      ) {
-        throw workflowError(
-          'permission_denied',
-          'A clerk can only amend an existing archive in this fixed category',
-        );
-      }
-    }
     return { archiveId, category, kind, templateId };
   };
 
@@ -610,8 +595,14 @@ export const createLocalWorkflowEngine = ({
       };
       failAt?.('projection');
 
-      archive.title = projection.title;
+      const indexPayload = clone(
+        contribution.draft_content?.indexData
+          ?? archive.index_payload
+          ?? {},
+      );
+      archive.title = String(indexPayload.title ?? projection.title ?? archive.title);
       archive.summary = projection.summary;
+      archive.index_payload = indexPayload;
       archive.visibility = visibility;
       archive.current_version_id = version.id;
       archive.published_at = publishedAt;

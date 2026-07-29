@@ -1,6 +1,5 @@
 import { ARCHIVE_TEMPLATES } from './templates.js';
 
-const FIXED_FOR_CLERK = new Set(['station', 'entrance']);
 const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;')
   .replaceAll('<', '&lt;')
@@ -9,15 +8,14 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll("'", '&#039;');
 
 export const archiveCabinetEntries = (role) => ARCHIVE_TEMPLATES.map((template) => {
-  const restricted = role !== 'admin' && FIXED_FOR_CLERK.has(template.category);
   return {
     code: template.code,
     category: template.category,
     title: template.title,
     abbreviation: template.abbreviation,
-    defaultKind: restricted ? 'amendment' : 'new',
-    restricted,
-    actionLabel: restricted ? '仅可申请修改' : role === 'admin'
+    defaultKind: 'new',
+    restricted: false,
+    actionLabel: role === 'admin'
       ? '可新建、补充／修改／设定'
       : '可新建、补充／修改',
   };
@@ -48,7 +46,7 @@ export const renderArchiveCabinet = (role) => `
     <footer><output data-cabinet-selection>9 个对象</output><span>${escapeHtml(role === 'admin' ? 'ADMIN' : 'CLERK')}</span></footer>
     <dialog data-cabinet-permissions aria-labelledby="cabinet-permission-title"><form method="dialog">
       <h3 id="cabinet-permission-title">类别权限</h3>
-      <p>${escapeHtml(role === 'admin' ? '管理员可新建、补充、修改并管理全部九类档案。' : '书记官可处理七类档案；科考站与白幕入口只能提交修改申请。')}</p>
+      <p>${escapeHtml(role === 'admin' ? '管理员可新建、补充、修改并管理全部九类档案。' : '书记官可新建、补充或申请修改全部九类档案。')}</p>
       <button value="close">确定</button>
     </form></dialog>
   </section>`;

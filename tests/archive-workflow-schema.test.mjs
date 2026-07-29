@@ -10,6 +10,7 @@ const versionRepairMigrationUrl = new URL('supabase/migrations/202607270004_repa
 const automaticIdentityMigrationUrl = new URL('supabase/migrations/202607290001_automatic_archive_identity.sql', projectRoot);
 const archiveIndexRecordRepairMigrationUrl = new URL('supabase/migrations/202607290002_archive_index_record_repair.sql', projectRoot);
 const archiveMediaGuardrailsMigrationUrl = new URL('supabase/migrations/202607290003_archive_media_guardrails.sql', projectRoot);
+const clerkNativeEditorSourcesMigrationUrl = new URL('supabase/migrations/202607290004_clerk_native_editor_sources.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -193,4 +194,19 @@ test('archive media guardrails lock reviewed files and enforce category slot lim
   assert.match(sql, /drop policy if exists storage_archive_attachments_insert/i);
   assert.match(sql, /split_part\(storage_path,\s*'\/',\s*2\)\s*=\s*contribution_id::text/i);
   assert.match(sql, /archive\.visibility = 'public'/i);
+});
+
+test('clerk native editor migration securely refreshes existing archive directory projections', async () => {
+  const sql = await readFile(clerkNativeEditorSourcesMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.publish_archive_contribution/i);
+  assert.match(sql, /security definer[\s\S]*set search_path\s*=\s*public/i);
+  assert.match(sql, /if not public\.is_admin\(\)/i);
+  assert.match(sql, /where id\s*=\s*p_contribution_id[\s\S]*status\s*=\s*'approved'[\s\S]*for update/i);
+  assert.match(
+    sql,
+    /update public\.archives archive[\s\S]*title\s*=\s*coalesce\([\s\S]*draft_content\s*->\s*'indexData'\s*->>\s*'title'[\s\S]*summary\s*=\s*coalesce\([\s\S]*draft_content\s*->>\s*'summary'[\s\S]*index_payload\s*=\s*case[\s\S]*jsonb_typeof\([\s\S]*draft_content\s*->\s*'indexData'\)\s*=\s*'object'/i,
+  );
+  assert.match(sql, /archive_record\.category\s*<>\s*p_category/i);
+  assert.match(sql, /status\s*=\s*'published'[\s\S]*revision\s*=\s*revision\s*\+\s*1/i);
 });

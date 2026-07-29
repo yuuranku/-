@@ -13,15 +13,14 @@ test('archive cabinet keeps all nine registered categories in their registry ord
   );
 });
 
-test('clerk cabinet limits station and entrance folders to amendment requests', () => {
+test('clerk cabinet starts new drafts in all nine archive categories', () => {
   const entries = archiveCabinetEntries('clerk');
-  for (const code of ['03', '04']) {
+  for (const code of ['01', '02', '03', '04', '05', '06', '07', '08', '09']) {
     const entry = entries.find((item) => item.code === code);
-    assert.equal(entry.defaultKind, 'amendment');
-    assert.equal(entry.restricted, true);
-    assert.equal(entry.actionLabel, '仅可申请修改');
+    assert.equal(entry.defaultKind, 'new');
+    assert.equal(entry.restricted, false);
+    assert.equal(entry.actionLabel, '可新建、补充／修改');
   }
-  assert.equal(entries.find((item) => item.code === '07').defaultKind, 'new');
 });
 
 test('administrator cabinet renders selectable folders and permission controls', () => {

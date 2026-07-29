@@ -486,32 +486,19 @@ test('submitDraft freezes the exact command-time submitter and PALIS version sna
   assert.deepEqual(harness.metrics(), { commitCount: 1, transactionCount: 1, readCount: 0 });
 });
 
-test('new station and entrance drafts require an administrator', async () => {
+test('a clerk can create station and entrance drafts', async () => {
   for (const templateId of ['03', '04']) {
     const clerkHarness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
     await clerkHarness.seedDefaults();
-    await assert.rejects(
-      clerkHarness.repository.saveDraft({
-        ownerId: 'clerk-1',
-        templateId,
-        title: `受限类别 ${templateId}`,
-        kind: 'new',
-        content: { schemaVersion: 2, templateCode: templateId, values: {} },
-      }),
-      hasCode('permission_denied'),
-    );
-    assert.equal((await clerkHarness.inspectState()).contributions.length, 0);
-
-    const adminHarness = await createLocalWorkflowHarness();
-    await adminHarness.seedDefaults();
-    const saved = await adminHarness.repository.saveDraft({
-      ownerId: 'ignored-owner',
+    const saved = await clerkHarness.repository.saveDraft({
+      ownerId: 'clerk-1',
       templateId,
-      title: `管理员类别 ${templateId}`,
+      title: `书记官类别 ${templateId}`,
       kind: 'new',
       content: { schemaVersion: 2, templateCode: templateId, values: {} },
     });
-    assert.equal(saved.owner_id, 'local-admin');
+    assert.equal(saved.status, 'draft');
+    assert.equal(saved.owner_id, 'clerk-1');
     assert.equal(saved.template_id, templateId);
   }
 });
@@ -1203,6 +1190,74 @@ test('publishing an amendment preserves the existing archive code, sequence, and
   assert.equal(committed.numberCounters.event, 26);
 });
 
+test('publishing an amendment refreshes the existing archive directory projection', async () => {
+  const identity = {
+    id: 'archive-existing',
+    code: 'ST20',
+    business_code: 'STATION-ORIGINAL',
+    category: 'station',
+    title: 'Old station',
+    summary: 'Old summary',
+    visibility: 'public',
+    origin: 'official',
+    sequence_number: 20,
+    abbreviation: 'LOG',
+    index_payload: {
+      title: 'Old station',
+      latitude: '-70.0',
+      longitude: '10.0',
+      owner: 'LEGACY',
+    },
+    current_version_id: null,
+    published_at: '2026-07-27T12:00:00.000Z',
+  };
+  const state = createApprovedPublicationState({
+    category: 'station',
+    templateId: '03',
+    archive: identity,
+  });
+  state.contributions[0].draft_content = {
+    schemaVersion: 2,
+    templateCode: '03',
+    summary: 'Updated station summary',
+    values: {},
+    indexData: {
+      title: 'New station name',
+      latitude: '-71.2',
+      longitude: '12.4',
+      owner: 'PALIS',
+      stationType: 'observation',
+      status: 'archived',
+    },
+  };
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  await harness.repository.publishContribution('submission-1', {
+    archiveId: 'archive-existing',
+    code: 'MUST-NOT-REPLACE',
+    category: 'station',
+    version: '0.2',
+    visibility: 'public',
+    idempotencyKey: 'publish-station-amendment',
+  });
+
+  const [archive] = await harness.repository.listPublishedArchives();
+  assert.equal(archive.id, 'archive-existing');
+  assert.equal(archive.code, 'ST20');
+  assert.equal(archive.category, 'station');
+  assert.equal(archive.title, 'New station name');
+  assert.equal(archive.summary, 'Updated station summary');
+  assert.deepEqual(archive.index_payload, {
+    title: 'New station name',
+    latitude: '-71.2',
+    longitude: '12.4',
+    owner: 'PALIS',
+    stationType: 'observation',
+    status: 'archived',
+  });
+});
+
 test('publication idempotency retries before counters and rejects key reuse with a different payload', async () => {
   const state = createApprovedPublicationState();
   state.numberCounters.event = 26;
@@ -1282,68 +1337,6 @@ test('each publication failpoint rolls back the entire state and commit count', 
       harness.metrics(),
       { commitCount: 0, transactionCount: 1, readCount: 0 },
       `${point} metrics`,
-    );
-  }
-});
-
-test('a clerk cannot reclassify an existing event draft as a station draft', async () => {
-  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
-  await harness.seed(createFixedCategoryPolicyState());
-  const saved = await saveEventDraft(harness);
-
-  await assert.rejects(
-    harness.repository.saveDraft({
-      id: saved.id,
-      ownerId: 'clerk-1',
-      revision: saved.revision,
-      templateId: '03',
-      archiveId: 'station-archive',
-      kind: 'new',
-      title: 'Reclassified station',
-      content: { schemaVersion: 2, templateCode: '03', values: {} },
-    }),
-    hasCode('permission_denied'),
-  );
-
-  const state = await harness.inspectState();
-  assert.equal(state.contributions[0].template_id, '07');
-  assert.equal(state.contributions[0].revision, 1);
-});
-
-test('fixed-category clerk drafts reject new or contribution kinds even with a real archive', async () => {
-  for (const kind of ['new', 'contribution']) {
-    const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
-    await harness.seed(createFixedCategoryPolicyState());
-
-    await assert.rejects(
-      harness.repository.saveDraft({
-        ownerId: 'clerk-1',
-        templateId: '03',
-        archiveId: 'station-archive',
-        kind,
-        title: `Blocked ${kind}`,
-        content: { schemaVersion: 2, templateCode: '03', values: {} },
-      }),
-      hasCode('permission_denied'),
-    );
-  }
-});
-
-test('fixed-category clerk amendments require a real archive of the same category', async () => {
-  for (const archiveId of [null, 'missing-station', 'event-archive']) {
-    const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
-    await harness.seed(createFixedCategoryPolicyState());
-
-    await assert.rejects(
-      harness.repository.saveDraft({
-        ownerId: 'clerk-1',
-        templateId: '03',
-        archiveId,
-        kind: 'amendment',
-        title: 'Invalid station amendment',
-        content: { schemaVersion: 2, templateCode: '03', values: {} },
-      }),
-      hasCode('permission_denied'),
     );
   }
 });
