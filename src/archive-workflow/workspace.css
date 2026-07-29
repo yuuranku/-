@@ -59,9 +59,10 @@
   grid-template-areas:
     'toolbar'
     'recovery'
+    'outline'
     'content'
     'footer';
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   overflow: hidden;
   border: 2px inset #e9e9e9;
   background: #d4d2c9;
@@ -168,20 +169,39 @@
   text-shadow: 1px 1px #eee;
 }
 
-.archive-editor__split {
-  grid-area: content;
-  display: grid;
-  min-height: 0;
-  grid-template-columns: minmax(260px, .55fr) minmax(620px, 1.45fr);
-  overflow: hidden;
+.archive-editor__outline {
+  grid-area: outline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #767a76;
+  background: #d8d4c6;
 }
+.archive-editor__outline button,
+.archive-editor__outline select {
+  min-height: 25px;
+  padding: 4px 7px;
+  color: #202621;
+  border: 1px solid #747873;
+  border-radius: 0;
+  background: #eeeadc;
+  font: 700 8px/1 var(--font-mono);
+}
+.archive-editor__outline span { display: contents; }
+.archive-editor__outline output { color: #a22828; }
+.archive-editor__outline select { margin-left: auto; }
 
-.archive-editor__workflow-rail {
+.archive-editor__content {
+  grid-area: content;
   min-height: 0;
-  padding: 13px;
-  overflow: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-color: #727873 #d8d4c6;
 }
+.archive-editor__section { min-width: 0; padding: 13px; }
+.archive-editor__section + .archive-editor__section { border-top: 1px solid #929792; }
+.archive-editor__section--document { padding: 0; }
 
 .archive-editor__registration {
   display: flex;
@@ -365,12 +385,12 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr);
-  border-left: 2px groove #ededed;
+  grid-template-rows: auto auto;
+  border-left: 0;
   background: #757b77;
 }
 
-.archive-editor__frame { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.archive-editor__frame { position: relative; min-width: 0; min-height: 0; overflow: visible; }
 .archive-editor__loading {
   position: absolute;
   z-index: 2;
@@ -429,7 +449,11 @@
   font: 8px/1 var(--font-mono);
 }
 .archive-editor__canvas a { color: #d6bc58; }
-.archive-editor__canvas iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.archive-editor__canvas iframe { display: block; width: 100%; height: 900px; border: 0; background: #fff; }
+.archive-editor__document-errors { padding: 8px 10px; color: #6f1717; background: #ead0ca; font: 9px/1.4 var(--font-body); }
+.archive-editor__document-errors[hidden],
+[data-template-height-fallback][hidden] { display: none !important; }
+[data-template-height-fallback] { margin: 10px; padding: 10px; color: #25251f; border: 2px inset #eee; background: #d9d4c5; }
 
 .archive-reference-editor {
   margin: 16px 0;
@@ -1004,20 +1028,8 @@
   .archive-autosave-status { min-width: 0; }
   .archive-recovery { grid-template-columns: 1fr 1fr; }
   .archive-recovery div { grid-column: 1 / -1; }
-  .archive-editor__split {
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-  .archive-editor__workflow-rail {
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  .archive-editor__canvas {
-    flex: 0 0 72vh;
-    min-height: 72vh;
-  }
+  .archive-editor__outline select { width: 100%; margin-left: 0; }
+  .archive-editor__section { padding: 10px; }
   .archive-media-editor > header,
   .archive-media-slot__command,
   .archive-media-slot__selection article { grid-template-columns: 1fr; }
@@ -1060,8 +1072,6 @@
   .archive-editor__toolbar label { gap: 5px; font-size: 10px; }
   .archive-editor input, .archive-editor select, .archive-editor textarea { min-height: 42px; padding: 9px 11px; font-size: 16px; }
   .archive-autosave-status { min-width: 240px; padding: 8px 11px; font-size: 10px; }
-  .archive-editor__split { grid-template-columns: minmax(340px, .62fr) minmax(780px, 1.38fr); }
-  .archive-editor__workflow-rail { padding: 18px; }
   .archive-editor__registration { margin-bottom: 14px; padding-bottom: 12px; font-size: 10px; }
   .archive-editor__instruction { padding: 13px; font-size: 14px; }
   .archive-editor__canvas header { padding: 10px 13px; font-size: 11px; }

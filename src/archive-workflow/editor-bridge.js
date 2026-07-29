@@ -2,6 +2,7 @@ import {
   createEditorDocument,
   normalizeEditorDocument,
 } from './editor-document.js';
+import { createEditorEmbedLayout } from './editor-embed-layout.js';
 
 const PHOTO_FIELD = 'photo';
 export const ARCHIVE_SYSTEM_FIELD_KEYS = Object.freeze([
@@ -159,6 +160,10 @@ export const createTemplateEditorBridge = ({
   onChange = () => {},
   onReferenceTrigger = () => {},
   waitForLoad = false,
+  embedded = false,
+  onHeightChange = () => {},
+  onOutlineChange = () => {},
+  onLayoutError = () => {},
 } = {}) => {
   if (!iframe?.addEventListener) throw new TypeError('A same-origin template iframe is required');
   let root = null;
@@ -168,7 +173,10 @@ export const createTemplateEditorBridge = ({
   const ready = new Promise((resolve) => { resolveReady = resolve; });
   const removers = [];
   let observer = null;
+  let embedLayout = null;
   let activeReferenceElement = null;
+  const synchronizedElements = new Set();
+  let bridgeReadOnly = false;
 
   const emitChange = () => {
     if (!root || disposed) return;
@@ -177,15 +185,52 @@ export const createTemplateEditorBridge = ({
   };
 
   const setReadOnly = (readOnly) => {
+    bridgeReadOnly = Boolean(readOnly);
     if (!root) return;
     root.querySelectorAll('[data-save]').forEach((element) => {
       const key = String(element?.dataset?.save ?? '').trim();
-      const locked = readOnly || ARCHIVE_SYSTEM_FIELD_SET.has(key);
+      const locked = bridgeReadOnly
+        || ARCHIVE_SYSTEM_FIELD_SET.has(key)
+        || synchronizedElements.has(element);
       element.setAttribute?.('contenteditable', locked ? 'false' : 'true');
-      if (ARCHIVE_SYSTEM_FIELD_SET.has(key)) element.setAttribute?.('aria-readonly', 'true');
+      element.setAttribute?.('aria-readonly', String(locked));
     });
     const input = root.querySelector?.('#photoInput');
-    if (input) input.disabled = Boolean(readOnly);
+    if (input) input.disabled = bridgeReadOnly;
+  };
+
+  const elementForDescriptor = (descriptor = {}) => {
+    if (descriptor.key) {
+      return [...root.querySelectorAll('[data-save]')].find((candidate) =>
+        String(candidate.dataset?.save ?? '').trim() === descriptor.key);
+    }
+    const label = normalizeLabel(descriptor.label);
+    return [...root.querySelectorAll('[data-save]')].find((candidate) => {
+      const candidateLabel = fieldLabel(candidate);
+      return candidateLabel === label
+        || candidateLabel.startsWith(label)
+        || candidateLabel.includes(label);
+    });
+  };
+
+  const setSynchronizedFields = (descriptors = []) => {
+    if (!root) return 0;
+    synchronizedElements.forEach((element) => {
+      delete element.dataset.indexSynchronized;
+      delete element.dataset.indexSynchronizedLabel;
+    });
+    synchronizedElements.clear();
+    descriptors.forEach((descriptor) => {
+      const element = elementForDescriptor(descriptor);
+      if (!element) return;
+      synchronizedElements.add(element);
+      element.dataset.indexSynchronized = 'true';
+      element.dataset.indexSynchronizedLabel = '由目录索引同步';
+      element.setAttribute('contenteditable', 'false');
+      element.setAttribute('aria-readonly', 'true');
+    });
+    setReadOnly(bridgeReadOnly);
+    return synchronizedElements.size;
   };
 
   const writeElementValue = (element, value, { notify = true } = {}) => {
@@ -243,6 +288,18 @@ export const createTemplateEditorBridge = ({
     installEditorPerformanceStyles(root);
     writeTemplateDocument(root, current);
     applySystemFields(current.values, { notify: false });
+    if (embedded) {
+      try {
+        embedLayout = createEditorEmbedLayout({
+          root,
+          onHeightChange,
+          onOutlineChange,
+          onError: onLayoutError,
+        });
+      } catch (error) {
+        onLayoutError(error);
+      }
+    }
     const handleEditorInput = (element) => {
       emitChange();
       const query = detectArchiveReferenceQuery(element?.innerText ?? element?.textContent);
@@ -301,14 +358,14 @@ export const createTemplateEditorBridge = ({
       }
       return structuredClone(current);
     },
-    writeFieldValue(key, value) {
+    writeFieldValue(key, value, options = {}) {
       if (!root) return false;
       const normalizedKey = String(key ?? '').trim();
       const element = [...root.querySelectorAll('[data-save]')]
         .find((candidate) => String(candidate?.dataset?.save ?? '').trim() === normalizedKey);
-      return writeElementValue(element, value);
+      return writeElementValue(element, value, options);
     },
-    writeFieldByLabel(label, value) {
+    writeFieldByLabel(label, value, options = {}) {
       if (!root) return false;
       const normalizedLabel = normalizeLabel(label);
       const element = [...root.querySelectorAll('[data-save]')].find((candidate) => {
@@ -317,10 +374,17 @@ export const createTemplateEditorBridge = ({
           || candidateLabel.startsWith(normalizedLabel)
           || candidateLabel.includes(normalizedLabel);
       });
-      return writeElementValue(element, value);
+      return writeElementValue(element, value, options);
     },
     setSystemFields(fields) {
       return applySystemFields(fields);
+    },
+    setSynchronizedFields,
+    getSectionOutline() {
+      return embedLayout?.getSectionOutline() ?? [];
+    },
+    measureEmbeddedHeight() {
+      return embedLayout?.measure() ?? 0;
     },
     insertReference(reference) {
       if (!root || !activeReferenceElement) return false;
@@ -346,6 +410,7 @@ export const createTemplateEditorBridge = ({
     dispose() {
       if (disposed) return;
       disposed = true;
+      embedLayout?.dispose();
       observer?.disconnect?.();
       removers.splice(0).forEach((remove) => remove());
     },

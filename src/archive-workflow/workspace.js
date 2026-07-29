@@ -668,6 +668,10 @@ export function initializeArchiveWorkspace({
           ? `amendment-${template.code}-${initial.archiveCode}`
           : `editor-${template.code}`;
     const profileName = context.profile?.display_name || context.profile?.email || '当前书记官';
+    const mediaEditorMarkup = renderArchiveMediaEditor(
+      template.category,
+      initial.content?.media,
+    );
 
     const windowState = createWindow({
       key: editorKey,
@@ -675,7 +679,8 @@ export function initializeArchiveWorkspace({
       code: `${template.code}.HTML`,
       className: 'archive-editor-window',
       body: `
-        <form class="archive-editor" data-archive-editor novalidate>
+        <form class="archive-editor" data-archive-editor
+          data-editor-submission-state="editing" novalidate>
           <header class="archive-editor__toolbar">
             <label>编录方式
               <select name="kind">
@@ -698,14 +703,33 @@ export function initializeArchiveWorkspace({
             <button type="button" data-recovery-dismiss>忽略</button>
           </aside>
 
-          <div class="archive-editor__split">
-            <aside class="archive-editor__workflow-rail">
+          <nav class="archive-editor__outline" data-editor-outline aria-label="档案分区">
+            <button type="button" data-editor-outline-target="index">00 索引登记 <output data-editor-outline-error="index" hidden></output></button>
+            <button type="button" data-editor-outline-target="document">档案正文 <output data-editor-outline-error="document" hidden></output></button>
+            <span data-editor-template-outline></span>
+            <button type="button" data-editor-outline-target="references">关联材料</button>
+            ${mediaEditorMarkup ? '<button type="button" data-editor-outline-target="media">版面图片</button>' : ''}
+            <button type="button" data-editor-outline-target="attachments">补充附件</button>
+            <button type="button" data-editor-outline-target="attribution">归档责任</button>
+            <select data-editor-outline-select aria-label="跳转到档案分区">
+              <option value="index">00 索引登记</option>
+              <option value="document">档案正文</option>
+              <optgroup label="正文分区" data-editor-template-outline-options></optgroup>
+              <option value="references">关联材料</option>
+              ${mediaEditorMarkup ? '<option value="media">版面图片</option>' : ''}
+              <option value="attachments">补充附件</option>
+              <option value="attribution">归档责任</option>
+            </select>
+          </nav>
+
+          <div class="archive-editor__content" data-editor-scroll>
+            <section class="archive-editor__section" data-editor-section="index">
               <div class="archive-editor__registration">
                 <span>PALIS / TEMPLATE ${escapeHtml(template.code)} / ${escapeHtml(template.abbreviation)}</span>
                 <b>VER 0.1 / 白幕初垂 / 待录入</b>
               </div>
               <p class="archive-editor__instruction">
-                请直接在右侧设定卡中填写。正式档案会沿用网站原有风格，并按本卡分区生成。
+                先完成目录索引，再沿同一页面填写原版设定卡；正式输出继续使用原档案排版。
               </p>
 
               ${renderArchiveIndexFields(template.category, {
@@ -736,6 +760,25 @@ export function initializeArchiveWorkspace({
                 </div>
               </section>
 
+            </section>
+
+            <section class="archive-editor__section archive-editor__section--document archive-editor__canvas is-loading"
+              data-editor-section="document" aria-busy="true">
+              <header><b>档案正文 / DOSSIER BODY</b><a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a></header>
+              <div class="archive-editor__document-errors" data-document-errors role="alert" hidden></div>
+              <div class="archive-editor__frame">
+                <div class="archive-editor__loading" data-template-editor-loading role="status"><b>正在载入设定卡</b><span>首次打开会准备可编辑档案版式</span></div>
+                <aside data-template-height-fallback role="alert" hidden>
+                  <b>正文未能完成嵌入</b><p>索引与已保存草稿仍可使用。可重新载入正文，或单独打开模板。</p>
+                  <button type="button" data-reload-template>重新载入正文</button>
+                  <a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a>
+                </aside>
+                <div class="archive-slash-reference-menu" data-slash-reference-menu hidden></div>
+                <iframe data-template-editor-frame src="${editorPreviewUrl(template, initialKind)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
+              </div>
+            </section>
+
+            <section class="archive-editor__section" data-editor-section="references">
               <section class="archive-reference-editor">
                 <header>
                   <div><b>关联档案与引用</b><span>引用会在公开档案中变为可点击窗口</span></div>
@@ -747,27 +790,25 @@ export function initializeArchiveWorkspace({
                 <div class="archive-reference-results" data-reference-results hidden></div>
                 <ul data-reference-list><li class="is-empty">尚未引用其他档案</li></ul>
               </section>
+            </section>
 
-              ${renderArchiveMediaEditor(template.category, initial.content?.media)}
-
+            ${mediaEditorMarkup ? `
+              <section class="archive-editor__section" data-editor-section="media">
+                ${mediaEditorMarkup}
+              </section>
+            ` : ''}
+            <section class="archive-editor__section" data-editor-section="attachments">
               <label class="archive-editor-field">
                 <span>补充附件（不进入档案图片版面，单个文件不超过 5MB）</span>
                 <input name="attachments" type="file" multiple accept=".html,.doc,.docx,.pdf,.txt,image/*" />
               </label>
+            </section>
 
+            <section class="archive-editor__section" data-editor-section="attribution">
               <dl class="archive-editor__attribution">
                 <div><dt>档案提交者</dt><dd data-submitter>${escapeHtml(profileName)}</dd></div>
                 <div data-modifier-row hidden><dt>档案修改者</dt><dd data-modifier>${escapeHtml(profileName)}</dd></div>
               </dl>
-            </aside>
-
-            <section class="archive-editor__canvas is-loading" aria-busy="true">
-              <header><b>九类档案录入设定卡 / 当前编辑器</b><a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a></header>
-              <div class="archive-editor__frame">
-                <div class="archive-editor__loading" data-template-editor-loading role="status"><b>正在载入设定卡</b><span>首次打开会准备可编辑档案版式</span></div>
-                <div class="archive-slash-reference-menu" data-slash-reference-menu hidden></div>
-                <iframe data-template-editor-frame src="${editorPreviewUrl(template, initialKind)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
-              </div>
             </section>
           </div>
 
@@ -793,6 +834,13 @@ export function initializeArchiveWorkspace({
     const templateFrame = form.querySelector('[data-template-editor-frame]');
     const editorCanvas = form.querySelector('.archive-editor__canvas');
     const editorLoading = form.querySelector('[data-template-editor-loading]');
+    const editorScroll = form.querySelector('[data-editor-scroll]');
+    const editorOutline = form.querySelector('[data-editor-outline]');
+    const editorOutlineSelect = form.querySelector('[data-editor-outline-select]');
+    const templateOutline = form.querySelector('[data-editor-template-outline]');
+    const templateOutlineOptions = form.querySelector('[data-editor-template-outline-options]');
+    const templateHeightFallback = form.querySelector('[data-template-height-fallback]');
+    const documentErrors = form.querySelector('[data-document-errors]');
     const slashReferenceMenu = form.querySelector('[data-slash-reference-menu]');
     const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
     const editableArchiveSelect = form.elements.archiveId;
@@ -828,6 +876,63 @@ export function initializeArchiveWorkspace({
     });
     let references = [...editorDocument.references];
     let editorBridge = null;
+    const SYNCHRONIZED_TEMPLATE_KEYS = Object.freeze({
+      coordinate: 'f_5Z2Q5qCH',
+      specimenClass: 'f_5qSN54mp77yP5Yqo54mp77yP5aSN5ZCI576k6JC9',
+      eventStart: 'f_5YR55Sf5pe25pyf',
+    });
+    const synchronizedTemplateFields = () => {
+      const descriptors = [{ key: 'hero' }];
+      if (template.category === 'station' || template.category === 'entrance') {
+        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.coordinate });
+      }
+      if (template.category === 'species') {
+        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.specimenClass });
+      }
+      if (template.category === 'event') {
+        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.eventStart });
+      }
+      return descriptors;
+    };
+    const scrollToEditorSection = (target) => {
+      if (!target) return;
+      if (target.startsWith('template:')) {
+        const section = editorBridge?.getSectionOutline()
+          .find((entry) => entry.id === target.slice('template:'.length));
+        if (section && editorScroll && editorCanvas) {
+          editorScroll.scrollTo({
+            top: Math.max(0, editorCanvas.offsetTop + section.offsetTop),
+            behavior: 'smooth',
+          });
+          return;
+        }
+      }
+      const section = form.querySelector(`[data-editor-section="${CSS.escape(target)}"]`);
+      section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    };
+    const renderTemplateOutline = (sections = []) => {
+      if (templateOutline) {
+        templateOutline.innerHTML = sections.map((section, index) => `
+          <button type="button" data-editor-outline-target="template:${escapeHtml(section.id)}">
+            ${String(index + 1).padStart(2, '0')} ${escapeHtml(section.label)}
+          </button>
+        `).join('');
+      }
+      if (templateOutlineOptions) {
+        templateOutlineOptions.innerHTML = sections.map((section, index) => `
+          <option value="template:${escapeHtml(section.id)}">
+            ${String(index + 1).padStart(2, '0')} ${escapeHtml(section.label)}
+          </option>
+        `).join('');
+      }
+    };
+    editorOutline?.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-editor-outline-target]');
+      if (target) scrollToEditorSection(target.dataset.editorOutlineTarget);
+    });
+    editorOutlineSelect?.addEventListener('change', () => {
+      scrollToEditorSection(editorOutlineSelect.value);
+    });
     const uploadedAttachmentKeys = new Set();
     let editorDraft = {
       id: initial.id ?? null,
@@ -993,61 +1098,37 @@ export function initializeArchiveWorkspace({
     const syncIndexFieldToTemplate = (key) => {
       if (!editorBridge) return;
       const indexData = editorDocument.indexData;
-      if (key === 'title') editorBridge.writeFieldValue('hero', indexData.title);
+      const silent = { notify: false };
+      if (key === 'title') {
+        editorBridge.writeFieldValue('hero', indexData.title, silent);
+        return;
+      }
       if (
         (template.category === 'station' || template.category === 'entrance')
         && (key === 'latitude' || key === 'longitude')
-      ) editorBridge.writeFieldByLabel('坐标', coordinateText(indexData));
+      ) {
+        editorBridge.writeFieldValue(
+          SYNCHRONIZED_TEMPLATE_KEYS.coordinate,
+          coordinateText(indexData),
+          silent,
+        );
+        return;
+      }
       if (template.category === 'species' && key === 'specimenClass') {
-        editorBridge.writeFieldByLabel('植物／动物／复合群落', indexData.specimenClass);
+        editorBridge.writeFieldValue(
+          SYNCHRONIZED_TEMPLATE_KEYS.specimenClass,
+          indexData.specimenClass,
+          silent,
+        );
+        return;
       }
       if (template.category === 'event' && key === 'startDate') {
-        editorBridge.writeFieldByLabel('发生时期 / PERIOD', indexData.startDate);
+        editorBridge.writeFieldValue(
+          SYNCHRONIZED_TEMPLATE_KEYS.eventStart,
+          indexData.startDate,
+          silent,
+        );
       }
-    };
-
-    const findDocumentValueByLabel = (document, search) => {
-      const match = Object.entries(document.fieldLabels ?? {})
-        .find(([, label]) => String(label).includes(search));
-      return match ? String(document.values?.[match[0]] ?? '').trim() : '';
-    };
-
-    const parseCoordinateText = (value) => {
-      const text = String(value ?? '').trim();
-      const matches = [...text.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
-      if (matches.length < 2) return null;
-      let [latitude, longitude] = matches;
-      if (/[南S]/i.test(text) && latitude > 0) latitude *= -1;
-      if (/[西W]/i.test(text) && longitude > 0) longitude *= -1;
-      if (
-        !Number.isFinite(latitude)
-        || !Number.isFinite(longitude)
-        || Math.abs(latitude) > 90
-        || Math.abs(longitude) > 180
-      ) return null;
-      return { latitude, longitude };
-    };
-
-    const syncTemplateToIndex = (document) => {
-      const next = {
-        ...editorDocument.indexData,
-        title: String(document.values?.hero ?? document.title ?? '').trim(),
-      };
-      if (template.category === 'station' || template.category === 'entrance') {
-        const coordinates = parseCoordinateText(findDocumentValueByLabel(document, '坐标'));
-        if (coordinates) Object.assign(next, coordinates);
-      }
-      if (template.category === 'species') {
-        const specimenText = findDocumentValueByLabel(document, '植物／动物／复合群落').toUpperCase();
-        const specimenClass = ['FLORA', 'FAUNA', 'COMPOSITE']
-          .find((option) => specimenText.includes(option));
-        if (specimenClass) next.specimenClass = specimenClass;
-      }
-      if (template.category === 'event') {
-        const startDate = findDocumentValueByLabel(document, '发生时期');
-        if (startDate) next.startDate = startDate;
-      }
-      fillIndexControls(next);
     };
 
     const remote = client
@@ -1361,19 +1442,35 @@ export function initializeArchiveWorkspace({
         template,
         initialDocument: editorDocument,
         onReferenceTrigger: runSlashReferenceSearch,
+        embedded: true,
+        onHeightChange: (height) => {
+          templateFrame.style.height = `${height}px`;
+          templateFrame.hidden = false;
+          templateHeightFallback.hidden = true;
+        },
+        onOutlineChange: renderTemplateOutline,
+        onLayoutError: (error) => {
+          console.warn('PALIS embedded editor layout fallback', error);
+          templateHeightFallback.hidden = false;
+          templateFrame.hidden = true;
+          if (documentErrors) {
+            documentErrors.hidden = false;
+            documentErrors.textContent = '正文嵌入高度不可用；可重新载入或单独打开模板。';
+          }
+        },
         onChange: (document) => {
           editorDocument = {
             ...document,
             indexData: editorDocument.indexData,
             references,
           };
-          syncTemplateToIndex(document);
           queueDraftAutosave();
         },
         waitForLoad,
       });
       editorBridge.ready.then(() => {
         editorBridge?.setSystemFields(editorDocument.values);
+        editorBridge?.setSynchronizedFields(synchronizedTemplateFields());
         Object.keys(editorDocument.indexData).forEach(syncIndexFieldToTemplate);
         editorCanvas?.classList.remove('is-loading');
         editorCanvas?.setAttribute('aria-busy', 'false');
@@ -1381,6 +1478,16 @@ export function initializeArchiveWorkspace({
       });
     };
     mountEditorBridge();
+    form.querySelector('[data-reload-template]')?.addEventListener('click', () => {
+      templateHeightFallback.hidden = true;
+      if (documentErrors) documentErrors.hidden = true;
+      templateFrame.hidden = false;
+      editorBridge?.dispose();
+      editorBridge = null;
+      activePreviewUrl = null;
+      templateFrame.setAttribute('src', editorPreviewUrl(template, kindSelect.value));
+      mountEditorBridge({ waitForLoad: true });
+    });
     if (initial.archiveId && !initial.id && initial.kind !== 'new') {
       await loadEditableArchives();
       editableArchiveSelect.value = initial.archiveId;
