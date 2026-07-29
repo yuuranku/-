@@ -5,6 +5,7 @@ import {
   buildArchiveDocumentChoices,
   resolveArchiveDocumentTarget,
 } from '../src/archive-workflow/target-documents.js';
+import { preserveImmutableEditorTarget } from '../src/archive-workflow/workspace.js';
 
 test('an official archive offers its website record before independent submitted documents', () => {
   const choices = buildArchiveDocumentChoices({
@@ -56,4 +57,26 @@ test('a selected independent document resolves the exact target and immutable ba
     official: false,
   });
   assert.equal(resolveArchiveDocumentTarget(choices, ''), null);
+});
+
+test('reopening the same amendment target keeps its immutable base version', () => {
+  assert.deepEqual(
+    preserveImmutableEditorTarget(
+      {
+        value: 'document-7',
+        targetContributionId: 'document-7',
+        baseVersionId: 'version-10',
+      },
+      {
+        targetDocumentId: 'document-7',
+        targetContributionId: 'document-7',
+        baseVersionId: 'version-9',
+      },
+    ),
+    {
+      targetDocumentId: 'document-7',
+      targetContributionId: 'document-7',
+      baseVersionId: 'version-9',
+    },
+  );
 });

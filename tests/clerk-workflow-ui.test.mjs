@@ -51,24 +51,21 @@ test('administrator keeps the shared workspace and receives administrator labeli
   assert.doesNotMatch(html, /id="admin-desktop"/);
 });
 
-test('the right-side dossier card is the single structured editor', () => {
-  assert.match(workspace, /data-archive-editor/);
-  assert.match(workspace, /createTemplateEditorBridge/);
-  assert.match(workspace, /data-template-editor-frame/);
-  assert.doesNotMatch(workspace, /data-content-field/);
-  assert.match(workspace, /value="new"/);
-  assert.match(workspace, /value="contribution"/);
-  assert.match(workspace, /value="amendment"/);
+test('clerk editor uses a native single-scroll form and not an external template frame', () => {
+  assert.match(workspace, /renderNativeArchiveForm/);
+  assert.match(workspace, /readNativeArchiveForm/);
+  assert.match(workspace, /data-native-custom-entry/);
   assert.match(workspace, /data-reference-search/);
-  assert.match(workspace, /archive-reference/);
-  assert.match(workspace, /档案提交者/);
-  assert.match(workspace, /档案修改者/);
-  assert.match(workspace, /type="file"/);
-  assert.match(workspace, /renderArchiveIndexFields/);
-  assert.match(workspace, /data-archive-index-panel/);
-  assert.match(workspace, /validateArchiveIndexData/);
-  assert.match(workspace, /focusIndexField/);
-  assert.match(styles, /archive-index-editor/);
+  assert.doesNotMatch(workspace, /createTemplateEditorBridge/);
+  assert.doesNotMatch(workspace, /data-template-editor-frame/);
+  assert.doesNotMatch(workspace, /FREEFORM_AMENDMENT_TEMPLATE/);
+  assert.doesNotMatch(workspace, /data-editor-outline/);
+});
+
+test('submission still uses the existing media-aware workflow function', () => {
+  assert.match(workspace, /submitDraftWithArchiveMedia/);
+  assert.match(workspace, /client\.reviewSubmission/);
+  assert.match(workspace, /client\.publishContribution/);
 });
 
 test('amendments choose a visible archive instead of asking for internal record IDs', () => {
@@ -77,8 +74,9 @@ test('amendments choose a visible archive instead of asking for internal record 
   assert.match(workspace, /data-target-document-picker/);
   assert.match(workspace, /listArchiveDocuments/);
   assert.match(workspace, /name="targetDocumentId"/);
-  assert.match(workspace, /kind === 'amendment'\s*\?\s*FREEFORM_AMENDMENT_TEMPLATE/);
+  assert.match(workspace, /targetContributionId:[\s\S]*baseVersionId:/);
   assert.match(workspace, /kindSelect\.value === 'contribution'/);
+  assert.doesNotMatch(workspace, /<option value="contribution"/);
   assert.match(workspace, /targetDocumentRequestSequence/);
   assert.match(workspace, /requestSequence\s*!==\s*targetDocumentRequestSequence/);
   assert.match(workspace, /editableArchiveSelect\.value\s*!==\s*archive\.id/);
@@ -107,8 +105,7 @@ test('all nine clerk categories enter the new-archive chooser without UI coercio
   assert.match(workspace, /createEditor\(template,\s*\{\s*kind:\s*'new'\s*\}\)/);
   assert.doesNotMatch(workspace, /isFixedArchiveCategory/);
   assert.doesNotMatch(workspace, /kindSelect\.disabled\s*=\s*true/);
-  assert.match(workspace, /10-自由修订补充页\.html/);
-  await access(new URL('public/templates/10-自由修订补充页.html', projectRoot));
+  assert.doesNotMatch(workspace, /自由修订补充页/);
 });
 
 test('amendment initial state keeps the selected immutable source and archive target', () => {
@@ -246,10 +243,12 @@ test('formal accession leaves archive identifiers and versions to the system', (
   assert.doesNotMatch(workspace, /<input name="code"/);
 });
 
-test('typing a slash inside the dossier editor opens archive title suggestions', () => {
-  assert.match(workspace, /data-slash-reference-menu/);
-  assert.match(workspace, /onReferenceTrigger/);
-  assert.match(workspace, /insertReference/);
+test('native editor keeps explicit reference search without iframe slash hooks', () => {
+  assert.match(workspace, /data-reference-search/);
+  assert.match(workspace, /data-add-reference/);
+  assert.match(workspace, /data-remove-reference/);
+  assert.doesNotMatch(workspace, /data-slash-reference-menu/);
+  assert.doesNotMatch(workspace, /onReferenceTrigger|insertReference/);
 });
 
 test('official archive amendments keep separate windows and autosave keys by archive code', () => {

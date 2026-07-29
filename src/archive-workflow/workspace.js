@@ -1,14 +1,16 @@
 import { createAutosaveController } from './autosave.js';
-import { createTemplateEditorBridge } from './editor-bridge.js';
 import {
   createEditorDocument,
   normalizeEditorDocument,
 } from './editor-document.js';
 import {
-  normalizeArchiveIndexData,
-  renderArchiveIndexFields,
-  validateArchiveIndexData,
-} from './index-fields.js';
+  getNativeFormProfile,
+  readNativeArchiveForm,
+  readNativeFormState,
+  renderNativeArchiveForm,
+  validateNativeFormState,
+  writeNativeArchiveForm,
+} from './native-form-profiles.js';
 import {
   buildArchiveReference,
   canEnterWorkspace,
@@ -362,14 +364,6 @@ export const createReviewMediaLoader = ({
   };
 };
 
-const templatePreviewUrl = (template) =>
-  `/templates/${encodeURIComponent(template.sourceFile)}`;
-
-const FREEFORM_AMENDMENT_TEMPLATE = '/templates/10-自由修订补充页.html';
-
-const editorPreviewUrl = (template, kind) =>
-  kind === 'amendment' ? FREEFORM_AMENDMENT_TEMPLATE : templatePreviewUrl(template);
-
 const draftContentToEditorDocument = (template, content = {}, fallback = {}) => {
   if (content?.schemaVersion === 2 || content?.values) {
     return normalizeEditorDocument({
@@ -445,6 +439,68 @@ export const buildClerkDraftPlacement = (draft = {}) => ({
     ?? draft.target_contribution_id
     ?? null,
 });
+
+export const preserveImmutableEditorTarget = (selected, prior = {}) => {
+  const targetDocumentId = selected?.value || '';
+  const targetContributionId = selected?.targetContributionId ?? null;
+  const sameTarget = targetDocumentId
+    && targetDocumentId === (
+      prior.targetDocumentId
+      || prior.targetContributionId
+      || ''
+    );
+  return {
+    targetDocumentId,
+    targetContributionId,
+    baseVersionId: sameTarget
+      ? prior.baseVersionId ?? selected?.baseVersionId ?? null
+      : selected?.baseVersionId ?? null,
+  };
+};
+
+const renderNativeEditorFields = (template, profile, editorDocument) => {
+  const state = readNativeFormState(template, editorDocument);
+  const legacyFields = Object.entries(state.legacyFields);
+  const legacyMarkup = legacyFields.length
+    ? legacyFields.map(([key, value]) => `
+        <label>
+          <span>${escapeHtml(editorDocument.fieldLabels?.[key] || key)}</span>
+          <textarea data-native-legacy-field="${escapeHtml(key)}">${escapeHtml(value)}</textarea>
+        </label>
+      `).join('')
+    : '<p>没有需要兼容保留的原有补充字段。</p>';
+  return renderNativeArchiveForm(profile, editorDocument)
+    .replace(/^<form[^>]*>/, '')
+    .replace(/<\/form>\s*$/, '')
+    .replace(
+      '<section data-native-index>',
+      '<section class="archive-native-section" data-native-index><header><b>目录与识别</b><span>CATALOG &amp; IDENTITY</span></header>',
+    )
+    .replace(
+      '<section data-native-core>',
+      '<section class="archive-native-section" data-native-core><header><b>核心档案内容</b><span>CATEGORY DOSSIER</span></header>',
+    )
+    .replace(
+      '<section data-native-optional>',
+      '<section class="archive-native-section" data-native-optional><header><b>更多资料</b><span>OPTIONAL MATERIAL</span></header>',
+    )
+    .replace(
+      '<section data-native-custom>',
+      '<section class="archive-native-section" data-native-custom><header><div><b>自定义标题 + 内容</b><span>REPEATABLE NOTES</span></div><button type="button" data-add-native-custom-entry>添加条目</button></header>',
+    )
+    .replaceAll('data-native-custom-id=', 'data-native-custom-entry data-native-custom-id=')
+    .replace(
+      /<section data-native-legacy>[\s\S]*<\/section>\s*$/,
+      `<details class="archive-native-legacy" data-native-legacy>
+        <summary>原有补充资料 <span>可展开编辑，保存时不改变原字段键</span></summary>
+        <div data-native-legacy-fields>${legacyMarkup}</div>
+      </details>`,
+    )
+    .replace(
+      /(<fieldset data-native-custom-entry[^>]*>)/g,
+      '$1<button type="button" data-remove-native-custom-entry aria-label="删除这条自定义内容">删除</button>',
+    );
+};
 
 export function initializeArchiveWorkspace({
   client = null,
@@ -690,6 +746,9 @@ export function initializeArchiveWorkspace({
   const createEditor = async (template, initial = {}) => {
     if (!ensureWorkspaceAccess()) return null;
     const initialKind = initial.kind || 'new';
+    const nativeProfile = getNativeFormProfile(template);
+    const initialEditorDocument = draftContentToEditorDocument(template, initial.content, initial);
+    const nativeFieldsMarkup = renderNativeEditorFields(template, nativeProfile, initialEditorDocument);
     const editorKey = initial.id
       ? `editor-${initial.id}`
       : initial.targetContributionId
@@ -707,20 +766,23 @@ export function initializeArchiveWorkspace({
       key: editorKey,
       title: template.title,
       code: `${template.code}.HTML`,
-      className: 'archive-editor-window',
+      className: 'archive-editor-window is-docked-right',
       body: `
         <form class="archive-editor" data-archive-editor
           data-editor-submission-state="editing" novalidate>
           <header class="archive-editor__toolbar">
+            <input type="hidden" name="kind" value="${escapeHtml(initialKind)}" />
             <label>编录方式
-              <select name="kind">
-                <option value="new">新建档案</option>
-                <option value="contribution">补充同一档案</option>
-                <option value="amendment">提交修改申请</option>
-              </select>
+              <output data-editor-kind>${initialKind === 'amendment' ? '提交修改申请' : '新建档案'}</output>
             </label>
             <label>正式档号
               <output data-formal-number>${escapeHtml(initial.formalNumber || '审核录入时自动分配')}</output>
+            </label>
+            <label>版本
+              <output>VER AUTO</output>
+            </label>
+            <label>提交者
+              <output data-submitter>${escapeHtml(profileName)}</output>
             </label>
             <input type="hidden" name="targetContributionId" />
             <output class="archive-autosave-status" data-autosave-status data-state="local-saved">等待编辑</output>
@@ -739,40 +801,9 @@ export function initializeArchiveWorkspace({
             <button type="button" data-recovery-dismiss>忽略</button>
           </aside>
 
-          <nav class="archive-editor__outline" data-editor-outline aria-label="档案分区">
-            <button type="button" data-editor-outline-target="index">00 索引登记 <output data-editor-outline-error="index" hidden></output></button>
-            <button type="button" data-editor-outline-target="document">档案正文 <output data-editor-outline-error="document" hidden></output></button>
-            <span data-editor-template-outline></span>
-            <button type="button" data-editor-outline-target="references">关联材料</button>
-            ${mediaEditorMarkup ? '<button type="button" data-editor-outline-target="media">版面图片</button>' : ''}
-            <button type="button" data-editor-outline-target="attachments">补充附件</button>
-            <button type="button" data-editor-outline-target="attribution">归档责任</button>
-            <select data-editor-outline-select aria-label="跳转到档案分区">
-              <option value="index">00 索引登记</option>
-              <option value="document">档案正文</option>
-              <optgroup label="正文分区" data-editor-template-outline-options></optgroup>
-              <option value="references">关联材料</option>
-              ${mediaEditorMarkup ? '<option value="media">版面图片</option>' : ''}
-              <option value="attachments">补充附件</option>
-              <option value="attribution">归档责任</option>
-            </select>
-          </nav>
-
-          <div class="archive-editor__content" data-editor-scroll>
-            <section class="archive-editor__section" data-editor-section="index">
-              <div class="archive-editor__registration">
-                <span>PALIS / TEMPLATE ${escapeHtml(template.code)} / ${escapeHtml(template.abbreviation)}</span>
-                <b>VER 0.1 / 白幕初垂 / 待录入</b>
-              </div>
-              <p class="archive-editor__instruction">
-                先完成目录索引，再沿同一页面填写原版设定卡；正式输出继续使用原档案排版。
-              </p>
-
-              ${renderArchiveIndexFields(template.category, {
-                ...(initial.content?.indexData ?? {}),
-                title: initial.content?.indexData?.title || initial.title || '',
-              })}
-
+          <div class="archive-editor__scroll" data-editor-scroll>
+            ${nativeFieldsMarkup}
+            <section class="archive-native-section archive-native-targeting">
               <section class="archive-editable-picker" data-editable-archive-picker hidden>
                 <header>
                   <b>选择要补充或修改的档案</b>
@@ -795,26 +826,10 @@ export function initializeArchiveWorkspace({
                   <p data-target-document-status>修改申请必须指向一份具体文档；不会新建同级记录。</p>
                 </div>
               </section>
-
             </section>
+            <div class="archive-editor__document-errors" data-document-errors role="alert" hidden></div>
 
-            <section class="archive-editor__section archive-editor__section--document archive-editor__canvas is-loading"
-              data-editor-section="document" aria-busy="true">
-              <header><b>档案正文 / DOSSIER BODY</b><a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a></header>
-              <div class="archive-editor__document-errors" data-document-errors role="alert" hidden></div>
-              <div class="archive-editor__frame">
-                <div class="archive-editor__loading" data-template-editor-loading role="status"><b>正在载入设定卡</b><span>首次打开会准备可编辑档案版式</span></div>
-                <aside data-template-height-fallback role="alert" hidden>
-                  <b>正文未能完成嵌入</b><p>索引与已保存草稿仍可使用。可重新载入正文，或单独打开模板。</p>
-                  <button type="button" data-reload-template>重新载入正文</button>
-                  <a href="${templatePreviewUrl(template)}" target="_blank" rel="noopener">单独打开</a>
-                </aside>
-                <div class="archive-slash-reference-menu" data-slash-reference-menu hidden></div>
-                <iframe data-template-editor-frame src="${editorPreviewUrl(template, initialKind)}" title="${escapeHtml(template.title)}录入编辑器"></iframe>
-              </div>
-            </section>
-
-            <section class="archive-editor__section" data-editor-section="references">
+            <section class="archive-native-section" data-editor-section="references">
               <section class="archive-reference-editor">
                 <header>
                   <div><b>关联档案与引用</b><span>引用会在公开档案中变为可点击窗口</span></div>
@@ -867,21 +882,9 @@ export function initializeArchiveWorkspace({
     const recoveryPanel = form.querySelector('[data-recovery]');
     const kindSelect = form.elements.kind;
     const modifierRow = form.querySelector('[data-modifier-row]');
-    const templateFrame = form.querySelector('[data-template-editor-frame]');
-    const editorCanvas = form.querySelector('.archive-editor__canvas');
-    const editorLoading = form.querySelector('[data-template-editor-loading]');
-    const editorScroll = form.querySelector('[data-editor-scroll]');
-    const editorOutline = form.querySelector('[data-editor-outline]');
-    const editorOutlineSelect = form.querySelector('[data-editor-outline-select]');
-    const templateOutline = form.querySelector('[data-editor-template-outline]');
-    const templateOutlineOptions = form.querySelector('[data-editor-template-outline-options]');
-    const templateHeightFallback = form.querySelector('[data-template-height-fallback]');
     const documentErrors = form.querySelector('[data-document-errors]');
     const saveButton = form.querySelector('[data-save-now]');
     const submitButton = form.querySelector('[data-submit-draft]');
-    const indexErrorCount = form.querySelector('[data-editor-outline-error="index"]');
-    const documentErrorCount = form.querySelector('[data-editor-outline-error="document"]');
-    const slashReferenceMenu = form.querySelector('[data-slash-reference-menu]');
     const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
     const editableArchiveSelect = form.elements.archiveId;
     const editableArchiveStatus = form.querySelector('[data-editable-archive-status]');
@@ -889,8 +892,6 @@ export function initializeArchiveWorkspace({
     const targetDocumentSelect = form.elements.targetDocumentId;
     const targetDocumentStatus = form.querySelector('[data-target-document-status]');
     const formalNumberOutput = form.querySelector('[data-formal-number]');
-    const indexPanel = form.querySelector('[data-archive-index-panel]');
-    const indexErrors = form.querySelector('[data-index-errors]');
     const mediaPanel = form.querySelector('[data-archive-media-editor]');
     const mediaMessage = mediaPanel?.querySelector('[data-archive-media-message]');
     const mediaPolicy = mediaPolicyForCategory(template.category);
@@ -905,39 +906,26 @@ export function initializeArchiveWorkspace({
     const draftGeneration = (value, fallback = Date.now()) => Number.isFinite(Number(value)) ? Number(value) : fallback;
     const reportDirtyState = () => window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: !submitted && (editorDirty || hasVolatileFileSelection()) } }));
     const markEditorDirty = () => { if (form.dataset.editorSubmissionState !== 'submitted') submitted = false; editorDirty = true; reportDirtyState(); };
-    let editorDocument = draftContentToEditorDocument(template, initial.content, initial);
-    editorDocument.indexData = normalizeArchiveIndexData(template.category, {
-      title: editorDocument.title || initial.title || '',
-      ...editorDocument.indexData,
-    });
+    let editorDocument = initialEditorDocument;
     let references = [...editorDocument.references];
-    let editorBridge = null;
-    let editorOutlineSections = [];
-    let templateLoadTimeout = null;
-    const SYNCHRONIZED_TEMPLATE_KEYS = Object.freeze({
-      coordinate: 'f_5Z2Q5qCH',
-      specimenClass: 'f_5qSN54mp77yP5Yqo54mp77yP5aSN5ZCI576k6JC9',
-      eventStart: 'f_5YR55Sf5pe25pyf',
-    });
-    const NON_BODY_FIELD_KEYS = new Set([
-      'dossierNo',
-      'entryCode',
-      'regDate',
-      'clerk',
-      'hero',
-      ...Object.values(SYNCHRONIZED_TEMPLATE_KEYS),
-    ]);
-    const hasMeaningfulArchiveBody = (document) => Object.entries(
-      document?.values ?? {},
-    ).some(([key, value]) =>
-      !NON_BODY_FIELD_KEYS.has(key) && String(value ?? '').trim().length > 0);
-    const showDocumentError = (invalid) => {
-      documentErrors.hidden = !invalid;
-      documentErrors.textContent = invalid
-        ? '档案正文至少需要填写一个正文词条。'
+    const nativeControlFor = (section, key) => {
+      const controlSection = section === 'indexData' ? 'index' : section;
+      return form.querySelector(`[name="${CSS.escape(`${controlSection}:${key}`)}"]`);
+    };
+    const showNativeErrors = (errors = []) => {
+      form.querySelectorAll('[data-native-field]').forEach((control) => {
+        control.removeAttribute('aria-invalid');
+        control.closest('label')?.classList.remove('is-invalid');
+      });
+      errors.forEach(({ section, key }) => {
+        const control = nativeControlFor(section, key);
+        control?.setAttribute('aria-invalid', 'true');
+        control?.closest('label')?.classList.add('is-invalid');
+      });
+      documentErrors.hidden = errors.length === 0;
+      documentErrors.textContent = errors.length
+        ? `请补全必填档案内容：${errors.map(({ message }) => message).join('、')}`
         : '';
-      documentErrorCount.hidden = !invalid;
-      documentErrorCount.value = invalid ? '1' : '';
     };
     const setSubmissionState = (state) => {
       form.dataset.editorSubmissionState = state;
@@ -945,130 +933,6 @@ export function initializeArchiveWorkspace({
       submitButton.disabled = locked;
       saveButton.disabled = locked;
     };
-    const synchronizedTemplateFields = () => {
-      const descriptors = [{ key: 'hero' }];
-      if (template.category === 'station' || template.category === 'entrance') {
-        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.coordinate });
-      }
-      if (template.category === 'species') {
-        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.specimenClass });
-      }
-      if (template.category === 'event') {
-        descriptors.push({ key: SYNCHRONIZED_TEMPLATE_KEYS.eventStart });
-      }
-      return descriptors;
-    };
-    const showTemplateFallback = () => {
-      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
-      templateLoadTimeout = null;
-      editorCanvas.classList.add('has-layout-error');
-      editorCanvas.classList.remove('is-loading');
-      templateFrame.style.height = '70vh';
-      if (templateFrame.contentDocument?.documentElement) {
-        templateFrame.contentDocument.documentElement.dataset.palisWorkspaceEmbedError = 'true';
-      }
-      templateHeightFallback.hidden = false;
-      editorCanvas.setAttribute('aria-busy', 'false');
-      if (editorLoading) editorLoading.hidden = true;
-    };
-    const armTemplateLoadTimeout = () => {
-      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
-      templateLoadTimeout = setTimeout(showTemplateFallback, 8_000);
-    };
-    const applyTemplateHeight = (height) => {
-      if (!Number.isFinite(height) || height < 1) return;
-      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
-      templateLoadTimeout = null;
-      templateFrame.style.height = `${Math.ceil(height)}px`;
-      if (templateFrame.contentDocument?.documentElement) {
-        delete templateFrame.contentDocument.documentElement.dataset.palisWorkspaceEmbedError;
-      }
-      editorCanvas.classList.remove('has-layout-error');
-      templateHeightFallback.hidden = true;
-    };
-    const renderTemplateOutline = (sections = []) => {
-      editorOutlineSections = sections;
-      templateOutline.replaceChildren();
-      templateOutlineOptions.replaceChildren();
-      sections.forEach((section, index) => {
-        const label = `${String(index + 1).padStart(2, '0')} ${section.label}`;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.dataset.editorOutlineTarget = section.id;
-        button.dataset.templateOutlineItem = '';
-        button.textContent = label;
-        templateOutline.append(button);
-        const option = document.createElement('option');
-        option.value = section.id;
-        option.dataset.templateOutlineItem = '';
-        option.textContent = label;
-        templateOutlineOptions.append(option);
-      });
-    };
-    const editorScrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches
-      ? 'auto'
-      : 'smooth';
-    const editorTargetTop = (target) => {
-      const scrollRect = editorScroll.getBoundingClientRect();
-      const parentSection = form.querySelector(`[data-editor-section="${CSS.escape(target)}"]`);
-      if (parentSection) {
-        return editorScroll.scrollTop
-          + parentSection.getBoundingClientRect().top
-          - scrollRect.top;
-      }
-      const templateSection = editorOutlineSections.find((section) => section.id === target);
-      if (!templateSection) return null;
-      return editorScroll.scrollTop
-        + templateFrame.getBoundingClientRect().top
-        - scrollRect.top
-        + templateSection.offsetTop;
-    };
-    const setActiveOutline = (target) => {
-      editorOutline.querySelectorAll('[data-editor-outline-target]').forEach((button) => {
-        const active = button.dataset.editorOutlineTarget === target;
-        button.classList.toggle('is-current', active);
-        if (active) button.setAttribute('aria-current', 'location');
-        else button.removeAttribute('aria-current');
-      });
-      if ([...editorOutlineSelect.options].some((option) => option.value === target)) {
-        editorOutlineSelect.value = target;
-      }
-    };
-    const scrollToEditorSection = (target) => {
-      const top = editorTargetTop(target);
-      if (top === null) return;
-      editorScroll.scrollTo({ top, behavior: editorScrollBehavior });
-      setActiveOutline(target);
-    };
-    editorOutline.addEventListener('click', (event) => {
-      const target = event.target.closest('[data-editor-outline-target]')?.dataset.editorOutlineTarget;
-      if (target) scrollToEditorSection(target);
-    });
-    editorOutlineSelect.addEventListener('change', () => scrollToEditorSection(editorOutlineSelect.value));
-    let outlineFrame = null;
-    const updateOutlineFromScroll = () => {
-      outlineFrame = null;
-      const targets = [...editorOutline.querySelectorAll('[data-editor-outline-target]')]
-        .map((button) => ({
-          id: button.dataset.editorOutlineTarget,
-          top: editorTargetTop(button.dataset.editorOutlineTarget),
-        }))
-        .filter((entry) => entry.top !== null)
-        .sort((left, right) => left.top - right.top);
-      const current = targets.reduce(
-        (active, entry) => (entry.top <= editorScroll.scrollTop + 80 ? entry : active),
-        targets[0],
-      );
-      if (current) setActiveOutline(current.id);
-    };
-    const onEditorScroll = () => {
-      if (outlineFrame !== null) return;
-      outlineFrame = requestAnimationFrame(updateOutlineFromScroll);
-    };
-    editorScroll.addEventListener('scroll', onEditorScroll, { passive: true });
-    setActiveOutline('index');
-    const onTemplateFrameError = () => showTemplateFallback();
-    templateFrame.addEventListener('error', onTemplateFrameError);
     const uploadedAttachmentKeys = new Set();
     let editorDraft = {
       id: initial.id ?? null,
@@ -1163,7 +1027,6 @@ export function initializeArchiveWorkspace({
         ...editorDocument,
         media: mergeDurableMedia(media),
       };
-      editorBridge?.write(editorDocument);
       if (clearPending) clearPendingMedia();
       else renderPendingMedia();
     };
@@ -1180,93 +1043,6 @@ export function initializeArchiveWorkspace({
       if (state === 'cloud-synced') { latestSyncedAt = Math.max(latestSyncedAt, draftGeneration(detail.updatedAt, 0)); editorDirty = latestSyncedAt < latestQueuedAt; }
       window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state } }));
       reportDirtyState();
-    };
-
-    const indexInputFor = (key) =>
-      indexPanel?.querySelector?.(`[data-index-key="${CSS.escape(key)}"]`) ?? null;
-
-    const readIndexControls = () => Object.fromEntries(
-      [...(indexPanel?.querySelectorAll?.('[data-index-key]') ?? [])].map((control) => [
-        control.dataset.indexKey,
-        control.value,
-      ]),
-    );
-
-    const fillIndexControls = (value) => {
-      const normalized = normalizeArchiveIndexData(template.category, value);
-      Object.entries(normalized).forEach(([key, fieldValue]) => {
-        const control = indexInputFor(key);
-        if (control) control.value = String(fieldValue ?? '');
-      });
-      editorDocument.indexData = normalized;
-    };
-
-    const focusIndexField = (key) => {
-      const control = indexInputFor(key);
-      control?.focus?.();
-      control?.scrollIntoView?.({ block: 'nearest' });
-      return Boolean(control);
-    };
-
-    const showIndexErrors = (missing = []) => {
-      indexPanel?.querySelectorAll?.('[data-archive-index-field]').forEach((field) => {
-        const invalid = missing.includes(field.dataset.archiveIndexField);
-        field.classList.toggle('is-invalid', invalid);
-        field.querySelector?.('[data-index-key]')?.setAttribute?.('aria-invalid', String(invalid));
-      });
-      indexErrorCount.hidden = missing.length === 0;
-      indexErrorCount.value = missing.length ? String(missing.length) : '';
-      if (!indexErrors) return;
-      indexErrors.hidden = missing.length === 0;
-      indexErrors.textContent = missing.length
-        ? `请补全或修正目录索引：${missing.map((key) => (
-          indexPanel.querySelector(`[data-archive-index-field="${CSS.escape(key)}"] > span`)
-            ?.textContent.replace(/必填|可空/g, '').trim() || key
-        )).join('、')}`
-        : '';
-    };
-
-    const coordinateText = (indexData) => {
-      const latitude = indexData.latitude;
-      const longitude = indexData.longitude;
-      if (latitude === '' || longitude === '') return '';
-      return `${latitude}°, ${longitude}°`;
-    };
-
-    const syncIndexFieldToTemplate = (key) => {
-      if (!editorBridge) return;
-      const indexData = editorDocument.indexData;
-      const silent = { notify: false };
-      if (key === 'title') {
-        editorBridge.writeFieldValue('hero', indexData.title, silent);
-        return;
-      }
-      if (
-        (template.category === 'station' || template.category === 'entrance')
-        && (key === 'latitude' || key === 'longitude')
-      ) {
-        editorBridge.writeFieldValue(
-          SYNCHRONIZED_TEMPLATE_KEYS.coordinate,
-          coordinateText(indexData),
-          silent,
-        );
-        return;
-      }
-      if (template.category === 'species' && key === 'specimenClass') {
-        editorBridge.writeFieldValue(
-          SYNCHRONIZED_TEMPLATE_KEYS.specimenClass,
-          indexData.specimenClass,
-          silent,
-        );
-        return;
-      }
-      if (template.category === 'event' && key === 'startDate') {
-        editorBridge.writeFieldValue(
-          SYNCHRONIZED_TEMPLATE_KEYS.eventStart,
-          indexData.startDate,
-          silent,
-        );
-      }
     };
 
     const remote = client
@@ -1338,15 +1114,14 @@ export function initializeArchiveWorkspace({
       form.elements.targetContributionId.value = '';
     };
 
-    const applyTargetDocument = () => {
+    const applyTargetDocument = (priorTarget = editorDraft) => {
       const selected = resolveArchiveDocumentTarget(
         targetDocumentChoices,
         targetDocumentSelect.value,
       );
-      editorDraft.targetDocumentId = selected?.value || '';
-      editorDraft.targetContributionId = selected?.targetContributionId ?? null;
-      editorDraft.baseVersionId = selected?.baseVersionId ?? null;
-      form.elements.targetContributionId.value = selected?.targetContributionId || '';
+      const immutableTarget = preserveImmutableEditorTarget(selected, priorTarget);
+      Object.assign(editorDraft, immutableTarget);
+      form.elements.targetContributionId.value = immutableTarget.targetContributionId || '';
       targetDocumentStatus.textContent = selected
         ? selected.official
           ? '修改对象：网站原有的官方档案正文。'
@@ -1362,6 +1137,13 @@ export function initializeArchiveWorkspace({
         || initial.targetDocumentId
         || initial.targetContributionId
         || (initial.officialBase ? `official:${archive.id}` : '');
+      const preferredTargetState = {
+        targetDocumentId: preferredTarget,
+        targetContributionId: editorDraft.targetContributionId
+          ?? initial.targetContributionId
+          ?? null,
+        baseVersionId: editorDraft.baseVersionId ?? initial.baseVersionId ?? null,
+      };
       clearTargetDocument();
       const requestSequence = ++targetDocumentRequestSequence;
       if (!client || !archive) {
@@ -1385,7 +1167,7 @@ export function initializeArchiveWorkspace({
         ].join('');
         if (targetDocumentChoices.some((choice) => choice.value === preferredTarget)) {
           targetDocumentSelect.value = preferredTarget;
-          applyTargetDocument();
+          applyTargetDocument(preferredTargetState);
         } else {
           targetDocumentStatus.textContent = targetDocumentChoices.length
             ? '请选择要修改的具体文档。'
@@ -1441,19 +1223,52 @@ export function initializeArchiveWorkspace({
       }
     };
 
+    const readCurrentNativeDocument = () => {
+      const visibleCustomIds = new Set(
+        [...form.querySelectorAll('[data-native-custom-entry]')]
+          .map((entry) => entry.dataset.nativeCustomId)
+          .filter(Boolean),
+      );
+      const priorValues = Object.fromEntries(
+        Object.entries(editorDocument.values).filter(([key]) => {
+          const custom = /^custom:item:([^:]+):(title|content)$/.exec(key);
+          return !custom || visibleCustomIds.has(custom[1]);
+        }),
+      );
+      const nextDocument = readNativeArchiveForm(form, nativeProfile, {
+        ...editorDocument,
+        values: priorValues,
+      });
+      const values = { ...nextDocument.values };
+      form.querySelectorAll('[data-native-legacy-field]').forEach((control) => {
+        values[control.dataset.nativeLegacyField] = control.value;
+      });
+      return normalizeEditorDocument({
+        ...nextDocument,
+        values,
+        references,
+        media: persistableWorkspaceMedia(template.category, editorDocument.media),
+      });
+    };
+
+    const populateNativeDocument = (nextDocument) => {
+      const rendered = document.createElement('template');
+      rendered.innerHTML = renderNativeEditorFields(template, nativeProfile, nextDocument);
+      ['[data-native-custom]', '[data-native-legacy]'].forEach((selector) => {
+        const current = form.querySelector(selector);
+        const replacement = rendered.content.querySelector(selector);
+        if (current && replacement) current.replaceWith(replacement.cloneNode(true));
+      });
+      writeNativeArchiveForm(form, nativeProfile, nextDocument);
+    };
+
     const collectDraft = () => {
-      if (editorBridge) editorDocument = editorBridge.read();
       const attachmentFiles = [...form.elements.attachments.files].map((file) => ({
         name: file.name,
         type: file.type,
         size: file.size,
       }));
-      editorDocument = normalizeEditorDocument({
-        ...editorDocument,
-        indexData: readIndexControls(),
-        references,
-        media: persistableWorkspaceMedia(template.category, editorDocument.media),
-      });
+      editorDocument = readCurrentNativeDocument();
       editorDraft = {
         ...editorDraft,
         key: localKey,
@@ -1489,11 +1304,11 @@ export function initializeArchiveWorkspace({
         || draft.targetContributionId
         || editorDraft.targetDocumentId
         || '';
-      editorDocument = draftContentToEditorDocument(template, draft.content, draft);
+      const nextDocument = draftContentToEditorDocument(template, draft.content, draft);
+      editorDocument = nextDocument;
       clearPendingMedia();
-      fillIndexControls(editorDocument.indexData);
       references = [...editorDocument.references];
-      editorBridge?.write(editorDocument);
+      populateNativeDocument(editorDocument);
       renderPendingMedia();
       renderReferenceList(referenceList, references);
       updateMode();
@@ -1507,118 +1322,6 @@ export function initializeArchiveWorkspace({
     };
 
     populateDraft(editorDraft);
-    let slashSearchSequence = 0;
-    const runSlashReferenceSearch = async ({ query }) => {
-      const searchSequence = ++slashSearchSequence;
-      slashReferenceMenu.hidden = false;
-      slashReferenceMenu.innerHTML = `<p>正在检索“${escapeHtml(query || '全部档案')}”…</p>`;
-      if (!client) {
-        slashReferenceMenu.innerHTML = '<p>档案服务未连接，暂时无法插入引用。</p>';
-        return;
-      }
-      try {
-        const matches = await client.searchArchives(query, { limit: 8 });
-        if (searchSequence !== slashSearchSequence) return;
-        slashReferenceMenu.innerHTML = matches.length
-          ? matches.map((archive) => `
-              <button type="button" data-insert-slash-reference="${escapeHtml(archive.id)}" data-code="${escapeHtml(archive.code)}" data-label="${escapeHtml(archive.title)}">
-                <b>${escapeHtml(archive.title)}</b>
-                <span>${escapeHtml(archive.code)} / ${escapeHtml(archive.category)}</span>
-              </button>
-            `).join('')
-          : '<p>没有找到标题或编号匹配的档案。</p>';
-      } catch (error) {
-        if (searchSequence !== slashSearchSequence) return;
-        slashReferenceMenu.innerHTML = `<p>引用检索失败：${escapeHtml(error?.message || '请稍后重试')}</p>`;
-      }
-    };
-
-    slashReferenceMenu.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-insert-slash-reference]');
-      if (!button) return;
-      const reference = buildArchiveReference({
-        id: button.dataset.insertSlashReference,
-        code: button.dataset.code,
-        title: button.dataset.label,
-      });
-      if (!references.some((entry) => entry.archiveId === reference.archiveId)) {
-        references.push(reference);
-        renderReferenceList(referenceList, references);
-      }
-      editorBridge?.insertReference(reference);
-      slashReferenceMenu.hidden = true;
-      queueDraftAutosave();
-    });
-
-    let activePreviewUrl = null;
-    const resetEditorForMode = () => {
-      editorBridge?.dispose();
-      editorBridge = null;
-      activePreviewUrl = null;
-      references = [];
-      editorDocument = createEditorDocument(template, {}, {
-        indexData: readIndexControls(),
-        references,
-        media: [],
-      });
-      clearPendingMedia();
-      renderReferenceList(referenceList, references);
-    };
-    const mountEditorBridge = ({ waitForLoad = false } = {}) => {
-      const previewUrl = editorPreviewUrl(template, kindSelect.value);
-      if (editorBridge && activePreviewUrl === previewUrl) return;
-      editorDocument = editorBridge?.read() || editorDocument;
-      editorBridge?.dispose();
-      activePreviewUrl = previewUrl;
-      armTemplateLoadTimeout();
-      editorCanvas.classList.remove('has-layout-error');
-      templateHeightFallback.hidden = true;
-      editorCanvas?.classList.add('is-loading');
-      editorCanvas?.setAttribute('aria-busy', 'true');
-      if (editorLoading) editorLoading.hidden = false;
-      if (templateFrame.getAttribute('src') !== previewUrl) templateFrame.setAttribute('src', previewUrl);
-      editorBridge = createTemplateEditorBridge({
-        iframe: templateFrame,
-        template,
-        initialDocument: editorDocument,
-        onReferenceTrigger: runSlashReferenceSearch,
-        embedded: true,
-        onHeightChange: applyTemplateHeight,
-        onOutlineChange: renderTemplateOutline,
-        onLayoutError: showTemplateFallback,
-        onChange: (document) => {
-          editorDocument = {
-            ...document,
-            indexData: editorDocument.indexData,
-            references,
-          };
-          queueDraftAutosave();
-        },
-        waitForLoad,
-      });
-      const mountedBridge = editorBridge;
-      mountedBridge.ready.then((bridge) => {
-        if (editorBridge !== mountedBridge) return;
-        if (!bridge) {
-          showTemplateFallback();
-          return;
-        }
-        bridge.setSystemFields(editorDocument.values);
-        bridge.setSynchronizedFields(synchronizedTemplateFields());
-        Object.keys(editorDocument.indexData).forEach(syncIndexFieldToTemplate);
-        editorCanvas?.classList.remove('is-loading');
-        editorCanvas?.setAttribute('aria-busy', 'false');
-        if (editorLoading) editorLoading.hidden = true;
-      });
-    };
-    mountEditorBridge();
-    form.querySelector('[data-reload-template]')?.addEventListener('click', () => {
-      editorBridge?.dispose();
-      editorBridge = null;
-      mountEditorBridge({ waitForLoad: true });
-      if (templateFrame.contentWindow) templateFrame.contentWindow.location.reload();
-      else templateFrame.setAttribute('src', activePreviewUrl);
-    });
     if (initial.archiveId && !initial.id && initial.kind !== 'new') {
       await loadEditableArchives();
       editableArchiveSelect.value = initial.archiveId;
@@ -1732,29 +1435,39 @@ export function initializeArchiveWorkspace({
       renderPendingMedia();
     });
 
+    form.addEventListener('click', (event) => {
+      const addCustom = event.target.closest('[data-add-native-custom-entry]');
+      if (addCustom) {
+        const id = `entry-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+        const fieldset = document.createElement('fieldset');
+        fieldset.dataset.nativeCustomEntry = '';
+        fieldset.dataset.nativeCustomId = id;
+        fieldset.innerHTML = `
+          <button type="button" data-remove-native-custom-entry aria-label="删除这条自定义内容">删除</button>
+          <label>自定义标题<input name="custom:${escapeHtml(id)}:title"></label>
+          <label>内容<textarea name="custom:${escapeHtml(id)}:content"></textarea></label>
+        `;
+        form.querySelector('[data-native-custom]').append(fieldset);
+        fieldset.querySelector('input')?.focus();
+        queueDraftAutosave();
+        return;
+      }
+      const removeCustom = event.target.closest('[data-remove-native-custom-entry]');
+      if (removeCustom) {
+        removeCustom.closest('[data-native-custom-entry]')?.remove();
+        queueDraftAutosave();
+      }
+    });
+
     form.addEventListener('input', (event) => {
       if (event.target.closest('[data-reference-search]')) return;
       if (event.target.closest('[data-archive-media-editor]')) return;
-      if (event.target.matches?.('[data-index-key]')) {
-        editorDocument.indexData = normalizeArchiveIndexData(
-          template.category,
-          readIndexControls(),
-        );
-        showIndexErrors([]);
-        syncIndexFieldToTemplate(event.target.dataset.indexKey);
-      }
+      showNativeErrors([]);
       queueDraftAutosave();
     });
     form.addEventListener('change', (event) => {
       if (event.target.closest('[data-archive-media-editor]')) return;
-      if (event.target === kindSelect) {
-        resetEditorForMode();
-        updateMode();
-        mountEditorBridge({ waitForLoad: true });
-        if (kindSelect.value !== 'new' && editableArchiveSelect.value) {
-          void applySelectedArchive();
-        }
-      } else if (event.target === editableArchiveSelect) {
+      if (event.target === editableArchiveSelect) {
         void applySelectedArchive();
       } else if (event.target === targetDocumentSelect) {
         applyTargetDocument();
@@ -1836,27 +1549,20 @@ export function initializeArchiveWorkspace({
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const collectedDraft = collectDraft();
-      const validation = validateArchiveIndexData(
-        template.category,
-        collectedDraft.content.indexData,
+      const validation = validateNativeFormState(
+        nativeProfile,
+        readNativeFormState(template, collectedDraft.content),
       );
       if (!validation.valid) {
-        fillIndexControls(validation.value);
-        showIndexErrors(validation.missing);
-        focusIndexField(validation.missing[0]);
-        message.textContent = '请先补全左侧“目录归类与索引登记”的必填内容。';
+        showNativeErrors(validation.errors);
+        const first = validation.errors[0];
+        const firstControl = nativeControlFor(first.section, first.key);
+        firstControl?.focus();
+        firstControl?.scrollIntoView({ block: 'nearest' });
+        message.textContent = '请先补全目录识别与核心档案内容中的必填项。';
         return;
       }
-      editorDocument.indexData = validation.value;
-      showIndexErrors([]);
-      if (!hasMeaningfulArchiveBody(editorDocument)) {
-        showDocumentError(true);
-        scrollToEditorSection('document');
-        templateFrame.focus({ preventScroll: true });
-        message.textContent = '请至少填写一个档案正文词条。';
-        return;
-      }
-      showDocumentError(false);
+      showNativeErrors([]);
       if (!form.reportValidity()) return;
       if (!client) {
         message.textContent = '当前未连接档案服务，仅保留了本地暂存。';
@@ -1962,7 +1668,6 @@ export function initializeArchiveWorkspace({
         editorDirty = false;
         setAutosaveState('cloud-synced');
         setSubmissionState('submitted');
-        editorBridge?.setReadOnly(true);
         clearPendingMedia();
         form.elements.attachments.value = '';
         form.querySelectorAll('input, select, textarea, button').forEach((control) => {
@@ -2000,14 +1705,8 @@ export function initializeArchiveWorkspace({
       window.removeEventListener('palis:workspace-flush-request', flushForWorkspaceExit);
       window.removeEventListener('palis:workspace-discard-request', discardForWorkspaceExit);
       window.removeEventListener('palis:workspace-leave-aborted', rearmAfterFailedLeave);
-      templateFrame.removeEventListener('error', onTemplateFrameError);
-      editorScroll.removeEventListener('scroll', onEditorScroll);
-      if (outlineFrame !== null) cancelAnimationFrame(outlineFrame);
-      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
       window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: false } }));
       window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state: 'closed' } }));
-      editorBridge?.dispose();
-      editorBridge = null;
       await autosave.dispose();
     };
     return windowState;
