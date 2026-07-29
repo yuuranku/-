@@ -167,11 +167,27 @@ const escapeHtml = (value) => valueOf(value).replace(/[&<>"']/g, (character) => 
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
 
+const constraintsHtml = (field) => {
+  const required = field.required ? ' required' : '';
+  if (field.type !== 'number') return required;
+  return `${required}${field.min !== undefined ? ` min="${escapeHtml(field.min)}"` : ''}${field.max !== undefined ? ` max="${escapeHtml(field.max)}"` : ''}${field.step !== undefined ? ` step="${escapeHtml(field.step)}"` : ''}`;
+};
+
 const controlHtml = (name, field, value) => {
   const escapedName = escapeHtml(name);
   const escapedValue = escapeHtml(value);
-  if (field.type === 'textarea') return `<label>${escapeHtml(field.label)}<textarea name="${escapedName}" data-native-field="${escapedName}">${escapedValue}</textarea></label>`;
-  return `<label>${escapeHtml(field.label)}<input name="${escapedName}" data-native-field="${escapedName}" type="${escapeHtml(field.type)}" value="${escapedValue}"></label>`;
+  const constraints = constraintsHtml(field);
+  if (field.type === 'textarea') return `<label>${escapeHtml(field.label)}<textarea name="${escapedName}" data-native-field="${escapedName}"${constraints}>${escapedValue}</textarea></label>`;
+  if (field.type === 'select') {
+    const options = [
+      `<option value="">请选择${escapeHtml(field.label)}</option>`,
+      ...(field.options ?? []).map((option) => (
+        `<option value="${escapeHtml(option.value)}"${valueOf(value) === valueOf(option.value) ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
+      )),
+    ].join('');
+    return `<label>${escapeHtml(field.label)}<select name="${escapedName}" data-native-field="${escapedName}"${constraints}>${options}</select></label>`;
+  }
+  return `<label>${escapeHtml(field.label)}<input name="${escapedName}" data-native-field="${escapedName}" type="${escapeHtml(field.type)}" value="${escapedValue}"${constraints}></label>`;
 };
 
 export const renderNativeArchiveForm = (profile, document, options = {}) => {
@@ -210,7 +226,9 @@ export const writeNativeArchiveForm = (form, profile, document) => {
     values.set(`custom:${entry.id}:title`, entry.title);
     values.set(`custom:${entry.id}:content`, entry.content);
   }
-  for (const control of controlsFor(form)) assignControl(control, values.get(control.name));
+  for (const control of controlsFor(form)) {
+    if (values.has(control.name)) assignControl(control, values.get(control.name));
+  }
 };
 
 export const readNativeArchiveForm = (form, profile, priorDocument = {}) => {
@@ -234,11 +252,43 @@ export const readNativeArchiveForm = (form, profile, priorDocument = {}) => {
 
 export const validateNativeFormState = (profile, state = {}) => {
   const errors = [];
-  const requireValue = (field, section) => {
-    if (!field.required || valueOf(state[section]?.[field.key]).trim()) return;
-    errors.push({ key: field.key, section, message: `${field.label}为必填项` });
+  const report = (field, section, message) => {
+    errors.push({ key: field.key, section, message });
   };
-  for (const field of profile.indexFields) requireValue(field, 'indexData');
-  for (const field of profile.coreFields) requireValue(field, field.section);
+  const isDateValue = (value) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return false;
+    const [, year, month, day] = match.map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year
+      && date.getUTCMonth() === month - 1
+      && date.getUTCDate() === day;
+  };
+  const validateField = (field, section) => {
+    const value = valueOf(state[section]?.[field.key]).trim();
+    if (!value) {
+      if (field.required) report(field, section, `${field.label}为必填项`);
+      return;
+    }
+    if (field.options?.length && !field.options.some((option) => option.value === value)) {
+      report(field, section, `${field.label}必须选择有效选项`);
+      return;
+    }
+    if (field.type === 'number') {
+      const number = Number(value);
+      if (!Number.isFinite(number)
+        || (field.min !== undefined && number < field.min)
+        || (field.max !== undefined && number > field.max)) {
+        report(field, section, `${field.label}不在允许范围内`);
+      }
+      return;
+    }
+    if (field.type === 'date' && !isDateValue(value)) {
+      report(field, section, `${field.label}必须是有效日期`);
+    }
+  };
+  for (const field of profile.indexFields) validateField(field, 'indexData');
+  for (const field of profile.coreFields) validateField(field, field.section);
+  for (const field of profile.optionalFields) validateField(field, field.section);
   return { valid: errors.length === 0, errors };
 };

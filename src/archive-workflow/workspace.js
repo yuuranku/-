@@ -802,7 +802,9 @@ export function initializeArchiveWorkspace({
           </aside>
 
           <div class="archive-editor__scroll" data-editor-scroll>
-            ${nativeFieldsMarkup}
+            <div data-native-form-root>
+              ${nativeFieldsMarkup}
+            </div>
             <section class="archive-native-section archive-native-targeting">
               <section class="archive-editable-picker" data-editable-archive-picker hidden>
                 <header>
@@ -880,6 +882,7 @@ export function initializeArchiveWorkspace({
     const referenceList = form.querySelector('[data-reference-list]');
     const referenceResults = form.querySelector('[data-reference-results]');
     const recoveryPanel = form.querySelector('[data-recovery]');
+    const nativeFormRoot = form.querySelector('[data-native-form-root]');
     const kindSelect = form.elements.kind;
     const modifierRow = form.querySelector('[data-modifier-row]');
     const documentErrors = form.querySelector('[data-document-errors]');
@@ -910,7 +913,7 @@ export function initializeArchiveWorkspace({
     let references = [...editorDocument.references];
     const nativeControlFor = (section, key) => {
       const controlSection = section === 'indexData' ? 'index' : section;
-      return form.querySelector(`[name="${CSS.escape(`${controlSection}:${key}`)}"]`);
+      return nativeFormRoot.querySelector(`[name="${CSS.escape(`${controlSection}:${key}`)}"]`);
     };
     const showNativeErrors = (errors = []) => {
       form.querySelectorAll('[data-native-field]').forEach((control) => {
@@ -1225,7 +1228,7 @@ export function initializeArchiveWorkspace({
 
     const readCurrentNativeDocument = () => {
       const visibleCustomIds = new Set(
-        [...form.querySelectorAll('[data-native-custom-entry]')]
+        [...nativeFormRoot.querySelectorAll('[data-native-custom-entry]')]
           .map((entry) => entry.dataset.nativeCustomId)
           .filter(Boolean),
       );
@@ -1235,12 +1238,12 @@ export function initializeArchiveWorkspace({
           return !custom || visibleCustomIds.has(custom[1]);
         }),
       );
-      const nextDocument = readNativeArchiveForm(form, nativeProfile, {
+      const nextDocument = readNativeArchiveForm(nativeFormRoot, nativeProfile, {
         ...editorDocument,
         values: priorValues,
       });
       const values = { ...nextDocument.values };
-      form.querySelectorAll('[data-native-legacy-field]').forEach((control) => {
+      nativeFormRoot.querySelectorAll('[data-native-legacy-field]').forEach((control) => {
         values[control.dataset.nativeLegacyField] = control.value;
       });
       return normalizeEditorDocument({
@@ -1255,11 +1258,11 @@ export function initializeArchiveWorkspace({
       const rendered = document.createElement('template');
       rendered.innerHTML = renderNativeEditorFields(template, nativeProfile, nextDocument);
       ['[data-native-custom]', '[data-native-legacy]'].forEach((selector) => {
-        const current = form.querySelector(selector);
+        const current = nativeFormRoot.querySelector(selector);
         const replacement = rendered.content.querySelector(selector);
         if (current && replacement) current.replaceWith(replacement.cloneNode(true));
       });
-      writeNativeArchiveForm(form, nativeProfile, nextDocument);
+      writeNativeArchiveForm(nativeFormRoot, nativeProfile, nextDocument);
     };
 
     const collectDraft = () => {
@@ -1447,7 +1450,7 @@ export function initializeArchiveWorkspace({
           <label>自定义标题<input name="custom:${escapeHtml(id)}:title"></label>
           <label>内容<textarea name="custom:${escapeHtml(id)}:content"></textarea></label>
         `;
-        form.querySelector('[data-native-custom]').append(fieldset);
+        nativeFormRoot.querySelector('[data-native-custom]').append(fieldset);
         fieldset.querySelector('input')?.focus();
         queueDraftAutosave();
         return;

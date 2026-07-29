@@ -117,6 +117,10 @@ test('local administrator opens the workspace without loading cloud authenticati
       activeIsDialog: true,
       label: '事件档案',
     });
+    assert.equal(
+      await page.$eval('[data-archive-editor]', (form) => form.elements.kind.value),
+      'new',
+    );
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
       detail: { key: 'browser-sync', state: 'cloud-syncing' },
     })));
@@ -270,9 +274,13 @@ test('local administrator opens the workspace without loading cloud authenticati
       return {
         archiveId: published.archiveId,
         amendmentId: returned.id,
+        targetContributionId: base.id,
+        targetDocumentId: base.id,
+        baseVersionId: published.versionId,
         returnedOwnerId: returned.owner_id,
         clerkDraftIds: clerkDrafts.map((draft) => draft.id),
         clerk,
+        admin: principal,
       };
     });
 
@@ -313,6 +321,67 @@ test('local administrator opens the workspace without loading cloud authenticati
     );
     await page.click(returnedAmendment);
     await page.waitForSelector('.archive-editor-window:not([hidden])');
+    await page.waitForFunction((fixture) => {
+      const form = document.querySelector('[data-archive-editor]');
+      return form?.elements.kind.value === 'amendment'
+        && form.elements.archiveId.value === fixture.archiveId
+        && form.elements.targetContributionId.value === fixture.targetContributionId
+        && form.elements.targetDocumentId.value === fixture.targetDocumentId;
+    }, { timeout: 10_000 }, modificationFixture);
+
+    await page.$eval('[data-archive-editor] [name="body:eventOverview"]', (field) => {
+      field.value = '浏览器修改后的事件概述';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForFunction((fixture) => {
+      const raw = localStorage.getItem(`palis:draft:${fixture.clerk.id}:07:${fixture.amendmentId}`);
+      if (!raw) return false;
+      const draft = JSON.parse(raw);
+      return draft.kind === 'amendment'
+        && draft.archiveId === fixture.archiveId
+        && draft.targetContributionId === fixture.targetContributionId
+        && draft.targetDocumentId === fixture.targetDocumentId
+        && draft.baseVersionId === fixture.baseVersionId;
+    }, { timeout: 5_000 }, modificationFixture);
+
+    await page.$eval('[data-archive-editor] [name="index:startDate"]', (field) => {
+      field.value = '1963-08-31';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.select('[data-archive-editor] [name="index:timePrecision"]', 'DAY');
+    await page.$eval('[data-archive-editor] [name="index:location"]', (field) => {
+      field.value = '南极大陆';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.$eval('[data-archive-editor] [name="body:evidenceSummary"]', (field) => {
+      field.value = '补充证据摘要';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('[data-archive-editor] [data-submit-draft]');
+    await page.waitForFunction(() => document.querySelector('[data-archive-editor]')?.dataset.editorSubmissionState === 'submitted');
+    const submittedAmendment = await page.evaluate(async (fixture) => {
+      const { createLocalIndexedDbRepository } = await import('/src/archive-workflow/repositories/local-indexeddb-repository.js');
+      const repository = createLocalIndexedDbRepository({
+        indexedDB,
+        getPrincipal: () => fixture.admin,
+        now: () => new Date().toISOString(),
+        randomUUID: () => crypto.randomUUID(),
+      });
+      return (await repository.listReviewQueue()).find((entry) => entry.id === fixture.amendmentId);
+    }, modificationFixture);
+    assert.deepEqual({
+      kind: submittedAmendment.kind,
+      archiveId: submittedAmendment.archive_id,
+      targetContributionId: submittedAmendment.target_contribution_id,
+      targetDocumentId: submittedAmendment.draft_content.targetDocumentId,
+      baseVersionId: submittedAmendment.base_version_id,
+    }, {
+      kind: 'amendment',
+      archiveId: modificationFixture.archiveId,
+      targetContributionId: modificationFixture.targetContributionId,
+      targetDocumentId: modificationFixture.targetDocumentId,
+      baseVersionId: modificationFixture.baseVersionId,
+    });
     await page.click('.archive-editor-window [data-workflow-close]');
     await page.waitForFunction(() =>
       !document.querySelector('.archive-editor-window')

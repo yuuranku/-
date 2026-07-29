@@ -7,7 +7,9 @@ import {
   NATIVE_FORM_PROFILES,
   getNativeFormProfile,
   readNativeFormState,
+  renderNativeArchiveForm,
   validateNativeFormState,
+  writeNativeArchiveForm,
   writeNativeFormDocument,
 } from '../src/archive-workflow/native-form-profiles.js';
 
@@ -87,4 +89,78 @@ test('validation reports every empty required field while accepting a complete s
     'latitude', 'longitude', 'owner', 'stationType', 'status', 'stationOverview',
   ]);
   assert.deepEqual(complete, { valid: true, errors: [] });
+});
+
+test('native writer leaves outer workflow controls untouched', () => {
+  const profile = getNativeFormProfile('station');
+  const title = { name: 'index:title', type: 'text', value: '' };
+  const workflowKind = { name: 'kind', type: 'hidden', value: 'new' };
+  const targetContribution = { name: 'targetContributionId', type: 'hidden', value: 'document-7' };
+  const root = {
+    querySelectorAll: () => [title, workflowKind, targetContribution],
+  };
+
+  writeNativeArchiveForm(root, profile, createEditorDocument(template03, {
+    hero: '南极站',
+  }, {
+    indexData: { title: '南极站' },
+  }));
+
+  assert.equal(title.value, '南极站');
+  assert.equal(workflowKind.value, 'new');
+  assert.equal(targetContribution.value, 'document-7');
+});
+
+test('native renderer and validation enforce declared index control types and constraints', () => {
+  const eventProfile = getNativeFormProfile('event');
+  const speciesProfile = getNativeFormProfile('species');
+  const stationProfile = getNativeFormProfile('station');
+  const eventHtml = renderNativeArchiveForm(eventProfile, createEditorDocument(
+    ARCHIVE_TEMPLATE_BY_CODE['07'], {},
+  ));
+  const speciesHtml = renderNativeArchiveForm(speciesProfile, createEditorDocument(
+    ARCHIVE_TEMPLATE_BY_CODE['09'], {},
+  ));
+  const stationHtml = renderNativeArchiveForm(stationProfile, createEditorDocument(
+    template03, {},
+  ));
+
+  assert.match(eventHtml, /<select[^>]+name="index:timePrecision"[^>]*>/);
+  assert.match(eventHtml, /<option value="DAY">/);
+  assert.match(eventHtml, /<option value="UNKNOWN">/);
+  assert.match(speciesHtml, /<select[^>]+name="index:specimenClass"[^>]*>/);
+  assert.match(speciesHtml, /<option value="FLORA">/);
+  assert.match(speciesHtml, /<option value="COMPOSITE">/);
+  assert.match(stationHtml, /name="index:latitude"[^>]*type="number"[^>]*min="-90"[^>]*max="90"[^>]*step="any"/);
+  assert.match(stationHtml, /name="index:longitude"[^>]*type="number"[^>]*min="-180"[^>]*max="180"[^>]*step="any"/);
+
+  const invalidCoordinates = validateNativeFormState(stationProfile, {
+    indexData: {
+      title: '南极站', latitude: '91', longitude: 'not-a-number', owner: 'PALIS', stationType: '科考', status: '运行',
+    },
+    body: { stationOverview: '站点概述' }, optional: {}, customEntries: [],
+  });
+  const invalidEventEnum = validateNativeFormState(eventProfile, {
+    indexData: {
+      title: '事件', startDate: '1963-08-31', timePrecision: 'MOMENT', location: '南极',
+    },
+    body: { eventOverview: '事件概述', evidenceSummary: '证据摘要' }, optional: {}, customEntries: [],
+  });
+  const invalidEventDate = validateNativeFormState(eventProfile, {
+    indexData: {
+      title: '事件', startDate: '1963-02-30', timePrecision: 'DAY', location: '南极',
+    },
+    body: { eventOverview: '事件概述', evidenceSummary: '证据摘要' }, optional: {}, customEntries: [],
+  });
+  const invalidSpeciesEnum = validateNativeFormState(speciesProfile, {
+    indexData: {
+      title: '物种', specimenClass: 'UNKNOWN', discoveredAt: '1963', location: '南极', specimenStatus: '已收录', hazard: '低',
+    },
+    body: { featureDiscoveryRisk: '特征与风险' }, optional: {}, customEntries: [],
+  });
+
+  assert.deepEqual(invalidCoordinates.errors.map(({ key }) => key), ['latitude', 'longitude']);
+  assert.deepEqual(invalidEventEnum.errors.map(({ key }) => key), ['timePrecision']);
+  assert.deepEqual(invalidEventDate.errors.map(({ key }) => key), ['startDate']);
+  assert.deepEqual(invalidSpeciesEnum.errors.map(({ key }) => key), ['specimenClass']);
 });
