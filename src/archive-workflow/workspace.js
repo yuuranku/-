@@ -367,9 +367,6 @@ const templatePreviewUrl = (template) =>
 
 const FREEFORM_AMENDMENT_TEMPLATE = '/templates/10-自由修订补充页.html';
 
-const isFixedArchiveCategory = (category) =>
-  category === 'station' || category === 'entrance';
-
 const editorPreviewUrl = (template, kind) =>
   kind === 'amendment' ? FREEFORM_AMENDMENT_TEMPLATE : templatePreviewUrl(template);
 
@@ -658,8 +655,7 @@ export function initializeArchiveWorkspace({
 
   const createEditor = async (template, initial = {}) => {
     if (!ensureWorkspaceAccess()) return null;
-    const fixedArchive = isFixedArchiveCategory(template.category) && context.role !== 'admin';
-    const initialKind = fixedArchive ? 'amendment' : (initial.kind || 'new');
+    const initialKind = initial.kind || 'new';
     const editorKey = initial.id
       ? `editor-${initial.id}`
       : initial.targetContributionId
@@ -869,10 +865,6 @@ export function initializeArchiveWorkspace({
     const draftGeneration = (value, fallback = Date.now()) => Number.isFinite(Number(value)) ? Number(value) : fallback;
     const reportDirtyState = () => window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: !submitted && (editorDirty || hasVolatileFileSelection()) } }));
     const markEditorDirty = () => { if (form.dataset.editorSubmissionState !== 'submitted') submitted = false; editorDirty = true; reportDirtyState(); };
-    if (fixedArchive) {
-      kindSelect.value = 'amendment';
-      kindSelect.disabled = true;
-    }
     let editorDocument = draftContentToEditorDocument(template, initial.content, initial);
     editorDocument.indexData = normalizeArchiveIndexData(template.category, {
       title: editorDocument.title || initial.title || '',
@@ -1392,7 +1384,6 @@ export function initializeArchiveWorkspace({
     };
 
     const updateMode = () => {
-      if (fixedArchive) kindSelect.value = 'amendment';
       const existingArchive = kindSelect.value !== 'new';
       const amendment = kindSelect.value === 'amendment';
       editableArchivePicker.hidden = !existingArchive;

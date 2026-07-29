@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
+import { archiveCabinetEntries } from '../src/archive-workflow/archive-cabinet.js';
 
 const projectRoot = new URL('../', import.meta.url);
 const [html, workspace, styles, main, templates] = await Promise.all([
@@ -84,11 +85,25 @@ test('amendments choose a visible archive instead of asking for internal record 
   assert.doesNotMatch(workspace, /目标投稿 ID/);
 });
 
-test('station and entrance are clerk amendment-only while administrators can create them', async () => {
-  assert.match(workspace, /isFixedArchiveCategory/);
-  assert.match(workspace, /category === 'station'/);
-  assert.match(workspace, /category === 'entrance'/);
-  assert.match(workspace, /isFixedArchiveCategory\(template\.category\) && context\.role !== 'admin'/);
+test('all nine clerk categories enter the workspace as new drafts without UI coercion', async () => {
+  assert.deepEqual(
+    archiveCabinetEntries('clerk').map(({ code, defaultKind }) => [code, defaultKind]),
+    [
+      ['01', 'new'],
+      ['02', 'new'],
+      ['03', 'new'],
+      ['04', 'new'],
+      ['05', 'new'],
+      ['06', 'new'],
+      ['07', 'new'],
+      ['08', 'new'],
+      ['09', 'new'],
+    ],
+  );
+  assert.match(workspace, /const initialKind = initial\.kind \|\| 'new'/);
+  assert.match(workspace, /createEditor\(template,\s*\{\s*kind: button\.dataset\.defaultKind\s*\}\)/);
+  assert.doesNotMatch(workspace, /isFixedArchiveCategory/);
+  assert.doesNotMatch(workspace, /kindSelect\.disabled\s*=\s*true/);
   assert.match(workspace, /10-自由修订补充页\.html/);
   await access(new URL('public/templates/10-自由修订补充页.html', projectRoot));
 });

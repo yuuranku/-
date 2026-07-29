@@ -162,8 +162,10 @@
 **Files:**
 - Modify: `src/archive-workflow/archive-cabinet.js`
 - Modify: `src/archive-workflow/local/local-workflow-engine.js:118-143, 575-640`
+- Modify: `src/archive-workflow/workspace.js:365-395, 659-690, 850-890, 1380-1420`
 - Modify: `supabase/migrations/202607290004_clerk_native_editor_sources.sql`
 - Modify: `tests/archive-cabinet.test.mjs`
+- Modify: `tests/clerk-workflow-ui.test.mjs`
 - Modify: `tests/local-workflow-engine.test.mjs`
 - Modify: `tests/archive-workflow-schema.test.mjs`
 
@@ -200,7 +202,7 @@
 
 - [ ] **Step 3: Remove only the obsolete restriction and update both publication paths**
 
-  Delete `FIXED_FOR_CLERK` behavior in `archive-cabinet.js` and the station/entrance branch in `resolveDraftClassification`. In the local existing-archive branch, update the projection and archive atomically:
+  Delete `FIXED_FOR_CLERK` behavior in `archive-cabinet.js`, the station/entrance branch in `resolveDraftClassification`, and `isFixedArchiveCategory` coercion in the workbench. In the local existing-archive branch, update the projection and archive atomically:
 
   ```js
   const indexPayload = clone(contribution.draft_content?.indexData ?? archive.index_payload ?? {});
@@ -417,7 +419,7 @@
 
 - [ ] **Step 3: Replace only the UI adapter inside `createEditor`**
 
-  Remove the workbench import/use of `createTemplateEditorBridge`, `templatePreviewUrl`, `FREEFORM_AMENDMENT_TEMPLATE`, `editorPreviewUrl`, iframe load handling, slash-inside-iframe hooks, and multi-section outline. Keep `draftContentToEditorDocument()` as the legacy-to-v2 ingress.
+  Remove the workbench import/use of `createTemplateEditorBridge`, `templatePreviewUrl`, `FREEFORM_AMENDMENT_TEMPLATE`, `editorPreviewUrl`, iframe load handling, slash-inside-iframe hooks, and multi-section outline. Keep `draftContentToEditorDocument()` as the legacy-to-v2 ingress. Task 2 has already removed the obsolete station/entrance creation coercion; do not restore it.
 
   Render one sticky-toolbar / one scroll-body / sticky-footer native DOM form. Its scroll body has: `目录与识别`, category-specific `核心档案内容`, `更多资料` with references/media/attachments, repeatable `自定义标题 + 内容`, and a collapsible editable `原有补充资料`. Show generated submission/formal/version/author values as `<output>` only. Use `readNativeArchiveForm(form, profile, editorDocument)` inside `collectDraft()` and `writeNativeArchiveForm(form, profile, editorDocument)` in `populateDraft()`; never replace `editorDocument` with a blank object on source/read failure.
 
