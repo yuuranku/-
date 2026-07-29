@@ -28,6 +28,12 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'listPublishedMedia',
   'setArchiveNewBadge',
   'uploadAttachment',
+  'listWorkspaceNotes',
+  'createWorkspaceNote',
+  'updateWorkspaceNote',
+  'deleteWorkspaceNote',
+  'listWorkspaceNoteLayouts',
+  'saveWorkspaceNoteLayout',
 ]);
 
 export const assertArchiveWorkflowRepository = (repository) => {
@@ -136,6 +142,26 @@ const assertArchiveList = (result, method) => {
   }
   return result;
 };
+
+const assertWorkspaceNote = (note, prefix = '') =>
+  requireFields(note, [
+    'id',
+    'title',
+    'content',
+    'sort_order',
+    'created_by',
+    'created_at',
+    'updated_at',
+  ], prefix);
+
+const assertWorkspaceNoteLayout = (layout, prefix = '') =>
+  requireFields(layout, [
+    'note_id',
+    'profile_id',
+    'left_px',
+    'top_px',
+    'updated_at',
+  ], prefix);
 
 export const assertArchiveWorkflowResult = (method, result) => {
   switch (method) {
@@ -278,6 +304,23 @@ export const assertArchiveWorkflowResult = (method, result) => {
       return result;
     case 'setArchiveNewBadge':
       return requireFields(result, ['id', 'new_badge_visible']);
+    case 'listWorkspaceNotes':
+      for (const [index, note] of requireList(result, method).entries()) {
+        assertWorkspaceNote(note, `${method}[${index}].`);
+      }
+      return result;
+    case 'createWorkspaceNote':
+    case 'updateWorkspaceNote':
+      return assertWorkspaceNote(result);
+    case 'deleteWorkspaceNote':
+      return requireFields(result, ['id']);
+    case 'listWorkspaceNoteLayouts':
+      for (const [index, layout] of requireList(result, method).entries()) {
+        assertWorkspaceNoteLayout(layout, `${method}[${index}].`);
+      }
+      return result;
+    case 'saveWorkspaceNoteLayout':
+      return assertWorkspaceNoteLayout(result);
     default:
       return result;
   }

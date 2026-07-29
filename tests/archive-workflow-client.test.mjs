@@ -235,6 +235,227 @@ test('administrator archive client queries every visibility state and deletes a 
   assert.deepEqual(calls[1].filters, [['id', 'archive-01']]);
 });
 
+test('workspace note client emits ordered shared-content requests with whitelisted writes', async () => {
+  const calls = [];
+  const rows = {
+    workspace_notes: {
+      id: 'note-1',
+      title: '值班提醒',
+      content: '核对索引。',
+      sort_order: 2,
+      created_by: 'admin-1',
+      created_at: '2026-07-29T00:00:00.000Z',
+      updated_at: '2026-07-29T00:00:00.000Z',
+    },
+  };
+  const supabase = {
+    from(table) {
+      const call = { table, filters: [], orders: [] };
+      calls.push(call);
+      const query = {
+        select(columns) {
+          call.columns = columns;
+          return query;
+        },
+        insert(payload) {
+          call.operation = 'insert';
+          call.payload = payload;
+          return query;
+        },
+        update(payload) {
+          call.operation = 'update';
+          call.payload = payload;
+          return query;
+        },
+        delete() {
+          call.operation = 'delete';
+          return query;
+        },
+        eq(column, value) {
+          call.filters.push([column, value]);
+          return query;
+        },
+        order(column, options) {
+          call.orders.push([column, options]);
+          return query;
+        },
+        single() {
+          return Promise.resolve({ data: rows[table], error: null });
+        },
+        then(resolve) {
+          return Promise.resolve({ data: [rows[table]], error: null }).then(resolve);
+        },
+      };
+      return query;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  };
+  const client = createArchiveWorkflowClient(supabase);
+
+  await client.listWorkspaceNotes();
+  await client.createWorkspaceNote({
+    title: '  值班提醒  ',
+    content: '  核对索引。  ',
+    sortOrder: 2,
+    createdBy: 'must-not-leak',
+    createdAt: 'must-not-leak',
+  });
+  await client.updateWorkspaceNote('note-1', {
+    title: '  更新提醒 ',
+    content: '  完成交接。 ',
+    sortOrder: 4,
+    createdBy: 'must-not-leak',
+  });
+  const deleted = await client.deleteWorkspaceNote('note-1');
+
+  assert.deepEqual(calls[0].orders, [
+    ['sort_order', { ascending: true }],
+    ['created_at', { ascending: true }],
+    ['id', { ascending: true }],
+  ]);
+  assert.deepEqual(calls[1].payload, {
+    title: '值班提醒',
+    content: '核对索引。',
+    sort_order: 2,
+  });
+  assert.deepEqual(calls[2].payload, {
+    title: '更新提醒',
+    content: '完成交接。',
+    sort_order: 4,
+  });
+  assert.deepEqual(calls[2].filters, [['id', 'note-1']]);
+  assert.deepEqual(calls[3].filters, [['id', 'note-1']]);
+  assert.deepEqual(deleted, { id: 'note-1' });
+});
+
+test('workspace note client rejects blank text and invalid ordering before querying Supabase', async () => {
+  let queryCount = 0;
+  const client = createArchiveWorkflowClient({
+    from: () => {
+      queryCount += 1;
+      throw new Error('validation must happen first');
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+  const invalid = (code) => (error) => error?.code === code;
+
+  assert.throws(
+    () => client.createWorkspaceNote({ title: ' ', content: '正文', sortOrder: 0 }),
+    invalid('invalid_workspace_note'),
+  );
+  assert.throws(
+    () => client.createWorkspaceNote({ title: '标题', content: '\n', sortOrder: 0 }),
+    invalid('invalid_workspace_note'),
+  );
+  assert.throws(
+    () => client.updateWorkspaceNote('note-1', { title: '标题', content: '正文', sortOrder: -1 }),
+    invalid('invalid_sort_order'),
+  );
+  assert.throws(
+    () => client.updateWorkspaceNote('note-1', { title: '标题', content: '正文', sortOrder: '2' }),
+    invalid('invalid_sort_order'),
+  );
+  assert.throws(
+    () => client.updateWorkspaceNote('note-1', { title: '标题', content: '正文', sortOrder: null }),
+    invalid('invalid_sort_order'),
+  );
+  assert.equal(queryCount, 0);
+});
+
+test('workspace note layout client scopes reads and upserts to one profile-note key', async () => {
+  const calls = [];
+  const layout = {
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    left_px: 120,
+    top_px: 80,
+    updated_at: '2026-07-29T00:00:00.000Z',
+  };
+  const supabase = {
+    from(table) {
+      const call = { table, filters: [], orders: [] };
+      calls.push(call);
+      const query = {
+        select(columns) {
+          call.columns = columns;
+          return query;
+        },
+        eq(column, value) {
+          call.filters.push([column, value]);
+          return query;
+        },
+        order(column, options) {
+          call.orders.push([column, options]);
+          return query;
+        },
+        upsert(payload, options) {
+          call.operation = 'upsert';
+          call.payload = payload;
+          call.options = options;
+          return query;
+        },
+        single() {
+          return Promise.resolve({ data: layout, error: null });
+        },
+        then(resolve) {
+          return Promise.resolve({ data: [layout], error: null }).then(resolve);
+        },
+      };
+      return query;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  };
+  const client = createArchiveWorkflowClient(supabase);
+
+  await client.listWorkspaceNoteLayouts('clerk-1');
+  await client.saveWorkspaceNoteLayout({
+    noteId: 'note-1',
+    profileId: 'clerk-1',
+    leftPx: 120,
+    topPx: 80,
+  });
+
+  assert.deepEqual(calls[0].filters, [['profile_id', 'clerk-1']]);
+  assert.deepEqual(calls[0].orders, [['note_id', { ascending: true }]]);
+  assert.deepEqual(calls[1].payload, {
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    left_px: 120,
+    top_px: 80,
+  });
+  assert.deepEqual(calls[1].options, { onConflict: 'note_id,profile_id' });
+});
+
+test('workspace note layout client rejects non-finite fractional and negative coordinates', () => {
+  let queryCount = 0;
+  const client = createArchiveWorkflowClient({
+    from: () => {
+      queryCount += 1;
+      throw new Error('validation must happen first');
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+  const invalid = (error) => error?.code === 'invalid_coordinate';
+
+  for (const [leftPx, topPx] of [
+    [-1, 0],
+    [0.5, 0],
+    [0, Number.POSITIVE_INFINITY],
+    ['120', 0],
+    [0, null],
+  ]) {
+    assert.throws(
+      () => client.saveWorkspaceNoteLayout({ noteId: 'note-1', profileId: 'clerk-1', leftPx, topPx }),
+      invalid,
+    );
+  }
+  assert.equal(queryCount, 0);
+});
+
 test('client source scopes owner writes and uses optimistic draft revisions', async () => {
   const source = await readFile(repositorySourceUrl, 'utf8');
   assert.match(source, /\.eq\(['"]owner_id['"]/);

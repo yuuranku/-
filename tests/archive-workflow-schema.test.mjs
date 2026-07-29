@@ -11,6 +11,7 @@ const automaticIdentityMigrationUrl = new URL('supabase/migrations/202607290001_
 const archiveIndexRecordRepairMigrationUrl = new URL('supabase/migrations/202607290002_archive_index_record_repair.sql', projectRoot);
 const archiveMediaGuardrailsMigrationUrl = new URL('supabase/migrations/202607290003_archive_media_guardrails.sql', projectRoot);
 const clerkNativeEditorSourcesMigrationUrl = new URL('supabase/migrations/202607290004_clerk_native_editor_sources.sql', projectRoot);
+const workspaceStickyNotesMigrationUrl = new URL('supabase/migrations/202607290005_workspace_sticky_notes.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -209,4 +210,50 @@ test('clerk native editor migration securely refreshes existing archive director
   );
   assert.match(sql, /archive_record\.category\s*<>\s*p_category/i);
   assert.match(sql, /status\s*=\s*'published'[\s\S]*revision\s*=\s*revision\s*\+\s*1/i);
+});
+
+test('workspace sticky notes migration persists shared content and self-owned layouts', async () => {
+  const sql = await readFile(workspaceStickyNotesMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create table(?: if not exists)? public\.workspace_notes/i);
+  assert.match(sql, /title text not null[\s\S]*check\s*\(\s*length\s*\(\s*trim\s*\(\s*title\s*\)\s*\)\s*>\s*0\s*\)/i);
+  assert.match(sql, /content text not null[\s\S]*check\s*\(\s*length\s*\(\s*trim\s*\(\s*content\s*\)\s*\)\s*>\s*0\s*\)/i);
+  assert.match(sql, /sort_order integer not null default 0[\s\S]*check\s*\(\s*sort_order\s*>=\s*0\s*\)/i);
+  assert.match(sql, /created_by uuid not null(?: default auth\.uid\s*\(\s*\))? references public\.profiles\s*\(\s*id\s*\)/i);
+
+  assert.match(sql, /create table(?: if not exists)? public\.workspace_note_layouts/i);
+  assert.match(sql, /note_id uuid not null references public\.workspace_notes\s*\(\s*id\s*\)\s*on delete cascade/i);
+  assert.match(sql, /profile_id uuid not null references public\.profiles\s*\(\s*id\s*\)\s*on delete cascade/i);
+  assert.match(sql, /left_px integer not null[\s\S]*check\s*\(\s*left_px\s*>=\s*0\s*\)/i);
+  assert.match(sql, /top_px integer not null[\s\S]*check\s*\(\s*top_px\s*>=\s*0\s*\)/i);
+  assert.match(sql, /primary key\s*\(\s*note_id\s*,\s*profile_id\s*\)/i);
+  assert.match(sql, /create index if not exists workspace_note_layouts_profile_idx[\s\S]*\(\s*profile_id\s*\)/i);
+
+  assert.match(sql, /create trigger workspace_notes_updated_at[\s\S]*execute function public\.set_updated_at\s*\(\s*\)/i);
+  assert.match(sql, /create trigger workspace_note_layouts_updated_at[\s\S]*execute function public\.set_updated_at\s*\(\s*\)/i);
+  assert.match(sql, /alter table public\.workspace_notes enable row level security/i);
+  assert.match(sql, /alter table public\.workspace_note_layouts enable row level security/i);
+});
+
+test('workspace sticky notes RLS excludes disabled observer and anonymous principals', async () => {
+  const sql = await readFile(workspaceStickyNotesMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.is_workspace_member\s*\(\s*\)[\s\S]*security definer[\s\S]*set search_path\s*=\s*public/i);
+  assert.match(sql, /role\s+in\s*\(\s*'admin'\s*,\s*'clerk'\s*\)[\s\S]*enabled/i);
+  assert.match(sql, /create policy workspace_notes_member_read[\s\S]*for select[\s\S]*to authenticated[\s\S]*public\.is_workspace_member\s*\(\s*\)/i);
+  assert.match(sql, /create policy workspace_notes_admin_insert[\s\S]*for insert[\s\S]*public\.is_admin\s*\(\s*\)[\s\S]*created_by\s*=\s*auth\.uid\s*\(\s*\)/i);
+  assert.match(sql, /create policy workspace_notes_admin_update[\s\S]*for update[\s\S]*public\.is_admin\s*\(\s*\)[\s\S]*public\.is_admin\s*\(\s*\)/i);
+  assert.match(sql, /create policy workspace_notes_admin_delete[\s\S]*for delete[\s\S]*public\.is_admin\s*\(\s*\)/i);
+  assert.match(sql, /new\.created_by\s*:=\s*old\.created_by/i);
+  assert.match(sql, /new\.created_at\s*:=\s*old\.created_at/i);
+
+  assert.match(sql, /create policy workspace_note_layouts_self_read[\s\S]*for select[\s\S]*public\.is_workspace_member\s*\(\s*\)[\s\S]*profile_id\s*=\s*auth\.uid\s*\(\s*\)/i);
+  assert.match(sql, /create policy workspace_note_layouts_self_insert[\s\S]*for insert[\s\S]*public\.is_workspace_member\s*\(\s*\)[\s\S]*profile_id\s*=\s*auth\.uid\s*\(\s*\)/i);
+  assert.match(sql, /create policy workspace_note_layouts_self_update[\s\S]*for update[\s\S]*profile_id\s*=\s*auth\.uid\s*\(\s*\)[\s\S]*profile_id\s*=\s*auth\.uid\s*\(\s*\)/i);
+  assert.doesNotMatch(sql, /workspace_note_layouts[\s\S]{0,200}public\.is_admin\s*\(\s*\)/i);
+
+  assert.match(sql, /revoke all on table public\.workspace_notes from anon/i);
+  assert.match(sql, /revoke all on table public\.workspace_note_layouts from anon/i);
+  assert.match(sql, /grant select, insert, update, delete on table public\.workspace_notes to authenticated/i);
+  assert.match(sql, /grant select, insert, update on table public\.workspace_note_layouts to authenticated/i);
 });

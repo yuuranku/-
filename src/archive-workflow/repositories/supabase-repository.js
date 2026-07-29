@@ -31,6 +31,35 @@ const requireId = (value, label) => {
   return id;
 };
 
+const workspaceNotePayload = ({ title, content, sortOrder = 0 } = {}) => {
+  const normalizedTitle = String(title ?? '').trim();
+  const normalizedContent = String(content ?? '').trim();
+  if (!normalizedTitle || !normalizedContent) {
+    throw new ArchiveWorkflowError('Workspace note title and content are required', {
+      code: 'invalid_workspace_note',
+    });
+  }
+  if (!Number.isFinite(sortOrder) || !Number.isInteger(sortOrder) || sortOrder < 0) {
+    throw new ArchiveWorkflowError('Workspace note sort order must be a non-negative integer', {
+      code: 'invalid_sort_order',
+    });
+  }
+  return {
+    title: normalizedTitle,
+    content: normalizedContent,
+    sort_order: sortOrder,
+  };
+};
+
+const requireCoordinate = (value, label) => {
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+    throw new ArchiveWorkflowError(`${label} must be a finite non-negative integer`, {
+      code: 'invalid_coordinate',
+    });
+  }
+  return value;
+};
+
 export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   if (!supabase?.from || !supabase?.rpc || !supabase?.functions?.invoke) {
     throw new TypeError('A configured Supabase client is required');
@@ -464,11 +493,83 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     }
   };
 
+  const listWorkspaceNotes = () => unwrap(
+    supabase.from('workspace_notes')
+      .select('id,title,content,sort_order,created_by,created_at,updated_at')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }),
+    'Unable to load workspace notes',
+  );
+
+  const createWorkspaceNote = (input) => {
+    const payload = workspaceNotePayload(input);
+    return unwrap(
+      supabase.from('workspace_notes')
+        .insert(payload)
+        .select('id,title,content,sort_order,created_by,created_at,updated_at')
+        .single(),
+      'Unable to create workspace note',
+    );
+  };
+
+  const updateWorkspaceNote = (noteId, input) => {
+    const id = requireId(noteId, 'noteId');
+    const payload = workspaceNotePayload(input);
+    return unwrap(
+      supabase.from('workspace_notes')
+        .update(payload)
+        .eq('id', id)
+        .select('id,title,content,sort_order,created_by,created_at,updated_at')
+        .single(),
+      'Unable to update workspace note',
+    );
+  };
+
+  const deleteWorkspaceNote = async (noteId) => {
+    const id = requireId(noteId, 'noteId');
+    const deleted = await unwrap(
+      supabase.from('workspace_notes')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .single(),
+      'Unable to delete workspace note',
+    );
+    return { id: deleted.id };
+  };
+
+  const listWorkspaceNoteLayouts = (profileId) => unwrap(
+    supabase.from('workspace_note_layouts')
+      .select('note_id,profile_id,left_px,top_px,updated_at')
+      .eq('profile_id', requireId(profileId, 'profileId'))
+      .order('note_id', { ascending: true }),
+    'Unable to load workspace note layouts',
+  );
+
+  const saveWorkspaceNoteLayout = ({ noteId, profileId, leftPx, topPx } = {}) => {
+    const payload = {
+      note_id: requireId(noteId, 'noteId'),
+      profile_id: requireId(profileId, 'profileId'),
+      left_px: requireCoordinate(leftPx, 'leftPx'),
+      top_px: requireCoordinate(topPx, 'topPx'),
+    };
+    return unwrap(
+      supabase.from('workspace_note_layouts')
+        .upsert(payload, { onConflict: 'note_id,profile_id' })
+        .select('note_id,profile_id,left_px,top_px,updated_at')
+        .single(),
+      'Unable to save workspace note layout',
+    );
+  };
+
   return assertArchiveWorkflowRepository({
     getProfile, listTemplates, listMyDrafts, saveDraft, submitDraft, listReviewQueue, reviewSubmission,
     publishContribution, inviteUser, listUsers, createUser, updateUserRole, resetUserPassword, deleteUser,
     listNotifications, markNotificationRead, searchArchives, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
     listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
+    listWorkspaceNotes, createWorkspaceNote, updateWorkspaceNote, deleteWorkspaceNote,
+    listWorkspaceNoteLayouts, saveWorkspaceNoteLayout,
   });
 };

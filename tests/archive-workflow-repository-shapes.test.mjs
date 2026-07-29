@@ -53,6 +53,24 @@ const version = {
   reviewer: profile,
 };
 
+const workspaceNote = {
+  id: 'note-1',
+  title: '值班提醒',
+  content: '今日交接前核对索引。',
+  sort_order: 3,
+  created_by: 'admin-1',
+  created_at: '2026-07-29T00:00:00.000Z',
+  updated_at: '2026-07-29T00:05:00.000Z',
+};
+
+const workspaceNoteLayout = {
+  note_id: workspaceNote.id,
+  profile_id: profile.id,
+  left_px: 120,
+  top_px: 80,
+  updated_at: '2026-07-29T00:06:00.000Z',
+};
+
 test('result contract accepts the reduced relation shapes returned by Supabase joins and public RPCs', () => {
   const publicPerson = { id: 'operator-1', display_name: 'Archive Clerk' };
   const publicVersion = {
@@ -149,11 +167,32 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
     }]],
     ['setArchiveNewBadge', { id: archive.id, new_badge_visible: false }],
     ['uploadAttachment', { id: 'attachment-1' }],
+    ['listWorkspaceNotes', [workspaceNote]],
+    ['createWorkspaceNote', workspaceNote],
+    ['updateWorkspaceNote', workspaceNote],
+    ['deleteWorkspaceNote', { id: workspaceNote.id }],
+    ['listWorkspaceNoteLayouts', [workspaceNoteLayout]],
+    ['saveWorkspaceNoteLayout', workspaceNoteLayout],
   ];
 
   for (const [method, result] of cases) {
     assert.doesNotThrow(() => assertArchiveWorkflowResult(method, result), method);
   }
+});
+
+test('workspace note result contract rejects incomplete shared and personal shapes', () => {
+  assert.throws(
+    () => assertArchiveWorkflowResult('listWorkspaceNotes', [without(workspaceNote, 'created_by')]),
+    /created_by/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('saveWorkspaceNoteLayout', without(workspaceNoteLayout, 'top_px')),
+    /top_px/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('deleteWorkspaceNote', {}),
+    /id/,
+  );
 });
 
 test('editor source result validates every optional hydrated relation when present', () => {
