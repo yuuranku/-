@@ -11,6 +11,7 @@ const [html, workspace, styles, main, templates] = await Promise.all([
   readFile(new URL('src/main.js', projectRoot), 'utf8'),
   readFile(new URL('src/archive-workflow/templates.js', projectRoot), 'utf8'),
 ]);
+const workspaceModule = await import('../src/archive-workflow/workspace.js');
 
 test('all nine archive templates remain registered for the PALIS cabinet', async () => {
   assert.equal((templates.match(/template\('\d{2}'/g) || []).length, 9);
@@ -54,7 +55,6 @@ test('the right-side dossier card is the single structured editor', () => {
   assert.match(workspace, /data-archive-editor/);
   assert.match(workspace, /createTemplateEditorBridge/);
   assert.match(workspace, /data-template-editor-frame/);
-  assert.match(workspace, /九类档案录入设定卡/);
   assert.doesNotMatch(workspace, /data-content-field/);
   assert.match(workspace, /value="new"/);
   assert.match(workspace, /value="contribution"/);
@@ -85,7 +85,7 @@ test('amendments choose a visible archive instead of asking for internal record 
   assert.doesNotMatch(workspace, /目标投稿 ID/);
 });
 
-test('all nine clerk categories enter the workspace as new drafts without UI coercion', async () => {
+test('all nine clerk categories enter the new-archive chooser without UI coercion', async () => {
   assert.deepEqual(
     archiveCabinetEntries('clerk').map(({ code, defaultKind }) => [code, defaultKind]),
     [
@@ -101,11 +101,123 @@ test('all nine clerk categories enter the workspace as new drafts without UI coe
     ],
   );
   assert.match(workspace, /const initialKind = initial\.kind \|\| 'new'/);
-  assert.match(workspace, /createEditor\(template,\s*\{\s*kind: button\.dataset\.defaultKind\s*\}\)/);
+  assert.match(workspace, /openNewArchiveChooser/);
+  assert.match(workspace, /ARCHIVE_TEMPLATES\.map/);
+  assert.match(workspace, /data-new-archive-template/);
+  assert.match(workspace, /createEditor\(template,\s*\{\s*kind:\s*'new'\s*\}\)/);
   assert.doesNotMatch(workspace, /isFixedArchiveCategory/);
   assert.doesNotMatch(workspace, /kindSelect\.disabled\s*=\s*true/);
   assert.match(workspace, /10-自由修订补充页\.html/);
   await access(new URL('public/templates/10-自由修订补充页.html', projectRoot));
+});
+
+test('amendment initial state keeps the selected immutable source and archive target', () => {
+  assert.equal(typeof workspaceModule.buildAmendmentInitialState, 'function');
+  const archive = {
+    id: 'archive-7',
+    code: 'EV007',
+    title: '白幕事件',
+  };
+  const documentChoice = {
+    id: 'contribution-3',
+    title: '第一次观测',
+    latestVersionId: 'version-9',
+  };
+  const content = {
+    schemaVersion: 2,
+    templateCode: '07',
+    values: { hero: '第一次观测' },
+    indexData: { title: '第一次观测' },
+    references: [],
+    media: [],
+  };
+  const initial = workspaceModule.buildAmendmentInitialState(
+    archive,
+    documentChoice,
+    {
+      archiveId: archive.id,
+      contributionId: documentChoice.id,
+      versionId: documentChoice.latestVersionId,
+      content,
+      references: [{ archiveId: 'archive-2', code: 'PE002', label: '记录员' }],
+      media: [{ attachmentId: 'attachment-4', role: 'event-cover' }],
+    },
+  );
+
+  assert.equal(initial.kind, 'amendment');
+  assert.equal(initial.archiveId, archive.id);
+  assert.equal(initial.archiveCode, archive.code);
+  assert.equal(initial.targetDocumentId, documentChoice.id);
+  assert.equal(initial.targetContributionId, documentChoice.id);
+  assert.equal(initial.baseVersionId, documentChoice.latestVersionId);
+  assert.equal(initial.title, documentChoice.title);
+  assert.equal(initial.content.schemaVersion, 2);
+  assert.equal(initial.content.values.hero, '第一次观测');
+  assert.deepEqual(initial.content.references, [
+    { archiveId: 'archive-2', code: 'PE002', label: '记录员' },
+  ]);
+  assert.deepEqual(initial.content.media, [
+    { attachmentId: 'attachment-4', role: 'event-cover' },
+  ]);
+});
+
+test('returned submissions are assigned to their matching action and record position', () => {
+  assert.equal(typeof workspaceModule.buildClerkDraftPlacement, 'function');
+  assert.deepEqual(
+    workspaceModule.buildClerkDraftPlacement({
+      id: 'returned-new',
+      kind: 'new',
+      template_id: '07',
+      status: 'changes_requested',
+      draft_content: {},
+    }),
+    {
+      action: 'new',
+      templateCode: '07',
+      archiveId: null,
+      documentId: null,
+    },
+  );
+  assert.deepEqual(
+    workspaceModule.buildClerkDraftPlacement({
+      id: 'returned-amendment',
+      kind: 'amendment',
+      template_id: '07',
+      archive_id: 'archive-7',
+      target_contribution_id: 'document-3',
+      status: 'changes_requested',
+      draft_content: { targetDocumentId: 'document-3' },
+    }),
+    {
+      action: 'modify',
+      templateCode: '07',
+      archiveId: 'archive-7',
+      documentId: 'document-3',
+    },
+  );
+});
+
+test('each returned submission reopens from its matching action and keeps the review reason', () => {
+  assert.match(workspace, /openNewArchiveChooser/);
+  assert.match(workspace, /openModifyArchiveChooser/);
+  assert.match(workspace, /changes_requested/);
+  assert.match(workspace, /data-open-returned-new/);
+  assert.match(workspace, /data-open-returned-draft/);
+  assert.match(workspace, /data-returned-review-copy/);
+  assert.match(workspace, /管理员批注|驳回原因/);
+  assert.match(workspace, /listEditableArchives\(\{\s*category:/);
+  assert.match(workspace, /listArchiveDocuments\(archive\.id\)/);
+});
+
+test('modify chooser retries an exact-source failure without opening a blank amendment', () => {
+  assert.match(workspace, /loadArchiveEditorSource\(archive\.id,\s*\{/);
+  assert.match(workspace, /contributionId:[\s\S]*versionId:[\s\S]*officialBase:/);
+  assert.match(workspace, /未找到可修改的档案正文，请重试/);
+  assert.match(workspace, /data-retry-amendment-source/);
+  assert.match(
+    workspace,
+    /if\s*\(!source\)\s*throw[\s\S]*buildAmendmentInitialState[\s\S]*createEditor/,
+  );
 });
 
 test('administrator review previews the formal archive instead of raw editor JSON', () => {

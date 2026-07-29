@@ -412,6 +412,40 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
   updatedAt: Date.parse(record.updated_at) || fallback.updatedAt || Date.now(),
 });
 
+export const buildAmendmentInitialState = (archive, documentChoice, source) => {
+  const officialDocumentId = `official:${archive.id}`;
+  const officialBase = documentChoice.id === officialDocumentId;
+  const content = {
+    ...(source.content || {}),
+    references: Array.isArray(source.references)
+      ? source.references
+      : source.content?.references || [],
+    media: Array.isArray(source.media)
+      ? source.media
+      : source.content?.media || [],
+  };
+  return {
+    archiveId: archive.id,
+    archiveCode: archive.code || '',
+    kind: 'amendment',
+    title: documentChoice.title || archive.title || '档案修改申请',
+    targetDocumentId: documentChoice.id,
+    targetContributionId: officialBase ? null : documentChoice.id,
+    baseVersionId: source.versionId ?? documentChoice.latestVersionId ?? null,
+    officialBase,
+    content,
+  };
+};
+
+export const buildClerkDraftPlacement = (draft = {}) => ({
+  action: draft.kind === 'new' ? 'new' : 'modify',
+  templateCode: draft.template_id ?? draft.template?.code ?? null,
+  archiveId: draft.archive_id ?? null,
+  documentId: draft.draft_content?.targetDocumentId
+    ?? draft.target_contribution_id
+    ?? null,
+});
+
 export function initializeArchiveWorkspace({
   client = null,
   roots = document,
@@ -691,6 +725,12 @@ export function initializeArchiveWorkspace({
             <input type="hidden" name="targetContributionId" />
             <output class="archive-autosave-status" data-autosave-status data-state="local-saved">等待编辑</output>
           </header>
+
+          ${initial.reviewReason ? `
+            <aside class="archive-recovery" data-returned-review-copy>
+              <div><b>管理员打回说明</b><span>${escapeHtml(initial.reviewReason)}</span></div>
+            </aside>
+          ` : ''}
 
           <aside class="archive-recovery" data-recovery hidden>
             <div><b>发现未提交的暂存内容</b><span data-recovery-copy>可以恢复本地暂存，或保留当前云端版本。</span></div>
@@ -1973,40 +2013,452 @@ export function initializeArchiveWorkspace({
     return windowState;
   };
 
-  const openDraftsPanel = async () => {
+  const loadClerkDraftContext = async () => {
+    if (!client) {
+      return {
+        drafts: [],
+        draftError: new Error('档案服务未连接；暂时无法读取云端记录。'),
+        reviewError: null,
+      };
+    }
+    const [draftResult, notificationResult] = await Promise.allSettled([
+      client.listMyDrafts(context.profile.id),
+      typeof client.listNotifications === 'function'
+        ? client.listNotifications(context.profile.id)
+        : Promise.resolve([]),
+    ]);
+    const drafts = draftResult.status === 'fulfilled' ? draftResult.value : [];
+    const reviewCopyByContribution = new Map();
+    if (notificationResult.status === 'fulfilled') {
+      notificationResult.value
+        .filter((notification) =>
+          notification.kind === 'changes_requested'
+          && notification.contribution?.id)
+        .forEach((notification) => {
+          if (!reviewCopyByContribution.has(notification.contribution.id)) {
+            reviewCopyByContribution.set(notification.contribution.id, notification.message);
+          }
+        });
+    }
+    return {
+      drafts: drafts.map((draft) => ({
+        ...draft,
+        reviewReason: draft.review_message
+          || draft.review?.message
+          || reviewCopyByContribution.get(draft.id)
+          || '',
+      })),
+      draftError: draftResult.status === 'rejected' ? draftResult.reason : null,
+      reviewError: notificationResult.status === 'rejected' ? notificationResult.reason : null,
+    };
+  };
+
+  const renderPlacedDraft = (draft, {
+    returnedAttribute,
+    draftAttribute,
+  }) => {
+    const returned = draft.status === 'changes_requested';
+    return `
+      <button type="button"
+        ${returned ? returnedAttribute : draftAttribute}
+        data-draft-id="${escapeHtml(draft.id)}"
+        data-template="${escapeHtml(draft.template_id)}">
+        <b>${returned ? '待修改记录' : '未提交记录'} / ${escapeHtml(draft.title)}</b>
+        <span>REV ${escapeHtml(draft.revision)} · ${escapeHtml(draft.kind)}</span>
+        ${returned
+          ? `<small data-returned-review-copy>管理员批注：${escapeHtml(draft.reviewReason || '批注暂时未能读取，请重试')}</small>`
+          : '<small>继续编辑这份尚未提交的记录</small>'}
+      </button>
+    `;
+  };
+
+  const openNewArchiveChooser = async () => {
     if (!ensureWorkspaceAccess()) return;
     const state = createWindow({
-      key: 'drafts',
-      title: '暂存箱',
-      code: 'DRAFTS',
+      key: 'new-archive-chooser',
+      title: '新增档案',
+      code: 'NEW_ARCHIVE',
       className: 'archive-workflow-list-window',
-      body: '<div class="archive-workflow-list" data-draft-list><p>正在读取本地与云端暂存…</p></div>',
+      body: '<div class="archive-workflow-list" data-new-archive-chooser><p>正在读取新增记录…</p></div>',
     });
-    const list = state.windowElement.querySelector('[data-draft-list]');
-    if (!client) {
-      list.innerHTML = '<p>档案服务未连接。本机暂存会在打开对应设定卡时自动提示恢复。</p>';
-      return;
-    }
-    try {
-      const drafts = await client.listMyDrafts(context.profile.id);
-      list.innerHTML = drafts.length
-        ? drafts.map((draft) => `
-            <button type="button" data-open-draft="${escapeHtml(draft.id)}" data-template="${escapeHtml(draft.template_id)}">
-              <b>${escapeHtml(draft.title)}</b>
-              <span>${escapeHtml(draft.template?.title || ARCHIVE_TEMPLATE_BY_CODE[draft.template_id]?.title || '档案')}</span>
-              <small>${escapeHtml(draft.status)} / REV ${escapeHtml(draft.revision)}</small>
+    if (state.newArchiveChooserReady) return state;
+    state.newArchiveChooserReady = true;
+    const chooser = state.windowElement.querySelector('[data-new-archive-chooser]');
+    let draftContext = { drafts: [], draftError: null, reviewError: null };
+    const render = () => {
+      const newDrafts = draftContext.drafts.filter((draft) =>
+        buildClerkDraftPlacement(draft).action === 'new');
+      chooser.innerHTML = `
+        <h3>选择档案类别</h3>
+        <p>选定一类设定卡后，才会建立新的档案草稿。管理员打回的新增提交列在原类别旁。</p>
+        ${ARCHIVE_TEMPLATES.map((template) => {
+          const placed = newDrafts.filter((draft) =>
+            buildClerkDraftPlacement(draft).templateCode === template.code);
+          return `
+            <button type="button" data-new-archive-template="${escapeHtml(template.code)}">
+              <b>${escapeHtml(template.code)} / ${escapeHtml(template.title)}</b>
+              <span>${escapeHtml(template.abbreviation)} · ${escapeHtml(template.category)}</span>
             </button>
-          `).join('')
-        : '<p>当前没有云端暂存。</p>';
-      list.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-open-draft]');
-        const draft = drafts.find((entry) => entry.id === button?.dataset.openDraft);
-        const template = ARCHIVE_TEMPLATE_BY_CODE[button?.dataset.template];
-        if (draft && template) createEditor(template, serverDraftToEditorDraft(draft));
-      }, { once: true });
-    } catch (error) {
-      list.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
-    }
+            ${placed.map((draft) => renderPlacedDraft(draft, {
+              returnedAttribute: 'data-open-returned-new',
+              draftAttribute: 'data-open-new-draft',
+            })).join('')}
+          `;
+        }).join('')}
+        ${(draftContext.draftError || draftContext.reviewError) ? `
+          <article role="alert">
+            <b>新增记录读取不完整</b>
+            <p>${escapeHtml(
+              draftContext.draftError?.message
+              || draftContext.reviewError?.message
+              || '管理员批注暂时未能读取',
+            )}</p>
+            <button type="button" data-retry-new-drafts>重试读取记录与批注</button>
+          </article>
+        ` : ''}
+      `;
+    };
+    const reload = async () => {
+      chooser.innerHTML = '<p>正在读取新增记录与管理员批注…</p>';
+      draftContext = await loadClerkDraftContext();
+      render();
+    };
+    chooser.addEventListener('click', async (event) => {
+      if (event.target.closest('[data-retry-new-drafts]')) {
+        await reload();
+        return;
+      }
+      const draftButton = event.target.closest(
+        '[data-open-returned-new], [data-open-new-draft]',
+      );
+      if (draftButton) {
+        const draft = draftContext.drafts.find((entry) =>
+          entry.id === draftButton.dataset.draftId);
+        const template = ARCHIVE_TEMPLATE_BY_CODE[draftButton.dataset.template];
+        if (!draft || !template) return;
+        const editor = await createEditor(template, serverDraftToEditorDraft(draft, {
+          reviewReason: draft.status === 'changes_requested' ? draft.reviewReason : '',
+        }));
+        if (editor) {
+          await state.close();
+          focusWindow(editor.windowElement);
+          editor.windowElement.focus({ preventScroll: true });
+        }
+        return;
+      }
+      const button = event.target.closest('[data-new-archive-template]');
+      const template = ARCHIVE_TEMPLATE_BY_CODE[button?.dataset.newArchiveTemplate];
+      if (!template) return;
+      const editor = await createEditor(template, { kind: 'new' });
+      if (editor) {
+        await state.close();
+        focusWindow(editor.windowElement);
+        editor.windowElement.focus({ preventScroll: true });
+      }
+    });
+    await reload();
+    return state;
+  };
+
+  const openModifyArchiveChooser = async () => {
+    if (!ensureWorkspaceAccess()) return;
+    const state = createWindow({
+      key: 'modify-archive-chooser',
+      title: '修改档案',
+      code: 'MODIFY_ARCHIVE',
+      className: 'archive-workflow-list-window',
+      body: '<div class="archive-workflow-list" data-modify-archive-chooser><p>正在读取暂存与可修改档案…</p></div>',
+    });
+    if (state.modifyArchiveChooserReady) return state;
+    state.modifyArchiveChooserReady = true;
+    const list = state.windowElement.querySelector('[data-modify-archive-chooser]');
+    let draftContext = { drafts: [], draftError: null, reviewError: null };
+    let selectedCategory = null;
+    let selectedArchive = null;
+    let editableArchives = [];
+    let selectedDocuments = [];
+
+    const archiveNumber = (archive) => {
+      if (archive.sequence_number && archive.abbreviation) {
+        return `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`;
+      }
+      return archive.code || '未编号档案';
+    };
+    const renderHome = () => {
+      const modificationDrafts = draftContext.drafts.filter((draft) =>
+        buildClerkDraftPlacement(draft).action === 'modify');
+      list.innerHTML = `
+        <h3>选择档案类别</h3>
+        <p>待修改与未提交记录会显示在原档案及具体文档旁；管理员批注会在重新打开前保持可见。</p>
+        ${ARCHIVE_TEMPLATES.map((template) => {
+          const count = modificationDrafts.filter((draft) =>
+            buildClerkDraftPlacement(draft).templateCode === template.code).length;
+          return `
+            <button type="button" data-modify-category="${escapeHtml(template.category)}">
+              <b>${escapeHtml(template.code)} / ${escapeHtml(template.title)}</b>
+              <span>${escapeHtml(template.abbreviation)} · ${count ? `${count} 份待继续记录` : template.category}</span>
+            </button>
+          `;
+        }).join('')}
+        ${(draftContext.draftError || draftContext.reviewError) ? `
+          <article role="alert">
+            <b>修改记录读取不完整</b>
+            <p>${escapeHtml(
+              draftContext.draftError?.message
+              || draftContext.reviewError?.message
+              || '管理员批注暂时未能读取',
+            )}</p>
+            <button type="button" data-retry-modify-drafts>重试读取记录与批注</button>
+          </article>
+        ` : ''}
+      `;
+    };
+    const loadDrafts = async () => {
+      draftContext = await loadClerkDraftContext();
+      renderHome();
+    };
+    const loadEditableArchives = async (category) => {
+      selectedCategory = category;
+      selectedArchive = null;
+      list.innerHTML = `
+        <button type="button" data-modify-back-home>← 返回修改档案首页</button>
+        <h3>选择已发布档案</h3>
+        <p>正在读取 ${escapeHtml(category)} 类档案…</p>
+      `;
+      try {
+        editableArchives = await client.listEditableArchives({ category });
+        const template = ARCHIVE_TEMPLATES.find((entry) => entry.category === category);
+        const categoryDrafts = draftContext.drafts.filter((draft) => {
+          const placement = buildClerkDraftPlacement(draft);
+          return placement.action === 'modify'
+            && placement.templateCode === template?.code;
+        });
+        const visibleArchiveIds = new Set(editableArchives.map((archive) => archive.id));
+        const unplacedDrafts = categoryDrafts.filter((draft) => {
+          const archiveId = buildClerkDraftPlacement(draft).archiveId;
+          return !archiveId || !visibleArchiveIds.has(archiveId);
+        });
+        list.innerHTML = `
+          <button type="button" data-modify-back-home>← 返回修改档案首页</button>
+          <h3>选择已发布档案</h3>
+          ${editableArchives.length
+            ? editableArchives.map((archive) => {
+              const placedCount = categoryDrafts.filter((draft) =>
+                buildClerkDraftPlacement(draft).archiveId === archive.id).length;
+              return `
+                <button type="button" data-modify-archive="${escapeHtml(archive.id)}">
+                  <b>${escapeHtml(archiveNumber(archive))} / ${escapeHtml(archive.title)}</b>
+                  <span>${escapeHtml(
+                    placedCount
+                      ? `${placedCount} 份待继续记录`
+                      : archive.summary || archive.category || category,
+                  )}</span>
+                </button>
+              `;
+            }).join('')
+            : '<p>这个类别目前没有可修改的已发布档案。</p>'}
+          ${unplacedDrafts.length ? `
+            <h3>暂时无法定位到公开档案的记录</h3>
+            ${unplacedDrafts.map((draft) => renderPlacedDraft(draft, {
+              returnedAttribute: 'data-open-returned-draft',
+              draftAttribute: 'data-open-modify-draft',
+            })).join('')}
+          ` : ''}
+        `;
+      } catch (error) {
+        list.innerHTML = `
+          <button type="button" data-modify-back-home>← 返回修改档案首页</button>
+          <article role="alert">
+            <b>档案目录读取失败</b>
+            <p>${escapeHtml(error.message || '请稍后重试')}</p>
+            <button type="button" data-retry-modify-archives>重试</button>
+          </article>
+        `;
+      }
+    };
+    const loadArchiveDocuments = async (archive) => {
+      selectedArchive = archive;
+      list.innerHTML = `
+        <button type="button" data-modify-back-category>← 返回${escapeHtml(selectedCategory)}档案</button>
+        <h3>${escapeHtml(archive.title)} / 选择具体文档</h3>
+        <p>正在读取该档案的独立文档…</p>
+      `;
+      try {
+        const documents = await client.listArchiveDocuments(archive.id);
+        selectedDocuments = [
+          ...(archive.origin === 'official' ? [{
+            id: `official:${archive.id}`,
+            title: '官方档案正文',
+            latestVersionId: null,
+            ownerName: 'PALIS',
+          }] : []),
+          ...documents,
+        ];
+        const archiveDrafts = draftContext.drafts.filter((draft) => {
+          const placement = buildClerkDraftPlacement(draft);
+          return placement.action === 'modify' && placement.archiveId === archive.id;
+        });
+        const visibleDocumentIds = new Set(selectedDocuments.map((document) => document.id));
+        const unplacedDrafts = archiveDrafts.filter((draft) => {
+          const documentId = buildClerkDraftPlacement(draft).documentId;
+          return !documentId || !visibleDocumentIds.has(documentId);
+        });
+        list.innerHTML = `
+          <button type="button" data-modify-back-category>← 返回${escapeHtml(selectedCategory)}档案</button>
+          <h3>${escapeHtml(archive.title)} / 选择具体文档</h3>
+          ${unplacedDrafts.map((draft) => renderPlacedDraft(draft, {
+            returnedAttribute: 'data-open-returned-draft',
+            draftAttribute: 'data-open-modify-draft',
+          })).join('')}
+          ${selectedDocuments.length
+            ? selectedDocuments.map((document) => {
+              const placedDrafts = archiveDrafts.filter((draft) =>
+                buildClerkDraftPlacement(draft).documentId === document.id);
+              return `
+                ${placedDrafts.map((draft) => renderPlacedDraft(draft, {
+                  returnedAttribute: 'data-open-returned-draft',
+                  draftAttribute: 'data-open-modify-draft',
+                })).join('')}
+                <button type="button" data-modify-document="${escapeHtml(document.id)}">
+                  <b>${escapeHtml(document.title || '未命名文档')}</b>
+                  <span>VER ${escapeHtml(document.versionLabel || '原始正文')} · ${escapeHtml(document.ownerName || '未署名')}</span>
+                </button>
+              `;
+            }).join('')
+            : (archiveDrafts.length
+              ? ''
+              : '<p>该档案目前没有可修改的具体文档。</p>')}
+        `;
+      } catch (error) {
+        list.innerHTML = `
+          <button type="button" data-modify-back-category>← 返回${escapeHtml(selectedCategory)}档案</button>
+          <article role="alert">
+            <b>文档目录读取失败</b>
+            <p>${escapeHtml(error.message || '请稍后重试')}</p>
+            <button type="button" data-retry-modify-documents>重试</button>
+          </article>
+        `;
+      }
+    };
+    const openSelectedDocument = async (archive, selectedDocument) => {
+      const officialBase = selectedDocument.id === `official:${archive.id}`;
+      list.innerHTML = `
+        <button type="button" data-modify-back-documents>← 返回文档列表</button>
+        <h3>${escapeHtml(selectedDocument.title || archive.title)}</h3>
+        <p>正在载入所选文档的固定版本…</p>
+      `;
+      try {
+        const source = await client.loadArchiveEditorSource(archive.id, {
+          contributionId: officialBase ? null : selectedDocument.id,
+          versionId: selectedDocument.latestVersionId,
+          officialBase,
+        });
+        if (!source) throw new Error('未找到可修改的档案正文，请重试');
+        const media = source.mediaContributionId
+          && typeof client.listPublishedMedia === 'function'
+          ? await client.listPublishedMedia(source.mediaContributionId)
+          : source.content?.media || [];
+        const template = ARCHIVE_TEMPLATES.find((entry) =>
+          entry.category === archive.category)
+          || ARCHIVE_TEMPLATES.find((entry) => entry.category === selectedCategory);
+        if (!template) throw new Error('未找到该档案类别对应的设定卡，请重试');
+        const initial = buildAmendmentInitialState(
+          archive,
+          selectedDocument,
+          { ...source, media },
+        );
+        const editor = await createEditor(template, initial);
+        if (editor) {
+          await state.close();
+          focusWindow(editor.windowElement);
+          editor.windowElement.focus({ preventScroll: true });
+        }
+      } catch (error) {
+        list.innerHTML = `
+          <button type="button" data-modify-back-documents>← 返回文档列表</button>
+          <article role="alert">
+            <b>档案正文载入失败</b>
+            <p>${escapeHtml(error.message || '未找到可修改的档案正文，请重试')}</p>
+            <button type="button"
+              data-retry-amendment-source="${escapeHtml(selectedDocument.id)}">重试载入这份文档</button>
+          </article>
+        `;
+      }
+    };
+
+    list.addEventListener('click', async (event) => {
+      if (event.target.closest('[data-retry-modify-drafts]')) {
+        list.innerHTML = '<p>正在重新读取暂存与审核批复…</p>';
+        await loadDrafts();
+        return;
+      }
+      if (event.target.closest('[data-modify-back-home]')) {
+        renderHome();
+        return;
+      }
+      if (event.target.closest('[data-modify-back-category]')) {
+        await loadEditableArchives(selectedCategory);
+        return;
+      }
+      if (event.target.closest('[data-modify-back-documents]')) {
+        await loadArchiveDocuments(selectedArchive);
+        return;
+      }
+      if (event.target.closest('[data-retry-modify-archives]')) {
+        await loadEditableArchives(selectedCategory);
+        return;
+      }
+      if (event.target.closest('[data-retry-modify-documents]')) {
+        await loadArchiveDocuments(selectedArchive);
+        return;
+      }
+      const draftButton = event.target.closest('[data-draft-id]');
+      if (draftButton) {
+        const draft = draftContext.drafts.find((entry) =>
+          entry.id === draftButton.dataset.draftId);
+        const template = ARCHIVE_TEMPLATE_BY_CODE[draftButton.dataset.template];
+        if (!draft || !template) return;
+        const editor = await createEditor(template, serverDraftToEditorDraft(draft, {
+          reviewReason: draft.status === 'changes_requested' ? draft.reviewReason : '',
+        }));
+        if (editor) {
+          await state.close();
+          focusWindow(editor.windowElement);
+          editor.windowElement.focus({ preventScroll: true });
+        }
+        return;
+      }
+      const categoryButton = event.target.closest('[data-modify-category]');
+      if (categoryButton) {
+        if (!client) {
+          list.innerHTML = `
+            <button type="button" data-modify-back-home>← 返回修改档案首页</button>
+            <article role="alert"><b>档案服务未连接</b><p>连接恢复后可重试读取已发布档案。</p></article>
+          `;
+          return;
+        }
+        await loadEditableArchives(categoryButton.dataset.modifyCategory);
+        return;
+      }
+      const archiveButton = event.target.closest('[data-modify-archive]');
+      if (archiveButton) {
+        const archive = editableArchives.find((entry) => entry.id === archiveButton.dataset.modifyArchive);
+        if (archive) await loadArchiveDocuments(archive);
+        return;
+      }
+      const documentButton = event.target.closest(
+        '[data-modify-document], [data-retry-amendment-source]',
+      );
+      if (documentButton) {
+        const documentId = documentButton.dataset.modifyDocument
+          || documentButton.dataset.retryAmendmentSource;
+        const selectedDocument = selectedDocuments.find((entry) => entry.id === documentId);
+        if (selectedDocument) await openSelectedDocument(selectedArchive, selectedDocument);
+      }
+    });
+
+    await loadDrafts();
+    return state;
   };
 
   const openInboxPanel = async () => {
@@ -2677,9 +3129,8 @@ export function initializeArchiveWorkspace({
   window.addEventListener('palis:workspace-command', (event) => {
     if (!ensureWorkspaceAccess()) return;
     const command = event.detail?.command;
-    if (command === 'cabinet') void openArchiveCabinetPanel();
-    if (command === 'drafts') void openDraftsPanel();
-    if (command === 'inbox') void openInboxPanel();
+    if (command === 'new-archive') void openNewArchiveChooser();
+    if (command === 'modify-archive') void openModifyArchiveChooser();
     if (command === 'review' && canReview(context.role)) void openReviewPanel();
     if (command === 'users' && canReview(context.role)) void openUserManagementPanel();
     if (command === 'archives' && canReview(context.role)) void openArchiveManagementPanel();
@@ -2752,6 +3203,8 @@ export function initializeArchiveWorkspace({
       const template = ARCHIVE_TEMPLATE_BY_CODE[code];
       return template ? createEditor(template, initial) : null;
     },
+    openNewArchiveChooser,
+    openModifyArchiveChooser,
     applySession,
     templates: ARCHIVE_TEMPLATES,
   };

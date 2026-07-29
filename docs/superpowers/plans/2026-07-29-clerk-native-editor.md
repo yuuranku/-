@@ -12,7 +12,7 @@
 
 - Keep the existing status machine and call order: draft/changes_requested → submitted → approved or changes_requested → existing formal accession → published.
 - Do not add a second document schema or database table for native forms; persist through `EditorDocument v2` (`values`, `indexData`, `sections`, `fieldLabels`, `references`, `media`).
-- Clerk desktop primary actions are exactly `新增档案` and `修改档案`; folded drafts and returned reasons must be reachable from modification, not lost.
+- Clerk desktop primary actions are exactly `新增档案` and `修改档案`; a returned new submission reopens from its matching new-archive category, while a returned modification reopens from its matching modification record, and both show the administrator annotation/rejection reason beside the entry.
 - All nine categories (`country`, `organization`, `station`, `entrance`, `ecology`, `person`, `event`, `anomaly`, `species`) permit clerk creation and modification.
 - New forms must not render a new English/foreign-name field; existing legacy values, including English values, must remain editable and survive a save/submit round trip.
 - Preserve “加入引用档案”, attachments, media, autosave, local recovery, returned-review copy, and current system-generated submission/formal metadata.
@@ -27,7 +27,7 @@
 
 - Create `src/archive-workflow/native-form-profiles.js`: nine form definitions plus pure EditorDocument ↔ native-form-state adapters and validation.
 - Create `src/archive-workflow/official-archive-source.js`: turns an existing static official archive source into a nonblank v2 baseline when the database has no authored version.
-- Modify `src/archive-workflow/workspace.js`: replace iframe editing with native DOM rendering, move returned drafts into modification selection, target the precise archive source, and support right docking.
+- Modify `src/archive-workflow/workspace.js`: replace iframe editing with native DOM rendering, place returned new and modification submissions in their matching action/category positions with return reasons, target the precise archive source, and support right docking.
 - Modify `src/archive-workflow/workspace.css`: native form layout, right docking, one scroll container, and narrow-screen behavior.
 - Modify `index.html` and `src/style.css`: two large clerk actions and matching desktop/start-menu icon treatment.
 - Modify `src/archive-workflow/archive-cabinet.js`, `src/archive-workflow/local/local-workflow-engine.js`, `src/archive-workflow/repository-contract.js`, and `src/archive-workflow/repositories/supabase-repository.js`: remove the old two-category restriction and load an exact immutable edit baseline.
@@ -324,7 +324,7 @@
 
 **Interfaces:**
 - Consumes: `ARCHIVE_TEMPLATES`, `client.listMyDrafts(ownerId)`, `client.listEditableArchives({ category })`, `client.listArchiveDocuments(archiveId)`, and the Task 3 source reader.
-- Produces: `openNewArchiveChooser()`, `openModifyArchiveChooser()`, and `buildAmendmentInitialState(archive, documentChoice, source)` in `workspace.js`; each creates an editor only after a specific category/template is selected. `openModifyArchiveChooser()` opens returned/draft records first, then published archive records and their exact document choices.
+- Produces: `openNewArchiveChooser()`, `openModifyArchiveChooser()`, and `buildAmendmentInitialState(archive, documentChoice, source)` in `workspace.js`; each creates an editor only after a specific category/template is selected. `openNewArchiveChooser()` includes returned new submissions in their matching category; `openModifyArchiveChooser()` includes returned modification submissions before published records. Both display the related administrator annotation/rejection reason beside the submission.
 
 - [ ] **Step 1: Write failing desktop-command and returned-draft tests**
 
@@ -335,10 +335,13 @@
     assert.doesNotMatch(clerkDesktopMarkup, /data-workspace-command="drafts"|data-workspace-command="inbox"|data-workspace-command="assistant"/);
   });
 
-  test('modify selection includes a returned draft and keeps the review reason', () => {
+  test('each returned submission is reopened from its matching action and keeps the review reason', () => {
+    assert.match(workspace, /openNewArchiveChooser/);
     assert.match(workspace, /openModifyArchiveChooser/);
     assert.match(workspace, /changes_requested/);
+    assert.match(workspace, /data-open-returned-new/);
     assert.match(workspace, /data-open-returned-draft/);
+    assert.match(workspace, /管理员批注|驳回原因/);
   });
   ```
 
@@ -350,7 +353,7 @@
 
 - [ ] **Step 3: Implement the two-action selection flow**
 
-  Replace clerk-only desktop and start-menu commands with `new-archive` and `modify-archive`; retain admin review/archive/account commands behind `data-admin-only`. `openNewArchiveChooser()` renders all nine templates as large choices and calls `createEditor(template, { kind: 'new' })` only after choosing one. `openModifyArchiveChooser()` loads the clerk's `draft`/`changes_requested` rows first, shows any returned review copy, then lets the user choose category → archive → document; its successful selection calls:
+  Replace clerk-only desktop and start-menu commands with `new-archive` and `modify-archive`; retain admin review/archive/account commands behind `data-admin-only`. `openNewArchiveChooser()` renders all nine templates as large choices, places each `kind: 'new'` / `changes_requested` row under its matching category with the correlated administrator annotation/rejection reason, and calls `createEditor(template, serverDraftToEditorDraft(returnedDraft))` when reopening it. `openModifyArchiveChooser()` places each returned amendment beside its matching category/document with the same visible reason, then lets the user choose category → archive → document; its successful published-record selection calls:
 
   ```js
   const source = await client.loadArchiveEditorSource(archive.id, {
@@ -368,7 +371,7 @@
 
   Run: `node --test tests/clerk-workspace.test.mjs tests/clerk-workflow-ui.test.mjs`
 
-  Expected: PASS; clerk sees exactly two primary actions, all nine types can be chosen for new records, and returned drafts remain reopenable from modification.
+  Expected: PASS; clerk sees exactly two primary actions, all nine types can be chosen for new records, returned new submissions reopen from new-archive categories, returned modifications reopen from modification records, and both visibly retain administrator annotations/rejection reasons.
 
 - [ ] **Step 5: Commit the entry-point refactor**
 

@@ -28,6 +28,25 @@ test('the PALIS mascot keeps its original assistant menu behavior', () => {
   assert.match(script, /trigger\.addEventListener\('click', \(\) => setMenuOpen\(startMenu\.hidden\)\)/);
 });
 
+test('clerk desktop exposes only new and modify as primary archive actions', () => {
+  const desktopIcons = html.match(
+    /<nav class="clerk-desktop__icons"[\s\S]*?<\/nav>/,
+  )?.[0] || '';
+  const clerkButtons = [...desktopIcons.matchAll(/<button\b[^>]*data-clerk-desktop-entry[^>]*>/g)]
+    .map(([button]) => button)
+    .filter((button) => !button.includes('data-admin-only'));
+
+  assert.equal(clerkButtons.length, 2);
+  assert.match(clerkButtons[0], /data-workspace-command="new-archive"/);
+  assert.match(clerkButtons[1], /data-workspace-command="modify-archive"/);
+  assert.match(desktopIcons, />新增档案</);
+  assert.match(desktopIcons, />修改档案</);
+  assert.doesNotMatch(
+    desktopIcons,
+    /data-workspace-command="drafts"|data-workspace-command="inbox"|data-workspace-command="assistant"/,
+  );
+});
+
 test('all recorded clerks use the simple assistant clerk pen-name format', () => {
   for (const name of ['魏伊', '主行', 'FourreTout', '精犬C']) {
     assert.match(script, new RegExp(`助理书记官：${name}`));

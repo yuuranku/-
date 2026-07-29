@@ -279,18 +279,16 @@
       <header class="clerk-desktop__accessible-title"><h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2><span data-workspace-name-en>CLERK WORKSPACE</span><span data-workspace-greeting>欢迎进入 PALIS 工作台</span></header>
       <div class="clerk-desktop__watermark" aria-hidden="true"><b>PALIS LOCAL 09A</b><span data-workspace-watermark-role>CLERK</span><span data-workspace-watermark-connection>LOCAL</span></div>
       <nav class="clerk-desktop__icons" aria-label="工作台桌面快捷方式">
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="cabinet"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-cabinet.svg" alt="" /></i><span>PALIS 档案柜</span></button>
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="drafts"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-draft.svg" alt="" /></i><span>暂存箱</span></button>
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="inbox"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-inbox.svg" alt="" /></i><span>审核回信</span></button>
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="assistant"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-assistant.svg" alt="" /></i><span>PALIS 助手</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="new-archive"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-draft.svg" alt="" /></i><span>新增档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="modify-archive"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-cabinet.svg" alt="" /></i><span>修改档案</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="review" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-review.svg" alt="" /></i><span>审核与录入</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archives" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-management.svg" alt="" /></i><span>档案管理</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="users" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-users.svg" alt="" /></i><span>账号管理</span></button>
       </nav>
       <nav class="clerk-desktop__start-menu" id="clerk-desktop-start-menu" aria-label="开始菜单" hidden><b class="clerk-desktop__start-brand" aria-hidden="true">PALIS 09A</b><div class="clerk-desktop__start-items">
-        <button type="button" data-workspace-command="cabinet">PALIS 档案柜</button><button type="button" data-workspace-command="drafts">暂存箱</button><button type="button" data-workspace-command="inbox">审核回信</button>
+        <button type="button" data-workspace-command="new-archive">新增档案</button><button type="button" data-workspace-command="modify-archive">修改档案</button>
         <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
-        <button type="button" data-workspace-command="assistant">PALIS 助手</button><button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
+        <button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
       </div></nav>
 
       <div class="clerk-desktop__window-layer" id="assistant-window-layer" aria-live="polite">
