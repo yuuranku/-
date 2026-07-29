@@ -26,6 +26,22 @@ const VIEWPORT = Object.freeze({ width: 1440, height: 900, deviceScaleFactor: 1 
 const OUTPUT_ROOT = path.resolve('tmp/local-admin-verification');
 const REPORT_PATH = path.join(OUTPUT_ROOT, 'report.json');
 
+const openWorkspaceCommand = async (page, command) => {
+  await page.click(`[data-workspace-shortcut][data-workspace-command="${command}"]`, { count: 2, delay: 40 });
+};
+const openCabinetTemplate = async (page, code) => {
+  if (!await page.$('.archive-cabinet-window:not([hidden])')) {
+    await openWorkspaceCommand(page, 'cabinet');
+    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
+  }
+  await page.click(`.archive-cabinet-window [data-archive-template="${code}"]`, { count: 2, delay: 40 });
+};
+const exitWorkspace = async (page) => {
+  await page.click('#clerk-desktop-start');
+  await page.click('#clerk-desktop-start-menu [data-workspace-command="exit"]');
+  await page.waitForFunction(() => !document.body.classList.contains('clerk-desktop-open'), { timeout: 10_000 });
+};
+
 const CATEGORY_FIXTURES = Object.freeze([
   {
     category: 'country',
@@ -625,6 +641,8 @@ export async function verifyLocalAdministrator({
     );
     const welcomeClose = await page.$('#clerk-desktop-welcome:not([hidden]) #clerk-desktop-welcome-close');
     if (welcomeClose) await welcomeClose.click();
+    await openWorkspaceCommand(page, 'cabinet');
+    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
     const desktopEvidence = await page.evaluate(() => ({
       title: document.querySelector('[data-workspace-name]')?.textContent?.trim(),
       englishTitle: document.querySelector('[data-workspace-name-en]')?.textContent?.trim(),
@@ -647,7 +665,7 @@ export async function verifyLocalAdministrator({
     });
     await capture(page, report, 'local-admin-win95', desktopEvidence);
 
-    await page.click('[data-archive-template="09"]');
+    await openCabinetTemplate(page, '09');
     await page.waitForSelector(
       '.archive-editor-window [data-archive-index-panel][data-index-category="species"]',
       { timeout: 20_000 },
@@ -677,11 +695,7 @@ export async function verifyLocalAdministrator({
     });
     await capture(page, report, 'species-three-options', speciesEditorEvidence);
     await page.click('.archive-editor-window [data-workflow-close]');
-    await page.click('#clerk-desktop-exit');
-    await page.waitForFunction(
-      () => !document.body.classList.contains('clerk-desktop-open'),
-      { timeout: 10_000 },
-    );
+    await exitWorkspace(page);
 
     await enterDirectory(page, ROOT_DIRECTORY.anomaly);
     await page.waitForSelector('.folder-button[data-code="A26"]', { timeout: 20_000 });
@@ -778,7 +792,7 @@ export async function verifyLocalAdministrator({
       'body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])',
       { timeout: 20_000 },
     );
-    await page.click('[data-workflow-panel="archives"]');
+    await openWorkspaceCommand(page, 'archives');
     const anomalyArchiveId = seeded.numbering.anomaly.archiveId;
     await page.waitForSelector(
       `[data-managed-archive="${anomalyArchiveId}"] [data-toggle-archive-new][aria-checked="true"]`,
@@ -821,11 +835,7 @@ export async function verifyLocalAdministrator({
       evidence: ['05-new-toggle-off.png'],
     });
     await capture(page, report, 'new-toggle-off', newToggleEvidence);
-    await page.click('#clerk-desktop-exit');
-    await page.waitForFunction(
-      () => !document.body.classList.contains('clerk-desktop-open'),
-      { timeout: 10_000 },
-    );
+    await exitWorkspace(page);
 
     await enterDirectory(page, ROOT_DIRECTORY.anomaly);
     await page.waitForSelector('.folder-button[data-code="A26"]', { timeout: 20_000 });
@@ -908,10 +918,7 @@ export async function verifyLocalAdministrator({
       'body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])',
       { timeout: 20_000 },
     );
-    await page.$eval(
-      '[data-archive-template="07"]',
-      (button) => button.click(),
-    );
+    await openCabinetTemplate(page, '07');
     await page.waitForSelector(
       '.archive-editor-window:not([hidden]) [data-archive-index-panel][data-index-category="event"]',
       { timeout: 20_000 },
@@ -960,7 +967,7 @@ export async function verifyLocalAdministrator({
       (button) => button.click(),
     );
 
-    await page.click('[data-workflow-panel="archives"]');
+    await openWorkspaceCommand(page, 'archives');
     await page.waitForSelector(
       '.archive-admin-window:not([hidden]) [data-admin-archive-management]',
       { timeout: 20_000 },

@@ -61,6 +61,7 @@ export const createAutosaveController = ({
   let localTimer = null;
   let remoteTimer = null;
   let disposed = false;
+  let lastQueuedAt = 0;
 
   const emit = (state, detail = {}) => onState(state, detail);
 
@@ -92,7 +93,7 @@ export const createAutosaveController = ({
         emit('conflict', { key: snapshot.key, local: snapshot, cloud: result.cloud ?? null });
         return { status: 'conflict', local: snapshot, cloud: result.cloud ?? null };
       }
-      emit('cloud-synced', { key: snapshot.key, result: result ?? null });
+      emit('cloud-synced', { key: snapshot.key, updatedAt: snapshot.updatedAt, result: result ?? null });
       return result ?? snapshot;
     } catch (error) {
       const status = classifyRemoteError(error);
@@ -104,10 +105,15 @@ export const createAutosaveController = ({
   const queue = (draft) => {
     if (disposed) throw new Error('Autosave controller has been disposed');
     if (!String(draft?.key ?? '').trim()) throw new TypeError('Draft key is required');
+    const clockValue = Number(now());
+    const draftValue = Number(draft?.updatedAt);
+    const generationFloor = Math.max(lastQueuedAt, Number.isFinite(draftValue) ? draftValue : 0);
+    const updatedAt = Math.max(Number.isFinite(clockValue) ? clockValue : Date.now(), generationFloor + 1);
+    lastQueuedAt = updatedAt;
     pendingDraft = {
       ...clone(draft),
       key: String(draft.key).trim(),
-      updatedAt: now(),
+      updatedAt,
     };
     clearTimer('local');
     clearTimer('remote');

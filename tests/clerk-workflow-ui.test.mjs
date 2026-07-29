@@ -11,9 +11,8 @@ const [html, workspace, styles, main, templates] = await Promise.all([
   readFile(new URL('src/archive-workflow/templates.js', projectRoot), 'utf8'),
 ]);
 
-test('nine archive files are openable from the clerk desktop', async () => {
-  const shortcuts = [...html.matchAll(/data-archive-template="(\d{2})"/g)].map((match) => match[1]);
-  assert.deepEqual(shortcuts, ['01', '02', '03', '04', '05', '06', '07', '08', '09']);
+test('all nine archive templates remain registered for the PALIS cabinet', async () => {
+  assert.equal((templates.match(/template\('\d{2}'/g) || []).length, 9);
 
   const files = [
     '01-国家档案设定卡.html',

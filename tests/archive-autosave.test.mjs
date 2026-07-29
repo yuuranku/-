@@ -179,3 +179,24 @@ test('clear removes a submitted draft and dispose flushes pending local edits', 
   controller.clear('draft:station');
   assert.equal(storage.has('palis:draft:station'), false);
 });
+
+test('cloud sync reports the precise queued generation and same-tick queues remain ordered', async () => {
+  const storage = createMemoryStorage();
+  let releaseFirst;
+  const states = [];
+  const controller = createAutosaveController({
+    storage,
+    now: () => 10,
+    remote: { saveDraft: async () => new Promise((resolve) => { releaseFirst = resolve; }) },
+    onState: (state, detail) => states.push({ state, detail }),
+  });
+  const first = controller.queue({ key: 'draft:race', revision: 1, content: 'first' });
+  const firstSync = controller.flushRemote();
+  while (!releaseFirst) await Promise.resolve();
+  const second = controller.queue({ key: 'draft:race', revision: 1, content: 'second' });
+  assert.ok(second.updatedAt > first.updatedAt);
+  releaseFirst({ status: 'ok' });
+  await firstSync;
+  const synced = states.find(({ state }) => state === 'cloud-synced');
+  assert.equal(synced.detail.updatedAt, first.updatedAt);
+});

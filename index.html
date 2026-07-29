@@ -276,59 +276,22 @@
     <div class="archive-desktop" id="archive-desktop" aria-label="档案窗口桌面"></div>
 
     <section class="clerk-desktop" id="clerk-desktop" role="dialog" aria-modal="true" aria-labelledby="clerk-desktop-title" hidden tabindex="-1">
-      <header class="clerk-desktop__identity">
-        <div class="clerk-desktop__marks" aria-hidden="true"><i></i><i></i><i></i></div>
-        <p>PALIS / LOCAL ROLE WORKSPACE</p>
-        <h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2>
-        <div><span>LOCAL RECORDING LAYER</span><b>CHANNEL 09A</b></div>
-      </header>
-
-      <nav class="clerk-desktop__icons" aria-label="书记官工作台文件">
-        <button type="button" data-clerk-desktop-entry data-archive-template="01">
-          <i class="clerk-desktop__icon" data-icon-type="country" aria-hidden="true"><img src="/assets/icons/archive-country.svg" alt="" /><b>01</b></i>
-          <span>国家档案</span><small>STATE_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="02">
-          <i class="clerk-desktop__icon" data-icon-type="organization" aria-hidden="true"><img src="/assets/icons/archive-organization.svg" alt="" /><b>02</b></i>
-          <span>组织档案</span><small>ORG_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="03">
-          <i class="clerk-desktop__icon" data-icon-type="station" aria-hidden="true"><img src="/assets/icons/archive-station.svg" alt="" /><b>03</b></i>
-          <span>科考站档案</span><small>STATION_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="04">
-          <i class="clerk-desktop__icon" data-icon-type="entrance" aria-hidden="true"><img src="/assets/icons/archive-entrance.svg" alt="" /><b>04</b></i>
-          <span>白幕入口档案</span><small>ENTRANCE_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="05">
-          <i class="clerk-desktop__icon" data-icon-type="ecology" aria-hidden="true"><img src="/assets/icons/archive-ecology.svg" alt="" /><b>05</b></i>
-          <span>生态档案</span><small>ECOLOGY_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="06">
-          <i class="clerk-desktop__icon" data-icon-type="person" aria-hidden="true"><img src="/assets/icons/archive-person.svg" alt="" /><b>06</b></i>
-          <span>人物档案</span><small>PERSON_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="07">
-          <i class="clerk-desktop__icon" data-icon-type="event" aria-hidden="true"><img src="/assets/icons/archive-event.svg" alt="" /><b>07</b></i>
-          <span>事件档案</span><small>EVENT_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="08">
-          <i class="clerk-desktop__icon" data-icon-type="anomaly" aria-hidden="true"><img src="/assets/icons/archive-anomaly.svg" alt="" /><b>08</b></i>
-          <span>异常附卷</span><small>ANOMALY_RECORD.HTML</small>
-        </button>
-        <button type="button" data-clerk-desktop-entry data-archive-template="09">
-          <i class="clerk-desktop__icon" data-icon-type="species" aria-hidden="true"><img src="/assets/icons/archive-species.svg" alt="" /><b>09</b></i>
-          <span>物种与标本</span><small>SPECIES_RECORD.HTML</small>
-        </button>
+      <header class="clerk-desktop__accessible-title"><h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2><span data-workspace-name-en>CLERK WORKSPACE</span><span data-workspace-greeting>欢迎进入 PALIS 工作台</span></header>
+      <div class="clerk-desktop__watermark" aria-hidden="true"><b>PALIS LOCAL 09A</b><span data-workspace-watermark-role>CLERK</span><span data-workspace-watermark-connection>LOCAL</span></div>
+      <nav class="clerk-desktop__icons" aria-label="工作台桌面快捷方式">
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="cabinet"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-cabinet.svg" alt="" /></i><span>PALIS 档案柜</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="drafts"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-draft.svg" alt="" /></i><span>暂存箱</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="inbox"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-inbox.svg" alt="" /></i><span>审核回信</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="assistant"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-assistant.svg" alt="" /></i><span>PALIS 助手</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="review" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-review.svg" alt="" /></i><span>审核与录入</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archives" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-management.svg" alt="" /></i><span>档案管理</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="users" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-users.svg" alt="" /></i><span>账号管理</span></button>
       </nav>
-
-      <nav class="clerk-desktop__utilities" aria-label="书记官工作流">
-        <button type="button" data-workflow-panel="drafts"><img src="/assets/icons/archive-draft.svg" alt="" /><span>暂存箱</span><small>LOCAL + CLOUD</small></button>
-        <button type="button" data-workflow-panel="inbox"><img src="/assets/icons/archive-inbox.svg" alt="" /><span>审核回信</span><small>INBOX</small></button>
-        <button type="button" data-workflow-panel="review" data-admin-only hidden><img src="/assets/icons/archive-review.svg" alt="" /><span>审核与录入</span><small>ADMIN</small></button>
-        <button type="button" data-workflow-panel="users" data-admin-only hidden><img src="/assets/icons/archive-users.svg" alt="" /><span>账号管理</span><small>ADMIN</small></button>
-        <button type="button" data-workflow-panel="archives" data-admin-only hidden><img src="/assets/icons/archive-draft.svg" alt="" /><span>档案管理</span><small>ADMIN</small></button>
-      </nav>
+      <nav class="clerk-desktop__start-menu" id="clerk-desktop-start-menu" aria-label="开始菜单" hidden><b class="clerk-desktop__start-brand" aria-hidden="true">PALIS 09A</b><div class="clerk-desktop__start-items">
+        <button type="button" data-workspace-command="cabinet">PALIS 档案柜</button><button type="button" data-workspace-command="drafts">暂存箱</button><button type="button" data-workspace-command="inbox">审核回信</button>
+        <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
+        <button type="button" data-workspace-command="assistant">PALIS 助手</button><button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
+      </div></nav>
 
       <div class="clerk-desktop__window-layer" id="assistant-window-layer" aria-live="polite">
         <article class="clerk-desktop__welcome retro-window" id="clerk-desktop-welcome" tabindex="-1">
@@ -353,14 +316,9 @@
         </article>
       </div>
 
-      <footer class="clerk-desktop__taskbar" id="assistant-taskbar" aria-label="书记官工作台任务栏">
-        <button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-welcome"><i aria-hidden="true"></i><b>工作台</b></button>
-        <div class="clerk-desktop__task-list" id="assistant-task-list" aria-label="书记官工作台已打开窗口" hidden></div>
-        <p class="clerk-desktop__status"><i></i><span>本地工作台已接入</span></p>
-        <p class="clerk-desktop__channel"><span data-workspace-greeting>欢迎您，书记官</span><b data-workspace-name-en>CLERK WORKSPACE</b></p>
-        <button class="clerk-desktop__exit" id="clerk-desktop-exit" type="button">返回档案系统</button>
-        <time id="clerk-desktop-time">13:13</time>
-      </footer>
+      <footer class="clerk-desktop__taskbar" id="assistant-taskbar"><button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-start-menu" aria-expanded="false"><i aria-hidden="true"></i><b>开始</b></button><div class="clerk-desktop__task-list" id="assistant-task-list" hidden></div><div class="clerk-desktop__tray" aria-label="系统托盘"><button type="button" data-workspace-tray="sync" aria-label="查看本地与云端保存状态"><i></i></button><span data-workspace-tray-role aria-label="当前身份">书记官</span><span data-workspace-connection aria-label="保存连接状态">LOCAL</span><time id="clerk-desktop-time">13:13</time></div></footer>
+      <dialog class="workspace-exit-dialog" id="workspace-exit-dialog" aria-labelledby="workspace-exit-title"><form method="dialog"><h2 id="workspace-exit-title">仍有未同步的档案内容</h2><p data-workspace-exit-message>请选择如何处理当前工作。</p><div><button type="button" value="cancel" data-workspace-exit-action="cancel">继续编辑</button><button type="button" value="save" data-workspace-exit-action="save">保存到本地后返回</button><button type="button" value="discard" data-workspace-exit-action="discard">放弃未同步修改</button></div></form></dialog>
+      <dialog class="workspace-sync-dialog" id="workspace-sync-dialog" aria-labelledby="workspace-sync-title"><form method="dialog"><h2 id="workspace-sync-title">PALIS 保存状态</h2><p data-workspace-sync-summary>当前没有打开的档案编辑器。</p><button value="close">确定</button></form></dialog>
     </section>
 
     <section class="version-notice" id="version-notice" role="dialog" aria-modal="true" aria-labelledby="version-notice-title" aria-describedby="version-notice-copy" hidden>

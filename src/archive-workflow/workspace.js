@@ -26,6 +26,7 @@ import {
   optimizeArchiveImage,
 } from './media.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
+import { renderArchiveCabinet } from './archive-cabinet.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
   'local-saving': '正在写入本地暂存…',
@@ -428,8 +429,6 @@ export function initializeArchiveWorkspace({
   const workspaceNameOutputs = [...document.querySelectorAll('[data-workspace-name]')];
   const workspaceNameEnglishOutputs = [...document.querySelectorAll('[data-workspace-name-en]')];
   const workspaceGreetingOutputs = [...document.querySelectorAll('[data-workspace-greeting]')];
-  const templateButtons = [...(root?.querySelectorAll('[data-archive-template]') ?? [])];
-  const panelButtons = [...(root?.querySelectorAll('[data-workflow-panel]') ?? [])];
   const adminButtons = [...(root?.querySelectorAll('[data-admin-only]') ?? [])];
   if (!root || !workspaceEntry || !windowLayer || !taskList) return null;
 
@@ -441,6 +440,11 @@ export function initializeArchiveWorkspace({
   };
   const windows = new Map();
   let zIndex = 22500;
+  const narrowWorkspaceQuery = matchMedia('(max-width: 760px)');
+  const syncWorkflowViewport = () => windows.forEach((state) => {
+    state.windowElement.classList.toggle('is-narrow-forced', narrowWorkspaceQuery.matches);
+  });
+  narrowWorkspaceQuery.addEventListener('change', syncWorkflowViewport);
 
   const updateTaskList = () => {
     taskList.hidden = taskList.children.length === 0;
@@ -480,6 +484,9 @@ export function initializeArchiveWorkspace({
       task.classList.toggle('is-active', active);
       task.setAttribute('aria-pressed', String(active));
     });
+    window.dispatchEvent(new CustomEvent('palis:workspace-window-focus', {
+      detail: { owner: 'workflow', windowElement, taskButton: taskList.querySelector(`[aria-controls="${CSS.escape(windowElement.id)}"]`) },
+    }));
   };
 
   const installWindowDrag = (windowElement) => {
@@ -500,7 +507,7 @@ export function initializeArchiveWorkspace({
       windowElement.classList.remove('is-dragging');
     };
     handle.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0 || event.target.closest('button') || matchMedia('(max-width: 760px)').matches) return;
+      if (event.button !== 0 || event.target.closest('button') || matchMedia('(max-width: 760px)').matches || windowElement.classList.contains('is-maximized')) return;
       focusWindow(windowElement);
       drag = {
         pointerId: event.pointerId,
@@ -518,7 +525,7 @@ export function initializeArchiveWorkspace({
     handle.addEventListener('pointercancel', finish);
   };
 
-  const createWindow = ({ key, title, code, body, className = '' }) => {
+  const createWindow = ({ key, title, code, body, className = '', icon = '' }) => {
     const existing = windows.get(key);
     if (existing) {
       existing.windowElement.hidden = false;
@@ -537,11 +544,13 @@ export function initializeArchiveWorkspace({
     windowElement.setAttribute('aria-modal', 'false');
     windowElement.setAttribute('aria-label', title);
     windowElement.setAttribute('tabindex', '-1');
+    const titleIcon = icon ? `<img class="archive-workflow-titlebar__icon" src="${escapeHtml(icon)}" alt="" aria-hidden="true" />` : '';
     windowElement.innerHTML = `
       <div class="title-bar archive-workflow-titlebar" data-workflow-drag-handle>
-        <span>${escapeHtml(code)} / ${escapeHtml(title)}</span>
+        <span>${titleIcon}${escapeHtml(code)} / ${escapeHtml(title)}</span>
         <div class="window-controls">
           <button type="button" data-workflow-minimize aria-label="最小化${escapeHtml(title)}">_</button>
+          <button type="button" data-workflow-maximize aria-label="最大化${escapeHtml(title)}">□</button>
           <button type="button" data-workflow-close aria-label="关闭${escapeHtml(title)}">×</button>
         </div>
       </div>
@@ -554,7 +563,7 @@ export function initializeArchiveWorkspace({
     taskButton.dataset.workflowTask = key;
     taskButton.setAttribute('aria-controls', windowElement.id);
     taskButton.setAttribute('aria-pressed', 'false');
-    taskButton.innerHTML = `<i></i><span><b>${escapeHtml(code)}</b>${escapeHtml(title)}</span>`;
+    taskButton.innerHTML = `${icon ? `<img src="${escapeHtml(icon)}" alt="" aria-hidden="true" />` : '<i aria-hidden="true"></i>'}<span><b>${escapeHtml(code)}</b>${escapeHtml(title)}</span>`;
     taskList.appendChild(taskButton);
     windowLayer.appendChild(windowElement);
 
@@ -570,8 +579,13 @@ export function initializeArchiveWorkspace({
       dispose: null,
       minimized: false,
       returnFocus,
+      maximized: false,
+      restoredBounds: null,
+      dirtyKey: null,
+      closing: false,
     };
     windows.set(key, state);
+    syncWorkflowViewport();
     updateTaskList();
     installWindowDrag(windowElement);
     focusWindow(windowElement);
@@ -589,10 +603,28 @@ export function initializeArchiveWorkspace({
         windowElement.focus({ preventScroll: true });
       }
     };
-    taskButton.addEventListener('click', toggleMinimize);
+    const toggleMaximize = () => {
+      if (narrowWorkspaceQuery.matches) return;
+      if (!state.maximized) {
+        const rect = windowElement.getBoundingClientRect();
+        state.restoredBounds = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      }
+      state.maximized = !state.maximized;
+      windowElement.classList.toggle('is-maximized', state.maximized);
+      if (!state.maximized && state.restoredBounds) Object.assign(windowElement.style, Object.fromEntries(Object.entries(state.restoredBounds).map(([name, value]) => [name, `${value}px`])));
+      else ['left', 'top', 'width', 'height'].forEach((property) => windowElement.style.removeProperty(property));
+      focusWindow(windowElement);
+    };
+    taskButton.addEventListener('click', () => {
+      if (state.minimized || windowElement.classList.contains('is-active')) toggleMinimize();
+      else { focusWindow(windowElement); windowElement.focus({ preventScroll: true }); }
+    });
     windowElement.querySelector('[data-workflow-minimize]').addEventListener('click', toggleMinimize);
-    windowElement.querySelector('[data-workflow-close]').addEventListener('click', async () => {
-      await state.dispose?.();
+    windowElement.querySelector('[data-workflow-maximize]').addEventListener('click', toggleMaximize);
+    windowElement.querySelector('[data-workflow-drag-handle]').addEventListener('dblclick', (event) => { if (!event.target.closest('button')) toggleMaximize(); });
+    const closeWindow = async () => {
+      if (state.closing) return;
+      state.closing = true;
       windows.delete(key);
       taskButton.remove();
       windowElement.remove();
@@ -600,6 +632,12 @@ export function initializeArchiveWorkspace({
       if (state.returnFocus?.isConnected) {
         state.returnFocus.focus({ preventScroll: true });
       }
+      try { await state.dispose?.(); } catch (error) { console.error('PALIS window cleanup failed', error); }
+    };
+    state.close = closeWindow;
+    windowElement.querySelector('[data-workflow-close]').addEventListener('click', () => {
+      if (!state.dirtyKey) { void closeWindow(); return; }
+      window.dispatchEvent(new CustomEvent('palis:workspace-leave-request', { cancelable: true, detail: { keys: [state.dirtyKey], proceed: () => { void closeWindow(); }, cancel: () => {} } }));
     });
     windowElement.addEventListener('pointerdown', () => focusWindow(windowElement));
     return state;
@@ -770,6 +808,15 @@ export function initializeArchiveWorkspace({
     const mediaPolicy = mediaPolicyForCategory(template.category);
     const pendingMediaSelections = new Map();
     const localKey = `draft:${context.profile.id}:${template.code}:${initial.id || initial.archiveCode || 'new'}`;
+    windowState.dirtyKey = localKey;
+    let editorDirty = false;
+    let submitted = false;
+    let latestQueuedAt = 0;
+    let latestSyncedAt = 0;
+    const hasVolatileFileSelection = () => pendingMediaSelections.size > 0 || form.elements.attachments.files.length > 0;
+    const draftGeneration = (value, fallback = Date.now()) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const reportDirtyState = () => window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: !submitted && (editorDirty || hasVolatileFileSelection()) } }));
+    const markEditorDirty = () => { if (form.dataset.editorSubmissionState !== 'submitted') submitted = false; editorDirty = true; reportDirtyState(); };
     if (fixedArchive) {
       kindSelect.value = 'amendment';
       kindSelect.disabled = true;
@@ -886,9 +933,12 @@ export function initializeArchiveWorkspace({
         })
       : null;
 
-    const setAutosaveState = (state) => {
+    const setAutosaveState = (state, detail = {}) => {
       autosaveOutput.dataset.state = state;
       autosaveOutput.textContent = AUTOSAVE_LABELS[state] || state;
+      if (state === 'cloud-synced') { latestSyncedAt = Math.max(latestSyncedAt, draftGeneration(detail.updatedAt, 0)); editorDirty = latestSyncedAt < latestQueuedAt; }
+      window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state } }));
+      reportDirtyState();
     };
 
     const indexInputFor = (key) =>
@@ -1151,7 +1201,7 @@ export function initializeArchiveWorkspace({
       } else if (kindSelect.value === 'amendment') {
         await loadTargetDocuments(archive);
       }
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
     };
 
     const updateMode = () => {
@@ -1204,6 +1254,12 @@ export function initializeArchiveWorkspace({
         },
       };
       return editorDraft;
+    };
+    const queueDraftAutosave = () => {
+      const queued = autosave.queue(collectDraft());
+      latestQueuedAt = Math.max(latestQueuedAt, draftGeneration(queued.updatedAt));
+      markEditorDirty();
+      return queued;
     };
 
     const populateDraft = (draft) => {
@@ -1273,7 +1329,7 @@ export function initializeArchiveWorkspace({
       }
       editorBridge?.insertReference(reference);
       slashReferenceMenu.hidden = true;
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
     });
 
     let activePreviewUrl = null;
@@ -1312,7 +1368,7 @@ export function initializeArchiveWorkspace({
             references,
           };
           syncTemplateToIndex(document);
-          autosave.queue(collectDraft());
+          queueDraftAutosave();
         },
         waitForLoad,
       });
@@ -1408,6 +1464,7 @@ export function initializeArchiveWorkspace({
             || `${title} / ${slot.label}${slot.limit > 1 ? ` ${durableCount + index + 1}` : ''}`,
         };
       }));
+      markEditorDirty();
       mediaMessage.textContent = files.length
         ? `已选择 ${files.length} 张${slot.label}；图片会在提交时依次压缩上传。`
         : '';
@@ -1419,6 +1476,7 @@ export function initializeArchiveWorkspace({
       const role = control.closest('[data-archive-media-role]')?.dataset.archiveMediaRole;
       const entry = pendingMediaSelections.get(role)?.[Number(control.dataset.archiveMediaIndex)];
       if (entry) entry[control.dataset.archiveMediaMeta] = control.value;
+      markEditorDirty();
     });
     mediaPanel?.addEventListener('click', (event) => {
       const remove = event.target.closest('[data-remove-archive-media]');
@@ -1431,6 +1489,7 @@ export function initializeArchiveWorkspace({
       else pendingMediaSelections.delete(role);
       const input = slotElement?.querySelector('[data-archive-media-input]');
       if (input) input.value = '';
+      markEditorDirty();
       mediaMessage.textContent = '已从本次待上传图片中移除。';
       renderPendingMedia();
     });
@@ -1446,7 +1505,7 @@ export function initializeArchiveWorkspace({
         showIndexErrors([]);
         syncIndexFieldToTemplate(event.target.dataset.indexKey);
       }
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
     });
     form.addEventListener('change', (event) => {
       if (event.target.closest('[data-archive-media-editor]')) return;
@@ -1464,14 +1523,14 @@ export function initializeArchiveWorkspace({
       } else {
         updateMode();
       }
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
     });
     form.querySelector('[data-refresh-editable-archives]').addEventListener('click', async () => {
       archiveTargetsLoaded = false;
       await loadEditableArchives();
     });
     form.querySelector('[data-save-now]').addEventListener('click', async () => {
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
       await autosave.flushLocal();
       message.textContent = '当前内容已手动写入本地暂存。';
     });
@@ -1510,14 +1569,14 @@ export function initializeArchiveWorkspace({
         title: button.dataset.label,
       }));
       renderReferenceList(referenceList, references);
-      autosave.queue(collectDraft());
+      queueDraftAutosave();
     });
     referenceList.addEventListener('click', (event) => {
       const remove = event.target.closest('[data-remove-reference]');
       if (remove) {
         references.splice(Number(remove.dataset.removeReference), 1);
         renderReferenceList(referenceList, references);
-        autosave.queue(collectDraft());
+        queueDraftAutosave();
       }
     });
 
@@ -1560,7 +1619,7 @@ export function initializeArchiveWorkspace({
       }
       submitButton.disabled = true;
       const syncDraft = async () => {
-        autosave.queue(collectDraft());
+        queueDraftAutosave();
         return autosave.flushRemote();
       };
       const uploadGenericAttachments = async (draftId) => {
@@ -1604,7 +1663,7 @@ export function initializeArchiveWorkspace({
               },
               onUploaded: async (descriptor) => {
                 persistEditorMedia([...durableEditorMedia(), descriptor]);
-                autosave.queue(collectDraft());
+                queueDraftAutosave();
                 await autosave.flushLocal();
               },
             }),
@@ -1638,6 +1697,8 @@ export function initializeArchiveWorkspace({
           return;
         }
         autosave.clear(localKey);
+        submitted = true;
+        editorDirty = false;
         setAutosaveState('cloud-synced');
         message.textContent = '档案已提交审核；批复会出现在“审核回信”。';
       } catch (error) {
@@ -1647,10 +1708,29 @@ export function initializeArchiveWorkspace({
       }
     });
 
+    const flushForWorkspaceExit = (event) => {
+      if (!event.detail?.keys?.includes(localKey)) return;
+      if (hasVolatileFileSelection()) { event.detail.requests.push(Promise.reject(new Error('图片或附件必须提交上传，不能只保存到本地'))); return; }
+      event.detail.requests.push(autosave.flushLocal());
+    };
+    const discardForWorkspaceExit = (event) => {
+      if (!event.detail?.keys?.includes(localKey)) return;
+      autosave.clear(localKey); submitted = true; editorDirty = false; reportDirtyState();
+    };
+    const rearmAfterFailedLeave = () => { if (form.dataset.editorSubmissionState !== 'submitted') { submitted = false; queueDraftAutosave(); } };
+    window.addEventListener('palis:workspace-flush-request', flushForWorkspaceExit);
+    window.addEventListener('palis:workspace-discard-request', discardForWorkspaceExit);
+    window.addEventListener('palis:workspace-leave-aborted', rearmAfterFailedLeave);
+    window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state: 'local-saved' } }));
     const flushOnPageHide = () => autosave.flushLocal();
     window.addEventListener('pagehide', flushOnPageHide);
     windowState.dispose = async () => {
       window.removeEventListener('pagehide', flushOnPageHide);
+      window.removeEventListener('palis:workspace-flush-request', flushForWorkspaceExit);
+      window.removeEventListener('palis:workspace-discard-request', discardForWorkspaceExit);
+      window.removeEventListener('palis:workspace-leave-aborted', rearmAfterFailedLeave);
+      window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: false } }));
+      window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state: 'closed' } }));
       editorBridge?.dispose();
       editorBridge = null;
       await autosave.dispose();
@@ -2335,25 +2415,42 @@ export function initializeArchiveWorkspace({
     return state;
   };
 
-  templateButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const template = ARCHIVE_TEMPLATE_BY_CODE[button.dataset.archiveTemplate];
-      if (template) createEditor(template);
+  const openArchiveCabinetPanel = async () => {
+    const state = createWindow({ key: 'archive-cabinet', title: 'PALIS 档案柜', code: 'C:\\PALIS\\ARCHIVES', className: 'archive-cabinet-window', icon: '/assets/icons/archive-cabinet.svg', body: renderArchiveCabinet(context.role) });
+    if (state.cabinetReady) return state;
+    state.cabinetReady = true;
+    const cabinet = state.windowElement.querySelector('[data-archive-cabinet]');
+    const openButton = cabinet.querySelector('[data-cabinet-action="open"]');
+    const menus = [...cabinet.querySelectorAll('[data-cabinet-menu]')];
+    const permissionDialog = cabinet.querySelector('[data-cabinet-permissions]');
+    let selected = null;
+    const closeMenus = () => menus.forEach((menu) => { menu.open = false; });
+    const select = (button) => { cabinet.querySelectorAll('[data-archive-template]').forEach((entry) => entry.classList.toggle('is-selected', entry === button)); selected = button; openButton.disabled = !selected; cabinet.querySelector('[data-cabinet-selection]').value = selected ? `${selected.dataset.archiveTemplate} / ${selected.textContent.trim()}` : '9 个对象'; };
+    const open = (button) => { const template = ARCHIVE_TEMPLATE_BY_CODE[button?.dataset.archiveTemplate]; if (template) void createEditor(template, { kind: button.dataset.defaultKind }); };
+    cabinet.addEventListener('click', (event) => {
+      const folder = event.target.closest('[data-archive-template]'); if (folder) select(folder);
+      if (event.target.closest('[data-cabinet-action="open"]')) { closeMenus(); open(selected); }
+      if (event.target.closest('[data-cabinet-action="close"]')) { closeMenus(); state.windowElement.querySelector('[data-workflow-close]').click(); }
+      if (event.target.closest('[data-cabinet-action="permissions"]')) { closeMenus(); permissionDialog.showModal(); }
     });
+    cabinet.addEventListener('dblclick', (event) => open(event.target.closest('[data-archive-template]')));
+    cabinet.addEventListener('pointerup', (event) => { if (event.pointerType !== 'mouse') open(event.target.closest('[data-archive-template]')); });
+    cabinet.addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key) && event.target.matches('[data-archive-template]')) { event.preventDefault(); open(event.target); } });
+    return state;
+  };
+
+  window.addEventListener('palis:workspace-command', (event) => {
+    if (!ensureWorkspaceAccess()) return;
+    const command = event.detail?.command;
+    if (command === 'cabinet') void openArchiveCabinetPanel();
+    if (command === 'drafts') void openDraftsPanel();
+    if (command === 'inbox') void openInboxPanel();
+    if (command === 'review' && canReview(context.role)) void openReviewPanel();
+    if (command === 'users' && canReview(context.role)) void openUserManagementPanel();
+    if (command === 'archives' && canReview(context.role)) void openArchiveManagementPanel();
   });
 
-  panelButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const panel = button.dataset.workflowPanel;
-      if (panel === 'drafts') openDraftsPanel();
-      if (panel === 'inbox') openInboxPanel();
-      if (panel === 'review') openReviewPanel();
-      if (panel === 'users') openUserManagementPanel();
-      if (panel === 'archives') openArchiveManagementPanel();
-    });
-  });
-
-  const applySession = ({ session = null, profile = null, role = null, preview = false } = {}) => {
+  const commitSession = ({ session = null, profile = null, role = null, preview = false } = {}) => {
     context.session = session;
     context.profile = profile;
     context.role = role || 'observer';
@@ -2379,8 +2476,17 @@ export function initializeArchiveWorkspace({
     root.querySelector('#assistant-taskbar')?.setAttribute('aria-label', `${workspaceName}任务栏`);
     if (roleOutput) roleOutput.textContent = context.role === 'admin' ? 'ADMIN / 管理员' : context.role === 'clerk' ? 'CLERK / 书记官' : 'OBSERVER / 观察员';
     setWorkspaceMessage(allowed ? 'WORKSPACE READY' : 'READ ONLY / WORKSPACE LOCKED');
-    if (!allowed && !root.hidden) document.querySelector('#clerk-desktop-exit')?.click();
   };
+  const applySession = (next = {}) => {
+    const previousPrincipalId = context.profile?.id ?? null;
+    const nextPrincipalId = next.profile?.id ?? null;
+    const previousRole = context.role || 'observer';
+    const nextRole = next.role || 'observer';
+    const scopeChanged = document.body.classList.contains('clerk-desktop-open') && canEnterWorkspace(previousRole) && (previousPrincipalId !== nextPrincipalId || previousRole !== nextRole);
+    if (scopeChanged) { window.dispatchEvent(new CustomEvent('palis:workspace-scope-change', { detail: { commit: () => commitSession(next) } })); return; }
+    commitSession(next);
+  };
+  window.addEventListener('palis:workspace-close-all', () => { [...windows.values()].forEach((state) => { void state.close?.(); }); });
 
   window.addEventListener('palis:session-change', (event) => applySession(event.detail));
   window.addEventListener('palis:open-amendment', (event) => {

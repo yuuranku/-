@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-core';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
 import { startPalisTestServer } from './helpers/palis-test-server.mjs';
 
-test('local administrator opens the workspace without loading cloud authentication', { timeout: 30_000 }, async () => {
+test('local administrator opens the workspace without loading cloud authentication', { timeout: 120_000 }, async () => {
   process.env.VITE_PALIS_LOCAL_ADMIN = '1';
   const server = await startPalisTestServer();
   const browser = await puppeteer.launch({
@@ -52,7 +52,14 @@ test('local administrator opens the workspace without loading cloud authenticati
     if (welcomeClose) {
       await page.$eval('#clerk-desktop-welcome-close', (button) => button.click());
     }
-    await page.click('[data-archive-template="07"]');
+    await page.click('#clerk-desktop-start');
+    await page.waitForSelector('#clerk-desktop-start-menu:not([hidden])');
+    assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'true');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
+    await page.click('[data-workspace-shortcut][data-workspace-command="cabinet"]', { count: 2, delay: 40 });
+    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
+    await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     const focusState = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window');
@@ -77,7 +84,7 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('.archive-editor-window [data-workflow-close]');
     assert.equal(
       await page.evaluate(() =>
-        document.activeElement?.matches?.('[data-archive-template="07"]')),
+        document.activeElement?.matches?.('.archive-cabinet-window [data-archive-template="07"]')),
       true,
     );
   } finally {

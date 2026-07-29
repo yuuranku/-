@@ -24,7 +24,7 @@ test('the PALIS mascot keeps its original assistant menu behavior', () => {
 test('assistant files and workspace files use independent window surfaces', () => {
   assert.match(script, /const documentKey = `\$\{surface\}:\$\{documentId\}`/);
   assert.match(script, /surface === 'workspace' \? desktopWindowLayer : archiveWindowLayer/);
-  assert.match(script, /openDocument\(entry\.dataset\.mascotDocument, entry, 'workspace'\)/);
+  assert.match(script, /openDocument\('clerks',.*'workspace'\)/s);
 });
 
 test('all recorded clerks use the simple assistant clerk pen-name format', () => {
@@ -40,17 +40,18 @@ test('all recorded clerks use the simple assistant clerk pen-name format', () =>
   assert.doesNotMatch(script, /让·莫罗/);
 });
 
-test('the clerk desktop exposes the nine archive template shortcuts', () => {
-  const desktopMarkup = html.slice(
-    html.indexOf('<nav class="clerk-desktop__icons"'),
-    html.indexOf('</nav>', html.indexOf('<nav class="clerk-desktop__icons"')),
-  );
+test('the desktop exposes operating-system destinations while archive categories live in the cabinet registry', () => {
+  const desktopStart = html.indexOf('<section class="clerk-desktop"');
+  const desktopEnd = html.indexOf('<section class="version-notice"', desktopStart);
+  const desktopMarkup = html.slice(desktopStart, desktopEnd);
 
-  assert.deepEqual(
-    [...desktopMarkup.matchAll(/data-archive-template="(\d{2})"/g)].map((match) => match[1]),
-    ['01', '02', '03', '04', '05', '06', '07', '08', '09'],
-  );
-  assert.equal((desktopMarkup.match(/data-clerk-desktop-entry/g) || []).length, 9);
+  for (const command of ['cabinet', 'drafts', 'inbox', 'assistant']) {
+    assert.match(desktopMarkup, new RegExp(`data-workspace-command="${command}"`));
+  }
+  assert.match(desktopMarkup, /id="clerk-desktop-start-menu"/);
+  assert.match(desktopMarkup, /class="clerk-desktop__tray"/);
+  assert.match(desktopMarkup, /id="workspace-exit-dialog"/);
+  assert.doesNotMatch(desktopMarkup, /data-archive-template="\d{2}"/);
 });
 
 test('0.1 colors remain small decorative marks on a flat workspace surface', () => {

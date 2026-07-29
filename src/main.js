@@ -143,12 +143,12 @@ function initializeMascotAssistant() {
   const desktopTaskList = document.querySelector('#assistant-task-list');
   const desktopEntry = document.querySelector('#clerk-workspace-entry');
   const desktopStart = document.querySelector('#clerk-desktop-start');
-  const desktopExit = document.querySelector('#clerk-desktop-exit');
   const desktopTime = document.querySelector('#clerk-desktop-time');
   const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
   const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
-  const desktopEntries = [...document.querySelectorAll('[data-clerk-desktop-entry]')];
-  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopExit) return;
+  const desktopStartMenu = document.querySelector('#clerk-desktop-start-menu');
+  const desktopCommands = [...desktop.querySelectorAll('[data-workspace-command]')];
+  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
 
   // Frame 01 has a noticeably different body axis and reads as a jump rather
   // than part of this idle sway, so keep the coherent 02–07 loop.
@@ -163,6 +163,11 @@ function initializeMascotAssistant() {
   let activeDocumentWindow = null;
   let desktopCloseTimer = 0;
   const openDocuments = new Map();
+  let selectedDesktopShortcut = null;
+  const dirtyWorkspaceKeys = new Set();
+  const exitDialog = document.querySelector('#workspace-exit-dialog');
+  const exitMessage = exitDialog?.querySelector('[data-workspace-exit-message]');
+  let pendingWorkspaceLeave = null;
 
   const preloadedFrames = frames.map((source) => {
     const image = new Image();
@@ -231,6 +236,44 @@ function initializeMascotAssistant() {
     }, reducedMotion ? 0 : 220);
   }
 
+  function setDesktopStartMenuOpen(open) {
+    desktopStartMenu.hidden = !open;
+    desktopStart.setAttribute('aria-expanded', String(open));
+    if (open) desktopStartMenu.querySelector('button:not([hidden])')?.focus({ preventScroll: true });
+  }
+
+  function dispatchWorkspaceCommand(command, trigger) {
+    const fromStartMenu = Boolean(trigger?.closest?.('#clerk-desktop-start-menu'));
+    setDesktopStartMenuOpen(false);
+    if (fromStartMenu) desktopStart.focus({ preventScroll: true }); else trigger?.focus?.({ preventScroll: true });
+    if (command === 'about') { desktopWelcome.hidden = false; desktopWelcome.focus({ preventScroll: true }); return; }
+    if (command === 'assistant') { openDocument('clerks', desktop.querySelector('[data-workspace-shortcut][data-workspace-command="assistant"]'), 'workspace'); return; }
+    if (command === 'exit') { window.dispatchEvent(new CustomEvent('palis:workspace-exit-request')); return; }
+    window.dispatchEvent(new CustomEvent('palis:workspace-command', { detail: { command } }));
+  }
+
+  function requestWorkspaceLeave({ keys = null, proceed = () => {}, cancel = () => {}, allowCancel = true } = {}) {
+    const requestedKeys = Array.isArray(keys) ? keys.filter((key) => dirtyWorkspaceKeys.has(key)) : [...dirtyWorkspaceKeys];
+    if (!requestedKeys.length) { proceed(); return; }
+    pendingWorkspaceLeave = { keys: requestedKeys, proceed, cancel, allowCancel };
+    exitDialog.querySelector('[data-workspace-exit-action="cancel"]').hidden = !allowCancel;
+    exitMessage.textContent = requestedKeys.length === 1 ? '此档案仍有未同步内容。可保存到本地后关闭，或放弃本地未保存修改。' : `${requestedKeys.length} 份档案仍有未同步内容。可全部保存到本地后离开。`;
+    exitDialog.showModal();
+  }
+  window.addEventListener('palis:workspace-dirty-change', (event) => { const key = String(event.detail?.key ?? ''); if (key) { if (event.detail?.dirty) dirtyWorkspaceKeys.add(key); else dirtyWorkspaceKeys.delete(key); } });
+  window.addEventListener('palis:workspace-exit-request', () => requestWorkspaceLeave({ proceed: () => { window.dispatchEvent(new CustomEvent('palis:workspace-close-all')); setDesktopOpen(false); } }));
+  window.addEventListener('palis:workspace-leave-request', (event) => { event.preventDefault(); requestWorkspaceLeave({ keys: event.detail?.keys ?? null, proceed: event.detail?.proceed, cancel: event.detail?.cancel, allowCancel: event.detail?.allowCancel !== false }); });
+  window.addEventListener('palis:workspace-scope-change', (event) => requestWorkspaceLeave({ allowCancel: false, proceed: () => { window.dispatchEvent(new CustomEvent('palis:workspace-close-all')); setDesktopOpen(false); event.detail?.commit?.(); } }));
+  exitDialog?.addEventListener('click', async (event) => {
+    const action = event.target.closest('[data-workspace-exit-action]')?.dataset.workspaceExitAction;
+    if (!action || !pendingWorkspaceLeave) return;
+    const pending = pendingWorkspaceLeave;
+    if (action === 'cancel') { if (pending.allowCancel) { pendingWorkspaceLeave = null; exitDialog.close(); pending.cancel(); } return; }
+    if (action === 'save') { const requests = []; window.dispatchEvent(new CustomEvent('palis:workspace-flush-request', { detail: { keys: pending.keys, requests } })); const results = await Promise.allSettled(requests); if (requests.length !== pending.keys.length || results.some((item) => item.status === 'rejected')) { exitMessage.textContent = '仍有待上传的图片或附件；请继续编辑并提交，或明确放弃。'; return; } }
+    if (action === 'discard') window.dispatchEvent(new CustomEvent('palis:workspace-discard-request', { detail: { keys: pending.keys } }));
+    pending.keys.forEach((key) => dirtyWorkspaceKeys.delete(key)); pendingWorkspaceLeave = null; exitDialog.close(action); pending.proceed();
+  });
+
   function setMenuOpen(open) {
     startMenu.hidden = !open;
     trigger.setAttribute('aria-expanded', String(open));
@@ -282,8 +325,14 @@ function initializeMascotAssistant() {
     windowElement.style.zIndex = String(documentWindowZ);
     activeDocumentWindow = windowElement;
     syncDocumentWindows();
+    if (state.surface === 'workspace') window.dispatchEvent(new CustomEvent('palis:workspace-window-focus', { detail: { owner: 'assistant', windowElement, taskButton: state.taskButton } }));
     if (focusControl) windowElement.querySelector('.mascot-document-minimize')?.focus({ preventScroll: true });
   }
+
+  window.addEventListener('palis:workspace-close-all', () => {
+    setDesktopStartMenuOpen(false);
+    [...openDocuments.values()].filter((state) => state.surface === 'workspace').forEach((state) => closeDocumentWindow(state.windowElement));
+  });
 
   function documentTaskVector(windowElement, taskButton) {
     const windowRect = windowElement.getBoundingClientRect();
@@ -345,6 +394,7 @@ function initializeMascotAssistant() {
       windowElement.remove();
       state.taskButton.remove();
       openDocuments.delete(documentId);
+      if (state.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
       if (activeDocumentWindow === windowElement) {
         const nextVisible = [...openDocuments.values()]
           .filter((item) => !item.minimized && !item.closing)
@@ -371,7 +421,7 @@ function initializeMascotAssistant() {
     let drag = null;
 
     const startDrag = (event) => {
-      if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button')) return;
+      if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button') || windowElement.classList.contains('is-maximized')) return;
       focusDocumentWindow(windowElement);
       const rect = windowElement.getBoundingClientRect();
       drag = {
@@ -475,14 +525,17 @@ function initializeMascotAssistant() {
     if (documentId === 'clerks') windowElement.classList.add('is-clerk-index');
     windowElement.id = windowId;
     windowElement.dataset.mascotDocumentWindow = documentKey;
+    windowElement.dataset.mascotSurface = surface;
     windowElement.setAttribute('role', 'dialog');
     windowElement.setAttribute('aria-modal', 'false');
     windowElement.setAttribute('aria-labelledby', headingId);
+    const workspaceMaximizeControl = surface === 'workspace' ? '<button type="button" class="mascot-document-maximize" aria-label="最大化窗口">□</button>' : '';
     windowElement.innerHTML = `
       <div class="title-bar mascot-document-titlebar">
         <span>PALIS_ASSISTANT_${escapeRecordText(entryIndex)}.TXT</span>
         <div class="window-controls">
           <button type="button" class="mascot-document-minimize" aria-label="最小化${escapeRecordText(entryTitle)}窗口">_</button>
+          ${workspaceMaximizeControl}
           <button type="button" class="mascot-document-close" aria-label="关闭${escapeRecordText(entryTitle)}窗口">×</button>
         </div>
       </div>
@@ -554,9 +607,22 @@ function initializeMascotAssistant() {
     const positionedRect = windowElement.getBoundingClientRect();
     windowElement.style.setProperty('--dialog-from-x', `${triggerRect.left + triggerRect.width / 2 - (positionedRect.left + positionedRect.width / 2)}px`);
     windowElement.style.setProperty('--dialog-from-y', `${triggerRect.top + triggerRect.height / 2 - (positionedRect.top + positionedRect.height / 2)}px`);
-    const state = { windowElement, taskButton, minimized: false, closing: false, surface };
+    const state = { windowElement, taskButton, minimized: false, closing: false, surface, maximized: false, restoredBounds: null, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
     openDocuments.set(documentKey, state);
     installDocumentWindowDrag(windowElement);
+    const toggleDocumentMaximize = () => {
+      if (matchMedia('(max-width: 760px)').matches) return;
+      if (!state.maximized) { const rect = windowElement.getBoundingClientRect(); state.restoredBounds = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }; }
+      state.maximized = !state.maximized;
+      windowElement.classList.toggle('is-maximized', state.maximized);
+      if (state.maximized) ['left', 'top', 'width', 'height'].forEach((property) => windowElement.style.removeProperty(property));
+      else if (state.restoredBounds) Object.assign(windowElement.style, Object.fromEntries(Object.entries(state.restoredBounds).map(([name, value]) => [name, `${value}px`])));
+      focusDocumentWindow(windowElement, true);
+    };
+    if (surface === 'workspace') {
+      windowElement.querySelector('.mascot-document-maximize')?.addEventListener('click', toggleDocumentMaximize);
+      windowElement.querySelector('.mascot-document-titlebar')?.addEventListener('dblclick', (event) => { if (!event.target.closest('button')) toggleDocumentMaximize(); });
+    }
     focusDocumentWindow(windowElement);
 
     windowElement.addEventListener('pointerdown', () => focusDocumentWindow(windowElement));
@@ -594,21 +660,17 @@ function initializeMascotAssistant() {
 
   trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
-  desktopStart.addEventListener('click', () => {
-    desktopWelcome.hidden = false;
-    desktopWelcome.focus?.({ preventScroll: true });
-  });
-  desktopExit.addEventListener('click', () => setDesktopOpen(false));
+  desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
   desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
-  desktopEntries.forEach((entry) => {
+  desktopCommands.filter((entry) => entry.closest('#clerk-desktop-start-menu')).forEach((entry) => entry.addEventListener('click', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry)));
+  desktop.querySelectorAll('[data-workspace-shortcut]').forEach((entry) => {
     entry.addEventListener('click', () => {
-      desktopEntries.forEach((button) => button.classList.toggle('is-selected', button === entry));
-      if (entry.dataset.clerkDesktopAction === 'exit') {
-        setDesktopOpen(false);
-        return;
-      }
-      if (entry.dataset.mascotDocument) openDocument(entry.dataset.mascotDocument, entry, 'workspace');
+      desktop.querySelectorAll('[data-workspace-shortcut]').forEach((button) => button.classList.toggle('is-selected', button === entry));
+      selectedDesktopShortcut = entry;
     });
+    entry.addEventListener('dblclick', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry));
+    entry.addEventListener('pointerup', (event) => { if (event.pointerType !== 'mouse') dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); });
+    entry.addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); } });
   });
   closeButton?.addEventListener('click', () => setMenuOpen(false));
   entries.forEach((entry) => {
@@ -637,8 +699,9 @@ function initializeMascotAssistant() {
   });
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    if (!startMenu.hidden) setMenuOpen(false);
-    else if (!desktop.hidden) setDesktopOpen(false);
+    if (!startMenu.hidden) { setMenuOpen(false); return; }
+    if (!desktopStartMenu.hidden) { setDesktopStartMenuOpen(false); desktopStart.focus({ preventScroll: true }); return; }
+    if (selectedDesktopShortcut) { selectedDesktopShortcut.classList.remove('is-selected'); selectedDesktopShortcut = null; }
   });
 
   frame.dataset.mascotFrame = '02';

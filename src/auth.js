@@ -326,7 +326,17 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     setFormBusy(false);
   }
 
+  const mayLeaveWorkspace = ({ allowCancel = true } = {}) => new Promise((resolve) => {
+    const event = new CustomEvent('palis:workspace-leave-request', {
+      cancelable: true,
+      detail: { keys: null, proceed: () => resolve(true), cancel: () => resolve(false), allowCancel },
+    });
+    window.dispatchEvent(event);
+    if (!event.defaultPrevented) resolve(true);
+  });
+
   async function handleSignOut() {
+    if (!await mayLeaveWorkspace()) return;
     if (previewMode) {
       pendingSession = null;
       passwordInput.value = '';
@@ -339,13 +349,21 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     const { error } = await supabase.auth.signOut();
     signingOut = false;
     signOutButton.disabled = false;
-    if (error) return;
+    if (error) {
+      window.dispatchEvent(new CustomEvent('palis:workspace-leave-aborted'));
+      return;
+    }
     pendingSession = null;
     activeProfile = null;
     updateSessionDisplay(null);
     passwordInput.value = '';
     showLogin('当前会话已安全结束，请重新输入凭据。');
   }
+
+  const revokeToLogin = async (message) => {
+    await mayLeaveWorkspace({ allowCancel: false });
+    showLogin(message);
+  };
 
   function togglePasswordVisibility() {
     const showing = passwordInput.type === 'text';
@@ -423,7 +441,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
       } else if (event === 'SIGNED_OUT' && !signingOut) {
         pendingSession = null;
         updateSessionDisplay(null);
-        if (gate.hidden) showLogin('当前会话已失效，请重新登录。');
+        if (gate.hidden) void revokeToLogin('当前会话已失效，请重新登录。');
       }
     });
 

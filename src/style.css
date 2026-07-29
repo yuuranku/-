@@ -8000,6 +8000,30 @@ body.access-locked .mascot-assistant { display: none; }
    clerk workspace. Its geometry follows Win95. */
 body.clerk-desktop-open { overflow: hidden; }
 
+/* PALIS Win95 shell controls.  These intentionally layer over the original
+   desktop skin so public archive artwork remains untouched. */
+.clerk-desktop__accessible-title { position: absolute; top: 18px; left: 22px; z-index: 3; display: grid; gap: 2px; color: #f4f1e8; }
+.clerk-desktop__accessible-title h2 { margin: 0; font: 700 20px/1 var(--font-body); }
+.clerk-desktop__accessible-title span { font: 10px/1 var(--font-mono); }
+.clerk-desktop__watermark { position: absolute; top: 22px; right: 24px; z-index: 3; display: grid; justify-items: end; gap: 3px; color: rgba(255,255,255,.48); font: 10px/1 var(--font-mono); }
+.clerk-desktop__start-menu { position: absolute; z-index: 24000; bottom: 55px; left: 4px; display: grid; grid-template-columns: 34px minmax(190px, 240px); min-height: 250px; color: #111; background: #c0c0c0; border: 2px outset #efefef; box-shadow: 4px -4px 0 rgba(0,0,0,.35); }
+.clerk-desktop__start-menu[hidden] { display: none !important; }
+.clerk-desktop__start-brand { display: grid; place-items: end center; padding: 8px 0; color: #fff; background: #000080; writing-mode: vertical-rl; letter-spacing: .08em; }
+.clerk-desktop__start-items { display: grid; align-content: start; padding: 5px; }
+.clerk-desktop__start-items button { min-height: 30px; border: 0; padding: 5px 9px; color: inherit; text-align: left; background: transparent; }
+.clerk-desktop__start-items button:hover, .clerk-desktop__start-items button:focus-visible { color: #fff; background: #000080; outline: 0; }
+.clerk-desktop__start-items p { margin: 7px 5px 2px; color: #555; font: 700 10px/1 var(--font-mono); }
+.clerk-desktop__tray { display: flex; align-items: center; gap: 8px; min-width: max-content; padding: 3px 7px; border: 2px inset #ececec; font: 10px/1 var(--font-mono); }
+.clerk-desktop__tray button { width: 24px; height: 24px; padding: 0; border: 1px outset #efefef; }
+.clerk-desktop__tray button i { display: block; width: 8px; height: 8px; margin: auto; border-radius: 50%; background: #2f7c4a; }
+.workspace-exit-dialog, .workspace-sync-dialog { max-width: min(460px, calc(100vw - 24px)); border: 2px outset #efefef; color: #111; background: #c0c0c0; }
+.workspace-exit-dialog::backdrop, .workspace-sync-dialog::backdrop { background: rgba(0,0,0,.45); }
+.workspace-exit-dialog form, .workspace-sync-dialog form { display: grid; gap: 14px; padding: 14px; }
+.workspace-exit-dialog h2, .workspace-sync-dialog h2 { margin: 0; font-size: 17px; }
+.workspace-exit-dialog form > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.archive-workflow-window.is-maximized, .mascot-document-window.is-maximized { inset: 3px 3px 55px !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important; }
+@media (max-width: 760px) { .clerk-desktop__accessible-title { top: 12px; left: 12px; } .clerk-desktop__watermark { top: 12px; right: 12px; } .clerk-desktop__start-menu { bottom: 58px; } [data-workflow-maximize], .mascot-document-maximize { display: none !important; } }
+
 .clerk-desktop {
   --clerk-navy: #071923;
   --clerk-navy-soft: #102d36;
