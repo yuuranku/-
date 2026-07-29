@@ -2072,6 +2072,17 @@ export function initializeArchiveWorkspace({
     `;
   };
 
+  const replaceChooserWithEditor = async (chooserState, editorState, command) => {
+    if (!editorState) return;
+    const desktopAction = root.querySelector(
+      `[data-workspace-shortcut][data-workspace-command="${command}"]`,
+    );
+    if (desktopAction) editorState.returnFocus = desktopAction;
+    await chooserState.close();
+    focusWindow(editorState.windowElement);
+    editorState.windowElement.focus({ preventScroll: true });
+  };
+
   const openNewArchiveChooser = async () => {
     if (!ensureWorkspaceAccess()) return;
     const state = createWindow({
@@ -2139,22 +2150,14 @@ export function initializeArchiveWorkspace({
         const editor = await createEditor(template, serverDraftToEditorDraft(draft, {
           reviewReason: draft.status === 'changes_requested' ? draft.reviewReason : '',
         }));
-        if (editor) {
-          await state.close();
-          focusWindow(editor.windowElement);
-          editor.windowElement.focus({ preventScroll: true });
-        }
+        await replaceChooserWithEditor(state, editor, 'new-archive');
         return;
       }
       const button = event.target.closest('[data-new-archive-template]');
       const template = ARCHIVE_TEMPLATE_BY_CODE[button?.dataset.newArchiveTemplate];
       if (!template) return;
       const editor = await createEditor(template, { kind: 'new' });
-      if (editor) {
-        await state.close();
-        focusWindow(editor.windowElement);
-        editor.windowElement.focus({ preventScroll: true });
-      }
+      await replaceChooserWithEditor(state, editor, 'new-archive');
     });
     await reload();
     return state;
@@ -2368,11 +2371,7 @@ export function initializeArchiveWorkspace({
           { ...source, media },
         );
         const editor = await createEditor(template, initial);
-        if (editor) {
-          await state.close();
-          focusWindow(editor.windowElement);
-          editor.windowElement.focus({ preventScroll: true });
-        }
+        await replaceChooserWithEditor(state, editor, 'modify-archive');
       } catch (error) {
         list.innerHTML = `
           <button type="button" data-modify-back-documents>← 返回文档列表</button>
@@ -2421,11 +2420,7 @@ export function initializeArchiveWorkspace({
         const editor = await createEditor(template, serverDraftToEditorDraft(draft, {
           reviewReason: draft.status === 'changes_requested' ? draft.reviewReason : '',
         }));
-        if (editor) {
-          await state.close();
-          focusWindow(editor.windowElement);
-          editor.windowElement.focus({ preventScroll: true });
-        }
+        await replaceChooserWithEditor(state, editor, 'modify-archive');
         return;
       }
       const categoryButton = event.target.closest('[data-modify-category]');

@@ -164,10 +164,10 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.setViewport({ width: 1280, height: 800 });
     await page.waitForFunction(() => !document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
     await page.click('.archive-editor-window [data-workflow-close]');
-    assert.equal(
-      await page.$('.archive-editor-window'),
-      null,
-    );
+    await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
+    assert.equal(await page.evaluate(() => document.activeElement?.matches?.(
+      '[data-workspace-shortcut][data-workspace-command="new-archive"]',
+    )), true);
   } finally {
     delete process.env.VITE_PALIS_LOCAL_ADMIN;
     await page.close();
