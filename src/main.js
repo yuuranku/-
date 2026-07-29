@@ -176,6 +176,9 @@ function initializeMascotAssistant() {
   const workspacePermissionMessage = workspacePermissionDialog?.querySelector(
     '[data-workspace-permission-message]',
   );
+  const workspacePermissionClose = workspacePermissionDialog?.querySelector(
+    '[data-workspace-permission-close]',
+  );
   const narrowDocumentQuery = matchMedia('(max-width: 760px)');
   const syncDocumentViewport = () => openDocuments.forEach((state) => {
     if (state.surface === 'workspace') {
@@ -261,6 +264,7 @@ function initializeMascotAssistant() {
     workspacePermissionMessage.textContent =
       '权限不足：当前账号未获书记官工作台操作授权。';
     if (!workspacePermissionDialog.open) workspacePermissionDialog.showModal();
+    workspacePermissionClose?.focus({ preventScroll: true });
   });
 
   function setDesktopStartMenuOpen(open) {

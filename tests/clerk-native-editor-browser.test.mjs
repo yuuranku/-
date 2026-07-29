@@ -91,6 +91,48 @@ const clickControl = (page, selector) => page.$eval(
   (control) => control.click(),
 );
 
+const assertVisibleAndFocusedPermissionDialog = async (page, expectedKind) => {
+  await page.waitForFunction(
+    (kind) => {
+      const dialog = document.querySelector('[data-workspace-permission-dialog]');
+      const close = dialog?.querySelector('[data-workspace-permission-close]');
+      const style = dialog ? getComputedStyle(dialog) : null;
+      const rect = dialog?.getBoundingClientRect();
+      const visible = Boolean(
+        dialog?.open
+        && style?.display !== 'none'
+        && style?.visibility !== 'hidden'
+        && Number(style?.opacity) > 0
+        && rect?.width > 0
+        && rect?.height > 0
+        && rect?.right > 0
+        && rect?.bottom > 0
+        && rect?.left < window.innerWidth
+        && rect?.top < window.innerHeight,
+      );
+      return dialog?.dataset.workspaceDeniedKind === kind
+        && visible
+        && dialog.matches(':modal')
+        && document.activeElement === close;
+    },
+    { timeout: 10_000 },
+    expectedKind,
+  );
+  assert.deepEqual(
+    await page.$eval('[data-workspace-permission-dialog]', (dialog) => {
+      const close = dialog.querySelector('[data-workspace-permission-close]');
+      const rect = dialog.getBoundingClientRect();
+      return {
+        modal: dialog.matches(':modal'),
+        focused: document.activeElement === close,
+        hasVisibleBox: rect.width > 0 && rect.height > 0,
+      };
+    }),
+    { modal: true, focused: true, hasVisibleBox: true },
+    'The permission dialog must be visibly presented and receive focus',
+  );
+};
+
 const switchPrincipal = async (page, profile) => {
   await page.evaluate((nextProfile) => {
     window.dispatchEvent(new CustomEvent('palis:local-principal-change', {
@@ -153,6 +195,7 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
     role: 'admin',
     enabled: true,
   };
+  let fixtureTimestamp = Date.UTC(1963, 0, 1);
   const repository = createLocalIndexedDbRepository({
     indexedDB,
     getPrincipal: () => admin,
@@ -169,7 +212,7 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
         active: true,
       })),
     },
-    now: () => new Date().toISOString(),
+    now: () => new Date((fixtureTimestamp += 1_000)).toISOString(),
     randomUUID: () => crypto.randomUUID(),
   });
   const clerk = await repository.createUser({
@@ -219,7 +262,59 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
   });
   const referenceArchive = (await repository.listPublishedArchives())
     .find(({ id }) => id === published.archiveId);
-  return { admin, clerk, referenceArchive };
+  const newerReferenceContent = {
+    ...referenceContent,
+    title: 'Newer sibling event source',
+    values: {
+      ...referenceContent.values,
+      hero: 'Newer sibling event source',
+      eventOverview: 'Unique newer sibling prefill that must not replace the requested older source.',
+      evidenceSummary: 'Newer sibling evidence record.',
+    },
+    indexData: {
+      ...referenceContent.indexData,
+      title: 'Newer sibling event source',
+      startDate: '1964-01-01',
+    },
+  };
+  const newerDraft = await repository.saveDraft({
+    ownerId: admin.id,
+    templateId: ARCHIVE_TEMPLATES.find(({ code }) => code === '07').id,
+    archiveId: referenceArchive.id,
+    kind: 'contribution',
+    title: newerReferenceContent.title,
+    content: newerReferenceContent,
+  });
+  await repository.submitDraft(newerDraft.id, admin.id);
+  await repository.reviewSubmission(newerDraft.id, {
+    decision: 'approved',
+    message: 'Publish the newer independent source document.',
+  });
+  const newerPublished = await repository.publishContribution(newerDraft.id, {
+    archiveId: referenceArchive.id,
+    category: 'event',
+    visibility: 'public',
+    idempotencyKey: `browser-newer-reference-${crypto.randomUUID()}`,
+  });
+  const updatedReferenceArchive = (await repository.listPublishedArchives())
+    .find(({ id }) => id === published.archiveId);
+  const referenceDocuments = await repository.listArchiveDocuments(updatedReferenceArchive.id);
+  return {
+    admin,
+    clerk,
+    referenceArchive: updatedReferenceArchive,
+    referenceDocuments,
+    olderReference: {
+      contributionId: draft.id,
+      versionId: published.versionId,
+      title: referenceContent.title,
+      overview: referenceContent.values.eventOverview,
+    },
+    newerReference: {
+      contributionId: newerDraft.id,
+      versionId: newerPublished.versionId,
+    },
+  };
 });
 
 const readWorkflowState = (page, principal) => page.evaluate(async (activePrincipal) => {
@@ -338,7 +433,7 @@ test(
       { hidden: false, disabled: false },
     );
     await clickControl(page, '#clerk-workspace-entry');
-    await page.waitForSelector('[data-workspace-permission-dialog][open]');
+    await assertVisibleAndFocusedPermissionDialog(page, 'observer');
     assert.equal(
       await page.$eval(
         '[data-workspace-permission-dialog]',
@@ -374,7 +469,7 @@ test(
       { hidden: false, disabled: false },
     );
     await clickControl(visitorPage, '#clerk-workspace-entry');
-    await visitorPage.waitForSelector('[data-workspace-permission-dialog][open]');
+    await assertVisibleAndFocusedPermissionDialog(visitorPage, 'visitor');
     assert.equal(
       await visitorPage.$eval(
         '[data-workspace-permission-dialog]',
@@ -398,6 +493,63 @@ test(
         ))
       )),
       false,
+    );
+  },
+);
+
+test(
+  'clerk opens the requested older document instead of a newer sibling source',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+
+    assert.equal(
+      fixture.referenceDocuments.length,
+      2,
+      'The browser fixture must provide two published documents for one archive',
+    );
+
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+    await openDesktopCommand(page, 'modify-archive');
+    await page.waitForSelector('[data-modify-category="event"]');
+    await clickControl(page, '[data-modify-category="event"]');
+    await page.waitForSelector(`[data-modify-archive="${fixture.referenceArchive.id}"]`);
+    await clickControl(page, `[data-modify-archive="${fixture.referenceArchive.id}"]`);
+
+    const olderSelector = `[data-modify-document="${fixture.olderReference.contributionId}"][data-document-version-id="${fixture.olderReference.versionId}"]`;
+    await page.waitForSelector(olderSelector);
+    assert.deepEqual(
+      (await page.$$eval('[data-modify-document]', (buttons) => buttons.map((button) => ({
+        contributionId: button.dataset.modifyDocument,
+        versionId: button.dataset.documentVersionId,
+      })))).sort((left, right) => left.contributionId.localeCompare(right.contributionId)),
+      [
+        {
+          contributionId: fixture.olderReference.contributionId,
+          versionId: fixture.olderReference.versionId,
+        },
+        {
+          contributionId: fixture.newerReference.contributionId,
+          versionId: fixture.newerReference.versionId,
+        },
+      ].sort((left, right) => left.contributionId.localeCompare(right.contributionId)),
+    );
+    await clickControl(page, olderSelector);
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+
+    assert.deepEqual(
+      await page.$eval('[data-archive-editor]', (form) => ({
+        title: form.querySelector('[name="index:title"]')?.value,
+        overview: form.querySelector('[name="body:eventOverview"]')?.value,
+        targetContributionId: form.elements.targetContributionId.value,
+      })),
+      {
+        title: fixture.olderReference.title,
+        overview: fixture.olderReference.overview,
+        targetContributionId: fixture.olderReference.contributionId,
+      },
     );
   },
 );
