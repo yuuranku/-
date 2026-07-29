@@ -62,9 +62,15 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('#clerk-desktop-start');
     await page.click('.archive-cabinet-window .archive-workflow-titlebar');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
+    await page.click('.archive-cabinet-window [data-workflow-minimize]');
+    assert.equal(await page.$eval('.archive-cabinet-window', (windowElement) => windowElement.hidden), true);
+    assert.equal(await page.$('[data-workflow-task="archive-cabinet"]') !== null, true);
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
     await page.click('[data-workspace-watermark-connection]');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
+    await page.click('[data-workflow-task="archive-cabinet"]');
+    await page.waitForSelector('.archive-cabinet-window:not([hidden])');
     await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
