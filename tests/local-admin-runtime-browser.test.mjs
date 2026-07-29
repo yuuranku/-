@@ -64,6 +64,7 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
     await page.click('[data-workspace-watermark-connection]');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
+    assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
     await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {

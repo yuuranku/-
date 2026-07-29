@@ -59,3 +59,5 @@ Passed: 45 tests, 0 failures.
 ### Browser-fixture correction
 
 The first browser run found a fixture sequencing error: the test closed the welcome window and then tried to click its hidden titlebar. The Start-menu boundary assertion now opens the visible archive cabinet first, clicks its real titlebar to prove workspace-window clicks preserve Start, then clicks the visible desktop watermark to prove a desktop-surface click closes Start. No behavior assertion was removed.
+
+The second browser run exposed that the window-layer container was treated as a blanket exclusion. The desktop handler now excludes only actual windows and controls, not their full-screen layer; decorative watermark hits therefore close Start. The browser assertion also verifies `aria-expanded="false"` after that close.

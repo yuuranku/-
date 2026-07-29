@@ -704,8 +704,9 @@ function initializeMascotAssistant() {
   desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
   desktop.addEventListener('pointerdown', (event) => {
     if (desktopStartMenu.hidden) return;
-    if (desktopStartMenu.contains(event.target) || desktopStart.contains(event.target)) return;
-    if (desktopWindowLayer.contains(event.target)) return;
+    if (event.target.closest(
+      '#clerk-desktop-start-menu, #clerk-desktop-start, .archive-workflow-window, .mascot-document-window, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
+    )) return;
     setDesktopStartMenuOpen(false);
   });
   desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
