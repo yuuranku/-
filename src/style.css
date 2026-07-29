@@ -8022,7 +8022,17 @@ body.clerk-desktop-open { overflow: hidden; }
 .workspace-exit-dialog h2, .workspace-sync-dialog h2 { margin: 0; font-size: 17px; }
 .workspace-exit-dialog form > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .archive-workflow-window.is-maximized, .mascot-document-window.is-maximized { inset: 3px 3px 55px !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important; }
-@media (max-width: 760px) { .clerk-desktop__accessible-title { top: 12px; left: 12px; } .clerk-desktop__watermark { top: 12px; right: 12px; } .clerk-desktop__start-menu { bottom: 58px; } [data-workflow-maximize], .mascot-document-maximize { display: none !important; } }
+@media (max-width: 760px) {
+  .clerk-desktop__accessible-title { top: 12px; left: 12px; }
+  .clerk-desktop__watermark { top: 12px; right: 12px; }
+  .clerk-desktop__start-menu { bottom: 58px; }
+  [data-workflow-maximize], .mascot-document-maximize { display: none !important; }
+  .archive-workflow-window .window-controls button,
+  .mascot-document-window[data-mascot-surface="workspace"] .window-controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 
 .clerk-desktop {
   --clerk-navy: #071923;

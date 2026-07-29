@@ -21,12 +21,6 @@ test('the PALIS mascot keeps its original assistant menu behavior', () => {
   assert.match(script, /trigger\.addEventListener\('click', \(\) => setMenuOpen\(startMenu\.hidden\)\)/);
 });
 
-test('assistant files and workspace files use independent window surfaces', () => {
-  assert.match(script, /const documentKey = `\$\{surface\}:\$\{documentId\}`/);
-  assert.match(script, /surface === 'workspace' \? desktopWindowLayer : archiveWindowLayer/);
-  assert.match(script, /openDocument\('clerks',.*'workspace'\)/s);
-});
-
 test('all recorded clerks use the simple assistant clerk pen-name format', () => {
   for (const name of ['魏伊', '主行', 'FourreTout', '精犬C']) {
     assert.match(script, new RegExp(`助理书记官：${name}`));
@@ -38,20 +32,6 @@ test('all recorded clerks use the simple assistant clerk pen-name format', () =>
   assert.match(html, /\/assets\/clerks\/jing-quan-c-profile\.png/);
   assert.doesNotMatch(script, /助理见习书记官|笔名：/);
   assert.doesNotMatch(script, /让·莫罗/);
-});
-
-test('the desktop exposes operating-system destinations while archive categories live in the cabinet registry', () => {
-  const desktopStart = html.indexOf('<section class="clerk-desktop"');
-  const desktopEnd = html.indexOf('<section class="version-notice"', desktopStart);
-  const desktopMarkup = html.slice(desktopStart, desktopEnd);
-
-  for (const command of ['cabinet', 'drafts', 'inbox', 'assistant']) {
-    assert.match(desktopMarkup, new RegExp(`data-workspace-command="${command}"`));
-  }
-  assert.match(desktopMarkup, /id="clerk-desktop-start-menu"/);
-  assert.match(desktopMarkup, /class="clerk-desktop__tray"/);
-  assert.match(desktopMarkup, /id="workspace-exit-dialog"/);
-  assert.doesNotMatch(desktopMarkup, /data-archive-template="\d{2}"/);
 });
 
 test('0.1 colors remain small decorative marks on a flat workspace surface', () => {

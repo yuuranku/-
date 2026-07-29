@@ -168,6 +168,17 @@ function initializeMascotAssistant() {
   const exitDialog = document.querySelector('#workspace-exit-dialog');
   const exitMessage = exitDialog?.querySelector('[data-workspace-exit-message]');
   let pendingWorkspaceLeave = null;
+  const workspaceSyncStates = new Map();
+  const syncDialog = document.querySelector('#workspace-sync-dialog');
+  const syncSummary = syncDialog?.querySelector('[data-workspace-sync-summary]');
+  const syncTrayButton = desktop.querySelector('[data-workspace-tray="sync"]');
+  const narrowDocumentQuery = matchMedia('(max-width: 760px)');
+  const syncDocumentViewport = () => openDocuments.forEach((state) => {
+    if (state.surface === 'workspace') {
+      state.windowElement.classList.toggle('is-narrow-forced', narrowDocumentQuery.matches);
+    }
+  });
+  narrowDocumentQuery.addEventListener('change', syncDocumentViewport);
 
   const preloadedFrames = frames.map((source) => {
     const image = new Image();
@@ -252,6 +263,34 @@ function initializeMascotAssistant() {
     window.dispatchEvent(new CustomEvent('palis:workspace-command', { detail: { command } }));
   }
 
+  function updateWorkspaceIdentityAndSync() {
+    const role = document.body.dataset.operatorRole === 'admin' ? 'admin' : 'clerk';
+    const roleLabel = role === 'admin' ? '管理员' : '书记官';
+    const roleCode = role === 'admin' ? 'ADMIN' : 'CLERK';
+    desktop.querySelectorAll('[data-workspace-tray-role]').forEach((node) => { node.textContent = roleLabel; });
+    desktop.querySelectorAll('[data-workspace-watermark-role]').forEach((node) => { node.textContent = roleCode; });
+    const states = [...workspaceSyncStates.values()];
+    const offlineStates = new Set(['offline-saved', 'network-error', 'session-expired', 'permission-denied', 'cloud-error']);
+    const connection = states.some((state) => offlineStates.has(state)) ? 'OFFLINE'
+      : states.some((state) => state === 'cloud-syncing') ? 'SYNCING'
+        : states.some((state) => state === 'local-saving' || state === 'local-saved') ? 'LOCAL'
+          : document.body.dataset.accessMode === 'local-admin' ? 'LOCAL' : 'ONLINE';
+    desktop.querySelectorAll('[data-workspace-connection], [data-workspace-watermark-connection]').forEach((node) => { node.textContent = connection; });
+    if (syncTrayButton) syncTrayButton.dataset.state = connection.toLowerCase();
+    if (syncSummary) syncSummary.textContent = states.length
+      ? `${states.length} 个编辑器；当前连接状态：${connection}。`
+      : `当前没有打开的档案编辑器；连接状态：${connection}。`;
+  }
+  window.addEventListener('palis:workspace-sync-state', (event) => {
+    const key = String(event.detail?.key ?? '');
+    if (!key) return;
+    if (event.detail?.state === 'closed') workspaceSyncStates.delete(key);
+    else workspaceSyncStates.set(key, String(event.detail?.state ?? 'local-saved'));
+    updateWorkspaceIdentityAndSync();
+  });
+  window.addEventListener('palis:session-change', updateWorkspaceIdentityAndSync);
+  syncTrayButton?.addEventListener('click', () => syncDialog?.showModal());
+
   function requestWorkspaceLeave({ keys = null, proceed = () => {}, cancel = () => {}, allowCancel = true } = {}) {
     const requestedKeys = Array.isArray(keys) ? keys.filter((key) => dirtyWorkspaceKeys.has(key)) : [...dirtyWorkspaceKeys];
     if (!requestedKeys.length) { proceed(); return; }
@@ -273,6 +312,7 @@ function initializeMascotAssistant() {
     if (action === 'discard') window.dispatchEvent(new CustomEvent('palis:workspace-discard-request', { detail: { keys: pending.keys } }));
     pending.keys.forEach((key) => dirtyWorkspaceKeys.delete(key)); pendingWorkspaceLeave = null; exitDialog.close(action); pending.proceed();
   });
+  updateWorkspaceIdentityAndSync();
 
   function setMenuOpen(open) {
     startMenu.hidden = !open;
@@ -609,6 +649,7 @@ function initializeMascotAssistant() {
     windowElement.style.setProperty('--dialog-from-y', `${triggerRect.top + triggerRect.height / 2 - (positionedRect.top + positionedRect.height / 2)}px`);
     const state = { windowElement, taskButton, minimized: false, closing: false, surface, maximized: false, restoredBounds: null, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
     openDocuments.set(documentKey, state);
+    syncDocumentViewport();
     installDocumentWindowDrag(windowElement);
     const toggleDocumentMaximize = () => {
       if (matchMedia('(max-width: 760px)').matches) return;
@@ -661,6 +702,12 @@ function initializeMascotAssistant() {
   trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
   desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
+  desktop.addEventListener('pointerdown', (event) => {
+    if (desktopStartMenu.hidden) return;
+    if (desktopStartMenu.contains(event.target) || desktopStart.contains(event.target)) return;
+    if (desktopWindowLayer.contains(event.target)) return;
+    setDesktopStartMenuOpen(false);
+  });
   desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
   desktopCommands.filter((entry) => entry.closest('#clerk-desktop-start-menu')).forEach((entry) => entry.addEventListener('click', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry)));
   desktop.querySelectorAll('[data-workspace-shortcut]').forEach((entry) => {

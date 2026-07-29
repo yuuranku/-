@@ -38,3 +38,20 @@ Passed: 47 tests, 0 failures.
 - Public archive rendering, database migrations, numbering, Supabase request paths, and existing art assets were not changed.
 - The implemented shell CSS is functional rather than a final visual-polish pass; Task 5 may refine visual details.
 - Browser interaction coverage is pending the parent-run local-admin test. The suite’s updated flow covers Start/Escape and cabinet-to-editor navigation.
+
+## Fix round 1
+
+- Added a desktop-level pointerdown boundary: an open Start menu now closes on desktop background clicks, while clicks inside Start, the Start button, and any workspace window leave it open.
+- Connected `palis:workspace-sync-state` to a live tray model and sync dialog; the tray now reflects LOCAL/SYNCING/OFFLINE/ONLINE and opens a modal summary.
+- Added `is-narrow-forced` synchronization to workspace assistant documents, matching workflow windows; it clears again on desktop resize.
+- At narrow widths, visible workflow and workspace-assistant minimize/close controls now have a 44px minimum hit target. Maximize remains intentionally hidden at narrow widths.
+- Replaced the batch-added static clerk-shell assertions with browser behavior coverage. The local-admin browser test now exercises Start boundary clicks, sync dialog state, both narrow-window classes, and computed hit targets. Browser validation remains assigned to the parent agent.
+
+Fix-round pure verification:
+
+```powershell
+node --check src/main.js; node --check src/archive-workflow/workspace.js
+node --test tests/archive-autosave.test.mjs tests/archive-cabinet.test.mjs tests/clerk-workspace.test.mjs tests/clerk-workflow-ui.test.mjs tests/archive-workflow-client.test.mjs tests/workspace-ux-regression.test.mjs
+```
+
+Passed: 45 tests, 0 failures.

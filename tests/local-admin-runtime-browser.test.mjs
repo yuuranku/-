@@ -57,10 +57,25 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'true');
     await page.keyboard.press('Escape');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
+    await page.click('#clerk-desktop-start');
+    await page.click('#assistant-window-layer .clerk-desktop__welcome-titlebar');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
+    await page.click('#clerk-desktop', { offset: { x: 1100, y: 180 } });
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="cabinet"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-cabinet-window:not([hidden])');
     await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
+      detail: { key: 'browser-sync', state: 'cloud-syncing' },
+    })));
+    assert.match(
+      await page.$eval('[data-workspace-sync-summary]', (node) => node.textContent),
+      /SYNCING/,
+    );
+    await page.click('[data-workspace-tray="sync"]');
+    await page.waitForSelector('#workspace-sync-dialog[open]');
+    await page.click('#workspace-sync-dialog button[value="close"]');
     const focusState = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window');
       return {
@@ -81,6 +96,22 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.deepEqual(minimized, { hidden: true, taskFocused: true });
 
     await page.click('[data-workflow-task="editor-07"]');
+    await page.click('[data-workspace-shortcut][data-workspace-command="assistant"]', { count: 2, delay: 40 });
+    await page.waitForSelector('#assistant-window-layer .mascot-document-window:not([hidden])');
+    await page.setViewport({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
+    await page.waitForFunction(() => document.querySelector('.mascot-document-window[data-mascot-surface="workspace"]')?.classList.contains('is-narrow-forced'));
+    const narrowControls = await page.$$eval(
+      '.archive-editor-window .window-controls button, .mascot-document-window[data-mascot-surface="workspace"] .window-controls button',
+      (buttons) => buttons.filter((button) => button.offsetParent).map((button) => {
+        const rect = button.getBoundingClientRect();
+        return Math.min(rect.width, rect.height);
+      }),
+    );
+    assert.ok(narrowControls.every((size) => size >= 44));
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.waitForFunction(() => !document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
+    await page.waitForFunction(() => !document.querySelector('.mascot-document-window[data-mascot-surface="workspace"]')?.classList.contains('is-narrow-forced'));
     await page.click('.archive-editor-window [data-workflow-close]');
     assert.equal(
       await page.evaluate(() =>
