@@ -190,7 +190,8 @@ export const initializeWorkspaceNotes = ({
   let drag = null;
   const sessionClosedNoteIds = new Set();
   const tearingNotes = new Map();
-  const pendingOperations = new Set();
+  const pendingOperations = new Map();
+  let pendingOperationSequence = 0;
   const drafts = new Map();
   const editingNoteIds = new Set();
   const layoutErrors = new Map();
@@ -210,6 +211,16 @@ export const initializeWorkspaceNotes = ({
   const noteIndex = (noteId) => notes.findIndex((note) => note.id === noteId);
 
   const getNote = (noteId) => notes.find((note) => note.id === noteId) ?? null;
+
+  const beginPendingOperation = (label) => {
+    const token = `${++pendingOperationSequence}:${label}`;
+    pendingOperations.set(token, label);
+    return token;
+  };
+
+  const endPendingOperation = (token) => pendingOperations.delete(token);
+
+  const hasPendingOperation = (label) => [...pendingOperations.values()].includes(label);
 
   const positionFor = (note, index, sourcePosition = null) => {
     const preferred = sourcePosition
@@ -236,7 +247,7 @@ export const initializeWorkspaceNotes = ({
     loadError,
     mutationErrors: Object.fromEntries(mutationErrors.entries()),
     notes: clone(notes),
-    pendingOperations: sortSet(pendingOperations),
+    pendingOperations: sortSet(new Set(pendingOperations.values())),
     positions: mapToObject(positions),
     session: clone(session),
     tearingNoteIds: sortSet(new Set(tearingNotes.keys())),
@@ -272,7 +283,22 @@ export const initializeWorkspaceNotes = ({
       card.style.position = 'absolute';
       card.style.top = `${position.top}px`;
       if (tearingNotes.has(note.id)) card.classList.add('is-tearing');
-      if (pendingOperations.has(`layout:${note.id}`)) card.classList.add('is-layout-saving');
+      if (hasPendingOperation(`layout:${note.id}`)) card.classList.add('is-layout-saving');
+
+      const dragHandle = document.createElement('div');
+      dragHandle.dataset.workspaceNoteDragHandle = 'true';
+      dragHandle.classList.add('workspace-sticky-note-drag-handle');
+      dragHandle.textContent = 'Move note';
+      dragHandle.addEventListener('pointerdown', (event) => {
+        beginDrag(note.id, {
+          card,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          pointerId: event.pointerId,
+        });
+        event.preventDefault?.();
+      });
+      card.append(dragHandle);
 
       const heading = document.createElement('h3');
       heading.textContent = note.title;
@@ -332,18 +358,8 @@ export const initializeWorkspaceNotes = ({
         card.append(error, retry);
       }
 
-      card.addEventListener('pointerdown', (event) => {
-        beginDrag(note.id, {
-          card,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          pointerId: event.pointerId,
-        });
-        event.preventDefault?.();
-      });
       card.addEventListener('pointermove', (event) => {
         moveDrag({ clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId });
-        event.preventDefault?.();
       });
       card.addEventListener('pointerup', (event) => {
         void endDrag({ clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId });
@@ -401,18 +417,20 @@ export const initializeWorkspaceNotes = ({
       previousSession.profileId !== session.profileId
       || previousSession.role !== session.role
     );
-    if (profileOrRoleChanged || (!previousSession.desktopOpen && session.desktopOpen)) {
+    const desktopStateChanged = previousSession.desktopOpen !== session.desktopOpen;
+    if (profileOrRoleChanged || desktopStateChanged) {
       sessionClosedNoteIds.clear();
       tearingNotes.clear();
       drag = null;
-    }
-    if (profileOrRoleChanged || previousSession.desktopOpen !== session.desktopOpen) {
+      pendingOperations.clear();
+      drafts.clear();
+      editingNoteIds.clear();
+      layoutErrors.clear();
+      mutationErrors.clear();
       notes = [];
       layouts = new Map();
       positions = new Map();
-      layoutErrors.clear();
-      mutationErrors.clear();
-      editingNoteIds.clear();
+      loadError = null;
     }
 
     return load();
@@ -465,9 +483,8 @@ export const initializeWorkspaceNotes = ({
   const persistLayout = async (noteId, profileId) => {
     const position = positions.get(noteId);
     if (!position || !profileId) return false;
-    const operation = `layout:${noteId}`;
+    const operation = beginPendingOperation(`layout:${noteId}`);
     const targetSession = clone(session);
-    pendingOperations.add(operation);
     render();
     const payload = {
       leftPx: Math.round(position.left),
@@ -492,7 +509,7 @@ export const initializeWorkspaceNotes = ({
       }
       return false;
     } finally {
-      pendingOperations.delete(operation);
+      endPendingOperation(operation);
       if (isCurrentScope(targetSession)) render();
     }
   };
@@ -531,7 +548,7 @@ export const initializeWorkspaceNotes = ({
     const id = String(key ?? '').trim();
     if (!id || (id !== 'create' && !getNote(id))) return false;
     drafts.set(id, normalizeDraft(value));
-    render();
+    emit();
     return true;
   };
 
@@ -541,7 +558,7 @@ export const initializeWorkspaceNotes = ({
     const targetSession = clone(session);
     drafts.set('create', input);
     mutationErrors.delete('create');
-    pendingOperations.add('create');
+    const operation = beginPendingOperation('create');
     render();
     try {
       const created = toNote(await client.createWorkspaceNote({
@@ -560,7 +577,7 @@ export const initializeWorkspaceNotes = ({
       }
       return false;
     } finally {
-      pendingOperations.delete('create');
+      endPendingOperation(operation);
       if (isCurrentScope(targetSession)) render();
     }
   };
@@ -573,7 +590,7 @@ export const initializeWorkspaceNotes = ({
     const targetSession = clone(session);
     drafts.set(id, input);
     mutationErrors.delete(id);
-    pendingOperations.add(`update:${id}`);
+    const operation = beginPendingOperation(`update:${id}`);
     render();
     try {
       const updated = toNote(await client.updateWorkspaceNote(id, {
@@ -592,7 +609,7 @@ export const initializeWorkspaceNotes = ({
       }
       return false;
     } finally {
-      pendingOperations.delete(`update:${id}`);
+      endPendingOperation(operation);
       if (isCurrentScope(targetSession)) render();
     }
   };
@@ -610,7 +627,7 @@ export const initializeWorkspaceNotes = ({
     }
 
     const targetSession = clone(session);
-    pendingOperations.add(`delete:${id}`);
+    const operation = beginPendingOperation(`delete:${id}`);
     render();
     try {
       await client.deleteWorkspaceNote(id);
@@ -630,7 +647,7 @@ export const initializeWorkspaceNotes = ({
       }
       return false;
     } finally {
-      pendingOperations.delete(`delete:${id}`);
+      endPendingOperation(operation);
       if (isCurrentScope(targetSession)) render();
     }
   };

@@ -129,16 +129,30 @@ class FakeElement {
   }
 
   dispatch(type, event = {}) {
-    const listeners = this.#listeners.get(type) ?? [];
-    for (const listener of listeners) {
-      listener({
-        currentTarget: this,
-        preventDefault() {},
-        target: this,
-        type,
-        ...event,
-      });
+    const dispatched = {
+      ...event,
+      bubbles: event.bubbles ?? true,
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+      stopPropagation() {
+        this.propagationStopped = true;
+      },
+      target: event.target ?? this,
+      type,
+    };
+    let current = this;
+    while (current) {
+      const listeners = current.#listeners.get(type) ?? [];
+      dispatched.currentTarget = current;
+      for (const listener of listeners) {
+        listener(dispatched);
+      }
+      if (!dispatched.bubbles || dispatched.propagationStopped) break;
+      current = current.parentElement;
     }
+    return dispatched;
   }
 
   find(predicate) {
@@ -160,7 +174,20 @@ class FakeElement {
     return { ...this.#rect };
   }
 
+  contains(candidate) {
+    if (candidate === this) return true;
+    return this.children.some((child) => child.contains(candidate));
+  }
+
+  focus() {
+    this.ownerDocument.activeElement = this;
+  }
+
   replaceChildren(...nodes) {
+    const activeElement = this.ownerDocument.activeElement;
+    if (activeElement && this.children.some((child) => child.contains(activeElement))) {
+      this.ownerDocument.activeElement = null;
+    }
     this.children = [];
     this.#textContent = '';
     this.append(...nodes);
@@ -191,6 +218,7 @@ class FakeElement {
 
 function createRoot(rect) {
   const document = {
+    activeElement: null,
     createElement(tagName) {
       return new FakeElement(tagName, document);
     },
@@ -283,7 +311,8 @@ test('resize only re-clamps visual coordinates and dragging saves rounded coordi
 
   controller.setBounds({ height: 300, taskbarHeight: 50, width: 400 });
   const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
-  card.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 7 });
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 7 });
   assert.deepEqual(card.capturedPointerIds, [7]);
 
   card.dispatch('pointermove', { clientX: 28.7, clientY: 13.2, pointerId: 7 });
@@ -298,6 +327,107 @@ test('resize only re-clamps visual coordinates and dragging saves rounded coordi
     profileId: 'clerk-1',
     topPx: 113,
   }]);
+});
+
+test('switching profile scope discards an administrator draft before the next administrator edits', async () => {
+  const root = createRoot();
+  const client = createClient({ notes: [{ content: 'shared body', id: 'note-1', title: 'Shared title' }] });
+  const updateFromFirstAdministrator = deferred();
+  client.updateWorkspaceNote = (id, input) => {
+    client.calls.updateWorkspaceNote.push({ id, ...clone(input) });
+    return updateFromFirstAdministrator.promise;
+  };
+  const controller = initializeWorkspaceNotes({ client, initialSession: ADMIN_SESSION, root });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  controller.setDraft('note-1', { content: 'A-only content', title: 'A-only title' });
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'A-only content', title: 'A-only title' });
+  const savingFirstAdministrator = controller.updateNote('note-1');
+  assert.deepEqual(controller.getState().pendingOperations, ['update:note-1']);
+
+  await controller.setSession({ desktopOpen: true, profileId: 'admin-2', role: 'admin' });
+  assert.deepEqual(controller.getState().drafts, {});
+  assert.deepEqual(controller.getState().pendingOperations, []);
+  controller.startEditing('note-1');
+
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'shared body', title: 'Shared title' });
+  assert.equal(titleInput.value, 'Shared title');
+
+  updateFromFirstAdministrator.resolve({ content: 'A-only content', id: 'note-1', title: 'A-only title' });
+  await savingFirstAdministrator;
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'shared body', title: 'Shared title' });
+});
+
+test('typing into an administrator edit field keeps the current input node and focus', async () => {
+  const root = createRoot();
+  const controller = initializeWorkspaceNotes({
+    client: createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] }),
+    initialSession: ADMIN_SESSION,
+    root,
+  });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  titleInput.focus();
+  titleInput.value = 'Typed title';
+  titleInput.dispatch('input');
+
+  assert.strictEqual(root.find((element) => element.tagName === 'INPUT'), titleInput);
+  assert.strictEqual(root.ownerDocument.activeElement, titleInput);
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'body', title: 'Typed title' });
+});
+
+test('interactive note controls neither start a drag nor save a layout', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: ADMIN_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  const downEvent = titleInput.dispatch('pointerdown', { clientX: 10, clientY: 10, pointerId: 31 });
+  titleInput.dispatch('pointerup', { clientX: 10, clientY: 10, pointerId: 31 });
+  await Promise.resolve();
+
+  assert.equal(downEvent.defaultPrevented, false);
+  assert.deepEqual(card.capturedPointerIds ?? [], []);
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, []);
+});
+
+test('the dedicated drag handle captures the pointer and persists only after release', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.ok(handle, 'a note exposes a dedicated drag handle');
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 32 });
+  assert.deepEqual(card.capturedPointerIds, [32]);
+
+  card.dispatch('pointermove', { clientX: 10.5, clientY: 15.5, pointerId: 32 });
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, []);
+  card.dispatch('pointerup', { clientX: 10.5, clientY: 15.5, pointerId: 32 });
+  await Promise.resolve();
+
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 1);
 });
 
 test('a failed layout save keeps the visual position and exposes a retryable sync error', async () => {
@@ -318,8 +448,9 @@ test('a failed layout save keeps the visual position and exposes a retryable syn
   await controller.ready;
 
   const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
   const startingPosition = controller.getState().positions['note-1'];
-  card.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 3 });
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 3 });
   card.dispatch('pointermove', { clientX: 25, clientY: 15, pointerId: 3 });
   card.dispatch('pointercancel', { clientX: 25, clientY: 15, pointerId: 3 });
   await Promise.resolve();
