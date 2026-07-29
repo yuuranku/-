@@ -528,3 +528,125 @@ test('local administrator opens the workspace without loading cloud authenticati
     await server.close();
   }
 });
+
+test('workspace notes reload per desktop session and respect administrator and clerk controls', { timeout: 120_000 }, async () => {
+  process.env.VITE_PALIS_LOCAL_ADMIN = '1';
+  const server = await startPalisTestServer();
+  const browser = await puppeteer.launch({
+    executablePath: resolveBrowserExecutable(),
+    headless: true,
+  });
+  const page = await browser.newPage();
+
+  try {
+    await page.goto(server.url, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.body.dataset.operatorRole === 'admin');
+    await page.click('#clerk-workspace-entry');
+    await page.waitForSelector('body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])');
+
+    assert.deepEqual(await page.evaluate(() => ({
+      welcomeHidden: document.querySelector('#clerk-desktop-welcome')?.hidden,
+      noteRegion: Boolean(document.querySelector('#workspace-note-region[data-workspace-note-region]')),
+      createHidden: document.querySelector('[data-workspace-note-create]')?.hidden,
+      retryHidden: document.querySelector('[data-workspace-note-retry]')?.hidden,
+    })), {
+      welcomeHidden: true,
+      noteRegion: true,
+      createHidden: false,
+      retryHidden: true,
+    });
+
+    await page.click('#clerk-desktop-start');
+    await page.$eval(
+      '#clerk-desktop-start-menu [data-workspace-command="about"]',
+      (button) => button.click(),
+    );
+    assert.equal(await page.$eval('#clerk-desktop-welcome', (dialog) => dialog.hidden), false);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-exit-request')));
+    await page.waitForSelector('#clerk-desktop[hidden]');
+    await page.click('#clerk-workspace-entry');
+    await page.waitForSelector('body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])');
+    assert.equal(await page.$eval('#clerk-desktop-welcome', (dialog) => dialog.hidden), true);
+
+    assert.equal(await page.$eval('[data-workspace-note-create]', (button) => {
+      const bounds = button.getBoundingClientRect();
+      return document.elementFromPoint(
+        bounds.left + bounds.width / 2,
+        bounds.top + bounds.height / 2,
+      ) === button;
+    }), true);
+    await page.click('[data-workspace-note-create]');
+    await page.type('[data-workspace-note-create-title]', '交接便签');
+    await page.type('[data-workspace-note-create-content]', '管理员留下的共享正文。');
+    await page.click('[data-workspace-note-create-submit]');
+    await page.waitForSelector('[data-workspace-note-id]');
+    assert.deepEqual(await page.$eval('[data-workspace-note-id]', (note) => ({
+      title: note.querySelector('h3')?.textContent,
+      content: note.querySelector('p')?.textContent,
+      hasEdit: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Edit'),
+      hasDelete: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Delete'),
+    })), {
+      title: '交接便签',
+      content: '管理员留下的共享正文。',
+      hasEdit: true,
+      hasDelete: true,
+    });
+    assert.equal(await page.$eval('[data-workspace-note-drag-handle]', (handle) => {
+      const bounds = handle.getBoundingClientRect();
+      return document.elementFromPoint(
+        bounds.left + bounds.width / 2,
+        bounds.top + bounds.height / 2,
+      ) === handle;
+    }), true);
+
+    await page.$eval('[data-workspace-note-id] button', (button) => button.click());
+    await page.$eval('[data-workspace-note-id]', (note) => note.dispatchEvent(new Event('animationend')));
+    await page.waitForFunction(() => !document.querySelector('[data-workspace-note-id]'));
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-exit-request')));
+    await page.waitForFunction(() => !document.body.classList.contains('clerk-desktop-open'));
+    await page.waitForSelector('#clerk-desktop[hidden]');
+    await page.click('#clerk-workspace-entry');
+    await page.waitForSelector('[data-workspace-note-id]');
+
+    const clerk = {
+      id: 'workspace-notes-clerk',
+      email: 'workspace-notes-clerk@palis.local',
+      display_name: '便签书记官',
+      role: 'clerk',
+      enabled: true,
+    };
+    await page.evaluate((profile) => window.dispatchEvent(new CustomEvent('palis:local-principal-change', {
+      detail: { profile },
+    })), clerk);
+    await page.waitForFunction(() => document.body.dataset.operatorRole === 'clerk');
+    await page.waitForFunction(() => !document.body.classList.contains('clerk-desktop-open'));
+    await page.waitForSelector('#clerk-desktop[hidden]');
+    await page.click('#clerk-workspace-entry');
+    await page.waitForSelector('[data-workspace-note-id]');
+
+    assert.deepEqual(await page.$eval('[data-workspace-note-id]', (note) => ({
+      title: note.querySelector('h3')?.textContent,
+      content: note.querySelector('p')?.textContent,
+      hasDragHandle: Boolean(note.querySelector('[data-workspace-note-drag-handle]')),
+      hasClose: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Close'),
+      hasEdit: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Edit'),
+      hasDelete: [...note.querySelectorAll('button')].some((button) => button.textContent === 'Delete'),
+      createHidden: document.querySelector('[data-workspace-note-create]')?.hidden,
+      archivesHidden: document.querySelector('[data-workspace-shortcut][data-workspace-command="archives"]')?.hidden,
+    })), {
+      title: '交接便签',
+      content: '管理员留下的共享正文。',
+      hasDragHandle: true,
+      hasClose: true,
+      hasEdit: false,
+      hasDelete: false,
+      createHidden: true,
+      archivesHidden: true,
+    });
+  } finally {
+    delete process.env.VITE_PALIS_LOCAL_ADMIN;
+    await page.close();
+    await browser.close();
+    await server.close();
+  }
+});

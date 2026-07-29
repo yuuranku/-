@@ -8,6 +8,7 @@ import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
+import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
 import {
   buildPublishedArchiveModel,
@@ -42,8 +43,11 @@ import {
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
 const palisRuntime = await initializePalisRuntime({ reducedMotion });
-initializeMascotAssistant();
 const archiveWorkflowClient = palisRuntime.repository;
+initializeMascotAssistant({
+  client: archiveWorkflowClient,
+  initialSession: palisRuntime.initialSession,
+});
 initializeArchiveWorkspace({
   client: archiveWorkflowClient,
   initialSession: palisRuntime.initialSession,
@@ -119,7 +123,7 @@ window.addEventListener('palis:archive-directory-changed', () => {
   void syncPublishedArchiveDirectory();
 });
 
-function initializeMascotAssistant() {
+function initializeMascotAssistant({ client: workspaceNoteClient = null, initialSession = null } = {}) {
   const assistant = document.querySelector('#mascot-assistant');
   const trigger = document.querySelector('#mascot-trigger');
   const startMenu = document.querySelector('#mascot-window');
@@ -147,6 +151,16 @@ function initializeMascotAssistant() {
   const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
   const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
   const desktopStartMenu = document.querySelector('#clerk-desktop-start-menu');
+  const workspaceNoteRegion = document.querySelector('#workspace-note-region');
+  const workspaceNoteControls = document.querySelector('[data-workspace-note-controls]');
+  const workspaceNoteCreate = document.querySelector('[data-workspace-note-create]');
+  const workspaceNoteCreateForm = document.querySelector('[data-workspace-note-create-form]');
+  const workspaceNoteCreateTitle = document.querySelector('[data-workspace-note-create-title]');
+  const workspaceNoteCreateContent = document.querySelector('[data-workspace-note-create-content]');
+  const workspaceNoteCreateError = document.querySelector('[data-workspace-note-create-error]');
+  const workspaceNoteCreateCancel = document.querySelector('[data-workspace-note-create-cancel]');
+  const workspaceNoteStatus = document.querySelector('[data-workspace-note-status]');
+  const workspaceNoteRetry = document.querySelector('[data-workspace-note-retry]');
   const desktopCommands = [...desktop.querySelectorAll('[data-workspace-command]')];
   if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
 
@@ -186,6 +200,130 @@ function initializeMascotAssistant() {
     }
   });
   narrowDocumentQuery.addEventListener('change', syncDocumentViewport);
+
+  const createWorkspaceNoteSession = (candidate = {}, {
+    desktopOpen = document.body.classList.contains('clerk-desktop-open'),
+    fallback = null,
+  } = {}) => {
+    const profile = candidate?.profile ?? fallback?.profile ?? null;
+    return {
+      authSession: candidate?.session ?? candidate?.authSession ?? fallback?.authSession ?? null,
+      desktopOpen,
+      profile,
+      role: candidate?.role ?? profile?.role ?? fallback?.role ?? document.body.dataset.operatorRole ?? 'observer',
+    };
+  };
+  const workspaceNoteScopeChanged = (left, right) => (
+    (left?.profile?.id ?? '') !== (right?.profile?.id ?? '')
+    || (left?.role ?? '') !== (right?.role ?? '')
+  );
+  let workspaceNoteSession = createWorkspaceNoteSession(initialSession, { desktopOpen: false });
+  let pendingWorkspaceNoteSession = null;
+  let workspaceNotes = null;
+
+  const workspaceNoteBounds = () => {
+    const desktopBounds = desktop.getBoundingClientRect();
+    return {
+      height: desktopBounds.height,
+      taskbarHeight: desktopTaskbar.getBoundingClientRect().height,
+      width: desktopBounds.width,
+    };
+  };
+  const closeWorkspaceNoteCreateForm = () => {
+    if (!workspaceNoteCreateForm) return;
+    workspaceNoteCreateForm.reset();
+    workspaceNoteCreateForm.hidden = true;
+    if (workspaceNoteCreateError) {
+      workspaceNoteCreateError.hidden = true;
+      workspaceNoteCreateError.textContent = '';
+    }
+  };
+  const renderWorkspaceNoteChrome = (state = {}) => {
+    if (workspaceNoteRegion) {
+      workspaceNoteRegion.style.pointerEvents = 'none';
+      workspaceNoteRegion.querySelectorAll('.workspace-sticky-note').forEach((note) => {
+        note.style.pointerEvents = 'auto';
+      });
+    }
+    const session = state.session ?? workspaceNoteSession;
+    const desktopOpen = Boolean(session?.desktopOpen);
+    const isAdmin = desktopOpen && session?.role === 'admin';
+    if (workspaceNoteCreate) workspaceNoteCreate.hidden = !isAdmin;
+    if (!isAdmin) closeWorkspaceNoteCreateForm();
+
+    const loadError = String(state.loadError ?? '').trim();
+    if (workspaceNoteStatus) {
+      workspaceNoteStatus.hidden = !loadError;
+      workspaceNoteStatus.textContent = loadError ? `便签暂不可读取：${loadError}` : '';
+    }
+    if (workspaceNoteRetry) workspaceNoteRetry.hidden = !loadError || !desktopOpen;
+
+    const createError = String(state.mutationErrors?.create ?? '').trim();
+    if (workspaceNoteCreateError) {
+      workspaceNoteCreateError.hidden = !createError;
+      workspaceNoteCreateError.textContent = createError ? `无法新增便签：${createError}` : '';
+    }
+    if (workspaceNoteControls) workspaceNoteControls.toggleAttribute('data-workspace-notes-active', desktopOpen);
+  };
+  const syncWorkspaceNoteBounds = () => {
+    workspaceNotes?.setBounds(workspaceNoteBounds());
+  };
+  const setWorkspaceNoteSession = (nextSession, { desktopOpen } = {}) => {
+    workspaceNoteSession = createWorkspaceNoteSession(nextSession, {
+      desktopOpen: desktopOpen ?? document.body.classList.contains('clerk-desktop-open'),
+      fallback: workspaceNoteSession,
+    });
+    syncWorkspaceNoteBounds();
+    return workspaceNotes?.setSession(workspaceNoteSession);
+  };
+  const setWorkspaceNotesDesktopOpen = (open) => setWorkspaceNoteSession(workspaceNoteSession, {
+    desktopOpen: open,
+  });
+  const dispatchDesktopLifecycle = (open) => {
+    window.dispatchEvent(new CustomEvent('palis:workspace-desktop-lifecycle', {
+      detail: {
+        open,
+        session: { ...workspaceNoteSession, desktopOpen: open },
+      },
+    }));
+  };
+
+  if (workspaceNoteClient && workspaceNoteRegion) {
+    workspaceNotes = initializeWorkspaceNotes({
+      bounds: workspaceNoteBounds(),
+      client: workspaceNoteClient,
+      initialSession: workspaceNoteSession,
+      onState: renderWorkspaceNoteChrome,
+      reducedMotion,
+      root: workspaceNoteRegion,
+    });
+  }
+  renderWorkspaceNoteChrome({ session: workspaceNoteSession });
+
+  workspaceNoteCreate?.addEventListener('click', () => {
+    if (!workspaceNotes || workspaceNoteCreate.hidden) return;
+    workspaceNoteCreateForm.hidden = false;
+    workspaceNoteCreateTitle?.focus({ preventScroll: true });
+  });
+  workspaceNoteCreateCancel?.addEventListener('click', closeWorkspaceNoteCreateForm);
+  workspaceNoteCreateForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const created = await workspaceNotes?.createNote({
+      content: workspaceNoteCreateContent?.value ?? '',
+      title: workspaceNoteCreateTitle?.value ?? '',
+    });
+    if (created) closeWorkspaceNoteCreateForm();
+  });
+  workspaceNoteRetry?.addEventListener('click', () => {
+    syncWorkspaceNoteBounds();
+    void workspaceNotes?.reload();
+  });
+  window.addEventListener('resize', syncWorkspaceNoteBounds);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !document.body.classList.contains('clerk-desktop-open')) return;
+    syncWorkspaceNoteBounds();
+    void workspaceNotes?.reload();
+  });
 
   const preloadedFrames = frames.map((source) => {
     const image = new Image();
@@ -236,6 +374,7 @@ function initializeMascotAssistant() {
     }
     window.clearTimeout(desktopCloseTimer);
     setMenuOpen(false);
+    if (!open && desktopWelcome) desktopWelcome.hidden = true;
     desktopEntry.setAttribute('aria-expanded', String(open));
     document.body.classList.toggle('clerk-desktop-open', open);
     experienceRoot.toggleAttribute('inert', open);
@@ -244,12 +383,17 @@ function initializeMascotAssistant() {
     if (open) {
       desktop.hidden = false;
       updateDesktopClock();
+      setWorkspaceNotesDesktopOpen(true);
+      dispatchDesktopLifecycle(true);
       requestAnimationFrame(() => {
+        syncWorkspaceNoteBounds();
         desktop.classList.add('is-open');
         desktop.focus({ preventScroll: true });
       });
       return;
     }
+    setWorkspaceNotesDesktopOpen(false);
+    dispatchDesktopLifecycle(false);
     desktop.classList.remove('is-open');
     desktopCloseTimer = window.setTimeout(() => {
       desktop.hidden = true;
@@ -311,6 +455,20 @@ function initializeMascotAssistant() {
     updateWorkspaceIdentityAndSync();
   });
   window.addEventListener('palis:session-change', updateWorkspaceIdentityAndSync);
+  window.addEventListener('palis:session-change', (event) => {
+    const nextSession = createWorkspaceNoteSession(event.detail, {
+      fallback: workspaceNoteSession,
+    });
+    if (
+      document.body.classList.contains('clerk-desktop-open')
+      && workspaceNoteScopeChanged(workspaceNoteSession, nextSession)
+    ) {
+      pendingWorkspaceNoteSession = nextSession;
+      return;
+    }
+    pendingWorkspaceNoteSession = null;
+    setWorkspaceNoteSession(nextSession);
+  });
   syncTrayButton?.addEventListener('click', () => syncDialog?.showModal());
 
   function requestWorkspaceLeave({ keys = null, proceed = () => {}, cancel = () => {}, allowCancel = true } = {}) {
@@ -324,7 +482,19 @@ function initializeMascotAssistant() {
   window.addEventListener('palis:workspace-dirty-change', (event) => { const key = String(event.detail?.key ?? ''); if (key) { if (event.detail?.dirty) dirtyWorkspaceKeys.add(key); else dirtyWorkspaceKeys.delete(key); } });
   window.addEventListener('palis:workspace-exit-request', () => requestWorkspaceLeave({ proceed: () => { window.dispatchEvent(new CustomEvent('palis:workspace-close-all')); setDesktopOpen(false); } }));
   window.addEventListener('palis:workspace-leave-request', (event) => { event.preventDefault(); requestWorkspaceLeave({ keys: event.detail?.keys ?? null, proceed: event.detail?.proceed, cancel: event.detail?.cancel, allowCancel: event.detail?.allowCancel !== false }); });
-  window.addEventListener('palis:workspace-scope-change', (event) => requestWorkspaceLeave({ allowCancel: false, proceed: () => { window.dispatchEvent(new CustomEvent('palis:workspace-close-all')); setDesktopOpen(false); event.detail?.commit?.(); } }));
+  window.addEventListener('palis:workspace-scope-change', (event) => requestWorkspaceLeave({
+    allowCancel: false,
+    proceed: () => {
+      window.dispatchEvent(new CustomEvent('palis:workspace-close-all'));
+      setDesktopOpen(false);
+      event.detail?.commit?.();
+      if (pendingWorkspaceNoteSession) {
+        const committedSession = pendingWorkspaceNoteSession;
+        pendingWorkspaceNoteSession = null;
+        setWorkspaceNoteSession(committedSession, { desktopOpen: false });
+      }
+    },
+  }));
   exitDialog?.addEventListener('click', async (event) => {
     const action = event.target.closest('[data-workspace-exit-action]')?.dataset.workspaceExitAction;
     if (!action || !pendingWorkspaceLeave) return;
@@ -727,7 +897,7 @@ function initializeMascotAssistant() {
   desktop.addEventListener('pointerdown', (event) => {
     if (desktopStartMenu.hidden) return;
     if (event.target.closest(
-      '#clerk-desktop-start-menu, #clerk-desktop-start, .archive-workflow-window, .mascot-document-window, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
+      '#clerk-desktop-start-menu, #clerk-desktop-start, #workspace-note-region, [data-workspace-note-controls], .archive-workflow-window, .mascot-document-window, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
     )) return;
     setDesktopStartMenuOpen(false);
   });

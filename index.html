@@ -285,6 +285,19 @@
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archives" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-management.svg" alt="" /></i><span>档案管理</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="users" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-users.svg" alt="" /></i><span>账号管理</span></button>
       </nav>
+      <div id="workspace-note-region" data-workspace-note-region aria-label="工作台便签" aria-live="polite" style="position: absolute; z-index: 9; inset: 0; pointer-events: none;"></div>
+      <section class="workspace-note-controls" data-workspace-note-controls aria-label="工作台便签操作" style="position: absolute; z-index: 10; top: 12px; right: 12px; width: min(320px, calc(100% - 220px)); pointer-events: none;">
+        <button type="button" data-workspace-note-create hidden style="pointer-events: auto;">新增便签</button>
+        <form data-workspace-note-create-form hidden style="pointer-events: auto;">
+          <label>标题<input type="text" data-workspace-note-create-title required /></label>
+          <label>内容<textarea data-workspace-note-create-content required></textarea></label>
+          <p data-workspace-note-create-error role="status" hidden></p>
+          <button type="submit" data-workspace-note-create-submit>保存便签</button>
+          <button type="button" data-workspace-note-create-cancel>取消</button>
+        </form>
+        <p data-workspace-note-status role="status" hidden></p>
+        <button type="button" data-workspace-note-retry hidden style="pointer-events: auto;">重新读取便签</button>
+      </section>
       <nav class="clerk-desktop__start-menu" id="clerk-desktop-start-menu" aria-label="开始菜单" hidden><b class="clerk-desktop__start-brand" aria-hidden="true">PALIS 09A</b><div class="clerk-desktop__start-items">
         <button type="button" data-workspace-command="new-archive">新增档案</button><button type="button" data-workspace-command="modify-archive">修改档案</button>
         <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
@@ -292,7 +305,7 @@
       </div></nav>
 
       <div class="clerk-desktop__window-layer" id="assistant-window-layer" aria-live="polite">
-        <article class="clerk-desktop__welcome retro-window" id="clerk-desktop-welcome" tabindex="-1">
+        <article class="clerk-desktop__welcome retro-window" id="clerk-desktop-welcome" role="dialog" aria-label="关于书记官工作台" tabindex="-1" hidden>
           <div class="title-bar clerk-desktop__welcome-titlebar">
             <span>CLERK_WELCOME.NFO</span>
             <div class="window-controls">

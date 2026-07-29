@@ -108,3 +108,21 @@ test('native editor requests and declares the fixed right dock geometry', () => 
     '100%',
   );
 });
+
+test('workspace desktop reserves a note-only layer and keeps About hidden until requested', () => {
+  const noteRegionIndex = html.indexOf('id="workspace-note-region"');
+  const windowLayerIndex = html.indexOf('id="assistant-window-layer"');
+
+  assert.ok(noteRegionIndex > -1, 'the desktop has a dedicated note region');
+  assert.ok(windowLayerIndex > noteRegionIndex, 'the note region stays outside the archive window layer');
+  assert.match(html, /id="workspace-note-region"[^>]+data-workspace-note-region/);
+  assert.match(html, /data-workspace-note-status/);
+  assert.match(html, /data-workspace-note-retry/);
+  assert.match(html, /data-workspace-note-create/);
+  assert.match(html, /id="clerk-desktop-welcome"[^>]+role="dialog"[^>]+hidden/);
+  assert.match(script, /initializeWorkspaceNotes/);
+  assert.match(script, /palis:workspace-desktop-lifecycle/);
+  assert.match(script, /document\.addEventListener\('visibilitychange'/);
+  assert.match(script, /workspaceNotes\?\.setSession/);
+  assert.match(script, /workspaceNotes\?\.reload/);
+});
