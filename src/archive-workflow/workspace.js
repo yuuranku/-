@@ -841,6 +841,10 @@ export function initializeArchiveWorkspace({
     const templateOutlineOptions = form.querySelector('[data-editor-template-outline-options]');
     const templateHeightFallback = form.querySelector('[data-template-height-fallback]');
     const documentErrors = form.querySelector('[data-document-errors]');
+    const saveButton = form.querySelector('[data-save-now]');
+    const submitButton = form.querySelector('[data-submit-draft]');
+    const indexErrorCount = form.querySelector('[data-editor-outline-error="index"]');
+    const documentErrorCount = form.querySelector('[data-editor-outline-error="document"]');
     const slashReferenceMenu = form.querySelector('[data-slash-reference-menu]');
     const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
     const editableArchiveSelect = form.elements.archiveId;
@@ -876,11 +880,39 @@ export function initializeArchiveWorkspace({
     });
     let references = [...editorDocument.references];
     let editorBridge = null;
+    let editorOutlineSections = [];
+    let templateLoadTimeout = null;
     const SYNCHRONIZED_TEMPLATE_KEYS = Object.freeze({
       coordinate: 'f_5Z2Q5qCH',
       specimenClass: 'f_5qSN54mp77yP5Yqo54mp77yP5aSN5ZCI576k6JC9',
       eventStart: 'f_5YR55Sf5pe25pyf',
     });
+    const NON_BODY_FIELD_KEYS = new Set([
+      'dossierNo',
+      'entryCode',
+      'regDate',
+      'clerk',
+      'hero',
+      ...Object.values(SYNCHRONIZED_TEMPLATE_KEYS),
+    ]);
+    const hasMeaningfulArchiveBody = (document) => Object.entries(
+      document?.values ?? {},
+    ).some(([key, value]) =>
+      !NON_BODY_FIELD_KEYS.has(key) && String(value ?? '').trim().length > 0);
+    const showDocumentError = (invalid) => {
+      documentErrors.hidden = !invalid;
+      documentErrors.textContent = invalid
+        ? '档案正文至少需要填写一个正文词条。'
+        : '';
+      documentErrorCount.hidden = !invalid;
+      documentErrorCount.value = invalid ? '1' : '';
+    };
+    const setSubmissionState = (state) => {
+      form.dataset.editorSubmissionState = state;
+      const locked = state !== 'editing';
+      submitButton.disabled = locked;
+      saveButton.disabled = locked;
+    };
     const synchronizedTemplateFields = () => {
       const descriptors = [{ key: 'hero' }];
       if (template.category === 'station' || template.category === 'entrance') {
@@ -894,45 +926,117 @@ export function initializeArchiveWorkspace({
       }
       return descriptors;
     };
-    const scrollToEditorSection = (target) => {
-      if (!target) return;
-      if (target.startsWith('template:')) {
-        const section = editorBridge?.getSectionOutline()
-          .find((entry) => entry.id === target.slice('template:'.length));
-        if (section && editorScroll && editorCanvas) {
-          editorScroll.scrollTo({
-            top: Math.max(0, editorCanvas.offsetTop + section.offsetTop),
-            behavior: 'smooth',
-          });
-          return;
-        }
+    const showTemplateFallback = () => {
+      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
+      templateLoadTimeout = null;
+      editorCanvas.classList.add('has-layout-error');
+      editorCanvas.classList.remove('is-loading');
+      templateFrame.style.height = '70vh';
+      if (templateFrame.contentDocument?.documentElement) {
+        templateFrame.contentDocument.documentElement.dataset.palisWorkspaceEmbedError = 'true';
       }
-      const section = form.querySelector(`[data-editor-section="${CSS.escape(target)}"]`);
-      section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      templateHeightFallback.hidden = false;
+      editorCanvas.setAttribute('aria-busy', 'false');
+      if (editorLoading) editorLoading.hidden = true;
+    };
+    const armTemplateLoadTimeout = () => {
+      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
+      templateLoadTimeout = setTimeout(showTemplateFallback, 8_000);
+    };
+    const applyTemplateHeight = (height) => {
+      if (!Number.isFinite(height) || height < 1) return;
+      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
+      templateLoadTimeout = null;
+      templateFrame.style.height = `${Math.ceil(height)}px`;
+      if (templateFrame.contentDocument?.documentElement) {
+        delete templateFrame.contentDocument.documentElement.dataset.palisWorkspaceEmbedError;
+      }
+      editorCanvas.classList.remove('has-layout-error');
+      templateHeightFallback.hidden = true;
     };
     const renderTemplateOutline = (sections = []) => {
-      if (templateOutline) {
-        templateOutline.innerHTML = sections.map((section, index) => `
-          <button type="button" data-editor-outline-target="template:${escapeHtml(section.id)}">
-            ${String(index + 1).padStart(2, '0')} ${escapeHtml(section.label)}
-          </button>
-        `).join('');
+      editorOutlineSections = sections;
+      templateOutline.replaceChildren();
+      templateOutlineOptions.replaceChildren();
+      sections.forEach((section, index) => {
+        const label = `${String(index + 1).padStart(2, '0')} ${section.label}`;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.editorOutlineTarget = section.id;
+        button.dataset.templateOutlineItem = '';
+        button.textContent = label;
+        templateOutline.append(button);
+        const option = document.createElement('option');
+        option.value = section.id;
+        option.dataset.templateOutlineItem = '';
+        option.textContent = label;
+        templateOutlineOptions.append(option);
+      });
+    };
+    const editorScrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+    const editorTargetTop = (target) => {
+      const scrollRect = editorScroll.getBoundingClientRect();
+      const parentSection = form.querySelector(`[data-editor-section="${CSS.escape(target)}"]`);
+      if (parentSection) {
+        return editorScroll.scrollTop
+          + parentSection.getBoundingClientRect().top
+          - scrollRect.top;
       }
-      if (templateOutlineOptions) {
-        templateOutlineOptions.innerHTML = sections.map((section, index) => `
-          <option value="template:${escapeHtml(section.id)}">
-            ${String(index + 1).padStart(2, '0')} ${escapeHtml(section.label)}
-          </option>
-        `).join('');
+      const templateSection = editorOutlineSections.find((section) => section.id === target);
+      if (!templateSection) return null;
+      return editorScroll.scrollTop
+        + templateFrame.getBoundingClientRect().top
+        - scrollRect.top
+        + templateSection.offsetTop;
+    };
+    const setActiveOutline = (target) => {
+      editorOutline.querySelectorAll('[data-editor-outline-target]').forEach((button) => {
+        const active = button.dataset.editorOutlineTarget === target;
+        button.classList.toggle('is-current', active);
+        if (active) button.setAttribute('aria-current', 'location');
+        else button.removeAttribute('aria-current');
+      });
+      if ([...editorOutlineSelect.options].some((option) => option.value === target)) {
+        editorOutlineSelect.value = target;
       }
     };
-    editorOutline?.addEventListener('click', (event) => {
-      const target = event.target.closest('[data-editor-outline-target]');
-      if (target) scrollToEditorSection(target.dataset.editorOutlineTarget);
+    const scrollToEditorSection = (target) => {
+      const top = editorTargetTop(target);
+      if (top === null) return;
+      editorScroll.scrollTo({ top, behavior: editorScrollBehavior });
+      setActiveOutline(target);
+    };
+    editorOutline.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-editor-outline-target]')?.dataset.editorOutlineTarget;
+      if (target) scrollToEditorSection(target);
     });
-    editorOutlineSelect?.addEventListener('change', () => {
-      scrollToEditorSection(editorOutlineSelect.value);
-    });
+    editorOutlineSelect.addEventListener('change', () => scrollToEditorSection(editorOutlineSelect.value));
+    let outlineFrame = null;
+    const updateOutlineFromScroll = () => {
+      outlineFrame = null;
+      const targets = [...editorOutline.querySelectorAll('[data-editor-outline-target]')]
+        .map((button) => ({
+          id: button.dataset.editorOutlineTarget,
+          top: editorTargetTop(button.dataset.editorOutlineTarget),
+        }))
+        .filter((entry) => entry.top !== null)
+        .sort((left, right) => left.top - right.top);
+      const current = targets.reduce(
+        (active, entry) => (entry.top <= editorScroll.scrollTop + 80 ? entry : active),
+        targets[0],
+      );
+      if (current) setActiveOutline(current.id);
+    };
+    const onEditorScroll = () => {
+      if (outlineFrame !== null) return;
+      outlineFrame = requestAnimationFrame(updateOutlineFromScroll);
+    };
+    editorScroll.addEventListener('scroll', onEditorScroll, { passive: true });
+    setActiveOutline('index');
+    const onTemplateFrameError = () => showTemplateFallback();
+    templateFrame.addEventListener('error', onTemplateFrameError);
     const uploadedAttachmentKeys = new Set();
     let editorDraft = {
       id: initial.id ?? null,
@@ -1078,6 +1182,8 @@ export function initializeArchiveWorkspace({
         field.classList.toggle('is-invalid', invalid);
         field.querySelector?.('[data-index-key]')?.setAttribute?.('aria-invalid', String(invalid));
       });
+      indexErrorCount.hidden = missing.length === 0;
+      indexErrorCount.value = missing.length ? String(missing.length) : '';
       if (!indexErrors) return;
       indexErrors.hidden = missing.length === 0;
       indexErrors.textContent = missing.length
@@ -1433,6 +1539,9 @@ export function initializeArchiveWorkspace({
       editorDocument = editorBridge?.read() || editorDocument;
       editorBridge?.dispose();
       activePreviewUrl = previewUrl;
+      armTemplateLoadTimeout();
+      editorCanvas.classList.remove('has-layout-error');
+      templateHeightFallback.hidden = true;
       editorCanvas?.classList.add('is-loading');
       editorCanvas?.setAttribute('aria-busy', 'true');
       if (editorLoading) editorLoading.hidden = false;
@@ -1443,21 +1552,9 @@ export function initializeArchiveWorkspace({
         initialDocument: editorDocument,
         onReferenceTrigger: runSlashReferenceSearch,
         embedded: true,
-        onHeightChange: (height) => {
-          templateFrame.style.height = `${height}px`;
-          templateFrame.hidden = false;
-          templateHeightFallback.hidden = true;
-        },
+        onHeightChange: applyTemplateHeight,
         onOutlineChange: renderTemplateOutline,
-        onLayoutError: (error) => {
-          console.warn('PALIS embedded editor layout fallback', error);
-          templateHeightFallback.hidden = false;
-          templateFrame.hidden = true;
-          if (documentErrors) {
-            documentErrors.hidden = false;
-            documentErrors.textContent = '正文嵌入高度不可用；可重新载入或单独打开模板。';
-          }
-        },
+        onLayoutError: showTemplateFallback,
         onChange: (document) => {
           editorDocument = {
             ...document,
@@ -1468,9 +1565,15 @@ export function initializeArchiveWorkspace({
         },
         waitForLoad,
       });
-      editorBridge.ready.then(() => {
-        editorBridge?.setSystemFields(editorDocument.values);
-        editorBridge?.setSynchronizedFields(synchronizedTemplateFields());
+      const mountedBridge = editorBridge;
+      mountedBridge.ready.then((bridge) => {
+        if (editorBridge !== mountedBridge) return;
+        if (!bridge) {
+          showTemplateFallback();
+          return;
+        }
+        bridge.setSystemFields(editorDocument.values);
+        bridge.setSynchronizedFields(synchronizedTemplateFields());
         Object.keys(editorDocument.indexData).forEach(syncIndexFieldToTemplate);
         editorCanvas?.classList.remove('is-loading');
         editorCanvas?.setAttribute('aria-busy', 'false');
@@ -1479,14 +1582,11 @@ export function initializeArchiveWorkspace({
     };
     mountEditorBridge();
     form.querySelector('[data-reload-template]')?.addEventListener('click', () => {
-      templateHeightFallback.hidden = true;
-      if (documentErrors) documentErrors.hidden = true;
-      templateFrame.hidden = false;
       editorBridge?.dispose();
       editorBridge = null;
-      activePreviewUrl = null;
-      templateFrame.setAttribute('src', editorPreviewUrl(template, kindSelect.value));
       mountEditorBridge({ waitForLoad: true });
+      if (templateFrame.contentWindow) templateFrame.contentWindow.location.reload();
+      else templateFrame.setAttribute('src', activePreviewUrl);
     });
     if (initial.archiveId && !initial.id && initial.kind !== 'new') {
       await loadEditableArchives();
@@ -1636,10 +1736,25 @@ export function initializeArchiveWorkspace({
       archiveTargetsLoaded = false;
       await loadEditableArchives();
     });
-    form.querySelector('[data-save-now]').addEventListener('click', async () => {
+    saveButton.addEventListener('click', async () => {
+      saveButton.disabled = true;
       queueDraftAutosave();
-      await autosave.flushLocal();
-      message.textContent = '当前内容已手动写入本地暂存。';
+      try {
+        if (!client) {
+          await autosave.flushLocal();
+          message.textContent = '已保存到本地；档案服务未连接，可稍后继续同步。';
+          return;
+        }
+        const result = await autosave.flushRemote();
+        if (['conflict', 'network-error', 'session-expired', 'permission-denied', 'cloud-error']
+          .includes(result?.status)) {
+          message.textContent = '已保存到本地；云端同步失败，可稍后重试。';
+          return;
+        }
+        message.textContent = '当前内容已保存到本地并同步云端。';
+      } finally {
+        if (!submitted) saveButton.disabled = false;
+      }
     });
 
     const referenceSearch = form.querySelector('[data-reference-search]');
@@ -1689,9 +1804,10 @@ export function initializeArchiveWorkspace({
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const collectedDraft = collectDraft();
       const validation = validateArchiveIndexData(
         template.category,
-        collectDraft().content.indexData,
+        collectedDraft.content.indexData,
       );
       if (!validation.valid) {
         fillIndexControls(validation.value);
@@ -1701,6 +1817,15 @@ export function initializeArchiveWorkspace({
         return;
       }
       editorDocument.indexData = validation.value;
+      showIndexErrors([]);
+      if (!hasMeaningfulArchiveBody(editorDocument)) {
+        showDocumentError(true);
+        scrollToEditorSection('document');
+        templateFrame.focus({ preventScroll: true });
+        message.textContent = '请至少填写一个档案正文词条。';
+        return;
+      }
+      showDocumentError(false);
       if (!form.reportValidity()) return;
       if (!client) {
         message.textContent = '当前未连接档案服务，仅保留了本地暂存。';
@@ -1716,7 +1841,6 @@ export function initializeArchiveWorkspace({
         targetDocumentSelect.focus();
         return;
       }
-      const submitButton = form.querySelector('[data-submit-draft]');
       const selectedFiles = [...form.elements.attachments.files];
       const invalidAttachment = selectedFiles.find((file) =>
         file.size <= 0 || file.size > 5 * 1024 * 1024);
@@ -1724,7 +1848,7 @@ export function initializeArchiveWorkspace({
         message.textContent = `附件“${invalidAttachment.name}”为空或超过 5MB，请重新选择。`;
         return;
       }
-      submitButton.disabled = true;
+      setSubmissionState('saving');
       const syncDraft = async () => {
         queueDraftAutosave();
         return autosave.flushRemote();
@@ -1739,7 +1863,7 @@ export function initializeArchiveWorkspace({
         }
       };
       const showStoppedSubmission = (result) => {
-        submitButton.disabled = false;
+        setSubmissionState('editing');
         if (result.stage === 'draft-id') {
           message.textContent = '云端暂存尚未建立，请检查网络后重试。';
           return;
@@ -1803,15 +1927,24 @@ export function initializeArchiveWorkspace({
           showStoppedSubmission(submissionResult);
           return;
         }
-        autosave.clear(localKey);
         submitted = true;
         editorDirty = false;
         setAutosaveState('cloud-synced');
-        message.textContent = '档案已提交审核；批复会出现在“审核回信”。';
+        setSubmissionState('submitted');
+        editorBridge?.setReadOnly(true);
+        clearPendingMedia();
+        form.elements.attachments.value = '';
+        form.querySelectorAll('input, select, textarea, button').forEach((control) => {
+          control.disabled = true;
+        });
+        const submissionId = submissionResult.submission?.id || editorDraft.id || 'PENDING';
+        message.textContent = `已提交审核 / ${submissionId}。批复会出现在“审核回信”。`;
+        autosave.clear(localKey);
+        reportDirtyState();
       } catch (error) {
         message.textContent = error.message;
         setAutosaveState('offline-saved');
-        submitButton.disabled = false;
+        setSubmissionState('editing');
       }
     });
 
@@ -1836,6 +1969,10 @@ export function initializeArchiveWorkspace({
       window.removeEventListener('palis:workspace-flush-request', flushForWorkspaceExit);
       window.removeEventListener('palis:workspace-discard-request', discardForWorkspaceExit);
       window.removeEventListener('palis:workspace-leave-aborted', rearmAfterFailedLeave);
+      templateFrame.removeEventListener('error', onTemplateFrameError);
+      editorScroll.removeEventListener('scroll', onEditorScroll);
+      if (outlineFrame !== null) cancelAnimationFrame(outlineFrame);
+      if (templateLoadTimeout !== null) clearTimeout(templateLoadTimeout);
       window.dispatchEvent(new CustomEvent('palis:workspace-dirty-change', { detail: { key: localKey, dirty: false } }));
       window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', { detail: { key: localKey, state: 'closed' } }));
       editorBridge?.dispose();

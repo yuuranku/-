@@ -925,10 +925,15 @@ export async function verifyLocalAdministrator({
     );
     const narrowEditorEvidence = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window:not([hidden])');
-      const split = dialog?.querySelector('.archive-editor__split');
-      const rail = dialog?.querySelector('.archive-editor__workflow-rail');
+      const scroll = dialog?.querySelector('[data-editor-scroll]');
+      const outline = dialog?.querySelector('[data-editor-outline-select]');
       const rect = dialog?.getBoundingClientRect();
-      const railRect = rail?.getBoundingClientRect();
+      const scrollingNodes = [...(dialog?.querySelectorAll('*') ?? [])]
+        .filter((node) => {
+          const style = getComputedStyle(node);
+          return /auto|scroll/.test(style.overflowY)
+            && node.scrollHeight > node.clientHeight;
+        });
       return {
         viewportWidth: innerWidth,
         dialogContained: Boolean(
@@ -938,12 +943,8 @@ export async function verifyLocalAdministrator({
           && rect.top >= 0
           && rect.bottom <= innerHeight,
         ),
-        railVisible: Boolean(
-          railRect
-          && railRect.bottom > 0
-          && railRect.top < innerHeight,
-        ),
-        splitScrollable: Boolean(split && split.scrollHeight > split.clientHeight),
+        outlineVisible: Boolean(outline && getComputedStyle(outline).display !== 'none'),
+        oneScrollOwner: scrollingNodes.length === 1 && scrollingNodes[0] === scroll,
         focusInside: Boolean(dialog?.contains(document.activeElement)),
       };
     });
@@ -955,8 +956,8 @@ export async function verifyLocalAdministrator({
       expected: {
         viewportWidth: 390,
         dialogContained: true,
-        railVisible: true,
-        splitScrollable: true,
+        outlineVisible: true,
+        oneScrollOwner: true,
         focusInside: true,
       },
       evidence: ['08-narrow-editor-access.png'],
