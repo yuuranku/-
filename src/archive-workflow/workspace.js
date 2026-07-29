@@ -717,6 +717,10 @@ export function initializeArchiveWorkspace({
       clearTimeout(state.motionTimer);
       state.motionTimer = 0;
     };
+    const clearWindowMotion = () => {
+      clearMotionTimer();
+      windowElement.classList.remove('is-opening', 'is-minimizing', 'is-restoring', 'is-closing');
+    };
     const taskVector = () => {
       const windowRect = windowElement.getBoundingClientRect();
       const taskRect = taskButton.getBoundingClientRect();
@@ -732,7 +736,7 @@ export function initializeArchiveWorkspace({
     };
     const minimizeWindow = () => {
       if (state.minimized || state.closing) return;
-      clearMotionTimer();
+      clearWindowMotion();
       state.minimized = true;
       setTaskVector();
       taskButton.classList.add('is-minimized');
@@ -754,7 +758,7 @@ export function initializeArchiveWorkspace({
     };
     const restoreWindow = () => {
       if (!state.minimized || state.closing) return;
-      clearMotionTimer();
+      clearWindowMotion();
       state.minimized = false;
       windowElement.classList.remove('is-minimized', 'is-minimizing');
       taskButton.classList.remove('is-minimized');
@@ -800,10 +804,9 @@ export function initializeArchiveWorkspace({
     const closeWindow = async () => {
       if (state.closing) return;
       state.closing = true;
-      clearMotionTimer();
+      clearWindowMotion();
       if (!state.minimized && !reducedMotion) {
         setTaskVector();
-        windowElement.classList.remove('is-opening', 'is-restoring');
         windowElement.classList.add('is-closing');
         await new Promise((resolve) => {
           state.motionTimer = window.setTimeout(resolve, 240);

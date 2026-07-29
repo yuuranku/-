@@ -95,12 +95,7 @@ test('local administrator opens the workspace without loading cloud authenticati
         windowElement.classList.contains('is-opening')),
       true,
     );
-    await page.waitForFunction(() =>
-      !document.querySelector('.archive-admin-window')?.classList.contains('is-opening'));
-    await page.click('#clerk-desktop-start');
-    await page.click('.archive-admin-window .archive-workflow-titlebar');
-    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
-    await page.click('.archive-admin-window [data-workflow-minimize]');
+    await page.$eval('.archive-admin-window [data-workflow-minimize]', (button) => button.click());
     assert.equal(
       await page.$eval('.archive-admin-window', (windowElement) =>
         windowElement.classList.contains('is-minimizing')),
@@ -109,11 +104,7 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.waitForSelector('.archive-admin-window.is-minimized');
     assert.equal(await page.$eval('.archive-admin-window', (windowElement) => windowElement.hidden), false);
     assert.equal(await page.$('[data-workflow-task="archives"]') !== null, true);
-    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
-    await page.click('[data-workspace-watermark-connection]');
-    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
-    assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
-    await page.click('[data-workflow-task="archives"]');
+    await page.$eval('[data-workflow-task="archives"]', (button) => button.click());
     assert.equal(
       await page.$eval('.archive-admin-window', (windowElement) =>
         windowElement.classList.contains('is-restoring')),
@@ -121,6 +112,31 @@ test('local administrator opens the workspace without loading cloud authenticati
     );
     await page.waitForFunction(() =>
       !document.querySelector('.archive-admin-window')?.classList.contains('is-restoring'));
+    const settledArchiveWindow = await page.evaluate(async () => {
+      const windowElement = document.querySelector('.archive-admin-window');
+      const lifecycleClasses = ['is-opening', 'is-minimizing', 'is-restoring', 'is-closing'];
+      const readBounds = () => {
+        const { left, top, right, bottom, width, height } = windowElement.getBoundingClientRect();
+        return { left, top, right, bottom, width, height };
+      };
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const firstBounds = readBounds();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      return {
+        staleLifecycleClasses: lifecycleClasses.filter((className) => windowElement.classList.contains(className)),
+        firstBounds,
+        secondBounds: readBounds(),
+      };
+    });
+    assert.deepEqual(settledArchiveWindow.staleLifecycleClasses, []);
+    assert.ok(settledArchiveWindow.firstBounds.width > 0 && settledArchiveWindow.firstBounds.height > 0);
+    assert.deepEqual(settledArchiveWindow.secondBounds, settledArchiveWindow.firstBounds);
+    await page.click('#clerk-desktop-start');
+    await page.click('.archive-admin-window .archive-workflow-titlebar');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
+    await page.click('[data-workspace-watermark-connection]');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
+    assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
     await page.click('[data-workspace-shortcut][data-workspace-command="new-archive"]', { count: 2, delay: 40 });
     await page.waitForSelector('[data-new-archive-chooser]');
     await page.click('[data-new-archive-template="07"]');

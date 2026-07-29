@@ -87,3 +87,21 @@ and only then reads final geometry.
 - `tests/workspace-narrow-controls.test.mjs`
 - `tests/workspace-ux-regression.test.mjs`
 - `tests/local-admin-runtime-browser.test.mjs`
+
+## Motion lifecycle race follow-up
+
+- Added a real-browser regression for opening an archive window, immediately
+  minimizing it during `is-opening`, restoring it, and waiting for the restore
+  lifecycle to finish. It asserts that no transient motion class remains and
+  that two post-animation animation-frame geometry reads are identical.
+- RED: `node --test tests/local-admin-runtime-browser.test.mjs` failed with
+  `staleLifecycleClasses: ['is-opening']`, reproducing the review finding.
+- Root cause: canceling the single opening timeout did not also remove its
+  `is-opening` class, so the subsequent minimize and restore transitions left
+  the old `window-unfold` animation active after restore completion.
+- Added `clearWindowMotion()` to cancel the pending timeout and clear all four
+  transient classes (`is-opening`, `is-minimizing`, `is-restoring`, and
+  `is-closing`) before minimize, restore, or close begins. Existing
+  480/260/300/240ms timings and reduced-motion behavior are unchanged.
+- GREEN: the browser regression passed (1/1), and the focused Task 5/6 suite
+  passed (65/65).
