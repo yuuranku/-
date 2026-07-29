@@ -528,6 +528,7 @@ export function initializeArchiveWorkspace({
   const windows = new Map();
   let zIndex = 22500;
   const narrowWorkspaceQuery = matchMedia('(max-width: 760px)');
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const syncWorkflowViewport = () => windows.forEach((state) => {
     state.windowElement.classList.toggle('is-narrow-forced', narrowWorkspaceQuery.matches);
   });
@@ -594,7 +595,13 @@ export function initializeArchiveWorkspace({
       windowElement.classList.remove('is-dragging');
     };
     handle.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0 || event.target.closest('button') || matchMedia('(max-width: 760px)').matches || windowElement.classList.contains('is-maximized')) return;
+      if (
+        windowElement.classList.contains('is-docked-right')
+        || event.button !== 0
+        || event.target.closest('button')
+        || matchMedia('(max-width: 760px)').matches
+        || windowElement.classList.contains('is-maximized')
+      ) return;
       focusWindow(windowElement);
       drag = {
         pointerId: event.pointerId,
@@ -612,12 +619,22 @@ export function initializeArchiveWorkspace({
     handle.addEventListener('pointercancel', finish);
   };
 
-  const createWindow = ({ key, title, code, body, className = '', icon = '' }) => {
+  const createWindow = ({
+    key,
+    title,
+    code,
+    body,
+    className = '',
+    icon = '',
+    dock = null,
+  }) => {
     const existing = windows.get(key);
     if (existing) {
-      existing.windowElement.hidden = false;
-      focusWindow(existing.windowElement);
-      existing.windowElement.focus({ preventScroll: true });
+      if (existing.minimized) existing.restore?.();
+      else {
+        focusWindow(existing.windowElement);
+        existing.windowElement.focus({ preventScroll: true });
+      }
       return existing;
     }
 
@@ -626,6 +643,7 @@ export function initializeArchiveWorkspace({
       : null;
     const windowElement = document.createElement('section');
     windowElement.className = `archive-workflow-window retro-window ${className}`.trim();
+    if (dock === 'right') windowElement.classList.add('is-docked-right');
     windowElement.id = `archive-workflow-${key.replaceAll(/[^a-z0-9-]/gi, '-')}`;
     windowElement.setAttribute('role', 'dialog');
     windowElement.setAttribute('aria-modal', 'false');
@@ -654,10 +672,24 @@ export function initializeArchiveWorkspace({
     taskList.appendChild(taskButton);
     windowLayer.appendChild(windowElement);
 
-    const width = Math.min(windowElement.offsetWidth || 1040, innerWidth - 24);
-    const height = Math.min(windowElement.offsetHeight || 690, innerHeight - 80);
-    windowElement.style.left = `${Math.max(8, (innerWidth - width) / 2)}px`;
-    windowElement.style.top = `${Math.max(8, (innerHeight - 54 - height) / 2)}px`;
+    if (dock !== 'right') {
+      const width = Math.min(windowElement.offsetWidth || 1040, innerWidth - 24);
+      const height = Math.min(windowElement.offsetHeight || 690, innerHeight - 80);
+      windowElement.style.left = `${Math.max(8, (innerWidth - width) / 2)}px`;
+      windowElement.style.top = `${Math.max(8, (innerHeight - 54 - height) / 2)}px`;
+    }
+    if (returnFocus?.isConnected) {
+      const triggerRect = returnFocus.getBoundingClientRect();
+      const windowRect = windowElement.getBoundingClientRect();
+      windowElement.style.setProperty(
+        '--dialog-from-x',
+        `${triggerRect.left + triggerRect.width / 2 - (windowRect.left + windowRect.width / 2)}px`,
+      );
+      windowElement.style.setProperty(
+        '--dialog-from-y',
+        `${triggerRect.top + triggerRect.height / 2 - (windowRect.top + windowRect.height / 2)}px`,
+      );
+    }
 
     const state = {
       key,
@@ -670,6 +702,8 @@ export function initializeArchiveWorkspace({
       restoredBounds: null,
       dirtyKey: null,
       closing: false,
+      dock,
+      motionTimer: 0,
     };
     windows.set(key, state);
     syncWorkflowViewport();
@@ -678,19 +712,73 @@ export function initializeArchiveWorkspace({
     focusWindow(windowElement);
     windowElement.focus({ preventScroll: true });
 
-    const toggleMinimize = () => {
-      state.minimized = !state.minimized;
-      windowElement.hidden = state.minimized;
-      taskButton.classList.toggle('is-minimized', state.minimized);
-      taskButton.setAttribute('aria-pressed', String(!state.minimized));
-      if (state.minimized) {
-        taskButton.focus({ preventScroll: true });
+    const clearMotionTimer = () => {
+      if (!state.motionTimer) return;
+      clearTimeout(state.motionTimer);
+      state.motionTimer = 0;
+    };
+    const taskVector = () => {
+      const windowRect = windowElement.getBoundingClientRect();
+      const taskRect = taskButton.getBoundingClientRect();
+      return {
+        x: taskRect.left + taskRect.width / 2 - (windowRect.left + windowRect.width / 2),
+        y: taskRect.top + taskRect.height / 2 - (windowRect.top + windowRect.height / 2),
+      };
+    };
+    const setTaskVector = () => {
+      const vector = taskVector();
+      windowElement.style.setProperty('--task-x', `${vector.x}px`);
+      windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    };
+    const minimizeWindow = () => {
+      if (state.minimized || state.closing) return;
+      clearMotionTimer();
+      state.minimized = true;
+      setTaskVector();
+      taskButton.classList.add('is-minimized');
+      taskButton.setAttribute('aria-pressed', 'false');
+      if (reducedMotion) {
+        windowElement.classList.add('is-minimized');
       } else {
-        focusWindow(windowElement);
-        windowElement.focus({ preventScroll: true });
+        windowElement.classList.add('is-minimizing');
+        state.motionTimer = window.setTimeout(() => {
+          state.motionTimer = 0;
+          if (!state.minimized || state.closing) return;
+          windowElement.classList.remove('is-minimizing');
+          windowElement.classList.add('is-minimized');
+        }, 260);
       }
+      windowElement.classList.remove('is-active');
+      taskButton.classList.remove('is-active');
+      taskButton.focus({ preventScroll: true });
+    };
+    const restoreWindow = () => {
+      if (!state.minimized || state.closing) return;
+      clearMotionTimer();
+      state.minimized = false;
+      windowElement.classList.remove('is-minimized', 'is-minimizing');
+      taskButton.classList.remove('is-minimized');
+      setTaskVector();
+      if (!reducedMotion) {
+        windowElement.classList.remove('is-restoring');
+        void windowElement.offsetWidth;
+        windowElement.classList.add('is-restoring');
+        state.motionTimer = window.setTimeout(() => {
+          state.motionTimer = 0;
+          windowElement.classList.remove('is-restoring');
+        }, 300);
+      }
+      focusWindow(windowElement);
+      windowElement.focus({ preventScroll: true });
+    };
+    state.minimize = minimizeWindow;
+    state.restore = restoreWindow;
+    const toggleMinimize = () => {
+      if (state.minimized) restoreWindow();
+      else minimizeWindow();
     };
     const toggleMaximize = () => {
+      if (windowElement.classList.contains('is-docked-right')) return;
       if (narrowWorkspaceQuery.matches) return;
       if (!state.maximized) {
         const rect = windowElement.getBoundingClientRect();
@@ -712,6 +800,16 @@ export function initializeArchiveWorkspace({
     const closeWindow = async () => {
       if (state.closing) return;
       state.closing = true;
+      clearMotionTimer();
+      if (!state.minimized && !reducedMotion) {
+        setTaskVector();
+        windowElement.classList.remove('is-opening', 'is-restoring');
+        windowElement.classList.add('is-closing');
+        await new Promise((resolve) => {
+          state.motionTimer = window.setTimeout(resolve, 240);
+        });
+        state.motionTimer = 0;
+      }
       windows.delete(key);
       taskButton.remove();
       windowElement.remove();
@@ -727,6 +825,13 @@ export function initializeArchiveWorkspace({
       window.dispatchEvent(new CustomEvent('palis:workspace-leave-request', { cancelable: true, detail: { keys: [state.dirtyKey], proceed: () => { void closeWindow(); }, cancel: () => {} } }));
     });
     windowElement.addEventListener('pointerdown', () => focusWindow(windowElement));
+    if (!reducedMotion) {
+      windowElement.classList.add('is-opening');
+      state.motionTimer = window.setTimeout(() => {
+        state.motionTimer = 0;
+        windowElement.classList.remove('is-opening');
+      }, 480);
+    }
     return state;
   };
 
@@ -766,7 +871,8 @@ export function initializeArchiveWorkspace({
       key: editorKey,
       title: template.title,
       code: `${template.code}.HTML`,
-      className: 'archive-editor-window is-docked-right',
+      className: 'archive-editor-window',
+      dock: 'right',
       body: `
         <form class="archive-editor" data-archive-editor
           data-editor-submission-state="editing" novalidate>

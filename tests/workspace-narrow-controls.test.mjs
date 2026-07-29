@@ -4,6 +4,7 @@ import test from 'node:test';
 import postcss from 'postcss';
 
 const styleUrl = new URL('../src/style.css', import.meta.url);
+const workflowStyleUrl = new URL('../src/archive-workflow/workspace.css', import.meta.url);
 
 test('narrow workspace window controls reserve a 44px hit target', async () => {
   const root = postcss.parse(await readFile(styleUrl, 'utf8'));
@@ -36,4 +37,22 @@ test('narrow workspace window controls reserve a 44px hit target', async () => {
       ['box-sizing', 'border-box'],
     ]));
   }
+});
+
+test('narrow native editor fills the bounded workspace layer without a stale dock width', async () => {
+  const root = postcss.parse(await readFile(workflowStyleUrl, 'utf8'));
+  const declarations = new Map();
+  root.walkAtRules('media', (rule) => {
+    if (rule.params.replaceAll(' ', '') !== '(max-width:760px)') return;
+    rule.walkRules('.archive-editor-window.is-docked-right', (dockRule) => {
+      for (const declaration of dockRule.nodes.filter((node) => node.type === 'decl')) {
+        declarations.set(declaration.prop, declaration.value);
+      }
+    });
+  });
+
+  assert.equal(declarations.get('inset'), '0');
+  assert.equal(declarations.get('width'), 'auto');
+  assert.equal(declarations.get('height'), 'auto');
+  assert.equal(declarations.get('max-width'), 'none');
 });

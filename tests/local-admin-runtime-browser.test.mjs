@@ -75,7 +75,7 @@ test('local administrator opens the workspace without loading cloud authenticati
       assert.equal(metrics.startVisible, true);
       assert.equal(metrics.utilities, false);
       assert.equal(metrics.iconFlow, viewport.width <= 760 ? 'row' : 'column');
-      assert.equal(metrics.iconWidth, 32);
+      assert.equal(metrics.iconWidth, 60);
       assert.ok(metrics.taskbarHeight >= (viewport.width <= 760 ? 44 : 34));
       if (process.env.PALIS_CAPTURE_UI === '1') {
         await mkdir(shellCaptureDirectory, { recursive: true });
@@ -90,22 +90,107 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="archives"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-admin-window [data-admin-archive-management]');
+    assert.equal(
+      await page.$eval('.archive-admin-window', (windowElement) =>
+        windowElement.classList.contains('is-opening')),
+      true,
+    );
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-admin-window')?.classList.contains('is-opening'));
     await page.click('#clerk-desktop-start');
     await page.click('.archive-admin-window .archive-workflow-titlebar');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
     await page.click('.archive-admin-window [data-workflow-minimize]');
-    assert.equal(await page.$eval('.archive-admin-window', (windowElement) => windowElement.hidden), true);
+    assert.equal(
+      await page.$eval('.archive-admin-window', (windowElement) =>
+        windowElement.classList.contains('is-minimizing')),
+      true,
+    );
+    await page.waitForSelector('.archive-admin-window.is-minimized');
+    assert.equal(await page.$eval('.archive-admin-window', (windowElement) => windowElement.hidden), false);
     assert.equal(await page.$('[data-workflow-task="archives"]') !== null, true);
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
     await page.click('[data-workspace-watermark-connection]');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
     await page.click('[data-workflow-task="archives"]');
-    await page.waitForSelector('.archive-admin-window:not([hidden])');
+    assert.equal(
+      await page.$eval('.archive-admin-window', (windowElement) =>
+        windowElement.classList.contains('is-restoring')),
+      true,
+    );
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-admin-window')?.classList.contains('is-restoring'));
     await page.click('[data-workspace-shortcut][data-workspace-command="new-archive"]', { count: 2, delay: 40 });
     await page.waitForSelector('[data-new-archive-chooser]');
     await page.click('[data-new-archive-template="07"]');
     await page.waitForSelector('.archive-editor-window:not([hidden])');
+    assert.equal(
+      await page.$eval('.archive-editor-window', (windowElement) =>
+        windowElement.classList.contains('is-opening')),
+      true,
+    );
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-editor-window')?.classList.contains('is-opening'));
+    const dockGeometry = await page.evaluate(() => {
+      const windowElement = document.querySelector('.archive-editor-window');
+      const layer = document.querySelector('#assistant-window-layer');
+      const scroll = windowElement.querySelector('.archive-editor__scroll');
+      const form = windowElement.querySelector('.archive-editor');
+      const windowRect = windowElement.getBoundingClientRect();
+      const layerRect = layer.getBoundingClientRect();
+      return {
+        width: windowRect.width,
+        top: windowRect.top - layerRect.top,
+        right: layerRect.right - windowRect.right,
+        bottom: layerRect.bottom - windowRect.bottom,
+        formOverflow: getComputedStyle(form).overflow,
+        scrollOverflowY: getComputedStyle(scroll).overflowY,
+        scrolls: scroll.scrollHeight > scroll.clientHeight,
+      };
+    });
+    assert.deepEqual(dockGeometry, {
+      width: 560,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      formOverflow: 'hidden',
+      scrollOverflowY: 'auto',
+      scrolls: true,
+    });
+    const beforeLockedInteractions = await page.$eval(
+      '.archive-editor-window',
+      (windowElement) => {
+        const rect = windowElement.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      },
+    );
+    await page.click('.archive-editor-window [data-workflow-maximize]');
+    const titlebar = await page.$eval(
+      '.archive-editor-window [data-workflow-drag-handle]',
+      (handle) => {
+        const rect = handle.getBoundingClientRect();
+        return { x: rect.left + 80, y: rect.top + rect.height / 2 };
+      },
+    );
+    await page.mouse.move(titlebar.x, titlebar.y);
+    await page.mouse.down();
+    await page.mouse.move(titlebar.x - 140, titlebar.y + 90, { steps: 4 });
+    await page.mouse.up();
+    assert.deepEqual(
+      await page.$eval('.archive-editor-window', (windowElement) => {
+        const rect = windowElement.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          maximized: windowElement.classList.contains('is-maximized'),
+          dragging: windowElement.classList.contains('is-dragging'),
+        };
+      }),
+      { ...beforeLockedInteractions, maximized: false, dragging: false },
+    );
     const focusState = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window');
       return {
@@ -137,13 +222,22 @@ test('local administrator opens the workspace without loading cloud authenticati
     );
 
     await page.click('.archive-editor-window [data-workflow-minimize]');
-    const minimized = await page.evaluate(() => ({
+    const minimizing = await page.evaluate(() => ({
       hidden: document.querySelector('.archive-editor-window')?.hidden,
+      minimizing: document.querySelector('.archive-editor-window')?.classList.contains('is-minimizing'),
       taskFocused: document.activeElement?.matches?.('[data-workflow-task="editor-07"]'),
     }));
-    assert.deepEqual(minimized, { hidden: true, taskFocused: true });
+    assert.deepEqual(minimizing, { hidden: false, minimizing: true, taskFocused: true });
+    await page.waitForSelector('.archive-editor-window.is-minimized');
 
     await page.click('[data-workflow-task="editor-07"]');
+    assert.equal(
+      await page.$eval('.archive-editor-window', (windowElement) =>
+        windowElement.classList.contains('is-restoring')),
+      true,
+    );
+    await page.waitForFunction(() =>
+      !document.querySelector('.archive-editor-window')?.classList.contains('is-restoring'));
     await page.setViewport({ width: 390, height: 844 });
     await page.waitForFunction(() => document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
     const narrowControls = await page.$$eval(

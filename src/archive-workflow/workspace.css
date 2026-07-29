@@ -30,6 +30,23 @@
 .archive-workflow-window[hidden] { display: none !important; }
 .archive-workflow-window.is-active { outline: 0; }
 .archive-workflow-window.is-dragging { user-select: none; }
+.archive-workflow-window.is-opening {
+  will-change: transform, opacity;
+  animation: window-unfold 480ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.archive-workflow-window.is-minimizing {
+  pointer-events: none;
+  animation: window-minimize 260ms cubic-bezier(.55, 0, 1, .45) both;
+}
+.archive-workflow-window.is-restoring {
+  animation: window-restore 300ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.archive-workflow-window.is-closing {
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: window-task-close 240ms cubic-bezier(.55, 0, 1, .45) both;
+}
+.archive-workflow-window.is-minimized { display: none; }
 .archive-workflow-window.is-maximized,
 .archive-workflow-window.is-narrow-forced {
   inset: 0 !important;
@@ -38,6 +55,16 @@
   max-width: none;
   max-height: none;
   box-shadow: none;
+}
+
+.archive-editor-window.is-docked-right {
+  top: 0;
+  right: 0;
+  left: auto;
+  width: clamp(560px, 34vw, 680px);
+  height: 100%;
+  max-width: calc(100vw - 12px);
+  max-height: none;
 }
 
 .archive-workflow-titlebar {
@@ -171,7 +198,7 @@
 .archive-editor__scroll {
   grid-area: content;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
   scrollbar-color: #727873 #d8d4c6;
 }
@@ -818,6 +845,12 @@
 }
 
 @media (max-width: 760px) {
+  .archive-editor-window.is-docked-right {
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+  }
   .archive-editor__scroll { padding: 10px; }
   .archive-editor :is(input, select, textarea, button) { min-height: 44px; }
 }

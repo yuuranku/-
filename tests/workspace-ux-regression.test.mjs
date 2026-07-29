@@ -17,9 +17,10 @@ const [html, workspace, workflowStyles, main, styles] = await Promise.all([
 const workflowRules = postcss.parse(workflowStyles).nodes.filter((node) => node.type === 'rule');
 const workflowRuleFor = (selector) => workflowRules.findLast((rule) => rule.selector === selector);
 const workflowHasSelector = (selector) => workflowRules.some((rule) => rule.selectors?.includes(selector));
-const workflowDeclaration = (selector, property) => workflowRuleFor(selector)?.nodes.find(
-  (node) => node.type === 'decl' && node.prop === property,
-)?.value;
+const workflowDeclaration = (selector, property) => workflowRules.findLast(
+  (rule) => rule.selector === selector
+    && rule.nodes.some((node) => node.type === 'decl' && node.prop === property),
+)?.nodes.find((node) => node.type === 'decl' && node.prop === property)?.value;
 
 test('workflow panels retain wheel scrolling inside their visible lists', () => {
   assert.match(main, /\.archive-workflow-window/);
@@ -39,9 +40,12 @@ test('authenticated operators see a personal workspace greeting', () => {
   assert.match(workspace, /欢迎您，\$\{greetingName\}/);
 });
 
-test('desktop workflow has an editor loading state and a wide-desktop readability scale', () => {
-  assert.match(workspace, /data-template-editor-loading/);
-  assert.match(workflowStyles, /\.archive-editor__canvas\.is-loading/);
+test('desktop workflow has one native editor scroll area and a wide-desktop readability scale', () => {
+  assert.match(workspace, /class="archive-editor__scroll" data-editor-scroll/);
+  assert.equal(workflowDeclaration('.archive-editor', 'overflow'), 'hidden');
+  assert.equal(workflowDeclaration('.archive-editor__scroll', 'min-height'), '0');
+  assert.equal(workflowDeclaration('.archive-editor__scroll', 'overflow'), 'auto');
+  assert.doesNotMatch(workspace, /data-template-editor-loading|data-template-editor-frame/);
   assert.match(workflowStyles, /@media \(min-width: 1600px\) and \(min-height: 800px\)/);
 });
 
@@ -71,12 +75,38 @@ test('archive cabinet menus use the classic Win95 open and keyboard-visible stat
   assert.equal(workflowDeclaration(".archive-cabinet__menubar [role='menu'] button:focus-visible", 'background'), '#000080');
 });
 
-test('narrow workflow keeps the index rail scrollable and archive management contained', () => {
+test('narrow workflow keeps the native editor single-scroll and archive management contained', () => {
   const narrow = workflowStyles.slice(workflowStyles.indexOf('@media (max-width: 760px)'));
-  assert.match(narrow, /\.archive-editor__split\s*\{[^}]*display:\s*flex[^}]*overflow:\s*auto/s);
-  assert.match(narrow, /\.archive-editor__workflow-rail\s*\{[^}]*flex:\s*0 0 auto[^}]*overflow:\s*visible/s);
+  assert.match(narrow, /\.archive-editor-window\.is-docked-right\s*\{[^}]*inset:\s*0[^}]*width:\s*auto/s);
+  assert.match(narrow, /\.archive-editor__scroll\s*\{[^}]*padding:\s*10px/s);
   assert.match(narrow, /\.archive-admin-archives > header\s*\{[^}]*flex-direction:\s*column/s);
   assert.match(narrow, /\.archive-admin-archives header form\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/s);
+});
+
+test('normal workbench windows reuse the shared desktop motion lifecycle', () => {
+  assert.match(workspace, /is-opening/);
+  assert.match(workspace, /is-minimizing/);
+  assert.match(workspace, /is-restoring/);
+  assert.match(workspace, /is-closing/);
+  assert.match(workspace, /--task-x/);
+  assert.match(workspace, /--task-y/);
+  assert.match(workspace, /prefers-reduced-motion:\s*reduce/);
+  assert.match(workflowStyles, /\.archive-workflow-window\.is-opening\s*\{[^}]*window-unfold 480ms cubic-bezier\(\.16, 1, \.3, 1\) both/s);
+  assert.match(workflowStyles, /\.archive-workflow-window\.is-minimizing\s*\{[^}]*window-minimize 260ms cubic-bezier\(\.55, 0, 1, \.45\) both/s);
+  assert.match(workflowStyles, /\.archive-workflow-window\.is-restoring\s*\{[^}]*window-restore 300ms cubic-bezier\(\.16, 1, \.3, 1\) both/s);
+  assert.match(workflowStyles, /\.archive-workflow-window\.is-closing\s*\{[^}]*window-task-close 240ms cubic-bezier\(\.55, 0, 1, \.45\) both/s);
+  assert.doesNotMatch(workflowStyles, /@keyframes\s+window-/);
+});
+
+test('right-docked workbench windows reject drag and maximize state changes', () => {
+  assert.match(
+    workspace,
+    /handle\.addEventListener\('pointerdown', \(event\) => \{\s*if \(\s*windowElement\.classList\.contains\('is-docked-right'\)/,
+  );
+  assert.match(
+    workspace,
+    /const toggleMaximize = \(\) => \{\s*if \(windowElement\.classList\.contains\('is-docked-right'\)\) return;/,
+  );
 });
 
 test('desktop review keeps its decision controls visible while the formal preview scrolls', () => {

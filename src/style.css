@@ -8737,15 +8737,15 @@ body.clerk-desktop-open { overflow: hidden; }
   display: grid;
   width: auto;
   grid-auto-flow: column;
-  grid-template-rows: repeat(6, 76px);
-  grid-auto-columns: 88px;
+  grid-template-rows: repeat(2, 104px);
+  grid-auto-columns: 104px;
   gap: 4px 8px;
 }
 
 .clerk-desktop__icons button {
-  min-width: 72px;
-  min-height: 72px;
-  grid-template-rows: 32px auto;
+  min-width: 96px;
+  min-height: 96px;
+  grid-template-rows: 60px auto;
   padding: 4px;
   border: 0;
   background: transparent;
@@ -8766,8 +8766,8 @@ body.clerk-desktop-open { overflow: hidden; }
 .clerk-desktop__icons button > small { display: none; }
 .clerk-desktop__icon {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 60px;
+  height: 60px;
   margin-inline: auto;
   place-items: center;
   border: 0;
@@ -8776,9 +8776,8 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 .clerk-desktop__icon::before,
 .clerk-desktop__icon::after { display: none; content: none; }
-.clerk-desktop__icon img,
-.archive-task-button > img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
-.archive-task-button > img { width: 18px; height: 18px; flex: 0 0 18px; }
+.clerk-desktop__icon img { width: 60px; height: 60px; object-fit: contain; image-rendering: pixelated; }
+.archive-task-button > img { width: 18px; height: 18px; flex: 0 0 18px; object-fit: contain; image-rendering: pixelated; }
 
 .clerk-desktop__watermark {
   top: auto;
@@ -8859,7 +8858,7 @@ body.clerk-desktop-open { overflow: hidden; }
   .clerk-desktop__icons {
     inset: 8px 8px auto;
     grid-auto-flow: row;
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    grid-template-columns: repeat(2, minmax(96px, 1fr));
     grid-template-rows: none;
     grid-auto-columns: auto;
     gap: 8px;

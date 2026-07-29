@@ -5,15 +5,22 @@ import postcss from 'postcss';
 
 const projectRoot = new URL('../', import.meta.url);
 
-const [html, script, styles] = await Promise.all([
+const [html, script, styles, workspace, workflowStyles] = await Promise.all([
   readFile(new URL('index.html', projectRoot), 'utf8'),
   readFile(new URL('src/main.js', projectRoot), 'utf8'),
   readFile(new URL('src/style.css', projectRoot), 'utf8'),
+  readFile(new URL('src/archive-workflow/workspace.js', projectRoot), 'utf8'),
+  readFile(new URL('src/archive-workflow/workspace.css', projectRoot), 'utf8'),
 ]);
 
 const rules = postcss.parse(styles).nodes.filter((node) => node.type === 'rule');
 const ruleFor = (selector) => rules.findLast((rule) => rule.selector === selector);
 const declaration = (selector, property) => ruleFor(selector)?.nodes.find(
+  (node) => node.type === 'decl' && node.prop === property,
+)?.value;
+const workflowRules = postcss.parse(workflowStyles).nodes.filter((node) => node.type === 'rule');
+const workflowRuleFor = (selector) => workflowRules.findLast((rule) => rule.selector === selector);
+const workflowDeclaration = (selector, property) => workflowRuleFor(selector)?.nodes.find(
   (node) => node.type === 'decl' && node.prop === property,
 )?.value;
 
@@ -64,11 +71,13 @@ test('workspace shell renders the Win95 desktop and icon grid from its CSS rules
   assert.equal(declaration('.clerk-desktop', '--desktop-teal'), '#0b5555');
   assert.equal(declaration('.clerk-desktop', 'background'), 'var(--desktop-teal)');
   assert.equal(declaration('.clerk-desktop__icons', 'grid-auto-flow'), 'column');
-  assert.equal(declaration('.clerk-desktop__icons', 'grid-template-rows'), 'repeat(6, 76px)');
-  assert.equal(declaration('.clerk-desktop__icons button', 'min-width'), '72px');
-  assert.equal(declaration('.clerk-desktop__icons button', 'min-height'), '72px');
-  assert.equal(declaration('.clerk-desktop__icon', 'width'), '32px');
-  assert.equal(declaration('.clerk-desktop__icon', 'height'), '32px');
+  assert.equal(declaration('.clerk-desktop__icons', 'grid-template-rows'), 'repeat(2, 104px)');
+  assert.equal(declaration('.clerk-desktop__icons button', 'min-width'), '96px');
+  assert.equal(declaration('.clerk-desktop__icons button', 'min-height'), '96px');
+  assert.equal(declaration('.clerk-desktop__icon', 'width'), '60px');
+  assert.equal(declaration('.clerk-desktop__icon', 'height'), '60px');
+  assert.equal(declaration('.clerk-desktop__icon img', 'width'), '60px');
+  assert.equal(declaration('.clerk-desktop__icon img', 'height'), '60px');
   assert.equal(declaration('.clerk-desktop__icon', 'background'), '#fff');
   assert.equal(declaration('.clerk-desktop__icon', 'box-shadow'), 'inset 0 0 0 1px #000');
   assert.equal(declaration('.clerk-desktop__taskbar', 'min-height'), '38px');
@@ -78,4 +87,24 @@ test('workspace shell renders the Win95 desktop and icon grid from its CSS rules
   assert.equal(ruleFor('.clerk-desktop__status'), undefined);
   assert.equal(ruleFor('.clerk-desktop__channel'), undefined);
   assert.equal(ruleFor('.clerk-desktop__exit'), undefined);
+});
+
+test('native editor requests and declares the fixed right dock geometry', () => {
+  assert.match(workspace, /dock:\s*'right'/);
+  assert.equal(
+    workflowDeclaration('.archive-editor-window.is-docked-right', 'width'),
+    'clamp(560px, 34vw, 680px)',
+  );
+  assert.equal(
+    workflowDeclaration('.archive-editor-window.is-docked-right', 'right'),
+    '0',
+  );
+  assert.equal(
+    workflowDeclaration('.archive-editor-window.is-docked-right', 'left'),
+    'auto',
+  );
+  assert.equal(
+    workflowDeclaration('.archive-editor-window.is-docked-right', 'height'),
+    '100%',
+  );
 });
