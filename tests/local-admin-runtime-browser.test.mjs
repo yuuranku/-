@@ -186,9 +186,10 @@ test('local administrator opens the workspace without loading cloud authenticati
         role: 'admin',
         enabled: true,
       };
+      let activePrincipal = principal;
       const repository = createLocalIndexedDbRepository({
         indexedDB,
-        getPrincipal: () => principal,
+        getPrincipal: () => activePrincipal,
         seed: {
           ...createEmptyLocalState(),
           profiles: [principal],
@@ -205,6 +206,12 @@ test('local administrator opens the workspace without loading cloud authenticati
         now: () => new Date().toISOString(),
         randomUUID: () => crypto.randomUUID(),
       });
+      const clerk = await repository.createUser({
+        email: 'browser-clerk@palis.local',
+        displayName: '浏览器书记官',
+        role: 'clerk',
+        password: 'browser-clerk-password',
+      });
       const content = {
         schemaVersion: 2,
         templateCode: '07',
@@ -217,14 +224,16 @@ test('local administrator opens the workspace without loading cloud authenticati
         references: [],
         media: [],
       };
+      activePrincipal = clerk;
       const base = await repository.saveDraft({
-        ownerId: principal.id,
+        ownerId: clerk.id,
         templateId: '07',
         kind: 'new',
         title: content.title,
         content,
       });
-      await repository.submitDraft(base.id, principal.id);
+      await repository.submitDraft(base.id, clerk.id);
+      activePrincipal = principal;
       await repository.reviewSubmission(base.id, {
         decision: 'approved',
         message: '准予录入',
@@ -234,8 +243,9 @@ test('local administrator opens the workspace without loading cloud authenticati
         visibility: 'public',
         idempotencyKey: `browser-base-${crypto.randomUUID()}`,
       });
+      activePrincipal = clerk;
       const amendment = await repository.saveDraft({
-        ownerId: principal.id,
+        ownerId: clerk.id,
         templateId: '07',
         archiveId: published.archiveId,
         kind: 'amendment',
@@ -249,16 +259,41 @@ test('local administrator opens the workspace without loading cloud authenticati
           targetDocumentId: base.id,
         },
       });
-      await repository.submitDraft(amendment.id, principal.id);
+      await repository.submitDraft(amendment.id, clerk.id);
+      activePrincipal = principal;
       const returned = await repository.reviewSubmission(amendment.id, {
         decision: 'changes_requested',
         message: '管理员批注：请补充事件证据',
       });
+      activePrincipal = clerk;
+      const clerkDrafts = await repository.listMyDrafts(clerk.id);
       return {
         archiveId: published.archiveId,
         amendmentId: returned.id,
+        returnedOwnerId: returned.owner_id,
+        clerkDraftIds: clerkDrafts.map((draft) => draft.id),
+        clerk,
       };
     });
+
+    assert.equal(modificationFixture.returnedOwnerId, modificationFixture.clerk.id);
+    assert.deepEqual(modificationFixture.clerkDraftIds, [modificationFixture.amendmentId]);
+    await page.evaluate((clerk) => {
+      window.dispatchEvent(new CustomEvent('palis:local-principal-change', {
+        detail: { profile: clerk },
+      }));
+    }, modificationFixture.clerk);
+    await page.waitForFunction(() =>
+      document.body.dataset.operatorRole === 'clerk'
+      && document.querySelector('#auth-session-user')?.textContent === '浏览器书记官');
+    await page.waitForFunction(() => !document.body.classList.contains('clerk-desktop-open'));
+    await page.waitForFunction(() => !document.querySelector('#clerk-workspace-entry')?.hidden);
+    await page.$eval('#clerk-workspace-entry', (button) => button.click());
+    await page.waitForSelector('body.clerk-desktop-open #clerk-desktop.is-open:not([hidden])');
+    assert.equal(await page.$eval(
+      '[data-workspace-shortcut][data-workspace-command="archives"]',
+      (button) => button.hidden,
+    ), true);
 
     await page.$eval(
       '[data-workspace-shortcut][data-workspace-command="modify-archive"]',

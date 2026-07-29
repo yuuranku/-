@@ -34,18 +34,19 @@ const unlock = (element) => {
 };
 
 export function createLocalAdminRuntime() {
-  const profile = structuredClone(LOCAL_ADMIN);
-  const initialSession = {
+  let profile = structuredClone(LOCAL_ADMIN);
+  const sessionFor = (activeProfile) => ({
     session: {
       user: {
-        id: profile.id,
-        email: profile.email,
+        id: activeProfile.id,
+        email: activeProfile.email,
       },
     },
-    profile,
-    role: 'admin',
+    profile: structuredClone(activeProfile),
+    role: activeProfile.role,
     preview: false,
-  };
+  });
+  const initialSession = sessionFor(profile);
   const repository = createLocalIndexedDbRepository({
     indexedDB: window.indexedDB,
     getPrincipal: () => profile,
@@ -54,35 +55,50 @@ export function createLocalAdminRuntime() {
     randomUUID: () => crypto.randomUUID(),
   });
 
+  const activateProfile = (nextProfile) => {
+    profile = structuredClone(nextProfile);
+    const session = sessionFor(profile);
+    document.body.dataset.accessMode = 'local-admin';
+    document.body.dataset.operatorRole = profile.role;
+    document.body.classList.remove('access-locked');
+
+    const gate = document.querySelector('#access-gate');
+    if (gate) gate.hidden = true;
+    unlock(document.querySelector('#experience'));
+    unlock(document.querySelector('#archive-desktop'));
+
+    const sessionPanel = document.querySelector('#auth-session');
+    const sessionUser = document.querySelector('#auth-session-user');
+    const signOut = document.querySelector('#auth-sign-out');
+    if (sessionPanel) sessionPanel.hidden = false;
+    if (sessionUser) {
+      sessionUser.textContent = profile.display_name;
+      sessionUser.title = '仅保存在当前浏览器中的本地验证数据';
+    }
+    if (signOut) signOut.hidden = true;
+
+    window.dispatchEvent(new CustomEvent('palis:access-mode-change', {
+      detail: { mode: 'local-admin' },
+    }));
+    window.dispatchEvent(new CustomEvent('palis:session-change', {
+      detail: session,
+    }));
+  };
+  window.addEventListener('palis:local-principal-change', (event) => {
+    const nextProfile = event.detail?.profile;
+    if (
+      !nextProfile?.id
+      || !nextProfile?.email
+      || !['admin', 'clerk', 'observer'].includes(nextProfile.role)
+    ) return;
+    activateProfile(nextProfile);
+  });
+
   return {
     repository,
     initialSession,
     activate() {
-      document.body.dataset.accessMode = 'local-admin';
-      document.body.dataset.operatorRole = 'admin';
-      document.body.classList.remove('access-locked');
-
-      const gate = document.querySelector('#access-gate');
-      if (gate) gate.hidden = true;
-      unlock(document.querySelector('#experience'));
-      unlock(document.querySelector('#archive-desktop'));
-
-      const sessionPanel = document.querySelector('#auth-session');
-      const sessionUser = document.querySelector('#auth-session-user');
-      const signOut = document.querySelector('#auth-sign-out');
-      if (sessionPanel) sessionPanel.hidden = false;
-      if (sessionUser) {
-        sessionUser.textContent = profile.display_name;
-        sessionUser.title = '仅保存在当前浏览器中的本地验证数据';
-      }
-      if (signOut) signOut.hidden = true;
-
-      window.dispatchEvent(new CustomEvent('palis:access-mode-change', {
-        detail: { mode: 'local-admin' },
-      }));
-      window.dispatchEvent(new CustomEvent('palis:session-change', {
-        detail: initialSession,
-      }));
+      activateProfile(profile);
     },
   };
 }

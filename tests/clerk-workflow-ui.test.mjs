@@ -207,9 +207,13 @@ test('each returned submission reopens from its matching action and keeps the re
   assert.match(workspace, /管理员批注|驳回原因/);
   assert.match(workspace, /listEditableArchives\(\{\s*category:/);
   assert.match(workspace, /listArchiveDocuments\(archive\.id\)/);
-  assert.equal(
-    (workspace.match(/replaceChooserWithEditor\(state,\s*editor,\s*'modify-archive'\)/g) || []).length,
-    2,
+  assert.match(
+    workspace,
+    /const openSelectedDocument[\s\S]*?buildAmendmentInitialState[\s\S]*?replaceChooserWithEditor\(state,\s*editor,\s*'modify-archive'\)/,
+  );
+  assert.match(
+    workspace,
+    /const draftButton = event\.target\.closest\('\[data-draft-id\]'\)[\s\S]*?serverDraftToEditorDraft[\s\S]*?replaceChooserWithEditor\(state,\s*editor,\s*'modify-archive'\)/,
   );
 });
 
