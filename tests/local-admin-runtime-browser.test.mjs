@@ -111,6 +111,9 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.waitForSelector('#clerk-desktop-start-menu:not([hidden])');
     await page.click('#clerk-desktop-start-menu [data-workspace-command="assistant"]');
     await page.waitForSelector('#assistant-window-layer .mascot-document-window:not([hidden])');
+    await page.waitForFunction(() => !document.querySelector(
+      '.mascot-document-window[data-mascot-surface="workspace"]',
+    )?.classList.contains('is-opening'));
     await page.setViewport({ width: 390, height: 844 });
     await page.waitForFunction(() => document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
     await page.waitForFunction(() => document.querySelector('.mascot-document-window[data-mascot-surface="workspace"]')?.classList.contains('is-narrow-forced'));
