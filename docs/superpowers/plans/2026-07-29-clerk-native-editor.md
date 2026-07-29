@@ -453,7 +453,7 @@
 
 **Interfaces:**
 - Consumes: `createWindow({ key, title, code, body, className, icon, dock })`.
-- Produces: `dock: 'right'` sets `.is-docked-right`, skips centered bounds, cannot drag/maximize into a broken restored state, and preserves existing behavior for non-editor windows.
+- Produces: `dock: 'right'` sets `.is-docked-right`, skips centered bounds, cannot drag/maximize into a broken restored state, and preserves existing behavior for non-editor windows. Every normal workbench window reuses the existing desktop `window-unfold`, `window-minimize`, `window-restore`, and `window-task-close` lifecycle; no new window-motion language is introduced.
 
 - [ ] **Step 1: Write failing geometry and desktop-density tests**
 
@@ -470,6 +470,15 @@
     assert.equal(declaration('.clerk-desktop__icons button', 'min-height'), '96px');
     assert.equal(declaration('.clerk-desktop__icon', 'width'), '60px');
     assert.equal(declaration('.clerk-desktop__icon', 'height'), '60px');
+  });
+
+  test('normal workbench windows retain the shared desktop motion lifecycle', () => {
+    assert.match(workspace, /is-opening/);
+    assert.match(workspace, /is-minimizing/);
+    assert.match(workspace, /is-restoring/);
+    assert.match(workspace, /is-closing/);
+    assert.match(styles, /\.archive-workflow-window\.is-opening[\s\S]*window-unfold/);
+    assert.match(styles, /\.archive-workflow-window\.is-closing[\s\S]*window-task-close/);
   });
   ```
 
@@ -499,6 +508,8 @@
   ```
 
   Make final desktop CSS values `96px` click targets and `60px` icon dimensions, with two primary clerk buttons in a compact first column; do not alter taskbar/session behavior.
+
+  Also lift the already-established normal desktop motion contract into `createWindow`: on creation apply `is-opening` using the existing `window-unfold` keyframe; minimize/restore/close use the existing `is-minimizing`, `is-restoring`, and `is-closing` classes, their existing timing/easing, and taskbar-vector CSS variables. Keep the current desktop's `prefers-reduced-motion` behavior. This workbench window implementation must not invent a second animation system. Sticky-note close motion is intentionally excluded from this task and is specified separately as a tear-off effect.
 
 - [ ] **Step 4: Run geometry and narrow-screen tests**
 
