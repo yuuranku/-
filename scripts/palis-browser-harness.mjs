@@ -1,4 +1,6 @@
 import { preview } from 'vite';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 
 import { waitForPalisVisuals } from './palis-page-fixture.mjs';
 
@@ -21,6 +23,11 @@ const DIRECTORY_CODES = Object.freeze({
 const SCENE_TIMEOUT = 30_000;
 
 export async function startPalisPreview({ root, port = 0 }) {
+  try {
+    await access(path.join(root, 'dist', 'index.html'));
+  } catch {
+    throw new Error('PALIS preview requires dist/index.html; run npm run build first');
+  }
   const server = await preview({
     root,
     logLevel: 'error',
@@ -44,19 +51,22 @@ export async function startPalisPreview({ root, port = 0 }) {
   };
 }
 
-export async function waitForPalisScene(page, scene) {
+export async function enterPalisPreview(page, { timeout = SCENE_TIMEOUT } = {}) {
   const previewActive = await page.evaluate(() => document.body.dataset.accessMode === 'preview');
-  if (!previewActive) {
-    await page.mouse.click(8, 8);
-    await page.waitForSelector('#access-login:not([hidden])', { timeout: SCENE_TIMEOUT });
-    await page.waitForSelector('#access-preview:not([disabled])', { timeout: SCENE_TIMEOUT });
-    await page.click('#access-preview');
-    await page.waitForSelector(
-      'body[data-access-mode="preview"] #experience:not([inert])',
-      { timeout: SCENE_TIMEOUT },
-    );
-    await page.waitForSelector('#version-notice:not([hidden])', { timeout: SCENE_TIMEOUT });
-  }
+  if (previewActive) return;
+
+  await page.waitForSelector('#access-login:not([hidden])', { timeout });
+  await page.waitForSelector('#access-preview:not([disabled])', { timeout });
+  await page.click('#access-preview');
+  await page.waitForSelector(
+    'body[data-access-mode="preview"] #experience:not([inert])',
+    { timeout },
+  );
+  await page.waitForSelector('#version-notice:not([hidden])', { timeout });
+}
+
+export async function waitForPalisScene(page, scene) {
+  await enterPalisPreview(page);
   const closeButton = await page.$('#version-notice:not([hidden]) button[data-version-notice-action="close"]');
   if (closeButton) {
     // The notice can still have its entrance layer above the button during a

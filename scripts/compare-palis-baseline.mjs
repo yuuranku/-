@@ -7,7 +7,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 const workspace = process.cwd();
-const defaultBaselinePath = path.join(workspace, 'tmp/verification/baseline/manifest.json');
+const defaultBaselinePath = path.join(workspace, 'docs/verification/palis-baseline/manifest.json');
 const defaultCurrentPath = path.join(workspace, 'tmp/verification/current/manifest.json');
 const defaultDiffRoot = path.join(workspace, 'tmp/verification/diff');
 const VIEWPORTS = ['1440x900', '390x844', '844x390'];

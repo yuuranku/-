@@ -792,10 +792,11 @@ test(
       await page.$eval('[name="body:stationOverview"]', (control) => control.value),
       '第一次修改需要管理员退回补证。',
     );
+    const returnedOverview = '返修后补入第二次测温结论。';
     await setValue(
       page,
       '[name="body:stationOverview"]',
-      '返修后补入第二次测温结论。',
+      returnedOverview,
     );
     await clickControl(page, '[data-submit-review]');
     await page.waitForFunction(
@@ -862,6 +863,7 @@ test(
         return {
           metadata,
           amendmentVersion: amendment?.querySelector(':scope > header > b')?.textContent.trim(),
+          amendmentBody: amendment?.querySelector('.archive-record-amendment__body')?.textContent.trim(),
           amendmentAttribution: [...(amendment?.querySelectorAll(':scope > dl > div') || [])]
             .map((row) => ({
               label: row.querySelector('dt')?.textContent.trim(),
@@ -877,6 +879,10 @@ test(
       { label: '档案收录者', value: fixture.clerk.display_name },
     ]);
     assert.equal(publishedArchiveUi.amendmentVersion, 'VER 0.2');
+    assert.ok(
+      publishedArchiveUi.amendmentBody?.includes(returnedOverview),
+      'The formal amendment record must render the clerk\'s unique returned revision body',
+    );
     assert.deepEqual(publishedArchiveUi.amendmentAttribution.slice(0, 2), [
       { label: '档案修改者', value: fixture.clerk.display_name },
       { label: '审核者', value: fixture.admin.display_name },

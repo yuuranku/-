@@ -1,21 +1,59 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 
-import { startPalisPreview, waitForPalisScene } from '../scripts/palis-browser-harness.mjs';
+import {
+  enterPalisPreview,
+  startPalisPreview,
+  waitForPalisScene,
+} from '../scripts/palis-browser-harness.mjs';
 import { installPalisPageFixture } from '../scripts/palis-page-fixture.mjs';
 import puppeteer from 'puppeteer-core';
+import { build } from 'vite';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
 import * as baselineHarness from '../scripts/compare-palis-baseline.mjs';
 
-const { acceptPalisBaseline, comparePalisManifests, validatePalisManifest } = baselineHarness;
+const {
+  acceptPalisBaseline,
+  comparePalisManifests,
+  validatePalisArtifacts,
+  validatePalisManifest,
+} = baselineHarness;
 import { capturePalisScenes } from '../scripts/capture-palis-baseline.mjs';
 import { PNG } from 'pngjs';
 import { cp, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+const CANONICAL_BASELINE_ROOT = path.resolve('docs/verification/palis-baseline');
+const CANONICAL_BASELINE_MANIFEST = path.join(CANONICAL_BASELINE_ROOT, 'manifest.json');
+const PROJECT_ROOT = process.cwd();
+
+let previewFixtureRoot;
+
+// Browser-preview coverage intentionally exercises the production bundle. Build
+// an isolated fixture so `npm test` works on a clean checkout without touching
+// the workspace's ignored dist/ directory.
+before(async () => {
+  previewFixtureRoot = await mkdtemp(path.join(tmpdir(), 'palis-preview-fixture-'));
+  try {
+    await build({
+      root: PROJECT_ROOT,
+      logLevel: 'error',
+      build: { outDir: path.join(previewFixtureRoot, 'dist'), emptyOutDir: true },
+    });
+  } catch (error) {
+    await rm(previewFixtureRoot, { recursive: true, force: true });
+    previewFixtureRoot = undefined;
+    throw error;
+  }
+}, { timeout: 30_000 });
+
+after(async () => {
+  if (previewFixtureRoot) await rm(previewFixtureRoot, { recursive: true, force: true });
+});
+
 test('preview server selects a free local port and closes cleanly', { timeout: 15_000 }, async () => {
-  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
   try {
     const response = await fetch(preview.url);
     assert.equal(response.status, 200);
@@ -25,8 +63,37 @@ test('preview server selects a free local port and closes cleanly', { timeout: 1
   await assert.rejects(fetch(preview.url));
 });
 
+test('preview server requires a built distribution entry', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'palis-preview-without-dist-'));
+  try {
+    await assert.rejects(
+      startPalisPreview({ root, port: 0 }),
+      /PALIS preview requires dist\/index\.html; run npm run build first/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('built preview registers the ready access gate before entering preview', { timeout: 40_000 }, async () => {
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
+  const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
+  const page = await browser.newPage();
+  try {
+    await installPalisPageFixture(page, { previewOrigin: new URL(preview.url).origin });
+    await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#access-login:not([hidden])', { timeout: 30_000 });
+    await page.waitForSelector('#access-preview:not([disabled])', { timeout: 30_000 });
+    await enterPalisPreview(page);
+    assert.equal(await page.$eval('body', (body) => body.dataset.accessMode), 'preview');
+  } finally {
+    await browser.close();
+    await preview.close();
+  }
+});
+
 test('page fixture permits only the preview origin and exact archive GET/OPTIONS', { timeout: 20_000 }, async () => {
-  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
   const browser = await puppeteer.launch({
     executablePath: resolveBrowserExecutable(),
     headless: true,
@@ -68,7 +135,7 @@ test('page fixture permits only the preview origin and exact archive GET/OPTIONS
 });
 
 test('scene waiter enters the countries directory through its folder code', { timeout: 60_000 }, async () => {
-  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
   const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
   const page = await browser.newPage();
   try {
@@ -77,6 +144,11 @@ test('scene waiter enters the countries directory through its folder code', { ti
     await waitForPalisScene(page, 'countries');
     assert.equal(await page.$eval('#folder-orbit', (node) => node.dataset.category), 'countries');
     assert.equal((await page.$$('.country-stack-vault')).length, 1);
+    assert.equal(
+      await page.$eval('#folder-orbit', (node) => node.querySelector('.folder-button:hover') !== null),
+      false,
+      'the capture fixture must clear Puppeteer\'s residual folder hover state',
+    );
     assert.deepEqual(await page.$eval('#mascot-idle-frame', (node) => ({
       frame: node.dataset.mascotFrame, complete: node.complete, width: node.naturalWidth,
     })), { frame: '02', complete: true, width: 1254 });
@@ -87,7 +159,7 @@ test('scene waiter enters the countries directory through its folder code', { ti
 });
 
 test('scene waiter canonicalizes the event-plane camera for capture', { timeout: 60_000 }, async () => {
-  const preview = await startPalisPreview({ root: process.cwd(), port: 0 });
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
   const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
   const page = await browser.newPage();
   try {
@@ -133,8 +205,17 @@ test('public-only baseline comparison preserves public PALIS scenes and excludes
   assert.equal(captures.some((capture) => capture.scene === 'admin-workspace'), false);
 });
 
+test('checked-in baseline bundle matches the canonical manifest and validates its artifacts', async () => {
+  const [bundle, documented] = await Promise.all([
+    readFile(CANONICAL_BASELINE_MANIFEST, 'utf8').then(JSON.parse),
+    readFile('docs/verification/palis-baseline-manifest.json', 'utf8').then(JSON.parse),
+  ]);
+  assert.deepEqual(bundle, documented);
+  assert.deepEqual(await validatePalisArtifacts(bundle, CANONICAL_BASELINE_MANIFEST), []);
+});
+
 test('strict manifest validator rejects forged environment, request, and proof evidence', async () => {
-  const manifest = JSON.parse(await (await import('node:fs/promises')).readFile('tmp/verification/baseline/manifest.json', 'utf8'));
+  const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(CANONICAL_BASELINE_MANIFEST, 'utf8'));
   manifest.fonts = { forged: true };
   manifest.locale = 'en-US';
   manifest.requestLog.allowed = [{ method: 'GET', url: 'https://evil.invalid/' }];
@@ -145,7 +226,7 @@ test('strict manifest validator rejects forged environment, request, and proof e
 test('baseline acceptance copies only validated artifacts and preserves old baseline on rejection', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'palis-accept-'));
   const currentRoot = path.join(root, 'current'); const baselinePath = path.join(root, 'baseline', 'manifest.json');
-  await cp(path.resolve('tmp/verification/baseline'), currentRoot, { recursive: true });
+  await cp(CANONICAL_BASELINE_ROOT, currentRoot, { recursive: true });
   const currentPath = path.join(currentRoot, 'manifest.json');
   const seeded = JSON.parse(await readFile(currentPath, 'utf8'));
   seeded.previewOrigin = new URL(seeded.requestLog.allowed.find((entry) => entry.url.startsWith('http:')).url).origin;
@@ -164,7 +245,7 @@ test('baseline acceptance copies only validated artifacts and preserves old base
 
 test('baseline acceptance rolls back baseline and docs after either commit rename failure', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'palis-rollback-')); const currentRoot = path.join(root, 'current');
-  await cp(path.resolve('tmp/verification/baseline'), currentRoot, { recursive: true });
+  await cp(CANONICAL_BASELINE_ROOT, currentRoot, { recursive: true });
   const currentPath = path.join(currentRoot, 'manifest.json'); const seeded = JSON.parse(await readFile(currentPath, 'utf8'));
   seeded.previewOrigin = new URL(seeded.requestLog.allowed.find((entry) => entry.url.startsWith('http:')).url).origin; seeded.archiveOrigin = 'https://hpzdccfrouhljqlzczuv.supabase.co'; for (const capture of seeded.captures) capture.state.operatorRole = capture.scene === 'clerk-workspace' ? 'clerk' : capture.scene === 'admin-workspace' ? 'admin' : 'observer'; await writeFile(currentPath, JSON.stringify(seeded));
   const baselinePath = path.join(root, 'baseline', 'manifest.json'); const docsPath = path.join(root, 'docs', 'manifest.json'); await mkdir(path.dirname(baselinePath), { recursive:true }); await mkdir(path.dirname(docsPath), { recursive:true }); await writeFile(baselinePath, 'old baseline'); await writeFile(docsPath, 'old docs');
@@ -229,7 +310,7 @@ test('capture closes a started preview when browser launch fails', { timeout: 10
 test('scene capture records preview and clean-home state before their screenshots', { timeout: 60_000 }, async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'palis-capture-'));
   const manifest = await capturePalisScenes({
-    outputMode: 'current', viewports: [{ width: 390, height: 844 }], root: process.cwd(), outputRoot: root,
+    outputMode: 'current', viewports: [{ width: 390, height: 844 }], root: previewFixtureRoot, outputRoot: root,
   });
   assert.equal(manifest.captures.length, 13);
   const firstEntry = manifest.captures.find((capture) => capture.scene === 'first-entry-home');

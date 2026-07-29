@@ -59,5 +59,5 @@
 
 - Capture 39 scenes: first-entry home, clean home, clerk workspace, admin workspace, and nine archive directories at `1440x900`, `390x844`, and `844x390`.
 - Only loopback, `data:`, and `blob:` requests are permitted. `/rest/v1/archives` has a deterministic empty JSON fixture; every other external request is fatal.
-- Capture writes only to `tmp/verification/current/`. Normal verification compares it to `tmp/verification/baseline/`; only `verify:baseline:update` can replace the baseline after diagnostics and network validation.
+- Capture writes only to `tmp/verification/current/`. Normal verification compares it to the checked-in `docs/verification/palis-baseline/` bundle; only `verify:baseline:update` can replace that bundle after diagnostics and network validation.
 - Pixel comparison uses `threshold: 0.1`, `includeAA: false`, `alpha: 0.5`, and fails above `0.5%` changed pixels.

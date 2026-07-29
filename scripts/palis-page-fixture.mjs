@@ -93,6 +93,13 @@ export async function freezePalisMascot(page) {
 }
 
 export async function waitForPalisVisuals(page) {
+  // `page.click()` leaves Puppeteer's pointer on the control it clicked. Move
+  // it to the inert viewport corner so capture never preserves a transient
+  // folder hover state, then let the resulting style change paint twice.
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
   await freezePalisMascot(page);
   await page.evaluate(async () => {
     const within = (promise, label) => Promise.race([

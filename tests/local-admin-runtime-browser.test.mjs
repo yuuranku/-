@@ -158,7 +158,11 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('[data-workspace-shortcut][data-workspace-command="new-archive"]', { count: 2, delay: 40 });
     await page.waitForSelector('[data-new-archive-chooser]');
     await page.click('[data-new-archive-template="07"]');
-    await page.waitForSelector('.archive-editor-window:not([hidden])');
+    // The local administrator workflow loads a full native editor after the
+    // chooser click.  Keep the assertion bounded, but allow a busy full
+    // browser-test run to finish that work rather than treating scheduler
+    // contention as an editor failure.
+    await page.waitForSelector('.archive-editor-window:not([hidden])', { timeout: 60_000 });
     assert.equal(
       await page.$eval('.archive-editor-window', (windowElement) =>
         windowElement.classList.contains('is-opening')),

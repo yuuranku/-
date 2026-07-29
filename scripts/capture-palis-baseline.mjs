@@ -7,7 +7,12 @@ import { pathToFileURL } from 'node:url';
 
 import puppeteer from 'puppeteer-core';
 
-import { DIRECTORY_SCENES, startPalisPreview, waitForPalisScene } from './palis-browser-harness.mjs';
+import {
+  DIRECTORY_SCENES,
+  enterPalisPreview,
+  startPalisPreview,
+  waitForPalisScene,
+} from './palis-browser-harness.mjs';
 import { installPalisPageFixture, waitForPalisVisuals } from './palis-page-fixture.mjs';
 import { parseViewport, resolveBrowserExecutable } from './palis-browser-runtime.mjs';
 
@@ -127,11 +132,7 @@ export async function capturePalisScenes({
       await page.goto(preview.url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       await waitForPalisScene(page, 'home');
       await page.goto(preview.url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await page.mouse.click(8, 8);
-      await page.waitForSelector('#access-login:not([hidden])', { timeout: 10_000 });
-      await page.click('#access-preview');
-      await page.waitForSelector('body[data-access-mode="preview"] #experience:not([inert])', { timeout: 10_000 });
-      await page.waitForSelector('#version-notice:not([hidden])', { timeout: 10_000 });
+      await enterPalisPreview(page, { timeout: 30_000 });
       await page.evaluate(() => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 2 / 3));
       await page.waitForSelector('body[data-chapter="2"] #folder-orbit[data-category="root"][data-mode="orbit"]', { timeout: 10_000 });
       await waitForPalisVisuals(page);
