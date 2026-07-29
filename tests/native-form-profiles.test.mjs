@@ -37,6 +37,8 @@ test('native state retains legacy values, attachments, and repeated custom entri
     },
     references: [{ archiveId: 'a-1', code: 'EV27', label: '母事件' }],
     media: [{ id: 'm-1' }],
+    sections: [{ id: 'legacy-note', label: '原有段落', fields: ['legacy'] }],
+    fieldLabels: { legacy: '旧字段', stationOverview: 'Custom retained label' },
   });
   const state = readNativeFormState(template03, before);
   state.body.stationOverview = '新的站点概述';
@@ -46,8 +48,12 @@ test('native state retains legacy values, attachments, and repeated custom entri
 
   assert.equal(after.schemaVersion, 2);
   assert.equal(after.values.legacy, '旧字段不能丢');
+  assert.equal(after.values['custom:item:one:title'], '气象补记');
   assert.equal(after.values['custom:item:one:content'], '旧的补充内容');
   assert.equal(after.values['custom:item:two:content'], '新的补充内容');
+  assert.deepEqual(after.sections[0], before.sections[0]);
+  assert.equal(after.fieldLabels.legacy, '旧字段');
+  assert.equal(after.fieldLabels.stationOverview, 'Custom retained label');
   assert.deepEqual(after.references, before.references);
   assert.deepEqual(after.media, before.media);
 });

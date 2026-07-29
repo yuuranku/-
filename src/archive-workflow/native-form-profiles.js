@@ -146,7 +146,9 @@ export const writeNativeFormDocument = (template, state, priorDocument = {}) => 
   }
   values[template.titleKey] = valueOf(indexData.title);
   const fieldLabels = { ...prior.fieldLabels };
-  for (const field of allContentFields(profile)) fieldLabels[field.storageKey] = field.label;
+  for (const field of allContentFields(profile)) {
+    if (fieldLabels[field.storageKey] == null) fieldLabels[field.storageKey] = field.label;
+  }
   return normalizeEditorDocument({
     ...prior,
     templateCode: template.code,
