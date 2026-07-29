@@ -118,7 +118,11 @@ where pending.id = archive.id;
 update public.archives
 set abbreviation = public.archive_abbreviation(category),
     code = public.archive_code_prefix(category)
-      || lpad(sequence_number::text, 2, '0');
+      || lpad(
+           sequence_number::text,
+           greatest(2, length(sequence_number::text)),
+           '0'
+         );
 
 insert into public.archive_number_counters (category, last_value)
 select
@@ -187,7 +191,11 @@ begin
   end if;
 
   new.code := public.archive_code_prefix(new.category)
-    || lpad(new.sequence_number::text, 2, '0');
+    || lpad(
+         new.sequence_number::text,
+         greatest(2, length(new.sequence_number::text)),
+         '0'
+       );
   return new;
 end;
 $$;
@@ -343,7 +351,11 @@ begin
   if new.kind = 'published' and new.contribution_id is not null then
     select
       version.version_label,
-      lpad(archive.sequence_number::text, 3, '0')
+      lpad(
+        archive.sequence_number::text,
+        greatest(3, length(archive.sequence_number::text)),
+        '0'
+      )
         || '.'
         || archive.abbreviation,
       clerk.display_name
@@ -555,7 +567,11 @@ begin
   from public.profiles
   where id = contribution.owner_id;
 
-  formal_number := lpad(archive_record.sequence_number::text, 3, '0')
+  formal_number := lpad(
+      archive_record.sequence_number::text,
+      greatest(3, length(archive_record.sequence_number::text)),
+      '0'
+    )
     || '.'
     || archive_record.abbreviation;
   stamped_values := (

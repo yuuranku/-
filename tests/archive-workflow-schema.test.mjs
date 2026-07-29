@@ -154,6 +154,29 @@ test('archive index repair migrates identities, projections, NEW state, and medi
   assert.match(sql, /notify pgrst,\s*'reload schema'/i);
 });
 
+test('archive index repair never truncates archive codes or formal numbers', async () => {
+  const sql = await readFile(archiveIndexRecordRepairMigrationUrl, 'utf8').catch(() => '');
+
+  assert.doesNotMatch(sql, /lpad\((?:new\.)?sequence_number::text,\s*2\s*,/i);
+  assert.doesNotMatch(sql, /lpad\((?:archive(?:_record)?\.)?sequence_number::text,\s*3\s*,/i);
+  assert.match(
+    sql,
+    /lpad\(\s*sequence_number::text,\s*greatest\(\s*2,\s*length\(sequence_number::text\)\s*\)/i,
+  );
+  assert.match(
+    sql,
+    /lpad\(\s*new\.sequence_number::text,\s*greatest\(\s*2,\s*length\(new\.sequence_number::text\)\s*\)/i,
+  );
+  assert.match(
+    sql,
+    /lpad\(\s*archive\.sequence_number::text,\s*greatest\(\s*3,\s*length\(archive\.sequence_number::text\)\s*\)/i,
+  );
+  assert.match(
+    sql,
+    /lpad\(\s*archive_record\.sequence_number::text,\s*greatest\(\s*3,\s*length\(archive_record\.sequence_number::text\)\s*\)/i,
+  );
+});
+
 test('archive media guardrails lock reviewed files and enforce category slot limits', async () => {
   const sql = await readFile(archiveMediaGuardrailsMigrationUrl, 'utf8').catch(() => '');
 
