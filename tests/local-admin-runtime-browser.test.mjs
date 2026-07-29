@@ -95,14 +95,28 @@ test('local administrator opens the workspace without loading cloud authenticati
         windowElement.classList.contains('is-opening')),
       true,
     );
+    await page.$eval('.archive-admin-window [data-workflow-close]', (button) => button.click());
+    assert.deepEqual(
+      await page.$eval('.archive-admin-window', (windowElement) => ({
+        opening: windowElement.classList.contains('is-opening'),
+        closing: windowElement.classList.contains('is-closing'),
+      })),
+      { opening: false, closing: true },
+    );
+    await page.waitForFunction(() => !document.querySelector('.archive-admin-window'));
+    await page.click('[data-workspace-shortcut][data-workspace-command="archives"]', { count: 2, delay: 40 });
+    await page.waitForSelector('.archive-admin-window [data-admin-archive-management]');
+    assert.equal(
+      await page.$eval('.archive-admin-window', (windowElement) =>
+        windowElement.classList.contains('is-opening')),
+      true,
+    );
     await page.$eval('.archive-admin-window [data-workflow-minimize]', (button) => button.click());
     assert.equal(
       await page.$eval('.archive-admin-window', (windowElement) =>
         windowElement.classList.contains('is-minimizing')),
       true,
     );
-    await page.waitForSelector('.archive-admin-window.is-minimized');
-    assert.equal(await page.$eval('.archive-admin-window', (windowElement) => windowElement.hidden), false);
     assert.equal(await page.$('[data-workflow-task="archives"]') !== null, true);
     await page.$eval('[data-workflow-task="archives"]', (button) => button.click());
     assert.equal(

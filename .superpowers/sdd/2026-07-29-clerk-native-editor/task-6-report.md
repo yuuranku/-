@@ -105,3 +105,16 @@ and only then reads final geometry.
   480/260/300/240ms timings and reduced-motion behavior are unchanged.
 - GREEN: the browser regression passed (1/1), and the focused Task 5/6 suite
   passed (65/65).
+
+## Overlap coverage strengthening
+
+- The browser regression now closes a window during `is-opening` and asserts
+  that the opening class is removed before `is-closing` begins.
+- It then opens a fresh window, minimizes it during `is-opening`, asserts
+  `is-minimizing`, and immediately activates the task button before the 260ms
+  minimize lifecycle completes. The final assertions still require no
+  transient lifecycle classes and identical post-animation-frame geometry.
+- A controlled mutation that replaced lifecycle cleanup with timer-only
+  cancellation failed this new coverage with `{ opening: true, closing: true
+  }`; the production source was restored before the final test run.
+- Final verification: browser 1/1 and focused Task 5/6 65/65 passed.
