@@ -533,7 +533,7 @@
 
 **Interfaces:**
 - Consumes: real Vite build/server, local admin runtime fixture, public DOM selectors from Tasks 4–6.
-- Produces: deterministic browser coverage for new → submit → approve → accession/published directory, returned modification, exact prefill, repeatable custom fields, references, source-load error state, and desktop geometry.
+- Produces: deterministic browser coverage for new → submit → approve → accession/published directory, returned modification, exact prefill, repeatable custom fields, references, source-load error state, and desktop geometry. Observer accounts and unauthenticated visitors remain browse-only: they cannot create/edit/open a workbench editor, and clicking the visible clerk-workspace entry gives the explicit message `权限不足：当前账号未获书记官工作台操作授权。`.
 
 - [ ] **Step 1: Write the failing browser scenario**
 
@@ -569,6 +569,8 @@
 - [ ] **Step 3: Make selectors and behavior deterministic without weakening the product**
 
   Add stable semantic `data-*` selectors to native form controls, chooser rows, source-load error/retry panel, review submit, and admin approval/accession actions. Assert a failed source read retains chooser selection and shows `[data-editor-source-retry]`; do not introduce any test-only runtime flag. Label the local runtime’s workflow badge as `本机演示` while keeping Supabase wording as the cross-account path.
+
+  Add observer and visitor browser fixtures. Their `书记官工作台` entry remains focusable/clickable but dispatches a clear, accessible `权限不足：当前账号未获书记官工作台操作授权。` dialog/message; it must not set `clerk-desktop-open`, create any workflow window, or expose save/submit/review controls. Enforce this at the desktop-shell click boundary and retain the workspace-level permission guard as defense in depth.
 
 - [ ] **Step 4: Run browser, local, build, and full unit suite**
 
