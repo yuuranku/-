@@ -8029,8 +8029,12 @@ body.clerk-desktop-open { overflow: hidden; }
   [data-workflow-maximize], .mascot-document-maximize { display: none !important; }
   .archive-workflow-window .window-controls button,
   .mascot-document-window[data-mascot-surface="workspace"] .window-controls button {
+    width: 44px;
+    height: 44px;
     min-width: 44px;
     min-height: 44px;
+    flex: 0 0 44px;
+    box-sizing: border-box;
   }
 }
 

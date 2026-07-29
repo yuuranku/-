@@ -118,10 +118,21 @@ test('local administrator opens the workspace without loading cloud authenticati
       '.archive-editor-window .window-controls button, .mascot-document-window[data-mascot-surface="workspace"] .window-controls button',
       (buttons) => buttons.filter((button) => button.offsetParent).map((button) => {
         const rect = button.getBoundingClientRect();
-        return Math.min(rect.width, rect.height);
+        return {
+          selector: button.matches('[data-workflow-minimize]')
+            ? 'workflow-minimize'
+            : button.matches('[data-workflow-close]')
+              ? 'workflow-close'
+              : button.className || button.textContent.trim(),
+          width: rect.width,
+          height: rect.height,
+        };
       }),
     );
-    assert.ok(narrowControls.every((size) => size >= 44));
+    assert.ok(
+      narrowControls.every(({ width, height }) => width >= 44 && height >= 44),
+      `Expected every visible narrow control to be at least 44px: ${JSON.stringify(narrowControls)}`,
+    );
     await page.setViewport({ width: 1280, height: 800 });
     await page.waitForFunction(() => !document.querySelector('.archive-editor-window')?.classList.contains('is-narrow-forced'));
     await page.waitForFunction(() => !document.querySelector('.mascot-document-window[data-mascot-surface="workspace"]')?.classList.contains('is-narrow-forced'));

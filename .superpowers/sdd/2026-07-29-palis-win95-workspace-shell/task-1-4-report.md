@@ -67,3 +67,5 @@ The third browser run showed the watermark's click geometry was still covered by
 The fourth browser run reached the editor focus assertion. Because the sync dialog correctly returns focus to its tray trigger on close, the editor-focus assertion now runs immediately after opening the editor; the post-dialog assertion now verifies focus returns to the sync tray button.
 
 The fifth browser run found the restored editor correctly covered the desktop assistant shortcut. The fixture now opens the workspace assistant through the visible Start menu command, both avoiding the overlap and exercising Start command routing before the narrow-screen assertions.
+
+The sixth browser run found that `min-width` and `min-height` alone did not overcome legacy 24×22 button/layout constraints. Narrow workspace controls now use explicit `width`/`height`, matching minimums, a `0 0 44px` flex basis, and `border-box`. A PostCSS AST contract test was added (RED first: it observed only the two minimum declarations; GREEN: all six sizing declarations are present), while the browser assertion now reports each visible control selector and exact rectangle on failure.
