@@ -63,3 +63,5 @@ The first browser run found a fixture sequencing error: the test closed the welc
 The second browser run exposed that the window-layer container was treated as a blanket exclusion. The desktop handler now excludes only actual windows and controls, not their full-screen layer; decorative watermark hits therefore close Start. The browser assertion also verifies `aria-expanded="false"` after that close.
 
 The third browser run showed the watermark's click geometry was still covered by the visible cabinet window. The fixture now minimizes that real cabinet through its window control while Start remains open, asserts its task button persists, clicks the now-uncovered watermark to close Start, and restores the cabinet through that task button before continuing. This preserves the Start boundary assertion and adds real minimize/restore coverage.
+
+The fourth browser run reached the editor focus assertion. Because the sync dialog correctly returns focus to its tray trigger on close, the editor-focus assertion now runs immediately after opening the editor; the post-dialog assertion now verifies focus returns to the sync tray button.

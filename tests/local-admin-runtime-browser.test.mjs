@@ -73,16 +73,6 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.waitForSelector('.archive-cabinet-window:not([hidden])');
     await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
-      detail: { key: 'browser-sync', state: 'cloud-syncing' },
-    })));
-    assert.match(
-      await page.$eval('[data-workspace-sync-summary]', (node) => node.textContent),
-      /SYNCING/,
-    );
-    await page.click('[data-workspace-tray="sync"]');
-    await page.waitForSelector('#workspace-sync-dialog[open]');
-    await page.click('#workspace-sync-dialog button[value="close"]');
     const focusState = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window');
       return {
@@ -94,6 +84,20 @@ test('local administrator opens the workspace without loading cloud authenticati
       activeIsDialog: true,
       label: '事件档案',
     });
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
+      detail: { key: 'browser-sync', state: 'cloud-syncing' },
+    })));
+    assert.match(
+      await page.$eval('[data-workspace-sync-summary]', (node) => node.textContent),
+      /SYNCING/,
+    );
+    await page.click('[data-workspace-tray="sync"]');
+    await page.waitForSelector('#workspace-sync-dialog[open]');
+    await page.click('#workspace-sync-dialog button[value="close"]');
+    assert.equal(
+      await page.evaluate(() => document.activeElement?.matches?.('[data-workspace-tray="sync"]')),
+      true,
+    );
 
     await page.click('.archive-editor-window [data-workflow-minimize]');
     const minimized = await page.evaluate(() => ({
