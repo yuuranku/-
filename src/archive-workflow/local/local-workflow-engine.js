@@ -105,6 +105,41 @@ export const createLocalWorkflowEngine = ({
     }
   };
 
+  const requireWorkspaceMember = (principal) => {
+    if (!['admin', 'clerk'].includes(principal.role)) {
+      throw workflowError('permission_denied', 'This action requires a clerk or administrator');
+    }
+  };
+
+  const requireWorkspaceId = (value, label) => {
+    const id = String(value ?? '').trim();
+    if (!id) throw workflowError('invalid_input', `${label} is required`);
+    return id;
+  };
+
+  const workspaceNotePayload = ({ title, content, sortOrder = 0 } = {}) => {
+    const normalizedTitle = String(title ?? '').trim();
+    const normalizedContent = String(content ?? '').trim();
+    if (!normalizedTitle || !normalizedContent) {
+      throw workflowError('invalid_workspace_note', 'Workspace note title and content are required');
+    }
+    if (!Number.isFinite(sortOrder) || !Number.isInteger(sortOrder) || sortOrder < 0) {
+      throw workflowError('invalid_sort_order', 'Workspace note sort order must be a non-negative integer');
+    }
+    return {
+      title: normalizedTitle,
+      content: normalizedContent,
+      sort_order: sortOrder,
+    };
+  };
+
+  const requireCoordinate = (value, label) => {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+      throw workflowError('invalid_coordinate', `${label} must be a finite non-negative integer`);
+    }
+    return value;
+  };
+
   const appendAudit = (state, principal, action, targetType, targetId, details = null, createdAt = now()) => {
     state.auditEvents.push({
       id: randomUUID(),
@@ -1192,6 +1227,115 @@ export const createLocalWorkflowEngine = ({
     };
   });
 
+  const listWorkspaceNotes = async () => {
+    const principal = requirePrincipal(getPrincipal);
+    return readSnapshot((state) => {
+      requireWorkspaceMember(principal);
+      return state.workspaceNotes
+        .sort((left, right) =>
+          left.sort_order - right.sort_order
+          || String(left.created_at).localeCompare(String(right.created_at))
+          || String(left.id).localeCompare(String(right.id)));
+    });
+  };
+
+  const createWorkspaceNote = async (input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const payload = workspaceNotePayload(input);
+      const timestamp = now();
+      const note = {
+        id: randomUUID(),
+        ...payload,
+        created_by: principal.id,
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      nextState.workspaceNotes.push(note);
+      return { nextState, result: clone(note) };
+    });
+  };
+
+  const updateWorkspaceNote = async (noteId, input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const id = requireWorkspaceId(noteId, 'noteId');
+      const note = nextState.workspaceNotes.find((entry) => entry.id === id);
+      if (!note) throw workflowError('not_found', 'Workspace note was not found');
+      Object.assign(note, workspaceNotePayload(input), { updated_at: now() });
+      return { nextState, result: clone(note) };
+    });
+  };
+
+  const deleteWorkspaceNote = async (noteId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const id = requireWorkspaceId(noteId, 'noteId');
+      const index = nextState.workspaceNotes.findIndex((entry) => entry.id === id);
+      if (index < 0) throw workflowError('not_found', 'Workspace note was not found');
+      nextState.workspaceNotes.splice(index, 1);
+      nextState.workspaceNoteLayouts = nextState.workspaceNoteLayouts
+        .filter((layout) => layout.note_id !== id);
+      return { nextState, result: { id } };
+    });
+  };
+
+  const listWorkspaceNoteLayouts = async (profileId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return readSnapshot((state) => {
+      requireWorkspaceMember(principal);
+      const requestedProfileId = requireWorkspaceId(profileId, 'profileId');
+      if (requestedProfileId !== principal.id) {
+        throw workflowError('permission_denied', 'Workspace layouts are only visible to their owner');
+      }
+      return state.workspaceNoteLayouts
+        .filter((layout) => layout.profile_id === requestedProfileId)
+        .sort((left, right) => String(left.note_id).localeCompare(String(right.note_id)));
+    });
+  };
+
+  const saveWorkspaceNoteLayout = async ({ noteId, profileId, leftPx, topPx } = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireWorkspaceMember(principal);
+      const requestedProfileId = requireWorkspaceId(profileId, 'profileId');
+      if (requestedProfileId !== principal.id) {
+        throw workflowError('permission_denied', 'Workspace layouts can only be saved by their owner');
+      }
+      const id = requireWorkspaceId(noteId, 'noteId');
+      const leftPxValue = requireCoordinate(leftPx, 'leftPx');
+      const topPxValue = requireCoordinate(topPx, 'topPx');
+      if (!nextState.workspaceNotes.some((note) => note.id === id)) {
+        throw workflowError('not_found', 'Workspace note was not found');
+      }
+      const timestamp = now();
+      const layout = nextState.workspaceNoteLayouts.find((entry) =>
+        entry.note_id === id && entry.profile_id === requestedProfileId);
+      if (layout) {
+        layout.left_px = leftPxValue;
+        layout.top_px = topPxValue;
+        layout.updated_at = timestamp;
+        return { nextState, result: clone(layout) };
+      }
+      const created = {
+        note_id: id,
+        profile_id: requestedProfileId,
+        left_px: leftPxValue,
+        top_px: topPxValue,
+        updated_at: timestamp,
+      };
+      nextState.workspaceNoteLayouts.push(created);
+      return { nextState, result: clone(created) };
+    });
+  };
+
   const listArchiveReferences = (archiveId) => readSnapshot((state) =>
     state.references
       .filter((reference) => reference.target_archive_id === String(archiveId ?? '').trim())
@@ -1383,6 +1527,12 @@ export const createLocalWorkflowEngine = ({
 
   return {
     getProfile,
+    listWorkspaceNotes,
+    createWorkspaceNote,
+    updateWorkspaceNote,
+    deleteWorkspaceNote,
+    listWorkspaceNoteLayouts,
+    saveWorkspaceNoteLayout,
     listTemplates,
     listMyDrafts,
     saveDraft,

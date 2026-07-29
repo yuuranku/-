@@ -1,4 +1,6 @@
-export const LOCAL_SNAPSHOT_SCHEMA_VERSION = 1;
+import { normalizeLocalState } from './local-state.js';
+
+export const LOCAL_SNAPSHOT_SCHEMA_VERSION = 2;
 export const LOCAL_SNAPSHOT_DATABASE_NAME = 'palis-local-verification-v1';
 
 const ARRAY_STORES = Object.freeze([
@@ -13,6 +15,8 @@ const ARRAY_STORES = Object.freeze([
   'references',
   'attachments',
   'auditEvents',
+  'workspaceNotes',
+  'workspaceNoteLayouts',
 ]);
 const MAP_STORES = Object.freeze([
   'numberCounters',
@@ -287,7 +291,7 @@ export const decodeLocalSnapshot = async (
   if (!isPlainObject(snapshot)) {
     throw snapshotError('invalid_snapshot', 'Snapshot must be an object');
   }
-  if (snapshot.schemaVersion !== LOCAL_SNAPSHOT_SCHEMA_VERSION) {
+  if (![1, LOCAL_SNAPSHOT_SCHEMA_VERSION].includes(snapshot.schemaVersion)) {
     throw snapshotError('invalid_snapshot_schema', 'Snapshot schema version is unsupported');
   }
   if (snapshot.databaseName !== databaseName) {
@@ -302,7 +306,9 @@ export const decodeLocalSnapshot = async (
   if (await checksumPayload(snapshot.payload) !== snapshot.checksum) {
     throw snapshotError('invalid_snapshot_checksum', 'Snapshot checksum does not match payload');
   }
-  const state = await decodeValue(snapshot.payload);
+  const state = snapshot.schemaVersion === 1
+    ? normalizeLocalState(await decodeValue(snapshot.payload))
+    : await decodeValue(snapshot.payload);
   assertLocalStateShape(state);
   return state;
 };

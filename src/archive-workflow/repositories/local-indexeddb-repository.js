@@ -1,5 +1,5 @@
 import { createIndexedDbStateStore } from '../local/indexeddb-state-store.js';
-import { createEmptyLocalState } from '../local/local-state.js';
+import { createEmptyLocalState, normalizeLocalState } from '../local/local-state.js';
 import {
   assertLocalStateShape,
   decodeLocalSnapshot,
@@ -21,13 +21,17 @@ export const createLocalIndexedDbRepository = ({
   randomUUID,
   failAt,
 } = {}) => {
-  const seedState = clone(typeof seed === 'function' ? seed() : seed);
+  const seedState = clone(normalizeLocalState(typeof seed === 'function' ? seed() : seed));
   assertLocalStateShape(seedState);
   const stateStore = createIndexedDbStateStore({
     indexedDB,
     databaseName: LOCAL_INDEXEDDB_DATABASE_NAME,
   });
-  const seededState = (state) => clone(state === undefined ? seedState : state);
+  const seededState = (state) => {
+    const normalized = normalizeLocalState(state === undefined ? seedState : state);
+    assertLocalStateShape(normalized);
+    return clone(normalized);
+  };
 
   const repository = createLocalWorkflowEngine({
     readState: async () => seededState(await stateStore.readState()),

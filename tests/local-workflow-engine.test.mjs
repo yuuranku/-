@@ -316,7 +316,7 @@ const createAmendmentAttributionState = (targetContributionId = 'original-contri
   return state;
 };
 
-test('empty local state exposes only the thirteen unseeded workflow stores', () => {
+test('empty local state exposes the workspace note stores alongside workflow data', () => {
   const state = createEmptyLocalState();
 
   assert.deepEqual(Object.keys(state), [
@@ -333,6 +333,8 @@ test('empty local state exposes only the thirteen unseeded workflow stores', () 
     'attachments',
     'auditEvents',
     'idempotencyResults',
+    'workspaceNotes',
+    'workspaceNoteLayouts',
   ]);
   assert.deepEqual(state, {
     profiles: [],
@@ -348,7 +350,197 @@ test('empty local state exposes only the thirteen unseeded workflow stores', () 
     attachments: [],
     auditEvents: [],
     idempotencyResults: {},
+    workspaceNotes: [],
+    workspaceNoteLayouts: [],
   });
+});
+
+test('administrators CRUD shared workspace notes in sorted order without mutable aliases', async () => {
+  const harness = await createLocalWorkflowHarness({ ids: ['note-later', 'note-first'] });
+  await harness.seedDefaults();
+
+  const later = await harness.repository.createWorkspaceNote({
+    title: '  稍后处理  ',
+    content: '  归档后检查索引。  ',
+    sortOrder: 2,
+  });
+  const first = await harness.repository.createWorkspaceNote({
+    title: '优先提醒',
+    content: '先完成交接。',
+    sortOrder: 1,
+  });
+  later.content = 'mutated return';
+  const listed = await harness.repository.listWorkspaceNotes();
+  listed[0].title = 'mutated read';
+
+  assert.deepEqual((await harness.repository.listWorkspaceNotes()).map(({ id, title, content, sort_order, created_by }) => ({
+    id, title, content, sort_order, created_by,
+  })), [
+    {
+      id: 'note-first',
+      title: '优先提醒',
+      content: '先完成交接。',
+      sort_order: 1,
+      created_by: 'local-admin',
+    },
+    {
+      id: 'note-later',
+      title: '稍后处理',
+      content: '归档后检查索引。',
+      sort_order: 2,
+      created_by: 'local-admin',
+    },
+  ]);
+
+  const updated = await harness.repository.updateWorkspaceNote(first.id, {
+    title: '  已更新提醒  ',
+    content: '  完成交接后通知管理员。  ',
+    sortOrder: 0,
+  });
+  const deleted = await harness.repository.deleteWorkspaceNote(later.id);
+
+  assert.deepEqual(updated, {
+    id: 'note-first',
+    title: '已更新提醒',
+    content: '完成交接后通知管理员。',
+    sort_order: 0,
+    created_by: 'local-admin',
+    created_at: '2026-07-28T12:00:00.000Z',
+    updated_at: '2026-07-28T12:00:00.000Z',
+  });
+  assert.deepEqual(deleted, { id: 'note-later' });
+  assert.deepEqual(
+    (await harness.repository.listWorkspaceNotes()).map(({ id, title, sort_order }) => ({ id, title, sort_order })),
+    [{ id: 'note-first', title: '已更新提醒', sort_order: 0 }],
+  );
+  const state = await harness.inspectState();
+  assert.equal(state.workspaceNotes[0].title, '已更新提醒');
+});
+
+test('clerks read workspace notes but cannot mutate them, while observer and disabled principals are barred', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const note = await harness.repository.createWorkspaceNote({
+    title: '管理员提示',
+    content: '请核对草稿。',
+    sortOrder: 0,
+  });
+
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  assert.deepEqual(
+    (await harness.repository.listWorkspaceNotes()).map(({ id }) => id),
+    [note.id],
+  );
+  await assert.rejects(
+    harness.repository.createWorkspaceNote({ title: '书记官写入', content: '不应保存。', sortOrder: 1 }),
+    hasCode('permission_denied'),
+  );
+  await assert.rejects(
+    harness.repository.updateWorkspaceNote(note.id, { title: '改写', content: '不应保存。', sortOrder: 1 }),
+    hasCode('permission_denied'),
+  );
+  await assert.rejects(harness.repository.deleteWorkspaceNote(note.id), hasCode('permission_denied'));
+
+  await harness.setPrincipal({ ...LOCAL_PROFILES[1], role: 'observer' });
+  await assert.rejects(harness.repository.listWorkspaceNotes(), hasCode('permission_denied'));
+  await harness.setPrincipal({ ...LOCAL_PROFILES[1], enabled: false });
+  await assert.rejects(harness.repository.listWorkspaceNotes(), hasCode('permission_denied'));
+});
+
+test('workspace note layouts remain self-owned and cascade when their note is deleted', async () => {
+  const harness = await createLocalWorkflowHarness({ ids: ['note-layout'] });
+  await harness.seedDefaults();
+  const note = await harness.repository.createWorkspaceNote({
+    title: '位置测试',
+    content: '各账号独立保存位置。',
+    sortOrder: 0,
+  });
+  const adminLayout = await harness.repository.saveWorkspaceNoteLayout({
+    noteId: note.id,
+    profileId: 'local-admin',
+    leftPx: 20,
+    topPx: 40,
+  });
+  adminLayout.left_px = 999;
+
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  const clerkLayout = await harness.repository.saveWorkspaceNoteLayout({
+    noteId: note.id,
+    profileId: 'clerk-1',
+    leftPx: 120,
+    topPx: 80,
+  });
+  assert.deepEqual(await harness.repository.listWorkspaceNoteLayouts('clerk-1'), [clerkLayout]);
+  await assert.rejects(
+    harness.repository.listWorkspaceNoteLayouts('local-admin'),
+    hasCode('permission_denied'),
+  );
+
+  await harness.setPrincipal(LOCAL_PROFILES[0]);
+  assert.deepEqual(await harness.repository.listWorkspaceNoteLayouts('local-admin'), [{
+    note_id: note.id,
+    profile_id: 'local-admin',
+    left_px: 20,
+    top_px: 40,
+    updated_at: '2026-07-28T12:00:00.000Z',
+  }]);
+  await assert.rejects(
+    harness.repository.saveWorkspaceNoteLayout({
+      noteId: note.id,
+      profileId: 'clerk-1',
+      leftPx: 1,
+      topPx: 1,
+    }),
+    hasCode('permission_denied'),
+  );
+  await harness.repository.deleteWorkspaceNote(note.id);
+
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  assert.deepEqual(await harness.repository.listWorkspaceNoteLayouts('clerk-1'), []);
+  const state = await harness.inspectState();
+  assert.deepEqual(state.workspaceNoteLayouts, []);
+});
+
+test('workspace note content and layout commands reject invalid values without changing local state', async () => {
+  const harness = await createLocalWorkflowHarness({ ids: ['valid-note'] });
+  await harness.seedDefaults();
+
+  for (const input of [
+    { title: ' ', content: '正文', sortOrder: 0 },
+    { title: '标题', content: '\n', sortOrder: 0 },
+    { title: '标题', content: '正文', sortOrder: -1 },
+    { title: '标题', content: '正文', sortOrder: 0.5 },
+    { title: '标题', content: '正文', sortOrder: '0' },
+  ]) {
+    await assert.rejects(harness.repository.createWorkspaceNote(input));
+  }
+  const note = await harness.repository.createWorkspaceNote({
+    title: '有效便签',
+    content: '有效正文。',
+    sortOrder: 0,
+  });
+  for (const [leftPx, topPx] of [
+    [-1, 0],
+    [0, -1],
+    [0.5, 0],
+    ['0', 0],
+    [0, Number.POSITIVE_INFINITY],
+  ]) {
+    await assert.rejects(
+      harness.repository.saveWorkspaceNoteLayout({
+        noteId: note.id,
+        profileId: 'local-admin',
+        leftPx,
+        topPx,
+      }),
+    );
+  }
+
+  const state = await harness.inspectState();
+  assert.deepEqual(state.workspaceNotes.map(({ id, title }) => ({ id, title })), [
+    { id: 'valid-note', title: '有效便签' },
+  ]);
+  assert.deepEqual(state.workspaceNoteLayouts, []);
 });
 
 test('saveDraft derives administrator ownership from the command-time principal', async () => {

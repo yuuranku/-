@@ -693,7 +693,7 @@ test('snapshot export and import preserve Blob and File bytes without retaining 
       };
     }, { seed: createRepositorySeed(), principal: ADMIN });
 
-    assert.equal(result.schemaVersion, 1);
+    assert.equal(result.schemaVersion, 2);
     assert.equal(result.databaseName, 'palis-local-verification-v1');
     assert.equal(result.exportedAt, '2026-07-28T12:00:00.000Z');
     assert.match(result.checksum, /^[a-f0-9]{64}$/);
@@ -740,6 +740,129 @@ test('snapshot export and import preserve Blob and File bytes without retaining 
         isFile: true,
       },
     ]);
+  } finally {
+    if (page && !page.isClosed()) {
+      await page.evaluate(async () => {
+        await window.palisIndexedDbHarness.repository?.resetLocalDatabase?.();
+      }).catch(() => {});
+      await page.close();
+    }
+    await browser.close();
+    await server.close();
+  }
+});
+
+test('legacy IndexedDB state and valid v1 snapshots gain workspace stores without losing drafts or archives', { timeout: 20_000 }, async () => {
+  const server = await startPalisTestServer();
+  const browser = await puppeteer.launch({
+    executablePath: resolveBrowserExecutable(),
+    headless: true,
+  });
+  let page = null;
+
+  try {
+    ({ page } = await openHarnessPage(browser, server));
+    const result = await page.evaluate(async ({ seed, principal }) => {
+      const harness = window.palisIndexedDbHarness;
+      const checksum = async (payload) => {
+        const canonicalize = (value) => {
+          if (Array.isArray(value)) return value.map(canonicalize);
+          if (value && typeof value === 'object') {
+            return Object.fromEntries(
+              Object.keys(value)
+                .sort()
+                .map((key) => [key, canonicalize(value[key])]),
+            );
+          }
+          return value;
+        };
+        const bytes = new TextEncoder().encode(JSON.stringify(canonicalize(payload)));
+        return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+          .map((byte) => byte.toString(16).padStart(2, '0'))
+          .join('');
+      };
+
+      harness.installRepository({ seed, principal, idPrefix: 'legacy-workspace' });
+      const repository = harness.repository;
+      await repository.resetLocalDatabase();
+
+      const legacyState = structuredClone(seed);
+      legacyState.archives.push({
+        id: 'legacy-archive',
+        code: 'EV42',
+        category: 'event',
+        title: 'Legacy archive',
+        visibility: 'public',
+        sequence_number: 42,
+        abbreviation: 'RLL',
+      });
+      legacyState.contributions.push({
+        id: 'legacy-draft',
+        archive_id: null,
+        template_id: 'template-event',
+        owner_id: principal.id,
+        title: 'Legacy draft',
+        kind: 'new',
+        status: 'draft',
+        draft_content: { schemaVersion: 2, sections: [] },
+        revision: 1,
+        created_at: '2026-07-28T10:00:00.000Z',
+        updated_at: '2026-07-28T11:00:00.000Z',
+      });
+      delete legacyState.workspaceNotes;
+      delete legacyState.workspaceNoteLayouts;
+
+      const store = harness.createIndexedDbStateStore({
+        indexedDB,
+        databaseName: 'palis-local-verification-v1',
+      });
+      await store.transactState(() => ({ nextState: legacyState, result: null }));
+      await store.close();
+
+      const legacyDrafts = await repository.listMyDrafts(principal.id);
+      const legacyArchives = await repository.listAdminArchives({ limit: 10 });
+      const exportedAfterStateUpgrade = await repository.exportLocalSnapshot();
+      const v1 = structuredClone(exportedAfterStateUpgrade);
+      v1.schemaVersion = 1;
+      delete v1.payload.workspaceNotes;
+      delete v1.payload.workspaceNoteLayouts;
+      v1.checksum = await checksum(v1.payload);
+
+      await repository.resetLocalDatabase();
+      await repository.importLocalSnapshot(v1);
+      const upgraded = await repository.exportLocalSnapshot();
+      return {
+        legacyDrafts: legacyDrafts.map(({ id, title }) => ({ id, title })),
+        legacyArchives: legacyArchives.map(({ id, code }) => ({ id, code })),
+        stateUpgrade: {
+          schemaVersion: exportedAfterStateUpgrade.schemaVersion,
+          workspaceNotes: exportedAfterStateUpgrade.payload.workspaceNotes,
+          workspaceNoteLayouts: exportedAfterStateUpgrade.payload.workspaceNoteLayouts,
+        },
+        snapshotUpgrade: {
+          schemaVersion: upgraded.schemaVersion,
+          workspaceNotes: upgraded.payload.workspaceNotes,
+          workspaceNoteLayouts: upgraded.payload.workspaceNoteLayouts,
+          drafts: upgraded.payload.contributions.map(({ id, title }) => ({ id, title })),
+          archives: upgraded.payload.archives.map(({ id, code }) => ({ id, code })),
+        },
+      };
+    }, { seed: createRepositorySeed(), principal: ADMIN });
+
+    assert.deepEqual(result.legacyDrafts, [{ id: 'legacy-draft', title: 'Legacy draft' }]);
+    assert.deepEqual(result.legacyArchives, [{ id: 'legacy-archive', code: 'EV42' }]);
+    assert.deepEqual(result.stateUpgrade, {
+      schemaVersion: 2,
+      workspaceNotes: [],
+      workspaceNoteLayouts: [],
+    });
+    assert.deepEqual(result.snapshotUpgrade, {
+      schemaVersion: 2,
+      workspaceNotes: [],
+      workspaceNoteLayouts: [],
+      drafts: [{ id: 'legacy-draft', title: 'Legacy draft' }],
+      archives: [{ id: 'legacy-archive', code: 'EV42' }],
+    });
   } finally {
     if (page && !page.isClosed()) {
       await page.evaluate(async () => {
@@ -811,7 +934,7 @@ test('invalid snapshots never replace the current IndexedDB state', { timeout: 2
       const payloadSignature = (payload) => JSON.stringify(canonicalize(payload));
 
       const invalidSchema = structuredClone(valid);
-      invalidSchema.schemaVersion = 2;
+      invalidSchema.schemaVersion = 3;
       const invalidDatabase = structuredClone(valid);
       invalidDatabase.databaseName = 'another-database';
       const invalidTimestamp = structuredClone(valid);
