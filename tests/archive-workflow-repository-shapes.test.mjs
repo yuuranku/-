@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { ARCHIVE_ROOTS } from '../src/archive-data.js';
 import { assertArchiveWorkflowResult } from '../src/archive-workflow/repository-contract.js';
+import { ARCHIVE_TEMPLATE_BY_CODE } from '../src/archive-workflow/templates.js';
 
 const without = (record, field) => {
   const copy = { ...record };
@@ -152,6 +154,110 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
   for (const [method, result] of cases) {
     assert.doesNotThrow(() => assertArchiveWorkflowResult(method, result), method);
   }
+});
+
+test('editor source result validates every optional hydrated relation when present', () => {
+  const editorSource = {
+    archiveId: archive.id,
+    contributionId: draft.id,
+    versionId: version.id,
+    sourceKind: 'document',
+    content: version.content,
+    archive,
+    references: [{
+      archiveId: 'archive-2',
+      code: 'P12',
+      label: 'Fresh archive label',
+    }],
+    mediaContributionId: draft.id,
+    version,
+  };
+
+  assert.doesNotThrow(() =>
+    assertArchiveWorkflowResult('loadArchiveEditorSource', editorSource));
+  assert.throws(
+    () => assertArchiveWorkflowResult('loadArchiveEditorSource', {
+      ...editorSource,
+      sourceKind: 'newest-anywhere',
+    }),
+    /sourceKind/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('loadArchiveEditorSource', {
+      ...editorSource,
+      references: [{ archiveId: 'archive-2', code: 'P12' }],
+    }),
+    /references\[0\]\.label/,
+  );
+  assert.throws(
+    () => assertArchiveWorkflowResult('loadArchiveEditorSource', {
+      ...editorSource,
+      version: without(version, 'content'),
+    }),
+    /version\.content/,
+  );
+});
+
+test('official static fallback creates a readable v2 baseline instead of a blank form', async () => {
+  let toEditorDocumentFromOfficialArchive;
+  try {
+    ({ toEditorDocumentFromOfficialArchive } = await import(
+      '../src/archive-workflow/official-archive-source.js'
+    ));
+  } catch (error) {
+    assert.fail(`official archive adapter must be implemented: ${error.message}`);
+  }
+  const staticRoot = ARCHIVE_ROOTS.find(({ code }) => code === '03');
+  const officialArchive = {
+    id: 'official-station',
+    code: 'SU-VOS',
+    category: 'station',
+    title: '东方科考站',
+    visibility: 'public',
+    sequence_number: 5,
+    abbreviation: 'LOG',
+    index_payload: {
+      title: 'Stale static title',
+      owner: 'PALIS',
+      latitude: '-78.46',
+    },
+  };
+
+  const source = toEditorDocumentFromOfficialArchive(
+    officialArchive,
+    staticRoot,
+    ARCHIVE_TEMPLATE_BY_CODE['03'],
+  );
+
+  assert.equal(source.schemaVersion, 2);
+  assert.equal(source.indexData.title, officialArchive.title);
+  assert.equal(source.indexData.owner, 'PALIS');
+  assert.equal(source.values.hero, officialArchive.title);
+  assert.match(source.values['legacy:official-body'], /东方站/);
+  assert.notEqual(source.values['legacy:official-body'].trim(), '');
+});
+
+test('official static fallback rejects an official archive without a matching static record', async () => {
+  let toEditorDocumentFromOfficialArchive;
+  try {
+    ({ toEditorDocumentFromOfficialArchive } = await import(
+      '../src/archive-workflow/official-archive-source.js'
+    ));
+  } catch (error) {
+    assert.fail(`official archive adapter must be implemented: ${error.message}`);
+  }
+  const staticRoot = ARCHIVE_ROOTS.find(({ code }) => code === '03');
+
+  assert.throws(
+    () => toEditorDocumentFromOfficialArchive({
+      id: 'missing-static-station',
+      code: 'ST-NOT-FOUND',
+      category: 'station',
+      title: 'Missing station',
+      index_payload: {},
+    }, staticRoot, ARCHIVE_TEMPLATE_BY_CODE['03']),
+    /No static official archive record.*ST-NOT-FOUND/i,
+  );
 });
 
 test('result contract rejects incomplete publication and media identities', () => {

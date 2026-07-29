@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   ARCHIVE_WORKFLOW_METHODS,
   assertArchiveWorkflowRepository,
+  assertArchiveWorkflowResult,
 } from '../src/archive-workflow/repository-contract.js';
 import { defineArchiveWorkflowRepositoryConformance } from './helpers/archive-workflow-repository-conformance.mjs';
 
@@ -203,4 +204,22 @@ test('repository conformance helper rejects a review queue entry without its own
 
   const reviewQueueCheck = registered.find(({ testName }) => testName.includes('returns review queue relations'));
   await assert.rejects(reviewQueueCheck.callback(), /owner/);
+});
+
+test('editor source contract keeps the four persisted source fields mandatory', () => {
+  const complete = {
+    archiveId: 'archive-1',
+    contributionId: 'document-a',
+    versionId: 'version-a2',
+    content: { schemaVersion: 2, values: { hero: 'Document A base' } },
+  };
+
+  for (const field of ['archiveId', 'contributionId', 'versionId', 'content']) {
+    const incomplete = { ...complete };
+    delete incomplete[field];
+    assert.throws(
+      () => assertArchiveWorkflowResult('loadArchiveEditorSource', incomplete),
+      new RegExp(field),
+    );
+  }
 });

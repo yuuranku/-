@@ -996,12 +996,10 @@ test('published contribution views expose immutable versions without mutable sta
   const contributions = await harness.repository.listArchiveContributions('archive-1');
   contributions[0].versions[1].content.sections[0].title = 'mutated view';
 
-  assert.deepEqual(source, {
-    archiveId: 'archive-1',
-    contributionId: 'contribution-1',
-    versionId: 'version-2',
-    content: { schemaVersion: 2, sections: [{ title: 'latest' }] },
-  });
+  assert.equal(source.archiveId, 'archive-1');
+  assert.equal(source.contributionId, 'contribution-1');
+  assert.equal(source.versionId, 'version-2');
+  assert.deepEqual(source.content, { schemaVersion: 2, sections: [{ title: 'latest' }] });
   assert.equal(contributions[0].owner.display_name, 'Archive Clerk');
   assert.equal(contributions[0].versions[1].reviewer.display_name, 'Local Administrator');
   assert.equal((await harness.inspectState()).versions[1].content.sections[0].title, 'latest');
@@ -1188,6 +1186,155 @@ test('publishing an amendment preserves the existing archive code, sequence, and
   assert.equal(archive.sequence_number, 26);
   assert.equal(archive.abbreviation, 'RLL');
   assert.equal(committed.numberCounters.event, 26);
+});
+
+test('loadArchiveEditorSource honors the selected document and base version', async () => {
+  const state = createPublishedReadState();
+  state.versions[0].content = {
+    schemaVersion: 2,
+    templateCode: '07',
+    values: { hero: 'Document A base', custom: 'preserved' },
+    indexData: { title: 'Document A base' },
+    sections: [{ id: 'body', label: 'Body', fields: ['custom'] }],
+    fieldLabels: { custom: 'Custom label' },
+    references: [{ archiveId: 'archive-2', code: 'OLD', label: 'Stale label' }],
+    media: [{ field: 'photo', attachmentId: 'attachment-a' }],
+  };
+  state.contributions.push({
+    ...structuredClone(state.contributions[0]),
+    id: 'contribution-newer',
+    title: 'Newer sibling document',
+    created_at: '2026-07-29T10:00:00.000Z',
+    updated_at: '2026-07-29T12:00:00.000Z',
+  });
+  state.versions.push({
+    ...structuredClone(state.versions[1]),
+    id: 'version-newer',
+    contribution_id: 'contribution-newer',
+    created_at: '2026-07-29T12:00:00.000Z',
+    approved_at: '2026-07-29T12:00:00.000Z',
+    content: {
+      schemaVersion: 2,
+      templateCode: '07',
+      values: { hero: 'Wrong newer sibling' },
+    },
+  });
+  state.archives.find(({ id }) => id === 'archive-2').code = 'P99';
+  state.archives.find(({ id }) => id === 'archive-2').title = 'Fresh reference label';
+  state.references[0].contribution_id = 'contribution-1';
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const source = await harness.repository.loadArchiveEditorSource('archive-1', {
+    contributionId: 'contribution-1',
+    versionId: 'version-1',
+  });
+
+  assert.equal(source.sourceKind, 'document');
+  assert.equal(source.contributionId, 'contribution-1');
+  assert.equal(source.versionId, 'version-1');
+  assert.equal(source.content.values.hero, 'Document A base');
+  assert.equal(source.content.values.custom, 'preserved');
+  assert.deepEqual(source.content.sections, [{ id: 'body', label: 'Body', fields: ['custom'] }]);
+  assert.deepEqual(source.content.fieldLabels, { custom: 'Custom label' });
+  assert.deepEqual(source.content.references, [{
+    archiveId: 'archive-2',
+    code: 'OLD',
+    label: 'Stale label',
+  }]);
+  assert.deepEqual(source.content.media, [{ field: 'photo', attachmentId: 'attachment-a' }]);
+  assert.deepEqual(source.references, [{
+    archiveId: 'archive-2',
+    code: 'P99',
+    label: 'Fresh reference label',
+  }]);
+  assert.equal(source.mediaContributionId, 'contribution-1');
+  assert.equal(source.version.id, 'version-1');
+  source.content.values.hero = 'mutated';
+  assert.equal((await harness.inspectState()).versions[0].content.values.hero, 'Document A base');
+});
+
+test('loadArchiveEditorSource never substitutes a sibling when the selected source is missing', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(createPublishedReadState());
+
+  const source = await harness.repository.loadArchiveEditorSource('archive-1', {
+    contributionId: 'contribution-1',
+    versionId: 'missing-version',
+  });
+
+  assert.equal(source, null);
+});
+
+test('official editor source uses static content until a later official amendment is published', async () => {
+  const state = createPublishedReadState();
+  state.archives[0] = {
+    ...state.archives[0],
+    code: 'EV10',
+    category: 'event',
+    title: 'HZ-6 official record',
+    origin: 'official',
+  };
+  state.contributions = [];
+  state.versions = [];
+  state.references = [];
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const staticSource = await harness.repository.loadArchiveEditorSource('archive-1', {
+    officialBase: true,
+  });
+
+  assert.equal(staticSource.sourceKind, 'official-static');
+  assert.equal(staticSource.contributionId, null);
+  assert.equal(staticSource.versionId, null);
+  assert.equal(staticSource.content.schemaVersion, 2);
+  assert.equal(staticSource.content.values.hero, 'HZ-6 official record');
+  assert.notEqual(staticSource.content.values['legacy:official-body'].trim(), '');
+
+  state.contributions.push({
+    id: 'official-amendment',
+    archive_id: 'archive-1',
+    template_id: '07',
+    owner_id: 'clerk-1',
+    target_contribution_id: null,
+    title: 'Official amendment',
+    kind: 'amendment',
+    status: 'published',
+    draft_content: { schemaVersion: 2, templateCode: '07', values: {} },
+    revision: 1,
+    created_at: '2026-07-29T10:00:00.000Z',
+    updated_at: '2026-07-29T12:00:00.000Z',
+  });
+  state.versions.push({
+    id: 'official-amendment-version',
+    archive_id: 'archive-1',
+    contribution_id: 'official-amendment',
+    version_label: '0.2',
+    content: {
+      schemaVersion: 2,
+      templateCode: '07',
+      values: { hero: 'Published official amendment' },
+    },
+    approved_at: '2026-07-29T12:00:00.000Z',
+    created_at: '2026-07-29T12:00:00.000Z',
+    submitter_id: 'clerk-1',
+    submitter_name: 'Archive Clerk',
+    modifier_id: 'clerk-1',
+    modifier_name: 'Archive Clerk',
+    reviewer_id: 'local-admin',
+    reviewer_name: 'Local Administrator',
+  });
+  await harness.seed(state);
+
+  const amendedSource = await harness.repository.loadArchiveEditorSource('archive-1', {
+    officialBase: true,
+  });
+
+  assert.equal(amendedSource.sourceKind, 'official-amendment');
+  assert.equal(amendedSource.contributionId, 'official-amendment');
+  assert.equal(amendedSource.versionId, 'official-amendment-version');
+  assert.equal(amendedSource.content.values.hero, 'Published official amendment');
 });
 
 test('publishing an amendment refreshes the existing archive directory projection', async () => {

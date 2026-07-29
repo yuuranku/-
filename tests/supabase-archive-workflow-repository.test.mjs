@@ -49,6 +49,107 @@ test('Supabase archive document choices come from the sanitized document RPC', a
   }]);
 });
 
+test('Supabase editor source reader sends the exact selected document and version to the secure RPC', async () => {
+  const calls = [];
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: () => { throw new Error('editor source must not bypass the RPC'); },
+    rpc: async (name, args) => {
+      calls.push({ name, args });
+      return {
+        data: {
+          archiveId: 'archive-1',
+          contributionId: 'document-a',
+          versionId: 'version-a2',
+          sourceKind: 'document',
+          content: {
+            schemaVersion: 2,
+            templateCode: '07',
+            values: { hero: 'Document A base' },
+          },
+          archive: {
+            id: 'archive-1',
+            code: 'EV27',
+            category: 'event',
+            title: 'Archive',
+            visibility: 'public',
+            sequence_number: 27,
+            abbreviation: 'RLL',
+          },
+          references: [],
+          mediaContributionId: 'document-a',
+          version: {
+            id: 'version-a2',
+            version_label: '0.2',
+            content: { schemaVersion: 2 },
+            approved_at: '2026-07-28T00:00:00.000Z',
+            created_at: '2026-07-28T00:00:00.000Z',
+            submitter: { id: 'clerk-1', display_name: 'Archive Clerk' },
+            modifier: null,
+            reviewer: null,
+          },
+        },
+        error: null,
+      };
+    },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+
+  const source = await repository.loadArchiveEditorSource('archive-1', {
+    contributionId: 'document-a',
+    versionId: 'version-a2',
+  });
+
+  assert.equal(source.content.values.hero, 'Document A base');
+  assert.deepEqual(calls, [{
+    name: 'load_archive_editor_source',
+    args: {
+      p_archive_id: 'archive-1',
+      p_contribution_id: 'document-a',
+      p_version_id: 'version-a2',
+      p_official_base: false,
+    },
+  }]);
+});
+
+test('Supabase editor source reader converts an official-static RPC response to nonblank v2 content', async () => {
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: () => { throw new Error('editor source must not bypass the RPC'); },
+    rpc: async () => ({
+      data: {
+        archiveId: 'archive-1',
+        contributionId: null,
+        versionId: null,
+        sourceKind: 'official-static',
+        content: null,
+        archive: {
+          id: 'archive-1',
+          code: 'SU-VOS',
+          category: 'station',
+          title: '东方科考站',
+          visibility: 'public',
+          sequence_number: 5,
+          abbreviation: 'LOG',
+          index_payload: { owner: 'PALIS' },
+        },
+        references: [],
+        mediaContributionId: null,
+        version: null,
+      },
+      error: null,
+    }),
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+
+  const source = await repository.loadArchiveEditorSource('archive-1', {
+    officialBase: true,
+  });
+
+  assert.equal(source.sourceKind, 'official-static');
+  assert.equal(source.content.schemaVersion, 2);
+  assert.equal(source.content.values.hero, '东方科考站');
+  assert.match(source.content.values['legacy:official-body'], /东方站/);
+});
+
 test('Supabase review media reads the selected contribution without requiring publication', async () => {
   const filters = [];
   const signedBatches = [];

@@ -5,7 +5,10 @@ import {
   nextArchiveSequence,
   stampArchiveSystemFields,
 } from '../category-profiles.js';
+import { ARCHIVE_ROOTS } from '../../archive-data.js';
 import { mediaPolicyForCategory } from '../media.js';
+import { toEditorDocumentFromOfficialArchive } from '../official-archive-source.js';
+import { ARCHIVE_TEMPLATES } from '../templates.js';
 
 export class LocalWorkflowError extends Error {
   constructor(message, code, details = null) {
@@ -1065,25 +1068,127 @@ export const createLocalWorkflowEngine = ({
       });
   });
 
-  const loadArchiveEditorSource = (archiveId) => readSnapshot((state) => {
+  const loadArchiveEditorSource = (archiveId, {
+    contributionId = null,
+    versionId = null,
+    officialBase = false,
+  } = {}) => readSnapshot((state) => {
     const id = String(archiveId ?? '').trim();
-    const contributionIds = new Set(
-      state.contributions
-        .filter((contribution) => contribution.archive_id === id)
-        .map((contribution) => contribution.id),
+    const archive = state.archives.find((entry) => entry.id === id);
+    if (!archive || archive.visibility === 'offline') return null;
+    const selectedContributionId = String(contributionId ?? '').trim() || null;
+    const selectedVersionId = String(versionId ?? '').trim() || null;
+    const publishedContributions = state.contributions.filter((contribution) =>
+      contribution.archive_id === id && contribution.status === 'published');
+    const publishedContributionIds = new Set(
+      publishedContributions.map((contribution) => contribution.id),
     );
     const versions = state.versions
-      .filter((version) => version.archive_id === id || contributionIds.has(version.contribution_id))
+      .filter((version) =>
+        (version.archive_id === id || publishedContributionIds.has(version.contribution_id))
+        && publishedContributionIds.has(version.contribution_id))
       .sort((left, right) =>
         String(right.created_at ?? right.approved_at ?? '')
           .localeCompare(String(left.created_at ?? left.approved_at ?? '')));
-    const selected = versions.find((version) => version.content?.schemaVersion === 2) || versions[0] || null;
-    if (!selected) return null;
+    let selected = null;
+    let contribution = null;
+    let sourceKind = 'document';
+
+    if (selectedContributionId || selectedVersionId) {
+      const requestedVersion = selectedVersionId
+        ? versions.find((candidate) => candidate.id === selectedVersionId) ?? null
+        : null;
+      if (selectedVersionId && !requestedVersion) return null;
+      contribution = publishedContributions.find((candidate) =>
+        (!selectedContributionId || candidate.id === selectedContributionId)
+        && (!requestedVersion || candidate.id === requestedVersion.contribution_id)
+        && candidate.kind !== 'amendment') ?? null;
+      if (!contribution) return null;
+      selected = requestedVersion ?? versions.find((candidate) =>
+        candidate.contribution_id === contribution.id) ?? null;
+      if (!selected || selected.content?.schemaVersion !== 2) return null;
+    } else if (officialBase) {
+      if (archive.origin !== 'official') return null;
+      contribution = publishedContributions
+        .filter((candidate) =>
+          candidate.kind === 'amendment'
+          && !candidate.target_contribution_id)
+        .map((candidate) => ({
+          contribution: candidate,
+          version: versions.find((version) => version.contribution_id === candidate.id) ?? null,
+        }))
+        .filter(({ version }) => version)
+        .sort((left, right) =>
+          String(right.version.created_at ?? right.version.approved_at ?? '')
+            .localeCompare(String(left.version.created_at ?? left.version.approved_at ?? '')))[0]
+        ?? null;
+      if (contribution) {
+        selected = contribution.version;
+        contribution = contribution.contribution;
+        if (selected.content?.schemaVersion !== 2) return null;
+        sourceKind = 'official-amendment';
+      } else {
+        const template = ARCHIVE_TEMPLATES.find((candidate) =>
+          normalizeCategory(candidate.category) === normalizeCategory(archive.category));
+        const staticRoot = ARCHIVE_ROOTS.find((candidate) => candidate.code === template?.code);
+        const content = toEditorDocumentFromOfficialArchive(archive, staticRoot, template);
+        return {
+          archiveId: id,
+          contributionId: null,
+          versionId: null,
+          sourceKind: 'official-static',
+          content,
+          archive: clone(archive),
+          references: [],
+          mediaContributionId: null,
+          version: null,
+        };
+      }
+    } else {
+      selected = versions.find((candidate) => candidate.content?.schemaVersion === 2)
+        || versions[0]
+        || null;
+      if (!selected) return null;
+      contribution = publishedContributions.find((candidate) =>
+        candidate.id === selected.contribution_id) ?? null;
+      if (!contribution) return null;
+      if (archive.origin === 'official'
+        && contribution.kind === 'amendment'
+        && !contribution.target_contribution_id) {
+        sourceKind = 'official-amendment';
+      }
+    }
+
+    const referenceIds = new Set([
+      ...(Array.isArray(selected.content?.references)
+        ? selected.content.references.map((reference) =>
+          String(reference?.archiveId ?? reference?.archive_id ?? '').trim())
+        : []),
+      ...state.references
+        .filter((reference) =>
+          reference.source_contribution_id === contribution.id
+          || reference.contribution_id === contribution.id)
+        .map((reference) => String(reference.target_archive_id ?? '').trim()),
+    ].filter((referenceId) => referenceId && referenceId !== id));
+    const references = [...referenceIds].flatMap((referenceId) => {
+      const target = state.archives.find((candidate) => candidate.id === referenceId);
+      if (!target) return [];
+      return [{
+        archiveId: target.id,
+        code: target.code,
+        label: target.title,
+      }];
+    });
     return {
       archiveId: id,
       contributionId: selected.contribution_id,
       versionId: selected.id,
+      sourceKind,
       content: clone(selected.content ?? {}),
+      archive: clone(archive),
+      references,
+      mediaContributionId: selected.contribution_id,
+      version: publicVersion(state, selected),
     };
   });
 

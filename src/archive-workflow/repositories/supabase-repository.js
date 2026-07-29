@@ -1,4 +1,7 @@
 import { assertArchiveWorkflowRepository } from '../repository-contract.js';
+import { ARCHIVE_ROOTS } from '../../archive-data.js';
+import { toEditorDocumentFromOfficialArchive } from '../official-archive-source.js';
+import { ARCHIVE_TEMPLATES } from '../templates.js';
 
 export class ArchiveWorkflowError extends Error {
   constructor(message, { code = 'archive_workflow_error', cause = null, details = null } = {}) {
@@ -326,16 +329,30 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     }),
     'Unable to load archive documents',
   );
-  const loadArchiveEditorSource = async (archiveId) => {
-    const contributions = await listArchiveContributions(archiveId);
-    const candidates = (contributions || []).flatMap((contribution) =>
-      (contribution.versions || []).map((version) => ({ contribution, version })));
-    candidates.sort((left, right) => new Date(right.version.created_at || right.version.approved_at || 0).getTime()
-      - new Date(left.version.created_at || left.version.approved_at || 0).getTime());
-    const selected = candidates.find(({ version }) => version?.content?.schemaVersion === 2) || candidates[0] || null;
-    if (!selected) return null;
-    return { archiveId: requireId(archiveId, 'archiveId'), contributionId: selected.contribution.id,
-      versionId: selected.version.id, content: selected.version.content || {} };
+  const loadArchiveEditorSource = async (archiveId, {
+    contributionId = null,
+    versionId = null,
+    officialBase = false,
+  } = {}) => {
+    const optionalId = (value, label) =>
+      String(value ?? '').trim() ? requireId(value, label) : null;
+    const source = await unwrap(
+      supabase.rpc('load_archive_editor_source', {
+        p_archive_id: requireId(archiveId, 'archiveId'),
+        p_contribution_id: optionalId(contributionId, 'contributionId'),
+        p_version_id: optionalId(versionId, 'versionId'),
+        p_official_base: officialBase === true,
+      }),
+      'Unable to load archive editor source',
+    );
+    if (!source || source.sourceKind !== 'official-static') return source;
+    const template = ARCHIVE_TEMPLATES.find((candidate) =>
+      candidate.category === source.archive?.category);
+    const staticRoot = ARCHIVE_ROOTS.find((candidate) => candidate.code === template?.code);
+    return {
+      ...source,
+      content: toEditorDocumentFromOfficialArchive(source.archive, staticRoot, template),
+    };
   };
   const listArchiveReferences = (archiveId) => unwrap(
     supabase.from('archive_references')

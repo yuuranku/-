@@ -206,7 +206,39 @@ export const assertArchiveWorkflowResult = (method, result) => {
       return requireFields(result, ['id', 'code', 'title']);
     case 'loadArchiveEditorSource':
       if (result === null) return result;
-      return requireFields(result, ['archiveId', 'contributionId', 'versionId', 'content']);
+      requireFields(result, ['archiveId', 'contributionId', 'versionId', 'content']);
+      if (has(result, 'sourceKind') && ![
+        'document',
+        'official-amendment',
+        'official-static',
+      ].includes(result.sourceKind)) {
+        throw new TypeError('loadArchiveEditorSource.sourceKind is invalid');
+      }
+      if (has(result, 'archive') && result.archive !== null) {
+        assertArchive(result.archive, 'archive.');
+      }
+      if (has(result, 'references')) {
+        for (const [index, reference] of requireList(
+          result.references,
+          'loadArchiveEditorSource.references',
+        ).entries()) {
+          requireFields(
+            reference,
+            ['archiveId', 'code', 'label'],
+            `references[${index}].`,
+          );
+        }
+      }
+      if (has(result, 'mediaContributionId')
+        && result.mediaContributionId !== null
+        && (typeof result.mediaContributionId !== 'string'
+          || !result.mediaContributionId.trim())) {
+        throw new TypeError('loadArchiveEditorSource.mediaContributionId is invalid');
+      }
+      if (has(result, 'version') && result.version !== null) {
+        assertVersion(result.version, 'version.');
+      }
+      return result;
     case 'listArchiveContributions':
       for (const [index, contribution] of requireList(result, method).entries()) {
         assertPublicContribution(contribution, `${method}[${index}].`);
