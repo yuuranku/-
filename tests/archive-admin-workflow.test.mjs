@@ -64,7 +64,12 @@ test('database publication flags dependent references for re-review', () => {
 });
 
 test('administrator workspace exposes an archive manager with typed-code permanent deletion', () => {
-  assert.match(html, /data-workflow-panel="archives"[^>]*data-admin-only/);
+  assert.match(html, /data-workspace-command="archives"[^>]*data-admin-only/);
+  assert.match(workspace, /const openArchiveManagementPanel = \(\) => \{/);
+  assert.match(workspace, /!ensureWorkspaceAccess\(\) \|\| !canReview\(context\.role\)/);
+  assert.match(workspace, /key:\s*'archives'/);
+  assert.match(workspace, /data-admin-archive-management/);
+  assert.match(workspace, /command === 'archives' && canReview\(context\.role\)/);
   assert.match(workspace, /listAdminArchives/);
   assert.match(workspace, /data-delete-archive-confirmation/);
   assert.match(workspace, /client\.deleteArchive\(archive\.id\)/);

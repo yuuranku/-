@@ -555,7 +555,7 @@ test(
 );
 
 test(
-  'clerk native editor completes publication, exact modification, return, and source retry',
+  'clerk native editor completes publication, returned reapproval, archive rendering, and source retry',
   { timeout: 180_000 },
   async (t) => {
     const { page } = await openLocalAdminBrowser(t);
@@ -567,6 +567,28 @@ test(
       await page.$eval('[data-workflow-mode-badge]', (node) => node.textContent.trim()),
       '本机演示',
     );
+
+    for (const { templateCode, coreField } of [
+      { templateCode: '03', coreField: 'stationOverview' },
+      { templateCode: '04', coreField: 'transitRiskSummary' },
+    ]) {
+      await openDesktopCommand(page, 'new-archive');
+      await page.waitForSelector('[data-new-archive-chooser]');
+      await clickControl(page, `[data-new-archive-template="${templateCode}"]`);
+      await page.waitForSelector('.archive-editor-window:not([hidden])');
+      assert.equal(
+        await page.$eval('.archive-editor-window', (editor, expectedCoreField) => (
+          editor.classList.contains('is-docked-right')
+          && Boolean(editor.querySelector('[data-native-form-root]'))
+          && Boolean(editor.querySelector(`[name="body:${expectedCoreField}"]`))
+          && !editor.querySelector('iframe[data-template-editor-frame]')
+        ), coreField),
+        true,
+        `Template ${templateCode} must open as its native, right-docked new-entry form`,
+      );
+      await clickControl(page, '.archive-editor-window [data-workflow-close]');
+      await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
+    }
 
     await openDesktopCommand(page, 'new-archive');
     await page.waitForSelector('[data-new-archive-chooser]');
@@ -671,6 +693,16 @@ test(
     assert.equal(station.index_payload.latitude, '-71.2');
     const baseContribution = submitted.id;
     const baseVersionId = station.current_version_id;
+    const initialPublishedArchiveSelector = `[data-published-archive="${station.id}"]`;
+    await page.waitForSelector(initialPublishedArchiveSelector, { timeout: 10_000 });
+    await page.$eval(initialPublishedArchiveSelector, (ledger) => {
+      ledger.closest('.archive-window')?.querySelector('.window-close')?.click();
+    });
+    await page.waitForFunction(
+      (archiveId) => !document.querySelector(`[data-published-archive="${archiveId}"]`),
+      {},
+      station.id,
+    );
 
     await switchPrincipal(page, fixture.clerk);
     await openWorkspace(page);
@@ -772,6 +804,91 @@ test(
     );
     await clickControl(page, '.archive-editor-window [data-workflow-close]');
     await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
+
+    await switchPrincipal(page, fixture.admin);
+    const resubmittedState = await readWorkflowState(page, fixture.admin);
+    const resubmittedAmendment = resubmittedState.queue.find(
+      ({ id, archive_id, kind, status }) => (
+        id === amendment.id
+        && archive_id === station.id
+        && kind === 'amendment'
+        && status === 'submitted'
+      ),
+    );
+    assert.ok(resubmittedAmendment, 'Expected the returned amendment to re-enter the real review queue');
+
+    await openWorkspace(page);
+    await openDesktopCommand(page, 'review');
+    await page.waitForSelector(`[data-review-submission="${amendment.id}"]`);
+    await clickControl(page, `[data-review-submission="${amendment.id}"]`);
+    await page.waitForSelector('[data-review-form]');
+    await setValue(page, '[data-review-message]', 'Returned amendment verified and approved for accession.');
+    await clickControl(page, '[data-admin-approval]');
+    await page.waitForSelector('[data-registration-form]');
+    await clickControl(page, '[data-admin-accession]');
+    await page.waitForFunction(
+      () => !document.querySelector('[data-registration-form] button[type="submit"]'),
+      { timeout: 10_000 },
+    );
+
+    const formalNumber = `${String(station.sequence_number).padStart(3, '0')}.${station.abbreviation}`;
+    assert.equal(
+      await page.$eval('[data-registration-message]', (node) => node.textContent.trim()),
+      `录入完成 / ${formalNumber} / VER 0.2`,
+      'The reapproved amendment must receive its next formal version in the accession UI',
+    );
+
+    const publishedArchiveSelector = `[data-published-archive="${station.id}"]`;
+    await page.waitForFunction(
+      ({ archiveId, amendmentId }) => {
+        const ledger = document.querySelector(`[data-published-archive="${archiveId}"]`);
+        return Boolean(
+          ledger?.querySelector('.archive-formal-document__metadata')
+          && ledger.querySelector(`[data-amendment-id="${amendmentId}"]`),
+        );
+      },
+      { timeout: 10_000 },
+      { archiveId: station.id, amendmentId: amendment.id },
+    );
+    const publishedArchiveUi = await page.$eval(
+      publishedArchiveSelector,
+      (ledger, amendmentId) => {
+        const metadata = [...ledger.querySelectorAll('.archive-formal-document__metadata div')]
+          .map((row) => ({
+            label: row.querySelector('dt')?.textContent.trim(),
+            value: row.querySelector('dd')?.textContent.trim(),
+          }));
+        const amendment = ledger.querySelector(`[data-amendment-id="${amendmentId}"]`);
+        return {
+          metadata,
+          amendmentVersion: amendment?.querySelector(':scope > header > b')?.textContent.trim(),
+          amendmentAttribution: [...(amendment?.querySelectorAll(':scope > dl > div') || [])]
+            .map((row) => ({
+              label: row.querySelector('dt')?.textContent.trim(),
+              value: row.querySelector('dd')?.textContent.trim(),
+            })),
+        };
+      },
+      amendment.id,
+    );
+    assert.deepEqual(publishedArchiveUi.metadata.slice(0, 3), [
+      { label: '正式档号', value: formalNumber },
+      { label: '档案版本', value: 'VER 0.1' },
+      { label: '档案收录者', value: fixture.clerk.display_name },
+    ]);
+    assert.equal(publishedArchiveUi.amendmentVersion, 'VER 0.2');
+    assert.deepEqual(publishedArchiveUi.amendmentAttribution.slice(0, 2), [
+      { label: '档案修改者', value: fixture.clerk.display_name },
+      { label: '审核者', value: fixture.admin.display_name },
+    ]);
+    await page.$eval(publishedArchiveSelector, (ledger) => {
+      ledger.closest('.archive-window')?.querySelector('.window-close')?.click();
+    });
+    await page.waitForFunction(
+      (archiveId) => !document.querySelector(`[data-published-archive="${archiveId}"]`),
+      {},
+      station.id,
+    );
 
     await openDesktopCommand(page, 'modify-archive');
     await page.waitForSelector('[data-modify-category="station"]');
