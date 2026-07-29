@@ -57,13 +57,13 @@ test('local administrator opens the workspace without loading cloud authenticati
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'true');
     await page.keyboard.press('Escape');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
-    await page.click('#clerk-desktop-start');
-    await page.click('#assistant-window-layer .clerk-desktop__welcome-titlebar');
-    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
-    await page.click('#clerk-desktop', { offset: { x: 1100, y: 180 } });
-    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="cabinet"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-cabinet-window:not([hidden])');
+    await page.click('#clerk-desktop-start');
+    await page.click('.archive-cabinet-window .archive-workflow-titlebar');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), false);
+    await page.click('[data-workspace-watermark-connection]');
+    assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('.archive-cabinet-window [data-archive-template="07"]', { count: 2, delay: 40 });
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-sync-state', {
