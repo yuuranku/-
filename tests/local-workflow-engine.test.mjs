@@ -1303,8 +1303,8 @@ test('automatic publication maps all nine singular categories to fixed code pref
     ['entrance', '04', 'EN19', '019.CRD'],
     ['ecology', '05', 'E08', '008.ECO'],
     ['person', '06', 'P47', '047.PER'],
-    ['event', '07', 'EV27', '027.RLL'],
-    ['anomaly', '08', 'A26', '026.TRC'],
+    ['event', '07', 'EV02', '002.RLL'],
+    ['anomaly', '08', 'A04', '004.TRC'],
     ['species', '09', 'S23', '023.SPC'],
   ];
   const state = createEmptyLocalState();
@@ -1476,7 +1476,8 @@ test('official editor source uses static content until a later official amendmen
   const state = createPublishedReadState();
   state.archives[0] = {
     ...state.archives[0],
-    code: 'EV10',
+    code: 'EV01',
+    sequence_number: 1,
     category: 'event',
     title: 'HZ-6 official record',
     origin: 'official',
@@ -1541,6 +1542,32 @@ test('official editor source uses static content until a later official amendmen
   assert.equal(amendedSource.contributionId, 'official-amendment');
   assert.equal(amendedSource.versionId, 'official-amendment-version');
   assert.equal(amendedSource.content.values.hero, 'Published official amendment');
+});
+
+test('archive base source preserves a community archive when it has no native document yet', async () => {
+  const state = createPublishedReadState();
+  state.archives[0] = {
+    ...state.archives[0],
+    origin: 'community',
+    title: 'Existing community event',
+    summary: 'Existing archive summary',
+    index_payload: { title: 'Existing community event', status: 'published' },
+  };
+  state.contributions = [];
+  state.versions = [];
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const source = await harness.repository.loadArchiveEditorSource('archive-1', {
+    officialBase: true,
+  });
+
+  assert.equal(source.sourceKind, 'official-static');
+  assert.equal(source.contributionId, null);
+  assert.equal(source.versionId, null);
+  assert.equal(source.content.schemaVersion, 2);
+  assert.equal(source.content.values.hero, 'Existing community event');
+  assert.match(source.content.values['legacy:archive-system-record'], /Existing archive summary/);
 });
 
 test('publishing an amendment refreshes the existing archive directory projection', async () => {
@@ -1772,8 +1799,8 @@ test('submitting a targeted amendment requires an immutable base version', async
   );
 });
 
-test('only an official archive can submit an amendment without a document target', async () => {
-  for (const [origin, expectedStatus] of [['local', 'invalid_target'], ['official', 'submitted']]) {
+test('any archive record can submit an amendment without a document target', async () => {
+  for (const origin of ['local', 'official', 'community']) {
     const state = createDocumentTargetPolicyState();
     state.archives.find(({ id }) => id === 'station-archive').origin = origin;
     const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
@@ -1787,17 +1814,10 @@ test('only an official archive can submit an amendment without a document target
       content: { schemaVersion: 2, templateCode: '03', values: {} },
     });
 
-    if (origin === 'official') {
-      assert.equal(
-        (await harness.repository.submitDraft(saved.id, 'clerk-1')).status,
-        expectedStatus,
-      );
-    } else {
-      await assert.rejects(
-        harness.repository.submitDraft(saved.id, 'clerk-1'),
-        hasCode(expectedStatus),
-      );
-    }
+    assert.equal(
+      (await harness.repository.submitDraft(saved.id, 'clerk-1')).status,
+      'submitted',
+    );
   }
 });
 

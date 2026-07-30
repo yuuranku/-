@@ -179,13 +179,25 @@ test('an amendment to an official base names the official source and only the mo
   assert.doesNotMatch(markup, /<dt>档案提交者<\/dt>/);
 });
 
-test('archive File menu exposes real amendment, export, print, and close actions', () => {
+test('archive Edit menu exposes real amendment, export, print, and close actions', () => {
+  assert.match(html, /data-archive-menu-trigger="edit"/);
   assert.match(html, /data-archive-menu-trigger="file"/);
   for (const action of ['amend', 'export', 'print', 'close']) {
-    assert.match(html, new RegExp(`data-archive-file-action="${action}"`));
+    assert.match(html, new RegExp(`data-archive-edit-action="${action}"`));
   }
   assert.match(main, /initializeArchiveFileMenu/);
   assert.match(main, /downloadArchiveDocument/);
+});
+
+test('published record choices live in the File menu rather than above the archive body', () => {
+  assert.match(main, /data-archive-record-action/);
+  const markup = renderPublishedContributionLedger(buildPublishedArchiveModel({
+    archive: { id: 'hz6', code: 'HZ-6', title: 'HZ-6', visibility: 'public' },
+    contributions,
+  }));
+  assert.doesNotMatch(markup, /archive-contribution-tabs/);
+  assert.doesNotMatch(markup, /archive-contribution-ledger__mast/);
+  assert.match(markup, /data-contribution-tab=/);
 });
 
 test('a newly accessioned cloud archive can open immediately in the public archive window', () => {

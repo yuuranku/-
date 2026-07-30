@@ -22,7 +22,21 @@ export const shouldCompareCapture = (capture, { publicOnly = false } = {}) =>
   !publicOnly || !WORKSPACE_SCENES.has(capture.scene);
 const EXPECTED_KEYS = new Set(VIEWPORTS.flatMap((viewport) => SCENES.map((scene) => `${viewport}:${scene}`)));
 const ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
-const DIRECTORY_PROOFS = Object.freeze({ countries:['country-stack',18], organizations:['network',23], stations:['station-board',20], entrances:['entrance-network',18], ecology:['ecology-strata',7], people:['dossier',36], events:['event-plane',26], abnormalities:['anomaly-monitor',25], species:['species-helix',22] });
+const BASELINE_READONLY_PATHS = new Set([
+  '/rest/v1/archive_notifications',
+  '/rest/v1/archive_contributions',
+  '/rest/v1/workspace_notes',
+  '/rest/v1/workspace_note_layouts',
+]);
+const isBaselineReadonlyFixture = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === ARCHIVE_ORIGIN && BASELINE_READONLY_PATHS.has(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+const DIRECTORY_PROOFS = Object.freeze({ countries:['country-stack',18], organizations:['network',23], stations:['station-board',20], entrances:['entrance-network',18], ecology:['ecology-strata',7], people:['dossier',36], events:['event-plane',1], abnormalities:['anomaly-monitor',3], species:['species-helix',22] });
 
 const resolveCapturePath = (manifestPath, capture) => path.resolve(
   capture.file.startsWith('tmp/') ? workspace : path.dirname(manifestPath), capture.file,
@@ -66,7 +80,7 @@ export function validatePalisManifest(manifest) {
   }
   for (const [kind, entries] of Object.entries(manifest?.requestLog ?? {})) for (const entry of entries ?? []) {
     if (!entry || typeof entry.method !== 'string' || !entry.method || typeof entry.url !== 'string' || !entry.url) problems.push(`request entry invalid: ${kind}`);
-    else if (kind === 'allowed' && !(entry.url.startsWith('data:') || entry.url.startsWith('blob:') || (() => { try { return new URL(entry.url).origin === manifest.previewOrigin; } catch { return false; } })())) problems.push('allowed request origin invalid');
+    else if (kind === 'allowed' && !(entry.url.startsWith('data:') || entry.url.startsWith('blob:') || isBaselineReadonlyFixture(entry.url) || (() => { try { return new URL(entry.url).origin === manifest.previewOrigin; } catch { return false; } })())) problems.push('allowed request origin invalid');
     else if (kind === 'archives' && (!['GET','OPTIONS'].includes(entry.method) || (() => { try { const u=new URL(entry.url); return u.origin !== manifest.archiveOrigin || u.pathname !== '/rest/v1/archives'; } catch { return true; } })())) problems.push('archive request invalid');
   }
   if (manifest?.diagnostics?.length) problems.push('diagnostics are not empty');

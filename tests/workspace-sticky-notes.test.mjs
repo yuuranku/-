@@ -632,7 +632,7 @@ test('note controls use Chinese accessible labels and expose retryable Chinese s
   const remove = root.find((element) => element.dataset.workspaceNoteDelete === 'true');
 
   assert.equal(card.getAttribute('aria-label'), '便签：交接事项');
-  assert.equal(handle.textContent, '拖动');
+  assert.equal(handle.textContent, '', 'The note drag strip must not print an instruction on the note');
   assert.equal(handle.getAttribute('aria-label'), '拖动便签：交接事项');
   assert.equal(close.textContent, '关闭');
   assert.equal(close.getAttribute('aria-label'), '关闭便签：交接事项');

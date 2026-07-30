@@ -17,8 +17,8 @@ test('the nine category profiles allocate after the static archive floors', () =
     entrance: ['EN19', '019.CRD'],
     ecology: ['E08', '008.ECO'],
     person: ['P47', '047.PER'],
-    event: ['EV27', '027.RLL'],
-    anomaly: ['A26', '026.TRC'],
+    event: ['EV02', '002.RLL'],
+    anomaly: ['A04', '004.TRC'],
     species: ['S23', '023.SPC'],
   };
 

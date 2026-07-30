@@ -1,5 +1,7 @@
 const DEFAULT_GAP = 16;
-const DEFAULT_GUTTER = 24;
+// Keep fresh notes below the draggable mailbox ornament in the desktop's
+// right-hand column, so the first note's edit controls remain clickable.
+const DEFAULT_GUTTER = 168;
 const DEFAULT_NOTE_SIZE = Object.freeze({ height: 180, width: 264 });
 
 const clone = (value) => {
@@ -314,8 +316,6 @@ export const initializeWorkspaceNotes = ({
       dragHandle.setAttribute('aria-disabled', String(isLayoutSaving));
       dragHandle.setAttribute('role', 'button');
       dragHandle.setAttribute('tabindex', '0');
-      dragHandle.setAttribute('title', '按空格键或回车键开始移动，再用方向键调整位置');
-      dragHandle.textContent = '拖动';
       dragHandle.addEventListener('pointerdown', (event) => {
         beginDrag(note.id, {
           card,

@@ -22,6 +22,41 @@ const EMPTY_POLICY = Object.freeze({
 });
 
 const MEDIA_POLICIES = Object.freeze({
+  country: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'country',
+    slots: Object.freeze([
+      defineSlot('country-flag', 'photo', 1, '国家旗帜'),
+    ]),
+  }),
+  organization: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'organization',
+    slots: Object.freeze([
+      defineSlot('organization-cover', 'photo', 1, '组织主图'),
+    ]),
+  }),
+  station: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'station',
+    slots: Object.freeze([
+      defineSlot('station-cover', 'photo', 1, '站点主图'),
+    ]),
+  }),
+  entrance: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'entrance',
+    slots: Object.freeze([
+      defineSlot('entrance-cover', 'photo', 1, '入口主图'),
+    ]),
+  }),
+  ecology: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'ecology',
+    slots: Object.freeze([
+      defineSlot('ecology-cover', 'photo', 1, '生态主图'),
+    ]),
+  }),
   person: Object.freeze({
     ...EMPTY_POLICY,
     category: 'person',
@@ -35,6 +70,22 @@ const MEDIA_POLICIES = Object.freeze({
     slots: Object.freeze([
       defineSlot('event-cover', 'photo', 1, '事件封面'),
       defineSlot('event-evidence', 'evidence', 6, '事件证据图'),
+    ]),
+  }),
+  anomaly: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'anomaly',
+    slots: Object.freeze([
+      defineSlot('anomaly-cover', 'photo', 1, '异常档案主图'),
+      defineSlot('anomaly-image', 'evidence', 6, '正文附图'),
+    ]),
+  }),
+  species: Object.freeze({
+    ...EMPTY_POLICY,
+    category: 'species',
+    slots: Object.freeze([
+      defineSlot('species-cover', 'photo', 1, '标本主图'),
+      defineSlot('species-image', 'evidence', 6, '正文附图'),
     ]),
   }),
 });
@@ -54,8 +105,11 @@ export const mediaPolicyForCategory = (category) =>
 
 const fieldForRole = (role, fallback) => {
   if (fallback) return fallback;
-  if (role === 'portrait' || role === 'event-cover') return 'photo';
-  if (role === 'event-evidence') return 'evidence';
+  if ([
+    'country-flag', 'organization-cover', 'station-cover', 'entrance-cover', 'ecology-cover',
+    'portrait', 'event-cover', 'anomaly-cover', 'species-cover',
+  ].includes(role)) return 'photo';
+  if (['event-evidence', 'anomaly-image', 'species-image'].includes(role)) return 'evidence';
   return '';
 };
 

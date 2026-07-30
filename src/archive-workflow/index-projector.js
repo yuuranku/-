@@ -46,6 +46,11 @@ const categoryProjection = (category, indexData, sequenceNumber) => {
         bloc: channelGroup(indexData.bloc, 'neutral'),
         priority: 100000 + (sequenceNumber || 0),
         archivePeriod: indexData.archivePeriod,
+        stats: [
+          ['目录', '国家'],
+          ['档案期', indexData.archivePeriod || '待定'],
+          ['状态', '已上线'],
+        ],
       };
     case 'organization':
       return {

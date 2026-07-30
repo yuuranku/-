@@ -12,6 +12,10 @@ const archiveIndexRecordRepairMigrationUrl = new URL('supabase/migrations/202607
 const archiveMediaGuardrailsMigrationUrl = new URL('supabase/migrations/202607290003_archive_media_guardrails.sql', projectRoot);
 const clerkNativeEditorSourcesMigrationUrl = new URL('supabase/migrations/202607290004_clerk_native_editor_sources.sql', projectRoot);
 const workspaceStickyNotesMigrationUrl = new URL('supabase/migrations/202607290005_workspace_sticky_notes.sql', projectRoot);
+const archiveRecordBaseAmendmentsMigrationUrl = new URL('supabase/migrations/202607300001_archive_record_base_amendments.sql', projectRoot);
+const archiveMediaSpeciesAnomalyMigrationUrl = new URL('supabase/migrations/202607300002_archive_media_species_anomaly_slots.sql', projectRoot);
+const archiveMediaPrimarySlotsMigrationUrl = new URL('supabase/migrations/202607300003_archive_media_primary_slots.sql', projectRoot);
+const archiveDirectorySlotReservationMigrationUrl = new URL('supabase/migrations/202607300007_archive_directory_slot_reservation.sql', projectRoot);
 const inviteFunctionUrl = new URL('supabase/functions/admin-invite-user/index.ts', projectRoot);
 
 test('archive workflow schema defines all persisted resources and enables RLS', async () => {
@@ -256,4 +260,43 @@ test('workspace sticky notes RLS excludes disabled observer and anonymous princi
   assert.match(sql, /revoke all on table public\.workspace_note_layouts from anon/i);
   assert.match(sql, /grant select, insert, update, delete on table public\.workspace_notes to authenticated/i);
   assert.match(sql, /grant select, insert, update on table public\.workspace_note_layouts to authenticated/i);
+});
+
+test('archive directory slot reservations allocate anomalies after A03 without changing the retained event range', async () => {
+  const sql = await readFile(archiveDirectorySlotReservationMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.archive_number_floor/i);
+  assert.match(sql, /when 'event' then 1/i);
+  assert.match(sql, /when 'anomaly' then 3/i);
+});
+
+test('archive media guardrails accept the new anomaly and species image slots', async () => {
+  const sql = await readFile(archiveMediaSpeciesAnomalyMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.validate_archive_attachment_slot/i);
+  assert.match(sql, /'anomaly-cover'[\s\S]*'anomaly-image'[\s\S]*'anomaly'/i);
+  assert.match(sql, /'species-cover'[\s\S]*'species-image'[\s\S]*'species'/i);
+  assert.match(sql, /anomaly-cover' then 1 else 6/i);
+  assert.match(sql, /species-cover' then 1 else 6/i);
+});
+
+test('archive media guardrails accept one primary image for every remaining archive category', async () => {
+  const sql = await readFile(archiveMediaPrimarySlotsMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.validate_archive_attachment_slot/i);
+  assert.match(sql, /'country-flag'[\s\S]*'country'/i);
+  assert.match(sql, /'organization-cover'[\s\S]*'organization'/i);
+  assert.match(sql, /'station-cover'[\s\S]*'station'/i);
+  assert.match(sql, /'entrance-cover'[\s\S]*'entrance'/i);
+  assert.match(sql, /'ecology-cover'[\s\S]*'ecology'/i);
+  assert.match(sql, /v_limit := 1/i);
+});
+
+test('archive-record amendments do not require a native source document', async () => {
+  const sql = await readFile(archiveRecordBaseAmendmentsMigrationUrl, 'utf8').catch(() => '');
+
+  assert.match(sql, /create or replace function public\.validate_archive_contribution_target/i);
+  assert.match(sql, /if new\.target_contribution_id is null then[\s\S]*if new\.base_version_id is not null then/i);
+  assert.doesNotMatch(sql, /archive_record\.origin\s*<>\s*'official'/i);
+  assert.match(sql, /notify pgrst, 'reload schema'/i);
 });

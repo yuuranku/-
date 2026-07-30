@@ -51,6 +51,7 @@ export function createLocalAdminRuntime() {
     indexedDB: window.indexedDB,
     getPrincipal: () => profile,
     seed: createSeed,
+    seedOfficialBaselines: true,
     now: () => new Date().toISOString(),
     randomUUID: () => crypto.randomUUID(),
   });

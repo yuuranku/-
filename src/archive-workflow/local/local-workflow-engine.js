@@ -7,7 +7,7 @@ import {
 } from '../category-profiles.js';
 import { ARCHIVE_ROOTS } from '../../archive-data.js';
 import { mediaPolicyForCategory } from '../media.js';
-import { toEditorDocumentFromOfficialArchive } from '../official-archive-source.js';
+import { toEditorDocumentFromArchiveBase } from '../official-archive-source.js';
 import { ARCHIVE_TEMPLATES } from '../templates.js';
 
 export class LocalWorkflowError extends Error {
@@ -181,10 +181,10 @@ export const createLocalWorkflowEngine = ({
       throw workflowError('invalid_target', 'An amendment requires an existing archive');
     }
     if (!contribution.target_contribution_id) {
-      if (archive.origin !== 'official' || contribution.base_version_id) {
+      if (contribution.base_version_id) {
         throw workflowError(
           'invalid_target',
-          'Only an official archive record can be amended without a document target',
+          'An archive-record amendment cannot include a document base version',
         );
       }
       return;
@@ -1143,8 +1143,8 @@ export const createLocalWorkflowEngine = ({
         candidate.contribution_id === contribution.id) ?? null;
       if (!selected || selected.content?.schemaVersion !== 2) return null;
     } else if (officialBase) {
-      if (archive.origin !== 'official') return null;
-      contribution = publishedContributions
+      contribution = archive.origin === 'official'
+        ? publishedContributions
         .filter((candidate) =>
           candidate.kind === 'amendment'
           && !candidate.target_contribution_id)
@@ -1156,7 +1156,8 @@ export const createLocalWorkflowEngine = ({
         .sort((left, right) =>
           String(right.version.created_at ?? right.version.approved_at ?? '')
             .localeCompare(String(left.version.created_at ?? left.version.approved_at ?? '')))[0]
-        ?? null;
+        ?? null
+        : null;
       if (contribution) {
         selected = contribution.version;
         contribution = contribution.contribution;
@@ -1166,7 +1167,7 @@ export const createLocalWorkflowEngine = ({
         const template = ARCHIVE_TEMPLATES.find((candidate) =>
           normalizeCategory(candidate.category) === normalizeCategory(archive.category));
         const staticRoot = ARCHIVE_ROOTS.find((candidate) => candidate.code === template?.code);
-        const content = toEditorDocumentFromOfficialArchive(archive, staticRoot, template);
+        const content = toEditorDocumentFromArchiveBase(archive, staticRoot, template);
         return {
           archiveId: id,
           contributionId: null,

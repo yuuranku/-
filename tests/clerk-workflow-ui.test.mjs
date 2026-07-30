@@ -63,7 +63,8 @@ test('clerk editor uses a native single-scroll form and not an external template
   assert.match(workspace, /renderNativeArchiveForm/);
   assert.match(workspace, /readNativeArchiveForm/);
   assert.match(workspace, /data-native-custom-entry/);
-  assert.match(workspace, /data-reference-search/);
+  assert.doesNotMatch(workspace, /data-native-legacy/);
+  assert.doesNotMatch(workspace, /data-reference-search/);
   assert.doesNotMatch(workspace, /createTemplateEditorBridge/);
   assert.doesNotMatch(workspace, /data-template-editor-frame/);
   assert.doesNotMatch(workspace, /FREEFORM_AMENDMENT_TEMPLATE/);
@@ -74,6 +75,21 @@ test('submission still uses the existing media-aware workflow function', () => {
   assert.match(workspace, /submitDraftWithArchiveMedia/);
   assert.match(workspace, /client\.reviewSubmission/);
   assert.match(workspace, /client\.publishContribution/);
+});
+
+test('mailbox uses the real review queue and review replies for its alert state', () => {
+  assert.match(html, /data-workspace-command="mailbox"/);
+  assert.match(html, /data-workspace-mailbox-ornament/);
+  assert.match(html, /data-workspace-mailbox-alert/);
+  assert.match(workspace, /const initializeMailboxOrnament = \(\) =>/);
+  assert.match(workspace, /setPointerCapture/);
+  assert.match(workspace, /--mailbox-ornament-x/);
+  assert.match(workspace, /const refreshMailboxAlert = async \(\) =>/);
+  assert.match(workspace, /client\.listNotifications\(context\.profile\.id\)/);
+  assert.match(workspace, /client\.listReviewQueue\(\)/);
+  assert.match(workspace, /client\.markNotificationRead\(notification\.id, context\.profile\.id\)/);
+  assert.match(workspace, /command === 'mailbox'/);
+  assert.match(workspace, /已投递至邮筒 \/ 等待审核/);
 });
 
 test('amendments choose a visible archive instead of asking for internal record IDs', () => {
@@ -91,7 +107,7 @@ test('amendments choose a visible archive instead of asking for internal record 
   assert.doesNotMatch(workspace, /目标投稿 ID/);
 });
 
-test('all nine clerk categories enter the new-archive chooser without UI coercion', async () => {
+test('clerks can only modify existing station and entrance archives while administrators retain new actions', async () => {
   assert.deepEqual(
     archiveCabinetEntries('clerk').map(({ code, defaultKind }) => [code, defaultKind]),
     [
@@ -106,14 +122,11 @@ test('all nine clerk categories enter the new-archive chooser without UI coercio
       ['09', 'new'],
     ],
   );
-  assert.match(workspace, /const initialKind = initial\.kind \|\| 'new'/);
-  assert.match(workspace, /openNewArchiveChooser/);
-  assert.match(workspace, /ARCHIVE_TEMPLATES\.map/);
-  assert.match(workspace, /data-new-archive-template/);
-  assert.match(workspace, /createEditor\(template,\s*\{\s*kind:\s*'new'\s*\}\)/);
-  assert.doesNotMatch(workspace, /isFixedArchiveCategory/);
-  assert.doesNotMatch(workspace, /kindSelect\.disabled\s*=\s*true/);
-  assert.doesNotMatch(workspace, /自由修订补充页/);
+  assert.match(workspace, /const clerkNewRestrictedTemplateCodes = new Set\(\['03', '04'\]\)/);
+  assert.match(workspace, /const canStartCategoryArchive = \(template\) =>/);
+  assert.match(workspace, /canStartCategoryArchive\(template\)/);
+  assert.match(workspace, /openCategoryNewArchiveChooser/);
+  assert.match(workspace, /data-category-action="new"/);
 });
 
 test('amendment initial state keeps the selected immutable source and archive target', () => {
@@ -166,6 +179,34 @@ test('amendment initial state keeps the selected immutable source and archive ta
   ]);
 });
 
+test('organization amendments retain the full saved clerk document instead of opening a blank form', () => {
+  const archive = { id: 'archive-organization-7', code: 'ORG-07', title: '第七航线协调局' };
+  const documentChoice = { id: 'contribution-organization-7', title: '第七航线协调局', latestVersionId: 'version-7' };
+  const content = {
+    schemaVersion: 2,
+    templateCode: '02',
+    values: {
+      hero: '第七航线协调局',
+      institutionNumber: 'ORG-07',
+      'custom:item:route:title': '航线任务',
+      'custom:item:route:content': '统筹北岸补给。',
+    },
+    indexData: { title: '第七航线协调局', channel: 'blue' },
+  };
+
+  const initial = workspaceModule.buildAmendmentInitialState(archive, documentChoice, {
+    archiveId: archive.id,
+    contributionId: documentChoice.id,
+    versionId: documentChoice.latestVersionId,
+    content,
+  });
+
+  assert.equal(initial.targetDocumentId, documentChoice.id);
+  assert.equal(initial.baseVersionId, documentChoice.latestVersionId);
+  assert.deepEqual(initial.content.values, content.values);
+  assert.equal(initial.content.indexData.channel, 'blue');
+});
+
 test('returned submissions are assigned to their matching action and record position', () => {
   assert.equal(typeof workspaceModule.buildClerkDraftPlacement, 'function');
   assert.deepEqual(
@@ -199,6 +240,23 @@ test('returned submissions are assigned to their matching action and record posi
       archiveId: 'archive-7',
       documentId: 'document-3',
     },
+  );
+  assert.deepEqual(
+    workspaceModule.buildClerkDraftPlacement({
+      id: 'returned-contribution',
+      kind: 'contribution',
+      template_id: '07',
+      archive_id: 'archive-7',
+      status: 'changes_requested',
+      draft_content: {},
+    }),
+    {
+      action: 'new',
+      templateCode: '07',
+      archiveId: 'archive-7',
+      documentId: null,
+    },
+    'a returned sibling document must reappear under New rather than Modify',
   );
 });
 
@@ -251,12 +309,15 @@ test('formal accession leaves archive identifiers and versions to the system', (
   assert.doesNotMatch(workspace, /<input name="code"/);
 });
 
-test('native editor keeps explicit reference search without iframe slash hooks', () => {
-  assert.match(workspace, /data-reference-search/);
-  assert.match(workspace, /data-add-reference/);
-  assert.match(workspace, /data-remove-reference/);
-  assert.doesNotMatch(workspace, /data-slash-reference-menu/);
-  assert.doesNotMatch(workspace, /onReferenceTrigger|insertReference/);
+test('native editor cites archives inline through a slash picker without persistent reference panels', () => {
+  assert.match(workspace, /detectArchiveReferenceQuery/);
+  assert.match(workspace, /replaceArchiveReferenceQuery/);
+  assert.match(workspace, /data-inline-reference-menu/);
+  assert.match(workspace, /data-inline-reference-result/);
+  assert.doesNotMatch(workspace, /data-editor-section="references"/);
+  assert.doesNotMatch(workspace, /data-reference-search/);
+  assert.doesNotMatch(workspace, /data-reference-list/);
+  assert.doesNotMatch(workspace, /data-native-legacy/);
 });
 
 test('official archive amendments keep separate windows and autosave keys by archive code', () => {

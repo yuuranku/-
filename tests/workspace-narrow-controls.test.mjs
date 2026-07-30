@@ -39,13 +39,13 @@ test('narrow workspace window controls reserve a 44px hit target', async () => {
   }
 });
 
-test('narrow native editor fills the bounded workspace layer without a stale dock width', async () => {
+test('narrow native editor fills the bounded workspace layer without a stale desktop width', async () => {
   const root = postcss.parse(await readFile(workflowStyleUrl, 'utf8'));
   const declarations = new Map();
   root.walkAtRules('media', (rule) => {
     if (rule.params.replaceAll(' ', '') !== '(max-width:760px)') return;
-    rule.walkRules('.archive-editor-window.is-docked-right', (dockRule) => {
-      for (const declaration of dockRule.nodes.filter((node) => node.type === 'decl')) {
+    rule.walkRules('.archive-workflow-window', (windowRule) => {
+      for (const declaration of windowRule.nodes.filter((node) => node.type === 'decl')) {
         declarations.set(declaration.prop, declaration.value);
       }
     });

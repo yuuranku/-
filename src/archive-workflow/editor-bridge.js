@@ -56,20 +56,28 @@ const installEditorPerformanceStyles = (root) => {
   root.head?.append(style);
 };
 
-export const detectArchiveReferenceQuery = (value) => {
+const currentArchiveReferenceToken = (value) => {
   const text = String(value ?? '');
-  const match = text.match(/(?:^|[\s，。；：、])\/([^/\r\n]{0,40})$/);
-  return match ? match[1].trim() : null;
+  const slashOffset = text.lastIndexOf('/');
+  if (slashOffset < 0) return null;
+  const query = text.slice(slashOffset + 1);
+  if (query.length > 40 || /[/\r\n]/.test(query)) return null;
+  // A slash inside a URL is ordinary prose, not an archive-reference command.
+  if (/(?:https?|ftp):\/\/\S*$/i.test(text)) return null;
+  return { query: query.trim(), slashOffset };
+};
+
+export const detectArchiveReferenceQuery = (value) => {
+  return currentArchiveReferenceToken(value)?.query ?? null;
 };
 
 export const replaceArchiveReferenceQuery = (value, reference) => {
   const text = String(value ?? '');
-  const match = text.match(/(?:^|[\s，。；：、])\/([^/\r\n]{0,40})$/);
-  if (!match) return text;
-  const slashOffset = match.index + match[0].lastIndexOf('/');
+  const token = currentArchiveReferenceToken(text);
+  if (!token) return text;
   const code = String(reference?.code ?? '').trim();
   const label = String(reference?.label ?? reference?.title ?? '').trim();
-  return `${text.slice(0, slashOffset)}〔${[code, label].filter(Boolean).join(' ')}〕`;
+  return `${text.slice(0, token.slashOffset)}〔${[code, label].filter(Boolean).join(' ')}〕`;
 };
 
 const describeTemplateStructure = (root) => {

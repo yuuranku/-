@@ -139,6 +139,21 @@ test('workspace notes are paper strips that support the full admin and clerk des
   await page.waitForSelector(`${noteSelector(sharedId)} [data-workspace-note-title-input]`);
   await setValue(page, `${noteSelector(sharedId)} [data-workspace-note-title-input]`, '已更新的交接事项');
   await setValue(page, `${noteSelector(sharedId)} [data-workspace-note-content-input]`, '已更新的共享正文。');
+  assert.deepEqual(await page.$eval(`${noteSelector(sharedId)} [data-workspace-note-save]`, (button) => {
+    const rect = button.getBoundingClientRect();
+    const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return {
+      content: button.closest('[data-workspace-note-id]')?.querySelector('[data-workspace-note-content-input]')?.value,
+      hit: top?.dataset.workspaceNoteSave === 'true',
+      hitTag: top?.tagName,
+      title: button.closest('[data-workspace-note-id]')?.querySelector('[data-workspace-note-title-input]')?.value,
+    };
+  }), {
+    content: '已更新的共享正文。',
+    hit: true,
+    hitTag: 'BUTTON',
+    title: '已更新的交接事项',
+  });
   await page.click(`${noteSelector(sharedId)} [data-workspace-note-save]`);
   await page.waitForFunction((selector) => document.querySelector(selector)?.querySelector('h3')?.textContent === '已更新的交接事项', {}, noteSelector(sharedId));
 

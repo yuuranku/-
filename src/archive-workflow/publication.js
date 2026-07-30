@@ -284,13 +284,14 @@ const renderAmendments = (amendments = [], targetId) => {
 const renderContribution = (contribution, index, archive, amendments = []) => {
   const version = contribution.latestVersion;
   if (version.content?.schemaVersion === 2) {
+    const showReferences = archive?.category !== 'anomaly';
     return `
       <article class="archive-contribution-panel archive-contribution-panel--formal" data-contribution-panel="${escapeHtml(contribution.id)}" hidden>
         ${renderPublishedMediaMount(
           contribution.id,
           renderFormalArchiveDocument({ archive, contribution, version }),
         )}
-        <section class="archive-contribution-supporting">
+        <section class="archive-contribution-supporting"${showReferences ? '' : ' hidden'}>
           <h4>引用档案</h4>
           ${renderReferences(version.content?.references)}
         </section>
@@ -356,15 +357,11 @@ export function renderPublishedContributionLedger(model) {
   };
   return `
     <section class="archive-contribution-ledger" data-published-archive="${escapeHtml(model.archive.id)}">
-      <header class="archive-contribution-ledger__mast">
-        <div><span>MULTI-SOURCE ACCESSION</span><b>${escapeHtml(model.archive.code)} / ${String(model.contributions.length).padStart(2, '0')} RECORDS</b></div>
-        <p>${model.marks.map((mark) => `<i data-archive-mark="${mark}">${markLabels[mark]}</i>`).join('')}</p>
-      </header>
-      <nav class="archive-contribution-tabs" aria-label="${escapeHtml(model.archive.title)}记录切换">
+      <div data-published-record-selectors hidden>
         ${model.tabs.map((tab, index) => `
           <button type="button" data-contribution-tab="${escapeHtml(tab.id)}" aria-selected="${index === 0 ? 'true' : 'false'}">${escapeHtml(tab.label)}</button>
         `).join('')}
-      </nav>
+      </div>
       ${model.officialTargetId ? `
         <article class="archive-contribution-panel archive-contribution-panel--official" data-contribution-panel="${escapeHtml(model.officialTargetId)}" hidden>
           ${model.officialRecord?.markup || ''}

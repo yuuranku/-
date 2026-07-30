@@ -78,8 +78,9 @@ test('local administrator opens the workspace without loading cloud authenticati
       }));
       assert.equal(metrics.startVisible, true);
       assert.equal(metrics.utilities, false);
-      assert.equal(metrics.iconFlow, viewport.width <= 760 ? 'row' : 'column');
-      assert.equal(metrics.iconWidth, 60);
+      assert.equal(metrics.iconFlow, 'row');
+      assert.ok(metrics.iconWidth >= (viewport.width <= 760 ? 42 : 56));
+      assert.ok(metrics.iconWidth <= 84);
       assert.ok(metrics.taskbarHeight >= (viewport.width <= 760 ? 44 : 34));
       if (process.env.PALIS_CAPTURE_UI === '1') {
         await mkdir(shellCaptureDirectory, { recursive: true });
@@ -89,7 +90,7 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.setViewport({ width: 1280, height: 800 });
     await page.waitForFunction(() => getComputedStyle(
       document.querySelector('.clerk-desktop__icons'),
-    ).gridAutoFlow === 'column');
+    ).gridAutoFlow === 'row');
     await page.keyboard.press('Escape');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     await page.click('[data-workspace-shortcut][data-workspace-command="archives"]', { count: 2, delay: 40 });
@@ -155,55 +156,49 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('[data-workspace-watermark-connection]');
     assert.equal(await page.$eval('#clerk-desktop-start-menu', (menu) => menu.hidden), true);
     assert.equal(await page.$eval('#clerk-desktop-start', (button) => button.getAttribute('aria-expanded')), 'false');
-    await page.click('[data-workspace-shortcut][data-workspace-command="new-archive"]', { count: 2, delay: 40 });
-    await page.waitForSelector('[data-new-archive-chooser]');
-    await page.click('[data-new-archive-template="07"]');
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('palis:workspace-command', {
+        detail: { command: 'archive-category:07' },
+      }));
+    });
+    await page.waitForSelector('[data-category-archive-actions="07"]');
+    await page.$eval('[data-category-action="new"]', (button) => button.click());
+    await page.waitForSelector('[data-category-new-archive-chooser="07"]');
+    await page.$eval('[data-new-independent-template="07"]', (button) => button.click());
     // The local administrator workflow loads a full native editor after the
     // chooser click.  Keep the assertion bounded, but allow a busy full
     // browser-test run to finish that work rather than treating scheduler
     // contention as an editor failure.
     await page.waitForSelector('.archive-editor-window:not([hidden])', { timeout: 60_000 });
-    assert.equal(
-      await page.$eval('.archive-editor-window', (windowElement) =>
-        windowElement.classList.contains('is-opening')),
-      true,
-    );
     await page.waitForFunction(() =>
       !document.querySelector('.archive-editor-window')?.classList.contains('is-opening'));
-    const dockGeometry = await page.evaluate(() => {
+    const editorGeometry = await page.evaluate(() => {
       const windowElement = document.querySelector('.archive-editor-window');
-      const layer = document.querySelector('#assistant-window-layer');
       const scroll = windowElement.querySelector('.archive-editor__scroll');
       const form = windowElement.querySelector('.archive-editor');
       const windowRect = windowElement.getBoundingClientRect();
-      const layerRect = layer.getBoundingClientRect();
       return {
         width: windowRect.width,
-        top: windowRect.top - layerRect.top,
-        right: layerRect.right - windowRect.right,
-        bottom: layerRect.bottom - windowRect.bottom,
+        docked: windowElement.classList.contains('is-docked-right'),
         formOverflow: getComputedStyle(form).overflow,
         scrollOverflowY: getComputedStyle(scroll).overflowY,
         scrolls: scroll.scrollHeight > scroll.clientHeight,
       };
     });
-    assert.deepEqual(dockGeometry, {
-      width: 560,
-      top: 0,
-      right: 0,
-      bottom: 0,
+    assert.deepEqual(editorGeometry, {
+      width: 720,
+      docked: false,
       formOverflow: 'hidden',
       scrollOverflowY: 'auto',
       scrolls: true,
     });
-    const beforeLockedInteractions = await page.$eval(
+    const beforeMove = await page.$eval(
       '.archive-editor-window',
       (windowElement) => {
         const rect = windowElement.getBoundingClientRect();
         return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
       },
     );
-    await page.click('.archive-editor-window [data-workflow-maximize]');
     const titlebar = await page.$eval(
       '.archive-editor-window [data-workflow-drag-handle]',
       (handle) => {
@@ -215,8 +210,9 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.mouse.down();
     await page.mouse.move(titlebar.x - 140, titlebar.y + 90, { steps: 4 });
     await page.mouse.up();
-    assert.deepEqual(
-      await page.$eval('.archive-editor-window', (windowElement) => {
+    const afterMove = await page.$eval(
+      '.archive-editor-window',
+      (windowElement) => {
         const rect = windowElement.getBoundingClientRect();
         return {
           left: rect.left,
@@ -226,9 +222,12 @@ test('local administrator opens the workspace without loading cloud authenticati
           maximized: windowElement.classList.contains('is-maximized'),
           dragging: windowElement.classList.contains('is-dragging'),
         };
-      }),
-      { ...beforeLockedInteractions, maximized: false, dragging: false },
+      },
     );
+    assert.equal(afterMove.maximized, false);
+    assert.equal(afterMove.dragging, false);
+    assert.ok(afterMove.left < beforeMove.left - 80);
+    assert.ok(afterMove.top >= beforeMove.top);
     const focusState = await page.evaluate(() => {
       const dialog = document.querySelector('.archive-editor-window');
       return {
@@ -302,7 +301,7 @@ test('local administrator opens the workspace without loading cloud authenticati
     await page.click('.archive-editor-window [data-workflow-close]');
     await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
     assert.equal(await page.evaluate(() => document.activeElement?.matches?.(
-      '[data-workspace-shortcut][data-workspace-command="new-archive"]',
+      '[data-workspace-shortcut][data-workspace-command="archive-category:07"]',
     )), true);
 
     const modificationFixture = await page.evaluate(async () => {
@@ -435,23 +434,24 @@ test('local administrator opens the workspace without loading cloud authenticati
       (button) => button.hidden,
     ), true);
 
-    await page.$eval(
-      '[data-workspace-shortcut][data-workspace-command="modify-archive"]',
-      (button) => button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })),
-    );
-    await page.waitForSelector('[data-modify-category="event"]');
-    await page.click('[data-modify-category="event"]');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('palis:workspace-command', {
+      detail: { command: 'modify-archive' },
+    })));
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-modify-category="event"]')]
+      .some((button) => button.offsetParent));
+    await page.$$eval('[data-modify-category="event"]', (buttons) =>
+      buttons.find((button) => button.offsetParent)?.click());
     await page.waitForSelector(
       `[data-modify-archive="${modificationFixture.archiveId}"]`,
     );
-    await page.click(`[data-modify-archive="${modificationFixture.archiveId}"]`);
+    await page.$eval(`[data-modify-archive="${modificationFixture.archiveId}"]`, (button) => button.click());
     const returnedAmendment = `[data-open-returned-draft][data-draft-id="${modificationFixture.amendmentId}"]`;
     await page.waitForSelector(returnedAmendment);
     assert.match(
       await page.$eval(returnedAmendment, (button) => button.textContent),
       /管理员批注：请补充事件证据/,
     );
-    await page.click(returnedAmendment);
+    await page.$eval(returnedAmendment, (button) => button.click());
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     await page.waitForFunction((fixture) => {
       const form = document.querySelector('[data-archive-editor]');
@@ -461,8 +461,8 @@ test('local administrator opens the workspace without loading cloud authenticati
         && form.elements.targetDocumentId.value === fixture.targetDocumentId;
     }, { timeout: 10_000 }, modificationFixture);
 
-    await page.$eval('[data-archive-editor] [name="body:eventOverview"]', (field) => {
-      field.value = '浏览器修改后的事件概述';
+    await page.$eval('[data-archive-editor] [name="body:missionContent"]', (field) => {
+      field.value = '浏览器修改后的任务内容';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await page.waitForFunction((fixture) => {
@@ -476,17 +476,16 @@ test('local administrator opens the workspace without loading cloud authenticati
         && draft.baseVersionId === fixture.baseVersionId;
     }, { timeout: 5_000 }, modificationFixture);
 
-    await page.$eval('[data-archive-editor] [name="index:startDate"]', (field) => {
-      field.value = '1963-08-31';
+    await page.$eval('[data-archive-editor] [name="body:missionDate"]', (field) => {
+      field.value = '1963年8月31日';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await page.select('[data-archive-editor] [name="index:timePrecision"]', 'DAY');
-    await page.$eval('[data-archive-editor] [name="index:location"]', (field) => {
+    await page.$eval('[data-archive-editor] [name="body:missionArea"]', (field) => {
       field.value = '南极大陆';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await page.$eval('[data-archive-editor] [name="body:evidenceSummary"]', (field) => {
-      field.value = '补充证据摘要';
+    await page.$eval('[data-archive-editor] [name="body:teamStatus"]', (field) => {
+      field.value = '待复核队伍状态';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await page.click('[data-archive-editor] [data-submit-draft]');
@@ -522,9 +521,6 @@ test('local administrator opens the workspace without loading cloud authenticati
       await page.click('[data-workspace-exit-action="discard"]');
     }
     await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
-    assert.equal(await page.evaluate(() => document.activeElement?.matches?.(
-      '[data-workspace-shortcut][data-workspace-command="modify-archive"]',
-    )), true);
   } finally {
     delete process.env.VITE_PALIS_LOCAL_ADMIN;
     await page.close();

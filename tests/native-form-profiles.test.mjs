@@ -14,6 +14,166 @@ import {
 } from '../src/archive-workflow/native-form-profiles.js';
 
 const template03 = ARCHIVE_TEMPLATE_BY_CODE['03'];
+const template02 = ARCHIVE_TEMPLATE_BY_CODE['02'];
+
+test('organization forms expose six optional dossier fields in the formal record order', () => {
+  const profile = getNativeFormProfile('organization');
+  const state = readNativeFormState(template02, {});
+
+  assert.deepEqual(profile.coreFields.map(({ key }) => key), [
+    'institutionNumber',
+    'activePeriod',
+    'organizationNature',
+    'powerStructure',
+    'standingDepartments',
+    'frontlineUnits',
+  ]);
+  assert.equal(profile.coreFields.every(({ required }) => required === false), true);
+  assert.equal(
+    validateNativeFormState(profile, state).errors.some(({ key }) => profile.coreFields.some((field) => field.key === key)),
+    false,
+  );
+});
+
+test('organization forms rehydrate every saved clerk field when an uploaded record is modified', () => {
+  const savedDocument = createEditorDocument(template02, {
+    hero: '第七航线协调局',
+    institutionNumber: 'ORG-07',
+    activePeriod: '1962—1968年',
+    organizationNature: '跨区域航线协调机构',
+    powerStructure: '书记官核验后由主任签发',
+    standingDepartments: '档案室、调度室',
+    frontlineUnits: '北岸前线联络组',
+    'custom:item:route:title': '航线任务',
+    'custom:item:route:content': '统筹北岸补给与事故联络。',
+    'custom:item:protocol:title': '工作协议',
+    'custom:item:protocol:content': '遇到红色警报时转交联合值班台。',
+  }, {
+    indexData: { title: '第七航线协调局', channel: 'blue' },
+  });
+
+  const state = readNativeFormState(template02, savedDocument);
+  const html = renderNativeArchiveForm(getNativeFormProfile(template02), savedDocument);
+
+  assert.equal(state.indexData.channel, 'blue');
+  assert.deepEqual(state.body, {
+    institutionNumber: 'ORG-07',
+    activePeriod: '1962—1968年',
+    organizationNature: '跨区域航线协调机构',
+    powerStructure: '书记官核验后由主任签发',
+    standingDepartments: '档案室、调度室',
+    frontlineUnits: '北岸前线联络组',
+  });
+  assert.deepEqual(state.customEntries, [
+    { id: 'route', title: '航线任务', content: '统筹北岸补给与事故联络。' },
+    { id: 'protocol', title: '工作协议', content: '遇到红色警报时转交联合值班台。' },
+  ]);
+  assert.match(html, /<textarea[^>]*>ORG-07<\/textarea>/);
+  assert.match(html, /value="blue" selected/);
+  assert.match(html, /航线任务/);
+  assert.match(html, /统筹北岸补给与事故联络。/);
+});
+
+test('station forms use the original station log vocabulary and restore saved fields', () => {
+  const savedDocument = createEditorDocument(template03, {
+    hero: 'STATION TITLE',
+    stationOverview: 'STATION OVERVIEW',
+    'custom:item:roster:title': 'STATION ROSTER',
+    'custom:item:roster:content': 'STATION ROSTER CONTENT',
+  }, {
+    indexData: {
+      title: 'STATION TITLE', latitude: '-71.2', longitude: '11.3',
+      owner: 'STATION OWNER', stationType: 'STATION TYPE', status: 'STATION NETWORK',
+    },
+  });
+  const profile = getNativeFormProfile('station');
+  const state = readNativeFormState(template03, savedDocument);
+  const html = renderNativeArchiveForm(profile, savedDocument);
+
+  assert.deepEqual(profile.indexFields.map(({ label }) => label), [
+    '站名', '纬度', '经度', '所属', '站型', '行动网',
+  ]);
+  assert.equal(profile.coreFields[0].label, '站务、任务与公开站史');
+  assert.equal(state.indexData.status, 'STATION NETWORK');
+  assert.equal(state.body.stationOverview, 'STATION OVERVIEW');
+  assert.deepEqual(state.customEntries, [{
+    id: 'roster', title: 'STATION ROSTER', content: 'STATION ROSTER CONTENT',
+  }]);
+  assert.match(html, /name="index:status"[^>]*value="STATION NETWORK"/);
+  assert.match(html, /<textarea[^>]*>STATION OVERVIEW<\/textarea>/);
+});
+
+test('event forms expose six optional dossier fields and rehydrate saved clerk values', () => {
+  const template = ARCHIVE_TEMPLATE_BY_CODE['07'];
+  const document = createEditorDocument(template, {
+    hero: 'HZ-6 样本线任务',
+    missionNumber: 'HZ-6 / R06',
+    missionDate: '1952年11月18日—19日',
+    missionArea: '地平线站东南测网',
+    teamStatus: '5人：1生还、1死亡未回收、3失踪',
+    missionContent: '生态采样／测绘维护／通讯核对',
+    archiveStatus: 'BAS 地平线站封存副本',
+    'custom:item:scope:title': '任务范围',
+    'custom:item:scope:content': '从 HZ-6A 延伸至 HZ-6C。',
+  }, { indexData: { title: 'HZ-6 样本线任务' } });
+  const profile = getNativeFormProfile(template);
+  const state = readNativeFormState(template, document);
+
+  assert.deepEqual(profile.coreFields.map(({ key }) => key), [
+    'missionNumber', 'missionDate', 'missionArea', 'teamStatus', 'missionContent', 'archiveStatus',
+  ]);
+  assert.equal(profile.coreFields.every(({ required }) => required === false), true);
+  assert.equal(state.body.missionNumber, 'HZ-6 / R06');
+  assert.equal(state.body.archiveStatus, 'BAS 地平线站封存副本');
+  assert.deepEqual(state.customEntries, [{
+    id: 'scope', title: '任务范围', content: '从 HZ-6A 延伸至 HZ-6C。',
+  }]);
+});
+
+test('anomaly forms keep six dossier fields and switch the four contextual labels by anomaly kind', () => {
+  const template = ARCHIVE_TEMPLATE_BY_CODE['08'];
+  const document = createEditorDocument(template, {
+    anomalyTime: '1952年8月19日',
+    anomalyLocation: '暮色针叶层样本线',
+    anomalyCategory: '点名异常',
+    anomalyManifestation: '出现第六个回答',
+    anomalyInitialRecord: '原始录音带留有额外回应',
+    anomalyBasis: '录音带、值班表与点名原件分存',
+    'custom:item:record:title': '后续处置',
+    'custom:item:record:content': '停止沿用原点名程序。',
+  }, { indexData: { title: 'HZ-6第三次点名', anomalyKind: 'EVENT' } });
+  const profile = getNativeFormProfile(template);
+  const state = readNativeFormState(template, document);
+  const html = renderNativeArchiveForm(profile, document);
+
+  assert.equal(profile.indexFields.some(({ key }) => key === 'anomalyKind'), true);
+  assert.deepEqual(profile.coreFields.map(({ key }) => key), [
+    'anomalyTime', 'anomalyLocation', 'anomalyCategory',
+    'anomalyManifestation', 'anomalyInitialRecord', 'anomalyBasis',
+  ]);
+  assert.equal(state.indexData.anomalyKind, 'EVENT');
+  assert.equal(state.body.anomalyBasis, '录音带、值班表与点名原件分存');
+  assert.match(html, /异常类型/);
+  assert.match(html, /物件类别/);
+  assert.match(html, /name="index:anomalyKind"/);
+  assert.deepEqual(state.customEntries, [{
+    id: 'record', title: '后续处置', content: '停止沿用原点名程序。',
+  }]);
+});
+
+test('species forms limit new classifications to flora and fauna', () => {
+  const profile = getNativeFormProfile('species');
+  const specimenClass = profile.indexFields.find(({ key }) => key === 'specimenClass');
+
+  assert.deepEqual(
+    specimenClass.options.map(({ value }) => value),
+    ['FLORA', 'FAUNA'],
+  );
+  assert.deepEqual(
+    profile.coreFields.map(({ key }) => key),
+    ['temporaryTaxonomy', 'scale', 'primaryLayer', 'specimenState'],
+  );
+});
 
 test('nine native forms expose their category-specific required index and content fields', () => {
   assert.equal(Object.keys(NATIVE_FORM_PROFILES).length, 9);
@@ -21,7 +181,10 @@ test('nine native forms expose their category-specific required index and conten
     'title', 'latitude', 'longitude', 'owner', 'stationType', 'status',
   ]);
   assert.deepEqual(getNativeFormProfile('station').coreFields.map(({ key }) => key), ['stationOverview']);
-  assert.ok(getNativeFormProfile('anomaly').coreFields.some(({ key }) => key === 'observationEvidence'));
+  assert.deepEqual(getNativeFormProfile('anomaly').coreFields.map(({ key }) => key), [
+    'anomalyTime', 'anomalyLocation', 'anomalyCategory',
+    'anomalyManifestation', 'anomalyInitialRecord', 'anomalyBasis',
+  ]);
   for (const profile of Object.values(NATIVE_FORM_PROFILES)) {
     assert.equal(profile.coreFields.some(({ key }) => /english|foreign|鑻辨枃|澶栨枃/i.test(key)), false);
   }
@@ -111,7 +274,7 @@ test('native writer leaves outer workflow controls untouched', () => {
   assert.equal(targetContribution.value, 'document-7');
 });
 
-test('native renderer and validation enforce declared index control types and constraints', () => {
+test('native renderer keeps event dossier fields separate from typed index controls', () => {
   const eventProfile = getNativeFormProfile('event');
   const speciesProfile = getNativeFormProfile('species');
   const stationProfile = getNativeFormProfile('station');
@@ -125,12 +288,11 @@ test('native renderer and validation enforce declared index control types and co
     template03, {},
   ));
 
-  assert.match(eventHtml, /<select[^>]+name="index:timePrecision"[^>]*>/);
-  assert.match(eventHtml, /<option value="DAY">/);
-  assert.match(eventHtml, /<option value="UNKNOWN">/);
+  assert.match(eventHtml, /name="body:missionNumber"/);
+  assert.doesNotMatch(eventHtml, /name="index:timePrecision"/);
   assert.match(speciesHtml, /<select[^>]+name="index:specimenClass"[^>]*>/);
   assert.match(speciesHtml, /<option value="FLORA">/);
-  assert.match(speciesHtml, /<option value="COMPOSITE">/);
+  assert.doesNotMatch(speciesHtml, /<option value="COMPOSITE">/);
   assert.match(stationHtml, /name="index:latitude"[^>]*type="number"[^>]*min="-90"[^>]*max="90"[^>]*step="any"/);
   assert.match(stationHtml, /name="index:longitude"[^>]*type="number"[^>]*min="-180"[^>]*max="180"[^>]*step="any"/);
 
@@ -140,18 +302,6 @@ test('native renderer and validation enforce declared index control types and co
     },
     body: { stationOverview: '站点概述' }, optional: {}, customEntries: [],
   });
-  const invalidEventEnum = validateNativeFormState(eventProfile, {
-    indexData: {
-      title: '事件', startDate: '1963-08-31', timePrecision: 'MOMENT', location: '南极',
-    },
-    body: { eventOverview: '事件概述', evidenceSummary: '证据摘要' }, optional: {}, customEntries: [],
-  });
-  const invalidEventDate = validateNativeFormState(eventProfile, {
-    indexData: {
-      title: '事件', startDate: '1963-02-30', timePrecision: 'DAY', location: '南极',
-    },
-    body: { eventOverview: '事件概述', evidenceSummary: '证据摘要' }, optional: {}, customEntries: [],
-  });
   const invalidSpeciesEnum = validateNativeFormState(speciesProfile, {
     indexData: {
       title: '物种', specimenClass: 'UNKNOWN', discoveredAt: '1963', location: '南极', specimenStatus: '已收录', hazard: '低',
@@ -160,7 +310,5 @@ test('native renderer and validation enforce declared index control types and co
   });
 
   assert.deepEqual(invalidCoordinates.errors.map(({ key }) => key), ['latitude', 'longitude']);
-  assert.deepEqual(invalidEventEnum.errors.map(({ key }) => key), ['timePrecision']);
-  assert.deepEqual(invalidEventDate.errors.map(({ key }) => key), ['startDate']);
   assert.deepEqual(invalidSpeciesEnum.errors.map(({ key }) => key), ['specimenClass']);
 });

@@ -7,6 +7,7 @@ import {
   LOCAL_SNAPSHOT_DATABASE_NAME,
 } from '../local/local-snapshot-codec.js';
 import { createLocalWorkflowEngine } from '../local/local-workflow-engine.js';
+import { hydrateOfficialWorkspaceBaselines } from '../official-archive-baseline.js';
 
 export const LOCAL_DATABASE_NAME = LOCAL_SNAPSHOT_DATABASE_NAME;
 export const LOCAL_INDEXEDDB_DATABASE_NAME = LOCAL_DATABASE_NAME;
@@ -20,15 +21,22 @@ export const createLocalIndexedDbRepository = ({
   now,
   randomUUID,
   failAt,
+  seedOfficialBaselines = false,
 } = {}) => {
-  const seedState = clone(normalizeLocalState(typeof seed === 'function' ? seed() : seed));
+  const normalizeSeededState = (state) => {
+    const normalized = normalizeLocalState(state);
+    return seedOfficialBaselines
+      ? hydrateOfficialWorkspaceBaselines(normalized)
+      : normalized;
+  };
+  const seedState = clone(normalizeSeededState(typeof seed === 'function' ? seed() : seed));
   assertLocalStateShape(seedState);
   const stateStore = createIndexedDbStateStore({
     indexedDB,
     databaseName: LOCAL_INDEXEDDB_DATABASE_NAME,
   });
   const seededState = (state) => {
-    const normalized = normalizeLocalState(state === undefined ? seedState : state);
+    const normalized = normalizeSeededState(state === undefined ? seedState : state);
     assertLocalStateShape(normalized);
     return clone(normalized);
   };

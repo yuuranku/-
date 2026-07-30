@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ARCHIVE_ROOTS } from '../src/archive-data.js';
+import { readNativeFormState } from '../src/archive-workflow/native-form-profiles.js';
 import { assertArchiveWorkflowResult } from '../src/archive-workflow/repository-contract.js';
 import { ARCHIVE_TEMPLATE_BY_CODE } from '../src/archive-workflow/templates.js';
 
@@ -274,6 +275,56 @@ test('official static fallback creates a readable v2 baseline instead of a blank
   assert.equal(source.values.hero, officialArchive.title);
   assert.match(source.values['legacy:official-body'], /东方站/);
   assert.notEqual(source.values['legacy:official-body'].trim(), '');
+});
+
+test('organization amendment drafts prefill fixed fields and custom entries from the existing record', async () => {
+  const { toEditorDocumentFromArchiveBase } = await import(
+    '../src/archive-workflow/official-archive-source.js'
+  );
+  const source = toEditorDocumentFromArchiveBase({
+    id: 'organization-o02', code: 'O02', category: 'organization', title: '\u5185\u9646\u7279\u522b\u4f5c\u4e1a\u5c40',
+  }, null, ARCHIVE_TEMPLATE_BY_CODE['02']);
+
+  assert.equal(source.values.institutionNumber, 'O02');
+  assert.equal(source.indexData.channel, 'red');
+  assert.notEqual(source.values.organizationNature, '');
+  assert.match(source.values.powerStructure, /\u5c40\u957f/);
+  assert.equal(source.values['custom:item:section-1:title'], '\u673a\u6784\u5b9a\u4f4d');
+  assert.notEqual(source.values['custom:item:section-1:content'], '');
+  assert.ok(Object.keys(source.values).filter((key) => key.endsWith(':title')).length >= 2);
+});
+
+test('event amendment drafts prefill fixed fields and report entries from the existing record', async () => {
+  const { toEditorDocumentFromArchiveBase } = await import(
+    '../src/archive-workflow/official-archive-source.js'
+  );
+  const source = toEditorDocumentFromArchiveBase({
+    id: 'event-v04', code: 'V04', category: 'event', title: 'HZ-6 样本线任务',
+  }, null, ARCHIVE_TEMPLATE_BY_CODE['07']);
+
+  assert.notEqual(source.values.missionNumber, '');
+  assert.notEqual(source.values.missionDate, '');
+  assert.notEqual(source.values.missionArea, '');
+  assert.notEqual(source.values.missionContent, '');
+  assert.notEqual(source.values.archiveStatus, '');
+  assert.ok(Object.keys(source.values).some((key) => key.startsWith('custom:item:section-') && key.endsWith(':content')));
+});
+
+test('species amendment drafts prefill the original four-field plate and full record text', async () => {
+  const { toEditorDocumentFromArchiveBase } = await import(
+    '../src/archive-workflow/official-archive-source.js'
+  );
+  const source = toEditorDocumentFromArchiveBase({
+    id: 'species-s01', code: 'S01', category: 'species', title: 'Abyssodendron aciculatum',
+  }, null, ARCHIVE_TEMPLATE_BY_CODE['09']);
+  const state = readNativeFormState(ARCHIVE_TEMPLATE_BY_CODE['09'], source);
+
+  assert.match(state.body.temporaryTaxonomy, /Eukaryota/);
+  assert.match(state.body.scale, /1/);
+  assert.notEqual(state.body.primaryLayer, '');
+  assert.notEqual(state.body.specimenState, '');
+  assert.equal(state.customEntries[0]?.title, '正文记录 01');
+  assert.notEqual(state.customEntries[0]?.content, '');
 });
 
 test('official static fallback rejects an official archive without a matching static record', async () => {

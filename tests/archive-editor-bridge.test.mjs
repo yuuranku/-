@@ -215,9 +215,15 @@ test('the iframe bridge writes synchronized fields and protects system-owned val
 test('slash reference helpers find the current query and replace only its token', () => {
   assert.equal(detectArchiveReferenceQuery('事件涉及 /文'), '文');
   assert.equal(detectArchiveReferenceQuery('事件涉及 /'), '');
+  assert.equal(detectArchiveReferenceQuery('事件涉及/文'), '文');
+  assert.equal(detectArchiveReferenceQuery('https://example.test/archive'), null);
   assert.equal(detectArchiveReferenceQuery('普通正文'), null);
   assert.equal(
     replaceArchiveReferenceQuery('事件涉及 /文', { code: 'P32', label: '文森特' }),
     '事件涉及 〔P32 文森特〕',
+  );
+  assert.equal(
+    replaceArchiveReferenceQuery('事件涉及/文', { code: 'P32', label: '文森特' }),
+    '事件涉及〔P32 文森特〕',
   );
 });

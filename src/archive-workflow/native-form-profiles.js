@@ -12,14 +12,21 @@ const defineField = (key, label, definition = {}) => Object.freeze({
   ...definition,
 });
 
+const defineAnomalyField = (key, eventLabel, objectLabel, definition = {}) => defineField(key, eventLabel, {
+  ...definition,
+  anomalyLabels: Object.freeze({ EVENT: eventLabel, OBJECT: objectLabel }),
+});
+
 const nativeDefinition = (category, coreFields, optionalFields = [], defaults = {}) => {
   const categoryProfile = getArchiveCategoryProfile(category);
   const automaticKeys = new Set(category === 'event' ? ['reviewStatus'] : category === 'anomaly' ? ['status'] : []);
   return Object.freeze({
     category,
     templateCode: categoryProfile.templateCode,
-    indexFields: Object.freeze(categoryProfile.indexFields.filter(({ key }) => !automaticKeys.has(key))),
-    coreFields: Object.freeze(coreFields.map((field) => defineField(field.key, field.label))),
+    indexFields: Object.freeze(categoryProfile.indexFields.filter(({ key, nativeHidden }) => (
+      !automaticKeys.has(key) && !nativeHidden
+    ))),
+    coreFields: Object.freeze(coreFields.map((field) => defineField(field.key, field.label, field))),
     optionalFields: Object.freeze(optionalFields.map((field) => defineField(field.key, field.label, {
       ...field,
       required: false,
@@ -31,8 +38,15 @@ const nativeDefinition = (category, coreFields, optionalFields = [], defaults = 
 
 export const NATIVE_FORM_PROFILES = Object.freeze({
   country: nativeDefinition('country', [defineField('countryOverview', '国家概述')]),
-  organization: nativeDefinition('organization', [defineField('organizationRole', '组织职能')]),
-  station: nativeDefinition('station', [defineField('stationOverview', '站点概述')]),
+  organization: nativeDefinition('organization', [
+    defineField('institutionNumber', '机构号', { required: false }),
+    defineField('activePeriod', '适用年代', { required: false }),
+    defineField('organizationNature', '组织性质', { required: false }),
+    defineField('powerStructure', '权力结构', { required: false }),
+    defineField('standingDepartments', '常设部门', { required: false }),
+    defineField('frontlineUnits', '前线机构', { required: false }),
+  ]),
+  station: nativeDefinition('station', [defineField('stationOverview', '站务、任务与公开站史')]),
   entrance: nativeDefinition('entrance', [defineField('transitRiskSummary', '通行风险摘要')]),
   ecology: nativeDefinition('ecology', [
     defineField('ecologyProfile', '生态档案'),
@@ -43,11 +57,27 @@ export const NATIVE_FORM_PROFILES = Object.freeze({
     defineField('careerSummary', '履历摘要'),
   ]),
   event: nativeDefinition('event', [
-    defineField('eventOverview', '事件概述'),
-    defineField('evidenceSummary', '证据摘要'),
+    defineField('missionNumber', '任务编号', { required: false }),
+    defineField('missionDate', '任务日期', { required: false }),
+    defineField('missionArea', '任务区域', { required: false }),
+    defineField('teamStatus', '队伍状态', { required: false }),
+    defineField('missionContent', '任务内容', { required: false }),
+    defineField('archiveStatus', '档案状态', { required: false }),
   ], [], { reviewStatus: '待审核' }),
-  anomaly: nativeDefinition('anomaly', [defineField('observationEvidence', '观察证据')], [], { status: '待审核' }),
-  species: nativeDefinition('species', [defineField('featureDiscoveryRisk', '特征、发现与风险')]),
+  anomaly: nativeDefinition('anomaly', [
+    defineField('anomalyTime', '时间', { required: false }),
+    defineField('anomalyLocation', '地点', { required: false }),
+    defineAnomalyField('anomalyCategory', '异常类型', '物件类别', { required: false }),
+    defineAnomalyField('anomalyManifestation', '异常表现', '异常特征', { required: false }),
+    defineAnomalyField('anomalyInitialRecord', '首次异常', '发现经过', { required: false }),
+    defineAnomalyField('anomalyBasis', '核验依据', '收容依据', { required: false }),
+  ], [], { status: '待审核', anomalyKind: 'EVENT' }),
+  species: nativeDefinition('species', [
+    defineField('temporaryTaxonomy', '现代临时分类', { required: false }),
+    defineField('scale', '尺度', { required: false }),
+    defineField('primaryLayer', '主要层', { required: false }),
+    defineField('specimenState', '标本状态', { required: false }),
+  ]),
 });
 
 const templateFor = (templateOrCategory) => {
@@ -69,6 +99,12 @@ export const getNativeFormProfile = (templateOrCategory) => {
 const allContentFields = (profile) => [...profile.coreFields, ...profile.optionalFields];
 
 const valueOf = (value) => String(value ?? '');
+
+const anomalyKindFor = (state = {}) => valueOf(state.indexData?.anomalyKind).trim() === 'OBJECT'
+  ? 'OBJECT'
+  : 'EVENT';
+
+const visibleFieldLabel = (field, state) => field.anomalyLabels?.[anomalyKindFor(state)] || field.label;
 
 const customEntriesFrom = (values) => {
   const entries = new Map();
@@ -99,6 +135,7 @@ export const readNativeFormState = (template, document = {}) => {
     if (prior.indexData[key] != null) indexData[key] = valueOf(prior.indexData[key]);
     else if (isNew) indexData[key] = valueOf(value);
   }
+  if (profile.category === 'anomaly' && !indexData.anomalyKind) indexData.anomalyKind = 'EVENT';
   const body = {};
   const optional = {};
   const knownKeys = new Set([template.titleKey, ...allContentFields(profile).map(({ storageKey }) => storageKey)]);
@@ -124,7 +161,11 @@ const buildNativeSections = (profile, prior, values) => {
     if (!fields.length || sections.some((section) => section.id === id)) return;
     sections.push({ id, label, fields });
   };
-  addSection('native-core', '核心内容', profile.coreFields.map(({ storageKey }) => storageKey));
+  addSection(
+    'native-core',
+    profile.category === 'organization' ? 'MANDATE / AUTHORITY / SOURCE CHAIN' : '核心内容',
+    profile.coreFields.map(({ storageKey }) => storageKey),
+  );
   addSection('native-optional', '补充内容', profile.optionalFields.map(({ storageKey }) => storageKey));
   const customFields = Object.keys(values).filter((key) => key.startsWith('custom:item:'));
   addSection('native-custom', '补充条目', customFields);
@@ -147,7 +188,8 @@ export const writeNativeFormDocument = (template, state, priorDocument = {}) => 
   values[template.titleKey] = valueOf(indexData.title);
   const fieldLabels = { ...prior.fieldLabels };
   for (const field of allContentFields(profile)) {
-    if (fieldLabels[field.storageKey] == null) fieldLabels[field.storageKey] = field.label;
+    if (field.anomalyLabels) fieldLabels[field.storageKey] = visibleFieldLabel(field, state);
+    else if (fieldLabels[field.storageKey] == null) fieldLabels[field.storageKey] = field.label;
   }
   return normalizeEditorDocument({
     ...prior,
@@ -177,7 +219,11 @@ const controlHtml = (name, field, value) => {
   const escapedName = escapeHtml(name);
   const escapedValue = escapeHtml(value);
   const constraints = constraintsHtml(field);
-  if (field.type === 'textarea') return `<label>${escapeHtml(field.label)}<textarea name="${escapedName}" data-native-field="${escapedName}"${constraints}>${escapedValue}</textarea></label>`;
+  const anomalyLabelAttributes = field.anomalyLabels
+    ? ` data-native-anomaly-label data-label-event="${escapeHtml(field.anomalyLabels.EVENT)}" data-label-object="${escapeHtml(field.anomalyLabels.OBJECT)}"`
+    : '';
+  const label = `<span data-native-field-label>${escapeHtml(field.label)}</span>`;
+  if (field.type === 'textarea') return `<label${anomalyLabelAttributes}>${label}<textarea name="${escapedName}" data-native-field="${escapedName}"${constraints}>${escapedValue}</textarea></label>`;
   if (field.type === 'select') {
     const options = [
       `<option value="">请选择${escapeHtml(field.label)}</option>`,
@@ -185,9 +231,20 @@ const controlHtml = (name, field, value) => {
         `<option value="${escapeHtml(option.value)}"${valueOf(value) === valueOf(option.value) ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
       )),
     ].join('');
-    return `<label>${escapeHtml(field.label)}<select name="${escapedName}" data-native-field="${escapedName}"${constraints}>${options}</select></label>`;
+    return `<label${anomalyLabelAttributes}>${label}<select name="${escapedName}" data-native-field="${escapedName}"${constraints}>${options}</select></label>`;
   }
-  return `<label>${escapeHtml(field.label)}<input name="${escapedName}" data-native-field="${escapedName}" type="${escapeHtml(field.type)}" value="${escapedValue}"${constraints}></label>`;
+  return `<label${anomalyLabelAttributes}>${label}<input name="${escapedName}" data-native-field="${escapedName}" type="${escapeHtml(field.type)}" value="${escapedValue}"${constraints}></label>`;
+};
+
+export const syncNativeAnomalyFieldLabels = (form, profile) => {
+  if (profile?.category !== 'anomaly') return;
+  const anomalyKind = valueOf(form?.querySelector?.('[name="index:anomalyKind"]')?.value).trim() === 'OBJECT'
+    ? 'OBJECT'
+    : 'EVENT';
+  form?.querySelectorAll?.('[data-native-anomaly-label]').forEach((label) => {
+    const fieldLabel = label.querySelector('[data-native-field-label]');
+    if (fieldLabel) fieldLabel.textContent = label.dataset[`label${anomalyKind[0]}${anomalyKind.slice(1).toLowerCase()}`] || '';
+  });
 };
 
 export const renderNativeArchiveForm = (profile, document, options = {}) => {
@@ -195,17 +252,16 @@ export const renderNativeArchiveForm = (profile, document, options = {}) => {
   const state = readNativeFormState(template, document);
   const renderIndex = (field) => controlHtml(`index:${field.key}`, field, state.indexData[field.key]);
   const renderContent = (field) => controlHtml(`${field.section}:${field.key}`, field, state[field.section][field.key]);
-  const legacy = Object.entries(state.legacyFields).map(([key, value]) => `<li><b>${escapeHtml(key)}</b>: ${escapeHtml(value)}</li>`).join('');
   const custom = state.customEntries.map(({ id, title, content }) => (
     `<fieldset data-native-custom-id="${escapeHtml(id)}"><input name="custom:${escapeHtml(id)}:title" data-native-custom-title value="${escapeHtml(title)}"><textarea name="custom:${escapeHtml(id)}:content" data-native-custom-content>${escapeHtml(content)}</textarea></fieldset>`
   )).join('');
-  return `<form data-native-archive-form="${escapeHtml(profile.category)}" ${options.readOnly ? 'data-readonly="true"' : ''}>
+  const form = `<form data-native-archive-form="${escapeHtml(profile.category)}" ${options.readOnly ? 'data-readonly="true"' : ''}>
     <section data-native-index>${profile.indexFields.map(renderIndex).join('')}</section>
     <section data-native-core>${profile.coreFields.map(renderContent).join('')}</section>
     ${profile.optionalFields.length ? `<section data-native-optional>${profile.optionalFields.map(renderContent).join('')}</section>` : ''}
     <section data-native-custom>${custom}</section>
-    <section data-native-legacy><h3>原有补充资料</h3><ul>${legacy}</ul></section>
   </form>`;
+  return form;
 };
 
 const controlsFor = (form) => Array.from(form?.querySelectorAll?.('input[name], textarea[name], select[name]') ?? []);
@@ -229,6 +285,7 @@ export const writeNativeArchiveForm = (form, profile, document) => {
   for (const control of controlsFor(form)) {
     if (values.has(control.name)) assignControl(control, values.get(control.name));
   }
+  syncNativeAnomalyFieldLabels(form, profile);
 };
 
 export const readNativeArchiveForm = (form, profile, priorDocument = {}) => {

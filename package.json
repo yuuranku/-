@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "archive:sync": "node scripts/generate-archive-longform.mjs",
+    "archive:seed-static": "node scripts/generate-static-archive-seed.mjs",
     "dev": "vite",
     "dev:local-admin": "node scripts/dev-local-admin.mjs",
     "verify:archive-repair": "node scripts/verify-local-admin.mjs",

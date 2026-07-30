@@ -1657,6 +1657,22 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .country-folder-mark em { grid-column: 2 / -1; color: #666863; font-style: normal; }
 .country-flag { display: block; overflow: hidden; border: 1px solid rgba(20, 20, 20, .72); background: #ecebe4; box-shadow: 3px 3px 0 rgba(0, 0, 0, .18); }
 .country-flag img { display: block; width: 100%; height: 100%; object-fit: fill; }
+.country-flag__placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  color: #e9eae5;
+  background:
+    linear-gradient(135deg, transparent 46%, rgba(224, 183, 70, .78) 47% 53%, transparent 54%),
+    repeating-linear-gradient(0deg, #374148 0 5px, #20282d 5px 10px);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+.country-flag__placeholder b { font-size: 10px; letter-spacing: .08em; }
+.country-flag__placeholder small { font-size: 6px; letter-spacing: .04em; }
 .country-flag--folder { grid-column: 1; grid-row: 1 / 3; width: 54px; height: 36px; align-self: center; }
 .mode-country-stack .folder-name {
   align-self: end;
@@ -3014,6 +3030,12 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
   box-shadow: 5px 6px 0 rgba(0, 0, 0, .45);
 }
 .dialog-file-menu[hidden] { display: none; }
+.dialog-menu__empty {
+  display: block;
+  padding: 8px 18px;
+  color: #555;
+  font: 12px/1.25 var(--font-sans);
+}
 .dialog-file-menu button {
   display: block;
   width: 100%;
@@ -3135,6 +3157,169 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
   background: #315bcf;
   box-shadow: min(18vw, 220px) 0 0 #d14949;
 }
+.archive-formal-document--event .archive-formal-document__mast--generic,
+.archive-formal-document--event .archive-formal-document__rule,
+.archive-formal-document--event .archive-formal-document__metadata--legacy { display: none; }
+.archive-formal-document--anomaly .archive-formal-document__mast--generic,
+.archive-formal-document--anomaly .archive-formal-document__rule,
+.archive-formal-document--anomaly .archive-formal-document__metadata--legacy { display: none; }
+.archive-formal-document--event .archive-formal-document__mast--event {
+  display: block;
+  padding-bottom: 22px;
+  border-bottom: 2px solid #d14949;
+}
+.archive-formal-document__mast--event > p {
+  color: #d9ddda;
+  font: 700 11px/1.4 var(--font-mono);
+}
+.archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 2px solid currentColor;
+}
+.archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) p,
+.archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) h2 { margin: 0; }
+.archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) h2 {
+  margin-top: 6px;
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 400;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) .archive-registration-stamp {
+  flex: none;
+  max-width: 190px;
+  padding: 10px 12px;
+  color: #9b2f29;
+  border: 3px double #9b2f29;
+  background: transparent;
+  font: 800 11px/1.45 var(--font-mono);
+  text-align: center;
+  transform: rotate(-2deg);
+}
+.archive-formal-document--event .reel-mast .archive-formal-event-mast__markers {
+  margin-left: auto;
+  justify-self: auto;
+}
+.archive-formal-document__mast--event > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  margin-top: 12px;
+}
+.archive-formal-document__mast--event h3 {
+  margin: 0;
+  color: #edf0ec;
+  font: 400 clamp(32px, 5vw, 64px)/1.05 var(--font-display);
+}
+.archive-formal-document__mast--event b {
+  color: #edf0ec;
+  font: 800 14px/1.3 var(--font-mono);
+  white-space: nowrap;
+}
+.archive-formal-event-mast__markers {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 22px;
+  min-width: 0;
+}
+.archive-formal-document__mast--event .archive-registration-stamp {
+  max-width: 190px;
+  padding: 10px 12px;
+  color: #9b2f29;
+  border: 3px double #9b2f29;
+  font: 800 11px/1.45 var(--font-mono);
+  text-align: center;
+  transform: rotate(-2deg);
+}
+.archive-formal-event-dossier {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  margin: 30px 0 8px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #384146;
+}
+.archive-formal-event-dossier > span {
+  color: #d14949;
+  font: 700 11px/1.4 var(--font-mono);
+}
+.archive-formal-event-dossier .record-fields { grid-column: auto; }
+.archive-formal-event-report {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 30px;
+  padding: 18px 0 14px;
+  border-top: 2px solid #edf0ec;
+  border-bottom: 1px solid #64706b;
+  color: #edf0ec;
+  font: 700 10px/1.4 var(--font-mono);
+}
+.archive-formal-event-report > b { font: inherit; white-space: nowrap; }
+.archive-formal-document--anomaly .archive-formal-document__mast--anomaly {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid currentColor;
+}
+.archive-formal-document__mast--anomaly > div:first-child { min-width: 0; }
+.archive-formal-document__mast--anomaly p,
+.archive-formal-document__mast--anomaly h2 { margin: 0; }
+.archive-formal-document__mast--anomaly p {
+  color: inherit;
+  font: 11px/1.4 var(--font-mono);
+  letter-spacing: .04em;
+}
+.archive-formal-document__mast--anomaly h2 {
+  margin-top: 6px;
+  color: inherit;
+  font: 400 clamp(28px, 4vw, 48px)/1.08 var(--font-display);
+  text-wrap: balance;
+}
+.archive-formal-anomaly-mast__markers {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  flex: none;
+}
+.archive-formal-anomaly-mast__severity {
+  color: #d14949;
+  font: 700 16px/1.3 var(--font-mono);
+}
+.archive-formal-document__mast--anomaly .archive-registration-stamp {
+  max-width: 190px;
+  padding: 10px 12px;
+  color: #9b2f29;
+  border: 3px double #9b2f29;
+  font: 800 11px/1.45 var(--font-mono);
+  text-align: center;
+  transform: rotate(-2deg);
+}
+.archive-formal-anomaly-dossier { margin-top: 18px; }
+.archive-formal-anomaly-dossier .incident-layout { margin-bottom: 0; }
+.archive-formal-anomaly-report {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 42px;
+  padding: 12px 0;
+  border-top: 2px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  color: inherit;
+  font: 11px/1.4 var(--font-mono);
+}
+.archive-formal-anomaly-report > b { font: inherit; white-space: nowrap; }
+.archive-formal-document--anomaly .archive-formal-document__sections { margin-top: 12px; padding-top: 0; border-top: 0; }
 .archive-formal-document__metadata {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3347,6 +3532,17 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
 .record-chain-ledger .record-chapter > header h3 { color: #cfd6d3; font: 700 12px/1.45 var(--font-mono); }
 .record-chain-ledger .record-chapter > :not(header) { grid-column: 2; }
 .record-chain-ledger .record-table-wrap { margin-top: 0; }
+.record-chain-ledger .record-chapter--organization-structure { grid-template-columns: minmax(260px, .5fr) minmax(0, 1.5fr); }
+.record-chain-ledger .record-chapter--organization-structure > header h4 {
+  color: #cfd6d3;
+  font: 700 12px/1.45 var(--font-mono);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.record-chain-ledger .record-chapter--organization-structure > header > span { display: none; }
+.record-chronology-reel .record-chapter--event-dossier { grid-template-columns: minmax(230px, .5fr) minmax(0, 1.5fr); }
+.record-chronology-reel .record-chapter--event-dossier > header h4 { font: 700 12px/1.45 var(--font-mono); white-space: nowrap; }
+.record-chronology-reel .record-chapter--event-dossier > header > span { display: none; }
 
 .record-station-log .record-longform { width: 100%; }
 .record-station-log .record-prose-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
@@ -3434,6 +3630,56 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
 .record-fields div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .record-fields dt { font-size: 11px; opacity: .68; }
 .record-fields dd { margin: 4px 0 0; font-family: var(--font-mono); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.archive-formal-reference {
+  display: inline;
+  margin: 0;
+  padding: 0 2px;
+  color: inherit;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.archive-formal-reference:hover,
+.archive-formal-reference:focus-visible {
+  color: #0a0b0b;
+  border-bottom-color: #d14949;
+  background: #d14949;
+  outline: 1px solid #f1f2ee;
+  outline-offset: 1px;
+}
+.archive-formal-references > ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.archive-formal-references > ul button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  color: inherit;
+  border: 1px solid currentColor;
+  background: transparent;
+  font: 700 11px/1.35 var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+}
+.archive-formal-references > ul button b { color: #d14949; }
+.archive-formal-references > ul button:hover,
+.archive-formal-references > ul button:focus-visible {
+  color: #0a0b0b;
+  background: #d14949;
+  outline: 1px solid #f1f2ee;
+  outline-offset: 1px;
+}
+.archive-formal-references > ul button:hover b,
+.archive-formal-references > ul button:focus-visible b { color: inherit; }
 .document-sheet > footer { display: flex; justify-content: space-between; gap: 20px; padding-top: 11px; border-top: 1px solid currentColor; font-family: var(--font-mono); font-size: 10px; }
 
 .archive-contribution-ledger { min-height: 100%; }
@@ -3650,8 +3896,21 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
 }
 .archive-reverse-references > b { font: 800 11px/1.3 var(--font-mono); }
 @media (max-width: 680px) {
+  .archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .archive-formal-document > :is(.registry-mast, .chain-mast, .station-log-mast, .descent-mast, .strata-mast, .personnel-mast, .reel-mast) .archive-registration-stamp {
+    margin-left: 0;
+  }
   .archive-formal-document__mast,
   .archive-formal-document__metadata { grid-template-columns: 1fr; }
+  .archive-formal-document__mast--event > div { grid-template-columns: 1fr; }
+  .archive-formal-event-mast__markers { justify-self: start; flex-wrap: wrap; }
+  .archive-formal-document--anomaly .archive-formal-document__mast--anomaly { align-items: flex-start; flex-direction: column; }
+  .archive-formal-anomaly-mast__markers { justify-content: flex-start; flex-wrap: wrap; }
+  .archive-formal-event-dossier { grid-template-columns: 1fr; }
+  .archive-formal-event-report { align-items: flex-start; flex-direction: column; }
   .archive-contribution-panel > header { grid-template-columns: 1fr; }
   .archive-registration-stamp { justify-self: start; }
   .archive-contribution-attribution,
@@ -3661,7 +3920,19 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
   .archive-version-history time { grid-column: 2; }
 }
 
-.record-state-registry { background: #e5e1d4; }
+.record-state-registry { color: #111; background: #e5e1d4; }
+.record-state-registry .archive-formal-document__metadata { border-color: #66645d; }
+.record-state-registry .archive-formal-document__metadata dt { color: #5f6563; }
+.record-state-registry .archive-formal-document__metadata dd { color: #111; }
+.record-state-registry .archive-formal-document__photo,
+.record-station-log .archive-formal-document__photo,
+.record-descent-chart .archive-formal-document__photo,
+.record-strata-profile .archive-formal-document__photo,
+.record-chain-ledger .archive-formal-document__photo { border-color: currentColor; background: rgba(255, 255, 255, .32); }
+.record-state-registry .archive-formal-document__photo figcaption,
+.record-station-log .archive-formal-document__photo figcaption,
+.record-descent-chart .archive-formal-document__photo figcaption,
+.record-strata-profile .archive-formal-document__photo figcaption { color: #434a46; }
 .registry-mast { min-height: 82px; align-items: center !important; }
 .registry-mast > div { display: flex; gap: 18px; align-items: center; }
 .registry-mast > b { align-self: stretch; display: grid; place-items: center; min-width: 88px; color: #f2efe5; background: #202733; }
@@ -3747,7 +4018,7 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
 .descent-layout section { display: grid; gap: 22px; }
 .record-descent-chart .record-fields { background: rgba(237, 240, 237, .78); }
 
-.record-strata-profile { background: #d7d1c1; }
+.record-strata-profile { color: #171816; background: #d7d1c1; }
 .strata-mast > b { color: #d14949; }
 .strata-layout { display: grid; grid-template-columns: 220px 1fr; gap: 34px; margin: 28px 0 20px; }
 .strata-core { display: flex; min-height: 380px; flex-direction: column; border: 2px solid #262626; }
@@ -3815,8 +4086,42 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
   .mode-anomaly-monitor .folder-button { transition-duration: .01ms !important; }
 }
 
-.record-specimen-plate { background: #d9d5c7; }
+.archive-formal-document--event > .archive-formal-document__mast--generic,
+.archive-formal-document--event > .archive-formal-document__rule,
+.archive-formal-document--event > .archive-formal-document__metadata--legacy,
+.archive-formal-document--anomaly > .archive-formal-document__mast--generic,
+.archive-formal-document--anomaly > .archive-formal-document__rule,
+.archive-formal-document--anomaly > .archive-formal-document__metadata--legacy,
+.archive-formal-document--species > .archive-formal-document__mast--generic,
+.archive-formal-document--species > .archive-formal-document__rule,
+.archive-formal-document--species > .archive-formal-document__metadata--legacy { display: none; }
+
+.record-specimen-plate { color: #202725; background: #d9d5c7; }
 .specimen-mast { border-color: #315bcf !important; }
+.archive-formal-document__mast--species {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #315bcf;
+}
+.archive-formal-document__mast--species p,
+.archive-formal-document__mast--species h2 { margin: 0; }
+.archive-formal-document__mast--species p { font: 11px/1.4 var(--font-mono); letter-spacing: .04em; }
+.archive-formal-document__mast--species h2 { margin-top: 8px; font: 400 clamp(32px, 5vw, 66px)/1 var(--font-display); }
+.archive-formal-species-mast__markers { display: flex; align-items: center; justify-content: flex-end; gap: 18px; flex-wrap: wrap; }
+.archive-formal-species-mast__markers > b:first-child { font: 700 16px/1.3 var(--font-mono); white-space: nowrap; }
+.archive-formal-document__mast--species .archive-registration-stamp {
+  max-width: 190px;
+  padding: 10px 12px;
+  color: #9b2f29;
+  border: 3px double #9b2f29;
+  font: 800 11px/1.45 var(--font-mono);
+  text-align: center;
+  transform: rotate(-2deg);
+}
 .specimen-layout { display: grid; grid-template-columns: minmax(250px, .6fr) minmax(0, 1.4fr); gap: 34px; align-items: stretch; margin: 28px 0; }
 .specimen-layout figure { display: grid; grid-template-rows: minmax(250px, 1fr) auto; margin: 0; padding: 10px; border: 1px solid #272727; background: #eeeadd; }
 .specimen-plate-image { min-height: 250px; overflow: hidden; border: 1px solid #67675f; background: #c8c5b9; }
@@ -3835,7 +4140,17 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) [data-r
 .specimen-layout figcaption { display: grid; gap: 6px; padding-top: 10px; font-family: var(--font-mono); }
 .specimen-layout figcaption span { font-size: 9px; }
 .specimen-layout figcaption b { font-family: var(--font-display); font-size: 22px; font-weight: 400; }
+.specimen-layout figcaption em { color: #56564f; font-size: 10px; font-style: normal; }
 .specimen-layout section { display: grid; gap: 22px; }
+.record-specimen-plate .archive-formal-document__metadata { border-color: #59635f; }
+.record-specimen-plate .archive-formal-document__metadata dt { color: #66716d; }
+.record-specimen-plate .archive-formal-document__metadata dd { color: #202725; }
+.record-specimen-plate .archive-formal-document__evidence { border-color: #59635f; }
+.record-specimen-plate .archive-formal-document__evidence > header { color: #b63d3d; }
+.record-specimen-plate .archive-formal-document__evidence > header span,
+.record-specimen-plate .archive-formal-document__evidence figcaption { color: #56615c; }
+.record-specimen-plate .archive-formal-document__evidence figure { border-color: #59635f; background: #eeeadd; }
+.record-specimen-plate .archive-formal-document__evidence img { background: #c8c5b9; }
 
 button:focus-visible,
 select:focus-visible,
@@ -6814,6 +7129,62 @@ a:focus-visible,
 .eco-card-materials { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .eco-card-materials i { padding: 3px 7px; color: #171816; border: 1px solid #b7ac86; background: #e9e1c3; font-size: var(--archive-ui-micro); font-style: normal; }
 .eco-log-card .directory-open-button { justify-self: start; min-height: 30px; padding: 5px 10px; font-size: var(--archive-ui-micro); }
+.eco-log-additions {
+  position: absolute;
+  top: 64%;
+  right: 3.6%;
+  bottom: 7%;
+  left: 55.2%;
+  display: block;
+  overflow: hidden;
+  color: #d7ded9;
+  border: 1px solid #53615a;
+  background: #080a0b;
+  text-align: left;
+}
+.eco-log-additions__list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(52px, auto);
+  gap: 16px;
+  align-content: start;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 14px;
+}
+.eco-log-additions .folder-item { position: static; width: auto; height: auto; }
+.eco-log-additions .folder-button {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 5px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px;
+  color: #d7ded9;
+  border: 1px solid #37423d;
+  background: #101412;
+  text-align: left;
+  transform: none;
+}
+.eco-log-additions .folder-button:hover,
+.eco-log-additions .folder-button:focus-visible { background: rgba(49, 91, 207, .15); outline: 1px dotted #d7ded9; outline-offset: -3px; }
+.eco-log-additions .folder-button > b { color: var(--cold-blue); font: 700 var(--archive-ui-micro) 'Courier New', Courier, monospace; }
+.eco-log-additions .folder-button > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.eco-log-additions .folder-button > em { color: var(--cold-red); font: 700 9px 'Courier New', Courier, monospace; font-style: normal; }
+.eco-log-console.has-ecology-additions .eco-log-card {
+  max-height: none;
+  overflow: visible;
+}
 
 @media (max-width: 760px) {
   .eco-log-console { grid-template-rows: 44px auto; }
@@ -8801,6 +9172,8 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 .clerk-desktop__start-brand { background: #808080; }
 .clerk-desktop__tray {
+  grid-column: 3;
+  justify-self: end;
   gap: 6px;
   padding: 2px 6px;
   border: 2px inset var(--win-light);
@@ -8873,6 +9246,244 @@ body.clerk-desktop-open { overflow: hidden; }
   .clerk-desktop__tray button { min-width: 44px; min-height: 44px; }
   #clerk-desktop [data-workflow-maximize],
   #clerk-desktop .mascot-document-maximize { display: none; }
+}
+.archive-formal-document__metadata--legacy { display: none; }
+.archive-formal-document__metadata--footer { margin-top: 34px; }
+
+/* The archive categories are the clerk's primary desktop surface.  Their
+   compact, beveled program tiles deliberately read as a vertical Win95 rail
+   instead of a modern application grid. */
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+  --archive-icon-size: clamp(56px, 4.2vw, 84px);
+  top: calc((100dvh - 38px - env(safe-area-inset-bottom)) / 2);
+  right: auto;
+  bottom: auto;
+  left: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  width: min(clamp(276px, 23vw, 500px), calc(100vw - 24px));
+  height: min(clamp(648px, 76dvh, 940px), calc(100dvh - 56px));
+  max-height: calc(100dvh - 56px);
+  grid-auto-flow: row;
+  grid-auto-rows: minmax(88px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  gap: clamp(10px, 1.1vw, 22px) clamp(16px, 1.8vw, 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: #c0c0c0 #0d5b5b;
+}
+
+/* A clerk's desktop is only the nine archive categories.  Keep the admin-only
+   shortcuts out of both the visual surface and the grid's layout so the five
+   category rows, rather than a phantom sixth row, remain genuinely centered. */
+#clerk-desktop[data-workspace-role="clerk"] [data-admin-only] {
+  display: none !important;
+}
+
+#clerk-desktop[data-workspace-role="clerk"] .clerk-desktop__icons[data-archive-category-rail] {
+  height: min(clamp(540px, 68dvh, 760px), calc(100dvh - 56px));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: var(--archive-icon-size) auto;
+  align-content: start;
+  align-items: start;
+  row-gap: 6px;
+  padding: 2px;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:is(:hover, :focus-visible, .is-selected) {
+  outline: 0;
+  border: 0;
+  background: transparent;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button::before {
+  content: none;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:is(:hover, :focus-visible, .is-selected)::before {
+  position: absolute;
+  z-index: 0;
+  top: -3px;
+  left: 50%;
+  width: calc(var(--archive-icon-size) + 24px);
+  height: calc(var(--archive-icon-size) + 36px);
+  border: 1px dotted #fff;
+  background: #000080;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .28);
+  content: '';
+  transform: translateX(-50%);
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > :is(.clerk-desktop__icon, span) {
+  position: relative;
+  z-index: 1;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon {
+  --category-accent: #187b89;
+  position: relative;
+  display: block;
+  width: var(--archive-icon-size);
+  height: var(--archive-icon-size);
+  max-height: calc(100% - 2px);
+  overflow: hidden;
+  border: 2px outset #fff;
+  background: #c0c0c0;
+  box-shadow: inset 2px 2px 0 #f3f3f3, inset -2px -2px 0 #555, 1px 1px 0 #000;
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::before {
+  position: absolute;
+  inset: 7px;
+  display: block;
+  border: 2px inset #fff;
+  background:
+    linear-gradient(var(--category-accent), var(--category-accent)) 5px 5px / 14px 4px no-repeat,
+    linear-gradient(#343b3b, #343b3b) 5px 16px / 28px 3px no-repeat,
+    linear-gradient(#343b3b, #343b3b) 5px 24px / 20px 3px no-repeat,
+    linear-gradient(#343b3b, #343b3b) 5px 32px / 25px 3px no-repeat,
+    #f4f4ea;
+  box-shadow: none;
+  content: '';
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::after {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: block;
+  padding: 1px 2px;
+  border: 1px solid #111;
+  color: #fff;
+  background: var(--category-accent);
+  box-shadow: none;
+  font: 700 7px/1 "IBM Plex Mono", monospace;
+  letter-spacing: 0;
+  content: attr(data-category-code);
+}
+
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+#clerk-desktop .clerk-desktop__icon--country { --category-accent: #245aac; }
+#clerk-desktop .clerk-desktop__icon--organization { --category-accent: #39715d; }
+#clerk-desktop .clerk-desktop__icon--station { --category-accent: #167787; }
+#clerk-desktop .clerk-desktop__icon--entrance { --category-accent: #815c9c; }
+#clerk-desktop .clerk-desktop__icon--ecology { --category-accent: #6c832e; }
+#clerk-desktop .clerk-desktop__icon--person { --category-accent: #9a603a; }
+#clerk-desktop .clerk-desktop__icon--event { --category-accent: #a93f38; }
+#clerk-desktop .clerk-desktop__icon--anomaly { --category-accent: #70478d; }
+#clerk-desktop .clerk-desktop__icon--species { --category-accent: #8a7130; }
+#clerk-desktop [data-workspace-mailbox-ornament] {
+  position: absolute;
+  z-index: 26000;
+  top: var(--mailbox-ornament-y, calc(92px + env(safe-area-inset-top)));
+  right: var(--mailbox-ornament-right, 28px);
+  bottom: var(--mailbox-ornament-bottom, auto);
+  left: var(--mailbox-ornament-x, auto);
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: var(--cursor-retro-grab);
+  touch-action: none;
+  user-select: none;
+}
+#clerk-desktop [data-workspace-mailbox-ornament] > span {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+}
+#clerk-desktop [data-workspace-mailbox-ornament] img {
+  display: block;
+  width: 54px;
+  height: 54px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+#clerk-desktop [data-workspace-mailbox-ornament]:is(:hover, :focus-visible) {
+  outline: 1px dotted #f4f1e8;
+  outline-offset: 3px;
+}
+#clerk-desktop [data-workspace-mailbox-ornament].is-dragging {
+  cursor: var(--cursor-retro-grabbing);
+}
+#clerk-desktop [data-workspace-mailbox-ornament] [data-workspace-mailbox-alert]:not([hidden]) {
+  position: absolute;
+  z-index: 2;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 0;
+  background: #b52e2b;
+  box-shadow: 1px 1px 0 #111;
+  font: 700 12px/1 var(--font-mono);
+}
+
+@media (max-width: 760px) {
+  #clerk-desktop [data-workspace-mailbox-ornament] {
+    width: 56px;
+    height: 56px;
+    top: var(--mailbox-ornament-y, calc(72px + env(safe-area-inset-top)));
+    right: var(--mailbox-ornament-right, 16px);
+    bottom: var(--mailbox-ornament-bottom, auto);
+  }
+  #clerk-desktop [data-workspace-mailbox-ornament] > span { width: 48px; height: 48px; }
+  #clerk-desktop [data-workspace-mailbox-ornament] img { width: 48px; height: 48px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    --archive-icon-size: clamp(42px, 14vw, 58px);
+    inset: 8px auto auto 8px;
+    transform: none;
+    width: min(238px, calc(100vw - 16px));
+    height: min(514px, calc(100dvh - 56px - env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+    grid-auto-rows: minmax(74px, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+  #clerk-desktop[data-workspace-role="clerk"] .clerk-desktop__icons[data-archive-category-rail] {
+    height: min(430px, calc(100dvh - 56px - env(safe-area-inset-bottom)));
+    grid-template-rows: repeat(5, minmax(0, 1fr));
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    min-height: 0;
+    grid-template-rows: var(--archive-icon-size) auto;
+    row-gap: 4px;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon {
+    width: var(--archive-icon-size);
+    height: var(--archive-icon-size);
+  }
 }
 
 /* Shared workspace notes are deliberately loose paper strips rather than another

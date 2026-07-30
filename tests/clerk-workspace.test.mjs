@@ -5,12 +5,13 @@ import postcss from 'postcss';
 
 const projectRoot = new URL('../', import.meta.url);
 
-const [html, script, styles, workspace, workflowStyles] = await Promise.all([
+const [html, script, styles, workspace, workflowStyles, envelopeAsset] = await Promise.all([
   readFile(new URL('index.html', projectRoot), 'utf8'),
   readFile(new URL('src/main.js', projectRoot), 'utf8'),
   readFile(new URL('src/style.css', projectRoot), 'utf8'),
   readFile(new URL('src/archive-workflow/workspace.js', projectRoot), 'utf8'),
   readFile(new URL('src/archive-workflow/workspace.css', projectRoot), 'utf8'),
+  readFile(new URL('public/assets/icons/archive-envelope.svg', projectRoot), 'utf8'),
 ]);
 
 const rules = postcss.parse(styles).nodes.filter((node) => node.type === 'rule');
@@ -35,7 +36,7 @@ test('the PALIS mascot keeps its original assistant menu behavior', () => {
   assert.match(script, /trigger\.addEventListener\('click', \(\) => setMenuOpen\(startMenu\.hidden\)\)/);
 });
 
-test('clerk desktop exposes only new and modify as primary archive actions', () => {
+test('clerk desktop exposes nine archive categories and a separate mailbox ornament', () => {
   const desktopIcons = html.match(
     /<nav class="clerk-desktop__icons"[\s\S]*?<\/nav>/,
   )?.[0] || '';
@@ -43,11 +44,30 @@ test('clerk desktop exposes only new and modify as primary archive actions', () 
     .map(([button]) => button)
     .filter((button) => !button.includes('data-admin-only'));
 
-  assert.equal(clerkButtons.length, 2);
-  assert.match(clerkButtons[0], /data-workspace-command="new-archive"/);
-  assert.match(clerkButtons[1], /data-workspace-command="modify-archive"/);
-  assert.match(desktopIcons, />新增档案</);
-  assert.match(desktopIcons, />修改档案</);
+  assert.equal(clerkButtons.length, 9);
+  for (const [index, icon] of [
+    'archive-country', 'archive-organization', 'archive-station',
+    'archive-entrance', 'archive-ecology', 'archive-person',
+    'archive-event', 'archive-anomaly', 'archive-species',
+  ].entries()) {
+    const code = String(index + 1).padStart(2, '0');
+    assert.match(clerkButtons[index], new RegExp(`data-workspace-command="archive-category:${code}"`));
+    assert.match(desktopIcons, new RegExp(`/assets/icons/${icon}\\.svg`));
+  }
+  assert.doesNotMatch(desktopIcons, /data-workspace-command="mailbox"/);
+  assert.match(html, /data-workspace-mailbox-ornament/);
+  assert.match(html, /data-workspace-mailbox-alert/);
+  assert.match(html, /\/assets\/icons\/archive-envelope\.svg/);
+  assert.match(styles, /\[data-workspace-mailbox-ornament\]/);
+  assert.match(envelopeAsset, /viewBox="0 0 32 32"/);
+  assert.match(envelopeAsset, /shape-rendering="crispEdges"/);
+  assert.match(envelopeAsset, /#000080/);
+  const ornamentRule = ruleFor('#clerk-desktop [data-workspace-mailbox-ornament]');
+  assert.equal(ornamentRule?.nodes.find((node) => node.prop === 'background')?.value, 'transparent');
+  assert.equal(ornamentRule?.nodes.find((node) => node.prop === 'border')?.value, '0');
+  assert.equal(ornamentRule?.nodes.find((node) => node.prop === 'box-shadow')?.value, 'none');
+  assert.doesNotMatch(desktopIcons, /data-workspace-command="new-archive"/);
+  assert.doesNotMatch(desktopIcons, /data-workspace-command="modify-archive"/);
   assert.doesNotMatch(
     desktopIcons,
     /data-workspace-command="drafts"|data-workspace-command="inbox"|data-workspace-command="assistant"/,
@@ -55,7 +75,7 @@ test('clerk desktop exposes only new and modify as primary archive actions', () 
 });
 
 test('all recorded clerks use the simple assistant clerk pen-name format', () => {
-  for (const name of ['魏伊', '主行', 'FourreTout', '精犬C']) {
+  for (const name of ['魏伊', '主行', 'FourreTout', '赭犬C']) {
     assert.match(script, new RegExp(`助理书记官：${name}`));
     assert.match(html, new RegExp(`<h2>助理书记官：${name}`));
   }
@@ -70,8 +90,18 @@ test('all recorded clerks use the simple assistant clerk pen-name format', () =>
 test('workspace shell renders the Win95 desktop and icon grid from its CSS rules', () => {
   assert.equal(declaration('.clerk-desktop', '--desktop-teal'), '#0b5555');
   assert.equal(declaration('.clerk-desktop', 'background'), 'var(--desktop-teal)');
-  assert.equal(declaration('.clerk-desktop__icons', 'grid-auto-flow'), 'column');
-  assert.equal(declaration('.clerk-desktop__icons', 'grid-template-rows'), 'repeat(2, 104px)');
+  assert.equal(
+    declaration('#clerk-desktop .clerk-desktop__icons[data-archive-category-rail]', 'grid-template-columns'),
+    'repeat(2, minmax(0, 1fr))',
+  );
+  assert.equal(
+    declaration('#clerk-desktop .clerk-desktop__icons[data-archive-category-rail]', 'grid-template-rows'),
+    'repeat(6, minmax(0, 1fr))',
+  );
+  assert.equal(
+    declaration('#clerk-desktop .clerk-desktop__icons[data-archive-category-rail]', 'max-height'),
+    'calc(100dvh - 56px)',
+  );
   assert.equal(declaration('.clerk-desktop__icons button', 'min-width'), '96px');
   assert.equal(declaration('.clerk-desktop__icons button', 'min-height'), '96px');
   assert.equal(declaration('.clerk-desktop__icon', 'width'), '60px');
@@ -89,24 +119,21 @@ test('workspace shell renders the Win95 desktop and icon grid from its CSS rules
   assert.equal(ruleFor('.clerk-desktop__exit'), undefined);
 });
 
-test('native editor requests and declares the fixed right dock geometry', () => {
-  assert.match(workspace, /dock:\s*'right'/);
+test('native editor declares a movable vertical working geometry', () => {
+  assert.doesNotMatch(workspace, /dock:\s*'right'/);
   assert.equal(
-    workflowDeclaration('.archive-editor-window.is-docked-right', 'width'),
-    'clamp(560px, 34vw, 680px)',
+    workflowDeclaration('.archive-editor-window:not(.is-docked-right)', 'width'),
+    'min(720px, calc(100vw - 32px))',
   );
   assert.equal(
-    workflowDeclaration('.archive-editor-window.is-docked-right', 'right'),
-    '0',
+    workflowDeclaration('.archive-editor-window:not(.is-docked-right)', 'height'),
+    'min(860px, calc(100dvh - 76px))',
   );
-  assert.equal(
-    workflowDeclaration('.archive-editor-window.is-docked-right', 'left'),
-    'auto',
-  );
-  assert.equal(
-    workflowDeclaration('.archive-editor-window.is-docked-right', 'height'),
-    '100%',
-  );
+});
+
+test('native archive form delegates Tab paragraph indentation to editable textareas', () => {
+  assert.match(workspace, /import \{ applyTextareaTabIndent \} from '\.\/text-indent\.js';/);
+  assert.match(workspace, /root\.addEventListener\('keydown', applyTextareaTabIndent\)/);
 });
 
 test('workspace desktop reserves a note-only layer and keeps About hidden until requested', () => {

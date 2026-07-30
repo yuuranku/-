@@ -1,11 +1,18 @@
 const DEFAULT_FREEZE_AT = '2026-07-28T12:00:00.000Z';
 
 const DEFAULT_ARCHIVE_ORIGIN = 'https://hpzdccfrouhljqlzczuv.supabase.co';
+const BASELINE_READONLY_PATHS = new Set([
+  '/rest/v1/archive_notifications',
+  '/rest/v1/archive_contributions',
+  '/rest/v1/workspace_notes',
+  '/rest/v1/workspace_note_layouts',
+]);
 
 export async function installPalisPageFixture(page, {
   freezeAt = DEFAULT_FREEZE_AT,
   previewOrigin,
   archiveOrigin = DEFAULT_ARCHIVE_ORIGIN,
+  publishedArchives = [],
 } = {}) {
   const frozenTimestamp = Date.parse(freezeAt);
   if (!Number.isFinite(frozenTimestamp)) throw new TypeError('freezeAt must be a valid date');
@@ -58,6 +65,24 @@ export async function installPalisPageFixture(page, {
         && ['GET', 'OPTIONS'].includes(request.method())
       ) {
         requestLog.archives.push(resource);
+        void request.respond({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(publishedArchives),
+          headers: {
+            'access-control-allow-origin': '*',
+            'access-control-allow-methods': 'GET,HEAD,OPTIONS',
+            'access-control-allow-headers': '*',
+          },
+        });
+        return;
+      }
+      if (
+        parsed.origin === archiveOrigin
+        && BASELINE_READONLY_PATHS.has(parsed.pathname)
+        && ['GET', 'OPTIONS'].includes(request.method())
+      ) {
+        requestLog.allowed.push(resource);
         void request.respond({
           status: 200,
           contentType: 'application/json',

@@ -15,7 +15,7 @@ const namedBlob = (bytes, type, name = 'source.png') => {
   return blob;
 };
 
-test('only person and event expose bounded archive image slots', () => {
+test('all nine archive categories expose one bounded primary image slot in their native record position', () => {
   assert.equal(mediaPolicyForCategory('person').maxSourceBytes, 5 * 1024 * 1024);
   assert.deepEqual(
     mediaPolicyForCategory('person').slots.map(({ role, field, limit }) => ({
@@ -36,16 +36,43 @@ test('only person and event expose bounded archive image slots', () => {
       { role: 'event-evidence', field: 'evidence', limit: 6 },
     ],
   );
-  for (const category of [
-    'country',
-    'organization',
-    'station',
-    'entrance',
-    'ecology',
-    'anomaly',
-    'species',
+  assert.deepEqual(
+    mediaPolicyForCategory('anomaly').slots.map(({ role, field, limit }) => ({
+      role,
+      field,
+      limit,
+    })),
+    [
+      { role: 'anomaly-cover', field: 'photo', limit: 1 },
+      { role: 'anomaly-image', field: 'evidence', limit: 6 },
+    ],
+  );
+  assert.deepEqual(
+    mediaPolicyForCategory('species').slots.map(({ role, field, limit }) => ({
+      role,
+      field,
+      limit,
+    })),
+    [
+      { role: 'species-cover', field: 'photo', limit: 1 },
+      { role: 'species-image', field: 'evidence', limit: 6 },
+    ],
+  );
+  for (const [category, role] of [
+    ['country', 'country-flag'],
+    ['organization', 'organization-cover'],
+    ['station', 'station-cover'],
+    ['entrance', 'entrance-cover'],
+    ['ecology', 'ecology-cover'],
   ]) {
-    assert.deepEqual(mediaPolicyForCategory(category).slots, []);
+    assert.deepEqual(
+      mediaPolicyForCategory(category).slots.map(({ role: actualRole, field, limit }) => ({
+        role: actualRole,
+        field,
+        limit,
+      })),
+      [{ role, field: 'photo', limit: 1 }],
+    );
   }
 });
 

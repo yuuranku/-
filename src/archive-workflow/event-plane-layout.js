@@ -73,6 +73,22 @@ export function buildEventPlaneLayout(count) {
   };
 }
 
+// Event codes are archival slot identities, not just a display order.  This
+// keeps the visible source record and later clerk records in the retained
+// visual positions without recreating removed files.
+export function buildEventPlaneSlotLayout(slotIndexes) {
+  const slots = Array.isArray(slotIndexes)
+    ? slotIndexes.map((slotIndex) => Math.max(0, Math.floor(Number(slotIndex) || 0)))
+    : [];
+  const fullLayout = buildEventPlaneLayout(Math.max(0, ...slots) + (slots.length ? 1 : 0));
+
+  return {
+    ...fullLayout,
+    items: slots.map((slotIndex) => ({ ...fullLayout.items[slotIndex] })),
+    slotIndexes: slots,
+  };
+}
+
 export function eventPlaneVisibleCount(layout, camera, viewport) {
   const x = Number(camera?.x) || 0;
   const y = Number(camera?.y) || 0;

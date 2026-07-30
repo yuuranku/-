@@ -18,8 +18,9 @@ import {
 } from './archive-workflow/publication.js';
 import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
 import { projectPublishedArchive } from './archive-workflow/index-projector.js';
+import { matchesArchiveIdentifier } from './archive-workflow/archive-identity.js';
 import {
-  buildEventPlaneLayout,
+  buildEventPlaneSlotLayout,
   eventPlaneVisibleCount,
 } from './archive-workflow/event-plane-layout.js';
 import * as THREE from 'three';
@@ -77,11 +78,7 @@ function createCloudArchiveRecord(archive) {
 async function openCloudArchiveReference(target, trigger = null) {
   if (!archiveWorkflowClient) return false;
   const matches = await archiveWorkflowClient.searchArchives(target, { limit: 12 });
-  const normalized = String(target ?? '').trim().toLocaleLowerCase('zh-CN');
-  const archive = matches.find((entry) =>
-    [entry.id, entry.code, entry.title]
-      .filter(Boolean)
-      .some((value) => String(value).trim().toLocaleLowerCase('zh-CN') === normalized))
+  const archive = matches.find((entry) => matchesArchiveIdentifier(entry, target))
     || matches[0];
   if (!archive) return false;
   const source = trigger?.getBoundingClientRect
@@ -883,7 +880,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     { documentId: 'clerk-wei-yi', entry: '助理书记官：魏伊', title: '助理书记官：魏伊', code: 'SC-01 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-yinnar-light', entry: '助理书记官：主行', title: '助理书记官：主行', code: 'SC-02 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-jean-moreau', entry: '助理书记官：FourreTout', title: '助理书记官：FourreTout', code: 'SC-03 / ONLINE / 4 PAGES' },
-    { documentId: 'clerk-jing-quan-c', entry: '助理书记官：精犬C', title: '助理书记官：精犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-jing-quan-c', entry: '助理书记官：赭犬C', title: '助理书记官：赭犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
   ];
   clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');
@@ -988,6 +985,10 @@ const RECORD_COPY_LABELS = {
 };
 
 function countryFlagMarkup(archive, modifier = '') {
+  if (archive.isCloudArchive) {
+    const code = escapeRecordText(String(archive.code || 'NEW').toUpperCase());
+    return `<span class="country-flag ${modifier}"><span class="country-flag__placeholder" role="img" aria-label="${code} 国旗待补录"><b>${code}</b><small>FLAG PENDING</small></span></span>`;
+  }
   return `<span class="country-flag ${modifier}"><img src="/assets/flags/${archive.code}.svg" alt="${escapeRecordText(archive.name)}国旗" loading="lazy"></span>`;
 }
 const sceneElement = document.querySelector('#scene');
@@ -2405,6 +2406,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
   orbit.dataset.mode = mode;
   orbit.className = `folder-orbit mode-${mode}${entries.length > 12 ? ' is-dense' : ''}`;
   archiveSelection = Math.min(archiveSelection, Math.max(entries.length - 1, 0));
+  if (mode === 'ecology-strata') archiveSelection = Math.min(archiveSelection, 6);
   document.querySelector('#archive-heading').textContent = directory ? directory.name : 'PALIS 09A 总目录';
   document.querySelector('#archive-subtitle').textContent = directory
     ? ARCHIVE_SUBTITLES[directory.id] || `${directory.meta} / PALIS ARCHIVE CHANNEL`
@@ -2572,7 +2574,7 @@ function buildCountryStack(orbit, entries, appendArchiveEntry) {
       <div class="country-folder-stack" role="list" aria-label="堆叠国家档案"></div>
       <aside class="country-stack-readout" aria-live="polite"></aside>
     </div>
-    <footer><span>NATIONAL ACCESSION STACK / 18 FILES</span><b>SOURCE ORDER PRESERVED</b></footer>
+    <footer><span>NATIONAL ACCESSION STACK / ${String(entries.length).padStart(2, '0')} FILES</span><b>SOURCE ORDER PRESERVED</b></footer>
   `;
   orbit.appendChild(vault);
   const deck = vault.querySelector('.country-folder-stack');
@@ -2629,6 +2631,9 @@ function updateCountryStackReadout(archive) {
   const readout = folderOrbit.querySelector('.country-stack-readout');
   if (!readout || !archive) return;
   const bloc = { west: 'BLUE ACCESSION', east: 'RED ACCESSION', neutral: 'NON-ALIGNED ACCESSION' }[archive.bloc] || 'UNFILED';
+  const stats = Array.isArray(archive.stats) && archive.stats.length
+    ? archive.stats
+    : [['目录', '国家'], ['档案期', archive.archivePeriod || '待定'], ['状态', archive.isNew ? '新入档' : '已上线']];
   readout.dataset.bloc = archive.bloc || 'neutral';
   readout.innerHTML = `
     <p><span>${bloc}</span><b>${archive.code} / STATE FILE</b></p>
@@ -2636,7 +2641,7 @@ function updateCountryStackReadout(archive) {
     <div class="country-readout-redaction" role="img" aria-label="国家档案摘要已遮蔽">
       <span></span><span></span><span></span><span></span><span></span>
     </div>
-    <dl>${archive.stats.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
+    <dl>${stats.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
     <footer>PALIS SOURCE CONTROL / VERSION PRESERVED</footer>
   `;
 }
@@ -2915,7 +2920,10 @@ function renderPeopleNetwork(animate = true) {
 }
 
 function buildEventPlane(orbit, entries, appendArchiveEntry) {
-  const planeLayout = buildEventPlaneLayout(entries.length);
+  // HZ-6 anchors the first position. Every later published event fills the
+  // next reserved baseline slot, keeping the remaining 25 positions ready.
+  const eventSlotIndexes = entries.map((_, index) => index);
+  const planeLayout = buildEventPlaneSlotLayout(eventSlotIndexes);
   const scene = document.createElement('section');
   scene.className = 'event-plane';
   scene.tabIndex = 0;
@@ -3946,9 +3954,14 @@ const ECO_BAND_PATTERNS = [
 ];
 
 function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
+  // The recorder represents seven physical strata. Entries created afterwards
+  // are supplemental ecology files and belong in the reading area, not a new
+  // eighth layer in the left-hand depth column.
+  const strataEntries = entries.slice(0, 7);
+  const supplementaryEntries = entries.slice(7);
   const bands = ecoBands();
-  const tempRanges = entries.map((_, index) => ecoTemperatureRange(index));
-  const oxygenRanges = entries.map((archive) => ecoOxygenRange(archive));
+  const tempRanges = strataEntries.map((_, index) => ecoTemperatureRange(index));
+  const oxygenRanges = strataEntries.map((archive) => ecoOxygenRange(archive));
   const temp = ecoEnvelopePaths(tempRanges, -10, 20);
   const oxygen = ecoEnvelopePaths(oxygenRanges, 17.5, 22);
 
@@ -4006,22 +4019,43 @@ function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
           <p class="eco-card-materials" data-ecology-materials></p>
           <button type="button" class="directory-open-button">打开生态记录 →</button>
         </article>
+        ${supplementaryEntries.length ? `
+          <section class="eco-log-additions" aria-label="新增生态记录">
+            <div class="eco-log-additions__list" role="list"></div>
+          </section>
+        ` : ''}
       </div>
     </div>
   `;
   orbit.appendChild(cabinet);
 
   const bandNav = cabinet.querySelector('.eco-log-bands');
-  const buttons = entries.map((archive, index) => {
+  const buttons = strataEntries.map((archive, index) => {
     const result = appendArchiveEntry(archive, index, bandNav);
     const band = bands[index];
     result.item.style.setProperty('--band-top', `${(band.y0 / 620) * 100}%`);
     result.item.style.setProperty('--band-height', `${((band.y1 - band.y0) / 620) * 100}%`);
     return result.button;
   });
-  ecologyCabinetState = { entries, cabinet, buttons, bands, cardAnimation: null };
+  const additionList = cabinet.querySelector('.eco-log-additions__list');
+  supplementaryEntries.forEach((archive) => {
+    if (!additionList) return;
+    const item = document.createElement('div');
+    item.className = 'folder-item';
+    item.setAttribute('role', 'listitem');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `folder-button is-document ${archive.webContent ? 'is-online' : 'is-offline'}`;
+    button.setAttribute('aria-label', `打开 ${archive.name}`);
+    button.innerHTML = `<b>${archive.code}</b><span>${archive.name}</span>${archive.isNew ? '<em>NEW</em>' : ''}`;
+    button.addEventListener('click', () => openArchive(archive, button));
+    item.appendChild(button);
+    additionList.appendChild(item);
+  });
+  cabinet.classList.toggle('has-ecology-additions', supplementaryEntries.length > 0);
+  ecologyCabinetState = { entries: strataEntries, cabinet, buttons, bands, cardAnimation: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
-    openArchive(entries[archiveSelection], buttons[archiveSelection]);
+    openArchive(strataEntries[archiveSelection], buttons[archiveSelection]);
   });
   if (!reducedMotion) {
     cabinet.querySelectorAll('[data-trace]').forEach((trace, index) => {
@@ -4055,10 +4089,12 @@ function renderEcologyCabinet(animate = true) {
   head.style.transform = `translateY(${center}px)`;
 
   const card = state.cabinet.querySelector('.eco-log-card');
-  // Keep the vertically-centered card fully inside the stage: with a max-height
-  // of 78% (half = 39%), the center must stay within [40, 60] so neither edge
-  // spills past the panel and clips the title.
-  const cardCenter = Math.min(Math.max((center / 620) * 100, 40), 60);
+  // When new records exist, reserve the lower panel for them and keep the
+  // selected record fully readable above it. Otherwise retain the original
+  // selected-band tracking behaviour.
+  const cardCenter = state.cabinet.classList.contains('has-ecology-additions')
+    ? 34
+    : Math.min(Math.max((center / 620) * 100, 40), 60);
   card.style.setProperty('--card-top', `${cardCenter}%`);
   const connector = state.cabinet.querySelector('.el-connector');
   const cardY = (cardCenter / 100) * 620;
@@ -4930,11 +4966,7 @@ async function resolvePublishedArchive(archive) {
   const candidates = [embeddedCode, archive.code, archive.name].filter(Boolean);
   for (const candidate of candidates) {
     const matches = await archiveWorkflowClient.searchArchives(candidate, { limit: 12 });
-    const normalized = String(candidate).toLocaleLowerCase('zh-CN');
-    const exact = matches.find((entry) =>
-      [entry.code, entry.title]
-        .filter(Boolean)
-        .some((value) => String(value).toLocaleLowerCase('zh-CN') === normalized));
+    const exact = matches.find((entry) => matchesArchiveIdentifier(entry, candidate));
     if (exact) return exact;
   }
   return null;
@@ -5054,31 +5086,40 @@ function downloadArchiveDocument(archive, windowElement) {
 
 function initializeArchiveFileMenu(state) {
   const { archive, windowElement } = state;
-  const trigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
-  const menu = windowElement.querySelector('.dialog-file-menu');
-  if (!trigger || !menu) return;
-  const amendAction = menu.querySelector('[data-archive-file-action="amend"]');
+  const fileTrigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
+  const editTrigger = windowElement.querySelector('[data-archive-menu-trigger="edit"]');
+  const fileMenu = windowElement.querySelector('[data-archive-file-menu]');
+  const editMenu = windowElement.querySelector('[data-archive-edit-menu]');
+  if (!fileTrigger || !editTrigger || !fileMenu || !editMenu) return;
+  const amendAction = editMenu.querySelector('[data-archive-edit-action="amend"]');
   amendAction.disabled = !archive.webContent;
   amendAction.textContent = archive.webContent ? '提交修改申请' : '正文离线，不能修改';
 
-  const setMenuOpen = (open) => {
-    menu.hidden = !open;
-    trigger.setAttribute('aria-expanded', String(open));
-    windowElement.classList.toggle('is-file-menu-open', open);
+  const setMenuOpen = (activeMenu = null) => {
+    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger]]) {
+      const open = menu === activeMenu;
+      menu.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+    }
+    windowElement.classList.toggle('is-file-menu-open', activeMenu === fileMenu);
+    windowElement.classList.toggle('is-edit-menu-open', activeMenu === editMenu);
   };
 
-  trigger.addEventListener('click', (event) => {
+  const toggleMenu = (menu) => (event) => {
     event.stopPropagation();
-    setMenuOpen(menu.hidden);
-  });
+    setMenuOpen(menu.hidden ? menu : null);
+  };
+  fileTrigger.addEventListener('click', toggleMenu(fileMenu));
+  editTrigger.addEventListener('click', toggleMenu(editMenu));
   windowElement.addEventListener('pointerdown', (event) => {
-    if (!event.target.closest('.dialog-menu__group')) setMenuOpen(false);
+    if (!event.target.closest('.dialog-menu__group')) setMenuOpen();
   });
   windowElement.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !menu.hidden) {
+    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden)) {
       event.preventDefault();
-      setMenuOpen(false);
-      trigger.focus();
+      const activeTrigger = fileMenu.hidden ? editTrigger : fileTrigger;
+      setMenuOpen();
+      activeTrigger.focus();
     }
   });
   windowElement.addEventListener('click', (event) => {
@@ -5088,9 +5129,15 @@ function initializeArchiveFileMenu(state) {
       requestArchiveAmendment(archive);
       return;
     }
-    const action = event.target.closest('[data-archive-file-action]')?.dataset.archiveFileAction;
+    const recordAction = event.target.closest('[data-archive-record-action]')?.dataset.archiveRecordAction;
+    if (recordAction) {
+      windowElement.querySelector(`[data-contribution-tab="${CSS.escape(recordAction)}"]`)?.click();
+      setMenuOpen();
+      return;
+    }
+    const action = event.target.closest('[data-archive-edit-action]')?.dataset.archiveEditAction;
     if (!action) return;
-    setMenuOpen(false);
+    setMenuOpen();
     if (action === 'amend' && archive.webContent) requestArchiveAmendment(archive);
     if (action === 'export') downloadArchiveDocument(archive, windowElement);
     if (action === 'print') {
@@ -5106,6 +5153,19 @@ function initializeArchiveFileMenu(state) {
     }
     if (action === 'close') closeArchiveWindow(windowElement);
   });
+}
+
+function populateArchiveRecordMenu(windowElement) {
+  const menu = windowElement.querySelector('[data-archive-file-menu]');
+  const records = [...windowElement.querySelectorAll('[data-contribution-tab]')];
+  if (!menu) return;
+  if (!records.length) {
+    menu.innerHTML = '<span class="dialog-menu__empty">当前档案</span>';
+    return;
+  }
+  menu.innerHTML = records.map((record, index) => `
+    <button type="button" role="menuitem" data-archive-record-action="${escapeRecordText(record.dataset.contributionTab)}"${index === 0 ? ' aria-current="true"' : ''}>${escapeRecordText(record.textContent)}</button>
+  `).join('');
 }
 
 function openArchive(archive, trigger) {
@@ -5172,9 +5232,11 @@ function openArchive(archive, trigger) {
   archiveDesktop.appendChild(windowElement);
   initializeArchiveFileMenu(state);
   void hydratePublishedContributions(archive, sheet).then((disposePublishedMedia) => {
-    if (typeof disposePublishedMedia !== 'function') return;
-    if (state.closing) disposePublishedMedia();
-    else state.disposePublishedMedia = disposePublishedMedia;
+    populateArchiveRecordMenu(windowElement);
+    if (typeof disposePublishedMedia === 'function') {
+      if (state.closing) disposePublishedMedia();
+      else state.disposePublishedMedia = disposePublishedMedia;
+    }
   });
 
   windowElement.style.visibility = 'hidden';

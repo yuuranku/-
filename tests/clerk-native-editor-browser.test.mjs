@@ -178,6 +178,239 @@ const openDesktopCommand = async (page, command) => {
   );
 };
 
+const openCategoryAction = async (page, templateCode, action) => {
+  await openDesktopCommand(page, `archive-category:${templateCode}`);
+  await page.waitForSelector(`[data-category-archive-actions="${templateCode}"]`);
+  await clickControl(
+    page,
+    `[data-category-archive-actions="${templateCode}"] [data-category-action="${action}"]`,
+  );
+};
+
+test(
+  'local workbench exposes official station and entrance records to the modify flow',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+    await openCategoryAction(page, '03', 'modify');
+    await page.waitForSelector('[data-modify-archive]');
+
+    const stationCodes = await page.$$eval(
+      '[data-modify-archive]',
+      (buttons) => buttons.map((button) => button.textContent),
+    );
+    assert.ok(stationCodes.some((text) => text.includes('麦克默多站')));
+
+    await clickControl(page, '[data-modify-back-home]');
+    await clickControl(page, '[data-modify-category="entrance"]');
+    await page.waitForSelector('[data-modify-archive]');
+    const entranceCodes = await page.$$eval(
+      '[data-modify-archive]',
+      (buttons) => buttons.map((button) => button.textContent),
+    );
+    assert.ok(entranceCodes.some((text) => text.includes('雁背竖井')));
+  },
+);
+
+test(
+  'opening an official station from modify preserves its existing static content',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+    await openCategoryAction(page, '03', 'modify');
+    await page.waitForSelector('[data-modify-archive]');
+
+    const stationArchiveId = await page.$$eval('[data-modify-archive]', (buttons) => (
+      buttons.find((button) => button.textContent.includes('\u9ea6\u514b\u9ed8\u591a\u7ad9'))?.dataset.modifyArchive
+    ));
+    assert.ok(stationArchiveId, 'Expected the official McMurdo station in the modify picker');
+    await clickControl(page, `[data-modify-archive="${stationArchiveId}"]`);
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+
+    const values = await page.evaluate(() => ({
+      title: document.querySelector('[name="index:title"]')?.value,
+      overview: document.querySelector('[name="body:stationOverview"]')?.value,
+    }));
+    assert.equal(values.title, '\u9ea6\u514b\u9ed8\u591a\u7ad9');
+    assert.match(values.overview, /77\.85/);
+  },
+);
+
+test(
+  'clerk native editor is a movable vertical window and its document responds to the mouse wheel',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+    await openCategoryAction(page, '03', 'new');
+    await page.waitForSelector('[data-new-archive-chooser]');
+    await clickControl(page, '[data-new-independent-template="03"]');
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+    await page.waitForFunction(
+      () => !document.querySelector('.archive-editor-window')?.classList.contains('is-opening'),
+    );
+
+    const before = await page.$eval('.archive-editor-window', (editor) => {
+      const titlebar = editor.querySelector('[data-workflow-drag-handle]').getBoundingClientRect();
+      const scroll = editor.querySelector('[data-editor-scroll]');
+      const editorRect = editor.getBoundingClientRect();
+      return {
+        docked: editor.classList.contains('is-docked-right'),
+        editorLeft: editorRect.left,
+        editorWidth: editorRect.width,
+        titlebar: { x: titlebar.left + titlebar.width / 2, y: titlebar.top + titlebar.height / 2 },
+        scroll: {
+          x: scroll.getBoundingClientRect().left + 20,
+          y: scroll.getBoundingClientRect().top + 80,
+          scrollHeight: scroll.scrollHeight,
+          clientHeight: scroll.clientHeight,
+        },
+      };
+    });
+    assert.equal(before.docked, false, 'The editor must not be locked to the right edge');
+    assert.ok(before.editorWidth < 900, 'The editor must retain a vertical working shape');
+    assert.ok(before.scroll.scrollHeight > before.scroll.clientHeight, 'The form fixture must overflow vertically');
+
+    await page.mouse.move(before.scroll.x, before.scroll.y);
+    await page.mouse.wheel({ deltaY: 620 });
+    await page.waitForFunction(
+      () => document.querySelector('[data-editor-scroll]')?.scrollTop > 0,
+      { timeout: 5_000 },
+    );
+
+    await page.mouse.move(before.titlebar.x, before.titlebar.y);
+    await page.mouse.down();
+    await page.mouse.move(before.titlebar.x + 140, before.titlebar.y + 70, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForFunction(
+      (startLeft) => document.querySelector('.archive-editor-window')?.getBoundingClientRect().left > startLeft + 80,
+      { timeout: 5_000 },
+      before.editorLeft,
+    );
+  },
+);
+
+test(
+  'clerk desktop keeps its account and connection tray against the right edge',
+  { timeout: 30_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+    const layout = await page.$eval('#assistant-taskbar', (taskbar) => {
+      const bar = taskbar.getBoundingClientRect();
+      const tray = taskbar.querySelector('.clerk-desktop__tray').getBoundingClientRect();
+      return { gap: Math.round(bar.right - tray.right) };
+    });
+    assert.ok(layout.gap <= 4, 'The system tray must remain on the far right when no task button is open');
+  },
+);
+
+test(
+  'category desktop keeps nine archive icons in a spacious two-column grid and opens a compact action menu',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+
+    const commands = await page.$$eval(
+      '[data-workspace-shortcut][data-workspace-command^="archive-category:"]',
+      (buttons) => buttons.map((button) => button.dataset.workspaceCommand),
+    );
+    assert.deepEqual(commands, [
+      'archive-category:01', 'archive-category:02', 'archive-category:03',
+      'archive-category:04', 'archive-category:05', 'archive-category:06',
+      'archive-category:07', 'archive-category:08', 'archive-category:09',
+    ], 'The desktop must expose the nine category entry points in archive order');
+    assert.equal(await page.$('[data-workspace-shortcut][data-workspace-command="new-archive"]'), null);
+    assert.equal(await page.$('[data-workspace-shortcut][data-workspace-command="modify-archive"]'), null);
+
+    const iconPositions = await page.$$eval(
+      '[data-workspace-shortcut][data-workspace-command^="archive-category:"]',
+      (buttons) => buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: Math.round(rect.left), top: Math.round(rect.top) };
+      }),
+    );
+    const categoryPositions = iconPositions.slice(0, 9);
+    assert.equal(new Set(categoryPositions.map(({ left }) => left)).size, 2,
+      'The nine archive categories must occupy two desktop columns');
+    assert.equal(new Set(categoryPositions.map(({ top }) => top)).size, 5,
+      'The nine archive categories must occupy five spacious desktop rows');
+    assert.ok(categoryPositions.every((position, index) => (
+      index < 2 || position.top > categoryPositions[index - 2].top
+    )), 'Each category row must sit below the matching category in the previous row');
+
+    await page.click('[data-workspace-command="archive-category:02"]');
+    const desktopGeometry = await page.$eval('#clerk-desktop', (desktop) => {
+      const rail = desktop.querySelector('[data-archive-category-rail]');
+      const selected = rail.querySelector('[data-workspace-command="archive-category:02"]');
+      const icon = selected.querySelector('.clerk-desktop__icon');
+      const railRect = rail.getBoundingClientRect();
+      const selectedRect = selected.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+      const selection = getComputedStyle(selected, '::before');
+      return {
+        railCenter: Math.round(railRect.top + railRect.height / 2),
+        workingAreaCenter: Math.round((window.innerHeight - 38) / 2),
+        selectedWidth: Math.round(selectedRect.width),
+        iconWidth: Math.round(iconRect.width),
+        selectionContent: selection.content,
+        selectionWidth: Math.round(Number.parseFloat(selection.width)),
+      };
+    });
+    assert.ok(Math.abs(desktopGeometry.railCenter - desktopGeometry.workingAreaCenter) <= 3,
+      'The complete icon grid must be vertically centered in the usable desktop area');
+    assert.equal(desktopGeometry.selectionContent, '""',
+      'A selected desktop icon must use a dedicated compact focus plate');
+    assert.ok(desktopGeometry.selectionWidth <= desktopGeometry.iconWidth + 30
+      && desktopGeometry.selectionWidth < desktopGeometry.selectedWidth,
+    'The selected state must frame the icon and its label, not the whole oversized grid cell');
+
+    for (const viewport of [
+      { width: 1024, height: 768 },
+      { width: 1680, height: 1080 },
+    ]) {
+      await page.setViewport(viewport);
+      const responsiveLayout = await page.$$eval(
+        '[data-workspace-shortcut][data-workspace-command^="archive-category:"]',
+        (buttons) => buttons.map((button) => {
+          const icon = button.querySelector('.clerk-desktop__icon').getBoundingClientRect();
+          const label = button.querySelector('span').getBoundingClientRect();
+          const box = button.getBoundingClientRect();
+          return {
+            left: Math.round(box.left),
+            bottom: Math.round(box.bottom),
+            labelOffset: Math.round(label.top - icon.bottom),
+          };
+        }),
+      );
+      assert.equal(new Set(responsiveLayout.map(({ left }) => left)).size, 2,
+        `Archive icons must remain in two columns at ${viewport.width}×${viewport.height}`);
+      assert.ok(responsiveLayout.every(({ bottom, labelOffset }) => (
+        bottom <= viewport.height - 38 && labelOffset >= 0 && labelOffset <= 10
+      )), `Each icon label must stay beside its icon and above the taskbar at ${viewport.width}×${viewport.height}`);
+    }
+    await page.setViewport({ width: 1440, height: 900 });
+
+    await openDesktopCommand(page, 'archive-category:07');
+    await page.waitForSelector('[data-category-archive-actions="07"]');
+    assert.deepEqual(
+      await page.$$eval('[data-category-archive-actions="07"] [data-category-action]', (buttons) =>
+        buttons.map((button) => button.dataset.categoryAction)),
+      ['modify', 'new'],
+      'Modify must appear before New inside the selected category',
+    );
+    const actionMenu = await page.$eval('.archive-category-actions-window', (windowElement) => {
+      const rect = windowElement.getBoundingClientRect();
+      return { width: Math.round(rect.width), height: Math.round(rect.height) };
+    });
+    assert.ok(actionMenu.width <= 340 && actionMenu.height <= 300,
+      'A two-option action menu must not open as a full-screen window');
+  },
+);
+
 const seedClerkAndReference = (page) => page.evaluate(async () => {
   const [
     { createLocalIndexedDbRepository },
@@ -228,7 +461,9 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
     title: '蓝冰裂隙参照事件',
     values: {
       hero: '蓝冰裂隙参照事件',
+      missionNumber: 'EV-1963-REF',
       eventOverview: '供原生编辑器浏览器验收引用的事件正文。',
+      missionContent: '供原生编辑器浏览器验收引用的事件正文。',
       evidenceSummary: '参照证据已归档。',
     },
     indexData: {
@@ -316,6 +551,140 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
     },
   };
 });
+
+test(
+  'clerk desktop exposes only the nine archive categories and centers their five-row rail',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+
+    const clerkDesktop = await page.$eval('#clerk-desktop', (desktop) => {
+      const rail = desktop.querySelector('[data-archive-category-rail]');
+      const visible = (element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return !element.hidden && style.display !== 'none' && style.visibility !== 'hidden'
+          && rect.width > 0 && rect.height > 0;
+      };
+      const adminShortcuts = [...desktop.querySelectorAll('[data-admin-only]')]
+        .filter(visible)
+        .map((button) => button.dataset.workspaceCommand || button.textContent.trim());
+      const archiveShortcuts = [...rail.querySelectorAll('[data-workspace-command^="archive-category:"]')]
+        .filter(visible);
+      const railRect = rail.getBoundingClientRect();
+      const workingAreaCenter = (window.innerHeight - 38) / 2;
+      return {
+        role: desktop.dataset.workspaceRole,
+        adminShortcuts,
+        archiveCount: archiveShortcuts.length,
+        archiveRows: new Set(archiveShortcuts.map((button) => Math.round(button.getBoundingClientRect().top))).size,
+        rowTemplate: getComputedStyle(rail).gridTemplateRows.split(' ').filter(Boolean).length,
+        centerOffset: Math.abs((railRect.top + railRect.height / 2) - workingAreaCenter),
+      };
+    });
+
+    assert.equal(clerkDesktop.role, 'clerk');
+    assert.deepEqual(clerkDesktop.adminShortcuts, [],
+      'Review, archive management, and account management must be unavailable on the clerk desktop');
+    assert.equal(clerkDesktop.archiveCount, 9, 'The clerk desktop must retain all nine archive categories');
+    assert.equal(clerkDesktop.archiveRows, 5, 'Nine category icons must fill five rows in the clerk two-column grid');
+    assert.equal(clerkDesktop.rowTemplate, 5, 'The clerk rail must not reserve a sixth blank admin row');
+    assert.ok(clerkDesktop.centerOffset <= 3, 'The clerk icon rail must remain vertically centered');
+  },
+);
+
+test(
+  'category New can append an independent document to every existing archive without selecting a document to amend',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+
+    await openDesktopCommand(page, 'archive-category:07');
+    await page.waitForSelector('[data-category-archive-actions="07"]');
+    await clickControl(page, '[data-category-archive-actions="07"] [data-category-action="new"]');
+    await page.waitForSelector('[data-category-new-archive-chooser="07"]');
+    await page.waitForSelector(`[data-new-contribution-archive="${fixture.referenceArchive.id}"]`);
+    await clickControl(page, `[data-new-contribution-archive="${fixture.referenceArchive.id}"]`);
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+
+    assert.deepEqual(
+      await page.$eval('[data-archive-editor]', (form) => ({
+        kind: form.elements.kind.value,
+        archiveId: form.elements.archiveId.value,
+        targetDocumentId: form.elements.targetDocumentId.value,
+        targetContributionId: form.elements.targetContributionId.value,
+      })),
+      {
+        kind: 'contribution',
+        archiveId: fixture.referenceArchive.id,
+        targetDocumentId: '',
+        targetContributionId: '',
+      },
+      'New must append a sibling document and must not select a prior document for modification',
+    );
+  },
+);
+
+test(
+  'clerk loses New only for station and entrance while an administrator keeps both category actions',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+    await openDesktopCommand(page, 'archive-category:03');
+    await page.waitForSelector('[data-category-archive-actions="03"]');
+    assert.deepEqual(
+      await page.$$eval('[data-category-archive-actions="03"] [data-category-action]', (buttons) =>
+        buttons.map((button) => button.dataset.categoryAction)),
+      ['modify'],
+    );
+    await clickControl(page, '.archive-category-actions-window [data-workflow-close]');
+
+    await switchPrincipal(page, fixture.admin);
+    await openWorkspace(page);
+    await openDesktopCommand(page, 'archive-category:03');
+    await page.waitForSelector('[data-category-archive-actions="03"]');
+    assert.deepEqual(
+      await page.$$eval('[data-category-archive-actions="03"] [data-category-action]', (buttons) =>
+        buttons.map((button) => button.dataset.categoryAction)),
+      ['modify', 'new'],
+    );
+  },
+);
+
+test(
+  'archive management filters official records with nine left category tabs',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    await openWorkspace(page);
+    await openDesktopCommand(page, 'archives');
+    await page.waitForSelector('[data-admin-archive-category]');
+
+    assert.equal(
+      await page.$$eval('[data-admin-archive-category]', (tabs) => tabs.length),
+      9,
+    );
+    await clickControl(page, '[data-admin-archive-category="station"]');
+    await page.waitForSelector('[data-admin-archive-results] [data-managed-archive]');
+    assert.ok(
+      await page.$eval('[data-admin-archive-results]', (results) => results.textContent.includes('麦克默多站')),
+    );
+    await clickControl(page, '[data-admin-archive-category="entrance"]');
+    await page.waitForFunction(
+      () => document.querySelector('[data-admin-archive-results]')?.textContent.includes('雁背竖井'),
+    );
+  },
+);
 
 const readWorkflowState = (page, principal) => page.evaluate(async (activePrincipal) => {
   const { createLocalIndexedDbRepository } = await import(
@@ -498,6 +867,45 @@ test(
 );
 
 test(
+  'public record amendment requests load the selected document into the editor',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+
+    await page.evaluate((detail) => {
+      window.dispatchEvent(new CustomEvent('palis:open-amendment', { detail }));
+    }, {
+      templateCode: '07',
+      archiveId: fixture.referenceArchive.id,
+      archiveCode: fixture.referenceArchive.code,
+      targetContributionId: fixture.olderReference.contributionId,
+      officialBase: false,
+      title: 'Requested amendment',
+    });
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+
+    assert.deepEqual(
+      await page.$eval('[data-archive-editor]', (form) => ({
+        title: form.querySelector('[name="index:title"]')?.value,
+        missionNumber: form.querySelector('[name="body:missionNumber"]')?.value,
+        missionContent: form.querySelector('[name="body:missionContent"]')?.value,
+        targetContributionId: form.elements.targetContributionId.value,
+      })),
+      {
+        title: fixture.olderReference.title,
+        missionNumber: 'EV-1963-REF',
+        missionContent: fixture.olderReference.overview,
+        targetContributionId: fixture.olderReference.contributionId,
+      },
+      'The public request must open the exact selected record with its existing contents.',
+    );
+  },
+);
+
+test(
   'clerk opens the requested older document instead of a newer sibling source',
   { timeout: 60_000 },
   async (t) => {
@@ -512,19 +920,21 @@ test(
 
     await switchPrincipal(page, fixture.clerk);
     await openWorkspace(page);
-    await openDesktopCommand(page, 'modify-archive');
-    await page.waitForSelector('[data-modify-category="event"]');
-    await clickControl(page, '[data-modify-category="event"]');
+    await openCategoryAction(page, '07', 'modify');
     await page.waitForSelector(`[data-modify-archive="${fixture.referenceArchive.id}"]`);
     await clickControl(page, `[data-modify-archive="${fixture.referenceArchive.id}"]`);
 
     const olderSelector = `[data-modify-document="${fixture.olderReference.contributionId}"][data-document-version-id="${fixture.olderReference.versionId}"]`;
     await page.waitForSelector(olderSelector);
-    assert.deepEqual(
-      (await page.$$eval('[data-modify-document]', (buttons) => buttons.map((button) => ({
+    const versionedDocuments = (await page.$$eval('[data-modify-document]', (buttons) => buttons
+      .map((button) => ({
         contributionId: button.dataset.modifyDocument,
         versionId: button.dataset.documentVersionId,
-      })))).sort((left, right) => left.contributionId.localeCompare(right.contributionId)),
+      }))
+      .filter(({ versionId }) => versionId)))
+      .sort((left, right) => left.contributionId.localeCompare(right.contributionId));
+    assert.deepEqual(
+      versionedDocuments,
       [
         {
           contributionId: fixture.olderReference.contributionId,
@@ -542,12 +952,12 @@ test(
     assert.deepEqual(
       await page.$eval('[data-archive-editor]', (form) => ({
         title: form.querySelector('[name="index:title"]')?.value,
-        overview: form.querySelector('[name="body:eventOverview"]')?.value,
+        legacyPanelCount: form.querySelectorAll('[data-native-legacy-field]').length,
         targetContributionId: form.elements.targetContributionId.value,
       })),
       {
         title: fixture.olderReference.title,
-        overview: fixture.olderReference.overview,
+        legacyPanelCount: 0,
         targetContributionId: fixture.olderReference.contributionId,
       },
     );
@@ -560,7 +970,9 @@ test(
   async (t) => {
     const { page } = await openLocalAdminBrowser(t);
     const fixture = await seedClerkAndReference(page);
-    await switchPrincipal(page, fixture.clerk);
+    // Station and entrance records may only be created by an administrator.
+    // The clerk takes over after accession to exercise the amendment path.
+    await switchPrincipal(page, fixture.admin);
     await openWorkspace(page);
 
     assert.equal(
@@ -572,39 +984,36 @@ test(
       { templateCode: '03', coreField: 'stationOverview' },
       { templateCode: '04', coreField: 'transitRiskSummary' },
     ]) {
-      await openDesktopCommand(page, 'new-archive');
+      await openCategoryAction(page, templateCode, 'new');
       await page.waitForSelector('[data-new-archive-chooser]');
-      await clickControl(page, `[data-new-archive-template="${templateCode}"]`);
+      await clickControl(page, `[data-new-independent-template="${templateCode}"]`);
       await page.waitForSelector('.archive-editor-window:not([hidden])');
       assert.equal(
         await page.$eval('.archive-editor-window', (editor, expectedCoreField) => (
-          editor.classList.contains('is-docked-right')
+          !editor.classList.contains('is-docked-right')
           && Boolean(editor.querySelector('[data-native-form-root]'))
           && Boolean(editor.querySelector(`[name="body:${expectedCoreField}"]`))
           && !editor.querySelector('iframe[data-template-editor-frame]')
         ), coreField),
         true,
-        `Template ${templateCode} must open as its native, right-docked new-entry form`,
+        `Template ${templateCode} must open as its native, movable new-entry form`,
       );
       await clickControl(page, '.archive-editor-window [data-workflow-close]');
       await page.waitForFunction(() => !document.querySelector('.archive-editor-window'));
     }
 
-    await openDesktopCommand(page, 'new-archive');
+    await openCategoryAction(page, '03', 'new');
     await page.waitForSelector('[data-new-archive-chooser]');
-    await clickControl(page, '[data-new-archive-template="03"]');
+    await clickControl(page, '[data-new-independent-template="03"]');
     await page.waitForSelector('.archive-editor-window:not([hidden])');
     await page.waitForFunction(
       () => !document.querySelector('.archive-editor-window')?.classList.contains('is-opening'),
     );
 
-    const dock = await page.evaluate(() => {
+    const shape = await page.evaluate(() => {
       const editor = document.querySelector('.archive-editor-window');
-      const layer = document.querySelector('#assistant-window-layer');
       const editorRect = editor.getBoundingClientRect();
-      const layerRect = layer.getBoundingClientRect();
       return {
-        right: layerRect.right - editorRect.right,
         width: editorRect.width,
         docked: editor.classList.contains('is-docked-right'),
         scrollAreas: editor.querySelectorAll('.archive-editor__scroll').length,
@@ -612,10 +1021,9 @@ test(
         outlineCount: editor.querySelectorAll('[data-editor-outline]').length,
       };
     });
-    assert.deepEqual(dock, {
-      right: 0,
-      width: 560,
-      docked: true,
+    assert.deepEqual(shape, {
+      width: 720,
+      docked: false,
       scrollAreas: 1,
       iframeCount: 0,
       outlineCount: 0,
@@ -641,25 +1049,19 @@ test(
     await setValue(
       page,
       '[data-native-custom-entry] [data-native-custom-content]',
-      '第二钻孔的温度曲线已归档。',
+      `第二钻孔的温度曲线已归档。/${fixture.referenceArchive.code}`,
     );
-
-    await setValue(
-      page,
-      '[data-reference-search] [name="referenceQuery"]',
-      fixture.referenceArchive.code,
-    );
-    await clickControl(page, '[data-reference-search-submit]');
     await page.waitForSelector(
-      `[data-reference-result][data-add-reference="${fixture.referenceArchive.id}"]`,
+      `[data-inline-reference-result][data-id="${fixture.referenceArchive.id}"]`,
     );
     await clickControl(
       page,
-      `[data-reference-result][data-add-reference="${fixture.referenceArchive.id}"]`,
+      `[data-inline-reference-result][data-id="${fixture.referenceArchive.id}"]`,
     );
-    assert.match(
-      await page.$eval('[data-reference-list]', (node) => node.textContent),
-      new RegExp(fixture.referenceArchive.code),
+    assert.equal(
+      await page.$eval('[data-native-custom-entry] [data-native-custom-content]', (control) => control.value),
+      `第二钻孔的温度曲线已归档。〔${fixture.referenceArchive.code} ${fixture.referenceArchive.title}〕`,
+      'Selecting an inline reference must replace only the slash query inside the active field',
     );
 
     await clickControl(page, '[data-submit-review]');
@@ -668,10 +1070,9 @@ test(
         === 'submitted',
     );
 
-    await switchPrincipal(page, fixture.admin);
     const submittedState = await readWorkflowState(page, fixture.admin);
     const submitted = submittedState.queue.find(({ title }) => title === '南纬七一原生站');
-    assert.ok(submitted, 'Expected the clerk station draft in the real local review queue');
+    assert.ok(submitted, 'Expected the administrator station draft in the real local review queue');
 
     await openWorkspace(page);
     await openDesktopCommand(page, 'review');
@@ -706,15 +1107,9 @@ test(
 
     await switchPrincipal(page, fixture.clerk);
     await openWorkspace(page);
-    await openDesktopCommand(page, 'modify-archive');
-    await page.waitForSelector('[data-modify-category="station"]');
-    await clickControl(page, '[data-modify-category="station"]');
+    await openCategoryAction(page, '03', 'modify');
     await page.waitForSelector(`[data-modify-archive="${station.id}"]`);
     await clickControl(page, `[data-modify-archive="${station.id}"]`);
-    await page.waitForSelector(
-      `[data-modify-document="${baseContribution}"][data-document-version-id="${baseVersionId}"]`,
-    );
-    await clickControl(page, `[data-modify-document="${baseContribution}"]`);
     await page.waitForSelector('.archive-editor-window:not([hidden])');
 
     assert.deepEqual(
@@ -723,19 +1118,19 @@ test(
         latitude: document.querySelector('[name="index:latitude"]').value,
         customTitle: document.querySelector('[data-native-custom-title]').value,
         customContent: document.querySelector('[data-native-custom-content]').value,
+        legacyPanelCount: document.querySelectorAll('[data-native-legacy-field]').length,
+        standaloneReferencePanelCount: document.querySelectorAll('[data-reference-search], [data-reference-list]').length,
         kind: document.querySelector('[data-archive-editor]').elements.kind.value,
       })),
       {
         overview: '新的原生站点概述，必须完整进入正式版本。',
         latitude: '-71.2',
         customTitle: '冰芯补记',
-        customContent: '第二钻孔的温度曲线已归档。',
+        customContent: `第二钻孔的温度曲线已归档。〔${fixture.referenceArchive.code} ${fixture.referenceArchive.title}〕`,
+        legacyPanelCount: 0,
+        standaloneReferencePanelCount: 0,
         kind: 'amendment',
       },
-    );
-    assert.match(
-      await page.$eval('[data-reference-list]', (node) => node.textContent),
-      new RegExp(fixture.referenceArchive.code),
     );
 
     await setValue(
@@ -771,9 +1166,7 @@ test(
 
     await switchPrincipal(page, fixture.clerk);
     await openWorkspace(page);
-    await openDesktopCommand(page, 'modify-archive');
-    await page.waitForSelector('[data-modify-category="station"]');
-    await clickControl(page, '[data-modify-category="station"]');
+    await openCategoryAction(page, '03', 'modify');
     await page.waitForSelector(`[data-modify-archive="${station.id}"]`);
     await clickControl(page, `[data-modify-archive="${station.id}"]`);
     const returnedSelector = `[data-open-returned-draft][data-draft-id="${amendment.id}"]`;
@@ -876,7 +1269,7 @@ test(
     assert.deepEqual(publishedArchiveUi.metadata.slice(0, 3), [
       { label: '正式档号', value: formalNumber },
       { label: '档案版本', value: 'VER 0.1' },
-      { label: '档案收录者', value: fixture.clerk.display_name },
+      { label: '档案收录者', value: fixture.admin.display_name },
     ]);
     assert.equal(publishedArchiveUi.amendmentVersion, 'VER 0.2');
     assert.ok(
@@ -896,14 +1289,10 @@ test(
       station.id,
     );
 
-    await openDesktopCommand(page, 'modify-archive');
-    await page.waitForSelector('[data-modify-category="station"]');
-    await clickControl(page, '[data-modify-category="station"]');
+    await openCategoryAction(page, '03', 'modify');
     await page.waitForSelector(`[data-modify-archive="${station.id}"]`);
-    await clickControl(page, `[data-modify-archive="${station.id}"]`);
-    await page.waitForSelector(`[data-modify-document="${baseContribution}"]`);
     assert.equal(await removePublishedVersion(page, baseVersionId), true);
-    await clickControl(page, `[data-modify-document="${baseContribution}"]`);
+    await clickControl(page, `[data-modify-archive="${station.id}"]`);
     await page.waitForSelector(
       `[data-editor-source-retry][data-editor-source-document="${baseContribution}"]`,
     );

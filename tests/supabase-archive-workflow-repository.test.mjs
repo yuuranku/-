@@ -11,6 +11,48 @@ test('Supabase archive repository requires a configured Supabase client', () => 
   );
 });
 
+test('searching an original business code finds its renumbered server archive', async () => {
+  const legacyArchive = {
+    id: 'country-9',
+    code: 'N21',
+    business_code: 'N09',
+    category: 'country',
+    title: '日本',
+    summary: '',
+    visibility: 'public',
+    origin: 'official',
+    is_mother: false,
+    is_archived: false,
+    published_at: '2026-07-30T00:00:00.000Z',
+    sequence_number: 21,
+    abbreviation: 'REG',
+  };
+  const request = {
+    select() { return request; },
+    eq() { return request; },
+    order() { return request; },
+    limit() { return request; },
+    or(expression) {
+      return Promise.resolve({
+        data: expression.includes('business_code.ilike') ? [legacyArchive] : [],
+        error: null,
+      });
+    },
+  };
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: (table) => {
+      assert.equal(table, 'archives');
+      return request;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+  });
+
+  const archives = await repository.searchArchives('N09');
+
+  assert.deepEqual(archives, [legacyArchive]);
+});
+
 test('Supabase archive repository calls the public contribution RPC with the archive id', async () => {
   const calls = [];
   const repository = createSupabaseArchiveWorkflowRepository({
@@ -278,6 +320,43 @@ test('Supabase attachment registration failure removes the uploaded storage obje
   assert.equal(removed.length, 1);
   assert.equal(removed[0].bucket, 'archive-attachments');
   assert.equal(removed[0].paths.length, 1);
+});
+
+test('Supabase media upload uses an ASCII-only storage object name while preserving the display name', async () => {
+  let uploadedPath = '';
+  let insertedPayload = null;
+  const insertRequest = {
+    insert(payload) { insertedPayload = payload; return insertRequest; },
+    select() { return insertRequest; },
+    single: async () => ({ data: { id: 'attachment-1' }, error: null }),
+  };
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: (table) => {
+      assert.equal(table, 'archive_attachments');
+      return insertRequest;
+    },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    storage: {
+      from: () => ({
+        upload: async (path) => {
+          uploadedPath = path;
+          return { data: { path }, error: null };
+        },
+      }),
+    },
+  });
+
+  await repository.uploadAttachment(
+    'submission-1',
+    'clerk-1',
+    new File(['abc'], 'Camera012_成图_351442394-00.webp', { type: 'image/webp' }),
+    { role: 'species-cover' },
+  );
+
+  assert.match(uploadedPath, /^clerk-1\/submission-1\/[a-z0-9-]+\.webp$/i);
+  assert.doesNotMatch(uploadedPath, /[\u4e00-\u9fff]/);
+  assert.equal(insertedPayload.file_name, 'Camera012_成图_351442394-00.webp');
 });
 
 test('Supabase publication leaves formal numbering to the database and returns its identity', async () => {

@@ -11,8 +11,8 @@ const identityCases = [
   ['entrance', 19, 'EN19', '019.CRD'],
   ['ecology', 8, 'E08', '008.ECO'],
   ['person', 47, 'P47', '047.PER'],
-  ['event', 27, 'EV27', '027.RLL'],
-  ['anomaly', 26, 'A26', '026.TRC'],
+  ['event', 2, 'EV02', '002.RLL'],
+  ['anomaly', 4, 'A04', '004.TRC'],
   ['species', 23, 'S23', '023.SPC'],
 ];
 
@@ -144,5 +144,42 @@ test('published cloud files append after static files in ascending registered or
     mergePublishedArchiveDirectory(base, cloud)
       .find(({ id }) => id === 'species').children.map(({ code }) => code),
     ['S01', 'S02', 'S23', 'S24'],
+  );
+});
+
+test('official ecology records with renumbered server codes do not enter the new-record list', () => {
+  const base = [{
+    id: 'ecology',
+    children: [
+      { id: 'ecology-01', code: 'E01', name: '冰顶滴水层' },
+      { id: 'ecology-02', code: 'E02', name: '冰壁甲壳带' },
+    ],
+  }];
+  const cloud = [
+    {
+      id: 'official-ecology-01',
+      business_code: 'E01',
+      category: 'ecology',
+      code: 'E10',
+      title: '冰顶滴水层',
+      visibility: 'public',
+      sequence_number: 10,
+      index_payload: { title: '冰顶滴水层' },
+    },
+    {
+      id: 'new-ecology-01',
+      category: 'ecology',
+      code: 'E17',
+      title: '后来新增的生态记录',
+      visibility: 'public',
+      sequence_number: 17,
+      index_payload: { title: '后来新增的生态记录' },
+    },
+  ];
+
+  assert.deepEqual(
+    mergePublishedArchiveDirectory(base, cloud)
+      .find(({ id }) => id === 'ecology').children.map(({ code }) => code),
+    ['E01', 'E02', 'E17'],
   );
 });

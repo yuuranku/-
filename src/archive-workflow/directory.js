@@ -13,20 +13,24 @@ const categoryDirectoryIds = Object.freeze({
 });
 
 const normalizedCode = (value) => String(value ?? '').trim().toLocaleLowerCase('zh-CN');
+const recordIdentifiers = (record) => [record?.code, record?.businessCode]
+  .map(normalizedCode)
+  .filter(Boolean);
 
 export function mergePublishedArchiveDirectory(directories, archives) {
   const baseDirectories = directories.filter((directory) => directory.id !== 'published');
   const builtInCodes = new Set(
-    baseDirectories.flatMap((directory) => directory.children || []).map((record) => normalizedCode(record.code)),
+    baseDirectories.flatMap((directory) => directory.children || [])
+      .flatMap(recordIdentifiers),
   );
   const cloudCodes = new Set();
   const publishedRecords = archives
     .filter((archive) => archive?.visibility === 'public')
     .map(projectPublishedArchive)
     .filter((record) => {
-      const code = normalizedCode(record.code);
-      if (builtInCodes.has(code) || cloudCodes.has(code)) return false;
-      cloudCodes.add(code);
+      const identifiers = recordIdentifiers(record);
+      if (identifiers.some((identifier) => builtInCodes.has(identifier) || cloudCodes.has(identifier))) return false;
+      identifiers.forEach((identifier) => cloudCodes.add(identifier));
       return true;
     })
     .sort((left, right) =>

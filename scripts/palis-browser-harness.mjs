@@ -11,8 +11,8 @@ export const DIRECTORY_SCENES = Object.freeze({
   entrances: ['entrance-network', '.entrance-sheet-console', 18],
   ecology: ['ecology-strata', '.eco-log-console', 7],
   people: ['dossier', '.people-network-workbench', 36],
-  events: ['event-plane', '.event-plane', 26],
-  abnormalities: ['anomaly-monitor', '.anomaly-carousel', 25],
+  events: ['event-plane', '.event-plane', 1],
+  abnormalities: ['anomaly-monitor', '.anomaly-carousel', 3],
   species: ['species-helix', '.species-helix-console', 22],
 });
 

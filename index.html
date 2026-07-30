@@ -278,13 +278,24 @@
     <section class="clerk-desktop" id="clerk-desktop" role="dialog" aria-modal="true" aria-labelledby="clerk-desktop-title" hidden tabindex="-1">
       <header class="clerk-desktop__accessible-title"><h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2><span data-workspace-name-en>CLERK WORKSPACE</span><span data-workspace-greeting>欢迎进入 PALIS 工作台</span></header>
       <div class="clerk-desktop__watermark" aria-hidden="true"><b>PALIS LOCAL 09A</b><span data-workspace-watermark-role>CLERK</span><span data-workspace-watermark-connection data-workflow-mode-badge>跨账号</span></div>
-      <nav class="clerk-desktop__icons" aria-label="工作台桌面快捷方式">
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="new-archive"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-draft.svg" alt="" /></i><span>新增档案</span></button>
-        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="modify-archive"><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-cabinet.svg" alt="" /></i><span>修改档案</span></button>
+      <nav class="clerk-desktop__icons" data-archive-category-rail aria-label="档案类别快捷方式">
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:01"><i class="clerk-desktop__icon clerk-desktop__icon--country" data-category-code="01" aria-hidden="true"><img src="/assets/icons/archive-country.svg" alt="" /></i><span>国家档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:02"><i class="clerk-desktop__icon clerk-desktop__icon--organization" data-category-code="02" aria-hidden="true"><img src="/assets/icons/archive-organization.svg" alt="" /></i><span>组织档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:03"><i class="clerk-desktop__icon clerk-desktop__icon--station" data-category-code="03" aria-hidden="true"><img src="/assets/icons/archive-station.svg" alt="" /></i><span>科考站档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:04"><i class="clerk-desktop__icon clerk-desktop__icon--entrance" data-category-code="04" aria-hidden="true"><img src="/assets/icons/archive-entrance.svg" alt="" /></i><span>白幕入口档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:05"><i class="clerk-desktop__icon clerk-desktop__icon--ecology" data-category-code="05" aria-hidden="true"><img src="/assets/icons/archive-ecology.svg" alt="" /></i><span>生态档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:06"><i class="clerk-desktop__icon clerk-desktop__icon--person" data-category-code="06" aria-hidden="true"><img src="/assets/icons/archive-person.svg" alt="" /></i><span>人物档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:07"><i class="clerk-desktop__icon clerk-desktop__icon--event" data-category-code="07" aria-hidden="true"><img src="/assets/icons/archive-event.svg" alt="" /></i><span>事件档案</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:08"><i class="clerk-desktop__icon clerk-desktop__icon--anomaly" data-category-code="08" aria-hidden="true"><img src="/assets/icons/archive-anomaly.svg" alt="" /></i><span>异常附卷</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:09"><i class="clerk-desktop__icon clerk-desktop__icon--species" data-category-code="09" aria-hidden="true"><img src="/assets/icons/archive-species.svg" alt="" /></i><span>物种与标本</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="review" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-review.svg" alt="" /></i><span>审核与录入</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archives" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-management.svg" alt="" /></i><span>档案管理</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="users" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><img src="/assets/icons/archive-users.svg" alt="" /></i><span>账号管理</span></button>
       </nav>
+    <button type="button" class="workspace-mailbox-ornament" data-workspace-mailbox-ornament data-workspace-command="mailbox" aria-label="档案信箱">
+      <span aria-hidden="true"><img src="/assets/icons/archive-envelope.svg" alt="" /></span>
+        <b data-workspace-mailbox-alert hidden>!</b>
+      </button>
       <div id="workspace-note-region" data-workspace-note-region aria-label="工作台便签" aria-live="polite" style="position: absolute; z-index: 9; inset: 0; pointer-events: none;"></div>
       <section class="workspace-note-controls" data-workspace-note-controls aria-label="工作台便签操作" style="position: absolute; z-index: 10; top: 12px; right: 12px; width: min(320px, calc(100% - 220px)); pointer-events: none;">
         <button type="button" data-workspace-note-create hidden style="pointer-events: auto;">新增便签</button>
@@ -299,7 +310,6 @@
         <button type="button" data-workspace-note-retry hidden style="pointer-events: auto;">重新读取便签</button>
       </section>
       <nav class="clerk-desktop__start-menu" id="clerk-desktop-start-menu" aria-label="开始菜单" hidden><b class="clerk-desktop__start-brand" aria-hidden="true">PALIS 09A</b><div class="clerk-desktop__start-items">
-        <button type="button" data-workspace-command="new-archive">新增档案</button><button type="button" data-workspace-command="modify-archive">修改档案</button>
         <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
         <button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
       </div></nav>
@@ -536,13 +546,13 @@
               <div class="mascot-document-content mascot-document-content--clerk" data-mascot-document-content="clerk-jing-quan-c" hidden>
                 <div class="mascot-document-mast">
                   <p>PALIS 09A / CLERK DOSSIER / SC-04</p>
-                  <h2>助理书记官：精犬C</h2>
+                  <h2>助理书记官：赭犬C</h2>
                 </div>
                 <div class="clerk-dossier-pages">
-                  <figure class="clerk-dossier-page"><img src="/assets/clerks/jing-quan-c-profile.png" alt="助理书记官 精犬C 档案，第 1 页" /></figure>
-                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/jing-quan-c-notes.png" alt="助理书记官 精犬C 档案，第 2 页" /></figure>
+                  <figure class="clerk-dossier-page"><img src="/assets/clerks/jing-quan-c-profile.png" alt="助理书记官 赭犬C 档案，第 1 页" /></figure>
+                  <figure class="clerk-dossier-page" hidden><img src="/assets/clerks/jing-quan-c-notes.png" alt="助理书记官 赭犬C 档案，第 2 页" /></figure>
                 </div>
-                <nav class="clerk-dossier-pagination" aria-label="精犬C 档案翻页">
+                <nav class="clerk-dossier-pagination" aria-label="赭犬C 档案翻页">
                   <button type="button" data-clerk-page="previous" aria-label="上一页" disabled>←</button>
                   <output>01 / 02</output>
                   <button type="button" data-clerk-page="next" aria-label="下一页">→</button>
@@ -623,15 +633,21 @@
         <nav class="dialog-menu" aria-label="档案窗口菜单">
           <div class="dialog-menu__group">
             <button type="button" data-archive-menu-trigger="file" aria-haspopup="menu" aria-expanded="false">文件(F)</button>
-            <div class="dialog-file-menu" role="menu" hidden>
-              <button type="button" role="menuitem" data-archive-file-action="amend">提交修改申请</button>
-              <button type="button" role="menuitem" data-archive-file-action="export">导出当前档案</button>
-              <button type="button" role="menuitem" data-archive-file-action="print">打印当前档案</button>
-              <hr />
-              <button type="button" role="menuitem" data-archive-file-action="close">关闭档案</button>
+            <div class="dialog-file-menu" data-archive-file-menu role="menu" hidden>
+              <span class="dialog-menu__empty">当前档案</span>
             </div>
           </div>
-          <span>编辑(E)</span><span>查看(V)</span><span>帮助(H)</span>
+          <div class="dialog-menu__group">
+            <button type="button" data-archive-menu-trigger="edit" aria-haspopup="menu" aria-expanded="false">编辑(E)</button>
+            <div class="dialog-file-menu" data-archive-edit-menu role="menu" hidden>
+              <button type="button" role="menuitem" data-archive-edit-action="amend">提交修改申请</button>
+              <button type="button" role="menuitem" data-archive-edit-action="export">导出当前档案</button>
+              <button type="button" role="menuitem" data-archive-edit-action="print">打印当前档案</button>
+              <hr />
+              <button type="button" role="menuitem" data-archive-edit-action="close">关闭档案</button>
+            </div>
+          </div>
+          <span>查看(V)</span><span>帮助(H)</span>
         </nav>
         <article class="document-sheet"></article>
       </section>

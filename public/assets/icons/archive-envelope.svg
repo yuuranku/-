@@ -1,0 +1,20 @@
+<!-- Win95-style pixel envelope for the White Abyss clerk workspace. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="envelope-title envelope-desc" shape-rendering="crispEdges">
+  <title id="envelope-title">档案信封</title>
+  <desc id="envelope-desc">带深蓝邮票与硬阴影的复古像素信封。</desc>
+  <!-- hard offset shadow -->
+  <path fill="#142e35" d="M7 8h21v3h2v14h-3v3H8v-3H5V11h2z"/>
+  <!-- black-blue outline and back sheet -->
+  <path fill="#001d2a" d="M3 6h24v18H3z"/>
+  <path fill="#fffbea" d="M5 8h20v13H5z"/>
+  <path fill="#cbc5ae" d="M5 20h20v2H5z"/>
+  <!-- front envelope plane -->
+  <path fill="#e7dfc8" d="M5 10 15 18 25 10v12H5z"/>
+  <path fill="#f7f1db" d="m5 22 7-7 3 3 3-3 7 7z"/>
+  <!-- navy seams -->
+  <path fill="#000080" d="m5 9 10 8 10-8v2l-10 8L5 11zM5 21l6-6 1 1-6 6zm20 0-6-6 1-1 6 6z"/>
+  <!-- postage stamp and highlight pixels -->
+  <path fill="#000080" d="M20 8h4v1h1v4h-1v1h-4v-1h-1V9h1z"/>
+  <path fill="#2f62c9" d="M21 9h2v3h-2z"/>
+  <path fill="#fffbea" d="M6 8h12v1H6z"/>
+</svg>

@@ -33,8 +33,8 @@ test('local verification uses the hand-checked next number for all nine categori
     entrance: { code: 'EN19', formalNumber: '019.CRD' },
     ecology: { code: 'E08', formalNumber: '008.ECO' },
     person: { code: 'P47', formalNumber: '047.PER' },
-    event: { code: 'EV27', formalNumber: '027.RLL' },
-    anomaly: { code: 'A26', formalNumber: '026.TRC' },
+    event: { code: 'EV02', formalNumber: '002.RLL' },
+    anomaly: { code: 'A04', formalNumber: '004.TRC' },
     species: { code: 'S23', formalNumber: '023.SPC' },
   });
 });

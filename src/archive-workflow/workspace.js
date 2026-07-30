@@ -4,10 +4,15 @@ import {
   normalizeEditorDocument,
 } from './editor-document.js';
 import {
+  detectArchiveReferenceQuery,
+  replaceArchiveReferenceQuery,
+} from './editor-bridge.js';
+import {
   getNativeFormProfile,
   readNativeArchiveForm,
   readNativeFormState,
   renderNativeArchiveForm,
+  syncNativeAnomalyFieldLabels,
   validateNativeFormState,
   writeNativeArchiveForm,
 } from './native-form-profiles.js';
@@ -27,8 +32,10 @@ import {
   normalizeArchiveMedia,
   optimizeArchiveImage,
 } from './media.js';
+import { toEditorDocumentFromArchiveBase } from './official-archive-source.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
 import { renderArchiveCabinet } from './archive-cabinet.js';
+import { applyTextareaTabIndent } from './text-indent.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
   'local-saving': '正在写入本地暂存…',
@@ -57,6 +64,8 @@ const MEDIA_SYNC_FAILURES = new Set([
   'cloud-error',
   'conflict',
 ]);
+
+const clerkNewRestrictedTemplateCodes = new Set(['03', '04']);
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -103,7 +112,7 @@ export const renderArchiveMediaEditor = (category, media = []) => {
   return `
     <section class="archive-media-editor" data-archive-media-editor>
       <header>
-        <div><b>版面图片</b><span>PALIS IMAGE SLOTS / 仅人物与事件档案</span></div>
+        <div><b>版面图片 + 注释</b><span>PALIS IMAGE SLOTS / 主图与正文附图</span></div>
         <em>提交时转为 WEBP / 单张不超过 800KB</em>
       </header>
       <p>图片只在本次编辑窗口中暂存；先保存文字草稿，再逐张上传。说明文字会随正式档案一并进入审核。</p>
@@ -407,8 +416,8 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
 });
 
 export const buildAmendmentInitialState = (archive, documentChoice, source) => {
-  const officialDocumentId = `official:${archive.id}`;
-  const officialBase = documentChoice.id === officialDocumentId;
+  const archiveBaseDocumentId = `archive:${archive.id}`;
+  const officialBase = documentChoice.id === archiveBaseDocumentId;
   const content = {
     ...(source.content || {}),
     references: Array.isArray(source.references)
@@ -432,7 +441,7 @@ export const buildAmendmentInitialState = (archive, documentChoice, source) => {
 };
 
 export const buildClerkDraftPlacement = (draft = {}) => ({
-  action: draft.kind === 'new' ? 'new' : 'modify',
+  action: ['new', 'contribution'].includes(draft.kind) ? 'new' : 'modify',
   templateCode: draft.template_id ?? draft.template?.code ?? null,
   archiveId: draft.archive_id ?? null,
   documentId: draft.draft_content?.targetDocumentId
@@ -460,15 +469,6 @@ export const preserveImmutableEditorTarget = (selected, prior = {}) => {
 
 const renderNativeEditorFields = (template, profile, editorDocument) => {
   const state = readNativeFormState(template, editorDocument);
-  const legacyFields = Object.entries(state.legacyFields);
-  const legacyMarkup = legacyFields.length
-    ? legacyFields.map(([key, value]) => `
-        <label>
-          <span>${escapeHtml(editorDocument.fieldLabels?.[key] || key)}</span>
-          <textarea data-native-legacy-field="${escapeHtml(key)}">${escapeHtml(value)}</textarea>
-        </label>
-      `).join('')
-    : '<p>没有需要兼容保留的原有补充字段。</p>';
   return renderNativeArchiveForm(profile, editorDocument)
     .replace(/^<form[^>]*>/, '')
     .replace(/<\/form>\s*$/, '')
@@ -490,13 +490,6 @@ const renderNativeEditorFields = (template, profile, editorDocument) => {
     )
     .replaceAll('data-native-custom-id=', 'data-native-custom-entry data-native-custom-id=')
     .replace(
-      /<section data-native-legacy>[\s\S]*<\/section>\s*$/,
-      `<details class="archive-native-legacy" data-native-legacy>
-        <summary>原有补充资料 <span>可展开编辑，保存时不改变原字段键</span></summary>
-        <div data-native-legacy-fields>${legacyMarkup}</div>
-      </details>`,
-    )
-    .replace(
       /(<fieldset data-native-custom-entry[^>]*>)/g,
       '$1<button type="button" data-remove-native-custom-entry aria-label="删除这条自定义内容">删除</button>',
     );
@@ -517,7 +510,10 @@ export function initializeArchiveWorkspace({
   const workspaceNameEnglishOutputs = [...document.querySelectorAll('[data-workspace-name-en]')];
   const workspaceGreetingOutputs = [...document.querySelectorAll('[data-workspace-greeting]')];
   const adminButtons = [...(root?.querySelectorAll('[data-admin-only]') ?? [])];
+  const mailboxOrnament = root?.querySelector('[data-workspace-mailbox-ornament]');
+  const mailboxAlert = root?.querySelector('[data-workspace-mailbox-alert]');
   if (!root || !workspaceEntry || !windowLayer || !taskList) return null;
+  root.addEventListener('keydown', applyTextareaTabIndent);
 
   const context = {
     session: null,
@@ -525,6 +521,96 @@ export function initializeArchiveWorkspace({
     role: 'observer',
     preview: true,
   };
+  const canStartCategoryArchive = (template) => (
+    context.role === 'admin' || !clerkNewRestrictedTemplateCodes.has(template?.code)
+  );
+  const setMailboxAlert = (active) => {
+    if (!mailboxOrnament || !mailboxAlert) return;
+    mailboxAlert.hidden = !active;
+    mailboxOrnament.setAttribute(
+      'aria-label',
+      active
+        ? (canReview(context.role) ? '档案邮筒：有待处理档案申请' : '档案邮筒：有未读审核回信')
+        : '档案邮筒',
+    );
+  };
+  const refreshMailboxAlert = async () => {
+    if (!mailboxOrnament || !mailboxAlert) return;
+    if (!client || !context.profile?.id || !canEnterWorkspace(context.role) || context.preview) {
+      setMailboxAlert(false);
+      return;
+    }
+    try {
+      const hasUnread = canReview(context.role)
+        ? (await client.listReviewQueue()).length > 0
+        : (await client.listNotifications(context.profile.id)).some((notification) => !notification.read_at);
+      setMailboxAlert(hasUnread);
+    } catch {
+      setMailboxAlert(false);
+    }
+  };
+  const initializeMailboxOrnament = () => {
+    if (!mailboxOrnament || mailboxOrnament.dataset.mailboxOrnamentReady) return;
+    mailboxOrnament.dataset.mailboxOrnamentReady = 'true';
+    let drag = null;
+    let suppressClick = false;
+    const finishDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (mailboxOrnament.hasPointerCapture(event.pointerId)) {
+        mailboxOrnament.releasePointerCapture(event.pointerId);
+      }
+      mailboxOrnament.classList.remove('is-dragging');
+      if (drag.moved) {
+        suppressClick = true;
+        window.setTimeout(() => { suppressClick = false; }, 0);
+      }
+      drag = null;
+    };
+    mailboxOrnament.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const desktopBounds = root.getBoundingClientRect();
+      const ornamentBounds = mailboxOrnament.getBoundingClientRect();
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: ornamentBounds.left - desktopBounds.left,
+        top: ornamentBounds.top - desktopBounds.top,
+        width: ornamentBounds.width,
+        height: ornamentBounds.height,
+        moved: false,
+      };
+    mailboxOrnament.setPointerCapture(event.pointerId);
+    mailboxOrnament.classList.add('is-dragging');
+  });
+    mailboxOrnament.addEventListener('pointermove', (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const moveX = event.clientX - drag.startX;
+      const moveY = event.clientY - drag.startY;
+      drag.moved ||= Math.abs(moveX) > 4 || Math.abs(moveY) > 4;
+      const maxLeft = Math.max(8, root.clientWidth - drag.width - 8);
+      const maxTop = Math.max(8, root.clientHeight - drag.height - 52);
+      const left = Math.min(Math.max(8, drag.left + moveX), maxLeft);
+      const top = Math.min(Math.max(8, drag.top + moveY), maxTop);
+      mailboxOrnament.style.setProperty('--mailbox-ornament-x', `${Math.round(left)}px`);
+      mailboxOrnament.style.setProperty('--mailbox-ornament-y', `${Math.round(top)}px`);
+      mailboxOrnament.style.setProperty('--mailbox-ornament-right', 'auto');
+      mailboxOrnament.style.setProperty('--mailbox-ornament-bottom', 'auto');
+    });
+    mailboxOrnament.addEventListener('pointerup', finishDrag);
+    mailboxOrnament.addEventListener('pointercancel', finishDrag);
+    mailboxOrnament.addEventListener('click', (event) => {
+      if (suppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('palis:workspace-command', {
+        detail: { command: 'mailbox' },
+      }));
+    });
+  };
+  initializeMailboxOrnament();
   const windows = new Map();
   let zIndex = 22500;
   const narrowWorkspaceQuery = matchMedia('(max-width: 760px)');
@@ -533,6 +619,7 @@ export function initializeArchiveWorkspace({
     state.windowElement.classList.toggle('is-narrow-forced', narrowWorkspaceQuery.matches);
   });
   narrowWorkspaceQuery.addEventListener('change', syncWorkflowViewport);
+  window.addEventListener('resize', syncWorkflowViewport);
 
   const updateTaskList = () => {
     taskList.hidden = taskList.children.length === 0;
@@ -620,6 +707,45 @@ export function initializeArchiveWorkspace({
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', finish);
     handle.addEventListener('pointercancel', finish);
+  };
+
+  const installWindowWheel = (windowElement) => {
+    const scrollableInDirection = (element, axis, delta) => {
+      const styles = getComputedStyle(element);
+      const overflow = axis === 'y' ? styles.overflowY : styles.overflowX;
+      const clientSize = axis === 'y' ? element.clientHeight : element.clientWidth;
+      const scrollSize = axis === 'y' ? element.scrollHeight : element.scrollWidth;
+      const scrollPosition = axis === 'y' ? element.scrollTop : element.scrollLeft;
+      const maxScroll = scrollSize - clientSize;
+      if (!/(auto|scroll)/.test(overflow) || maxScroll <= 2) return false;
+      return delta < 0 ? scrollPosition > 0 : scrollPosition < maxScroll - 1;
+    };
+
+    windowElement.addEventListener('wheel', (event) => {
+      if (event.defaultPrevented) return;
+      const verticalDelta = event.deltaY;
+      const horizontalDelta = event.deltaX;
+      let current = event.target instanceof HTMLElement ? event.target : null;
+      const ancestors = [];
+      while (current) {
+        ancestors.push(current);
+        if (current === windowElement) break;
+        current = current.parentElement;
+      }
+
+      const verticalTarget = verticalDelta
+        ? ancestors.find((element) => scrollableInDirection(element, 'y', verticalDelta))
+        : null;
+      const horizontalTarget = !verticalTarget && horizontalDelta
+        ? ancestors.find((element) => scrollableInDirection(element, 'x', horizontalDelta))
+        : null;
+      if (verticalTarget) verticalTarget.scrollTop += verticalDelta;
+      else if (horizontalTarget) horizontalTarget.scrollLeft += horizontalDelta;
+
+      // A desktop window owns wheel input even at the start or end of its
+      // document, so the public-site chapter navigator never steals it.
+      event.preventDefault();
+    }, { passive: false });
   };
 
   const createWindow = ({
@@ -712,6 +838,7 @@ export function initializeArchiveWorkspace({
     syncWorkflowViewport();
     updateTaskList();
     installWindowDrag(windowElement);
+    installWindowWheel(windowElement);
     focusWindow(windowElement);
     windowElement.focus({ preventScroll: true });
 
@@ -841,19 +968,6 @@ export function initializeArchiveWorkspace({
     return state;
   };
 
-  const renderReferenceList = (container, references) => {
-    container.innerHTML = references.length
-      ? references.map((reference, index) => `
-          <li>
-            <button type="button" data-open-archive-reference="${escapeHtml(reference.code)}">
-              <b>${escapeHtml(reference.code)}</b><span>${escapeHtml(reference.label)}</span>
-            </button>
-            <button type="button" data-remove-reference="${index}" aria-label="移除引用 ${escapeHtml(reference.label)}">×</button>
-          </li>
-        `).join('')
-      : '<li class="is-empty">尚未引用其他档案</li>';
-  };
-
   const createEditor = async (template, initial = {}) => {
     if (!ensureWorkspaceAccess()) return null;
     const initialKind = initial.kind || 'new';
@@ -878,7 +992,6 @@ export function initializeArchiveWorkspace({
       title: template.title,
       code: `${template.code}.HTML`,
       className: 'archive-editor-window',
-      dock: 'right',
       body: `
         <form class="archive-editor" data-archive-editor
           data-editor-submission-state="editing" novalidate>
@@ -917,6 +1030,10 @@ export function initializeArchiveWorkspace({
             <div data-native-form-root>
               ${nativeFieldsMarkup}
             </div>
+            <aside class="archive-inline-reference-menu" data-inline-reference-menu hidden aria-live="polite">
+              <p data-inline-reference-copy></p>
+              <div data-inline-reference-results></div>
+            </aside>
             <section class="archive-native-section archive-native-targeting">
               <section class="archive-editable-picker" data-editable-archive-picker hidden>
                 <header>
@@ -942,20 +1059,6 @@ export function initializeArchiveWorkspace({
               </section>
             </section>
             <div class="archive-editor__document-errors" data-document-errors role="alert" hidden></div>
-
-            <section class="archive-native-section" data-editor-section="references">
-              <section class="archive-reference-editor">
-                <header>
-                  <div><b>关联档案与引用</b><span>引用会在公开档案中变为可点击窗口</span></div>
-                  <div data-reference-search>
-                    <input name="referenceQuery" placeholder="检索人物、事件、物种或编号" />
-                    <button type="button" data-reference-search-submit>检索引用</button>
-                  </div>
-                </header>
-                <div class="archive-reference-results" data-reference-results hidden></div>
-                <ul data-reference-list><li class="is-empty">尚未引用其他档案</li></ul>
-              </section>
-            </section>
 
             ${mediaEditorMarkup ? `
               <section class="archive-editor__section" data-editor-section="media">
@@ -991,8 +1094,10 @@ export function initializeArchiveWorkspace({
     const form = windowState.windowElement.querySelector('[data-archive-editor]');
     const autosaveOutput = form.querySelector('[data-autosave-status]');
     const message = form.querySelector('[data-editor-message]');
-    const referenceList = form.querySelector('[data-reference-list]');
-    const referenceResults = form.querySelector('[data-reference-results]');
+    const inlineReferenceMenu = form.querySelector('[data-inline-reference-menu]');
+    const inlineReferenceCopy = form.querySelector('[data-inline-reference-copy]');
+    const inlineReferenceResults = form.querySelector('[data-inline-reference-results]');
+    const editorScroll = form.querySelector('[data-editor-scroll]');
     const recoveryPanel = form.querySelector('[data-recovery]');
     const nativeFormRoot = form.querySelector('[data-native-form-root]');
     const kindSelect = form.elements.kind;
@@ -1355,9 +1460,6 @@ export function initializeArchiveWorkspace({
         values: priorValues,
       });
       const values = { ...nextDocument.values };
-      nativeFormRoot.querySelectorAll('[data-native-legacy-field]').forEach((control) => {
-        values[control.dataset.nativeLegacyField] = control.value;
-      });
       return normalizeEditorDocument({
         ...nextDocument,
         values,
@@ -1369,7 +1471,7 @@ export function initializeArchiveWorkspace({
     const populateNativeDocument = (nextDocument) => {
       const rendered = document.createElement('template');
       rendered.innerHTML = renderNativeEditorFields(template, nativeProfile, nextDocument);
-      ['[data-native-custom]', '[data-native-legacy]'].forEach((selector) => {
+      ['[data-native-custom]'].forEach((selector) => {
         const current = nativeFormRoot.querySelector(selector);
         const replacement = rendered.content.querySelector(selector);
         if (current && replacement) current.replaceWith(replacement.cloneNode(true));
@@ -1410,6 +1512,69 @@ export function initializeArchiveWorkspace({
       return queued;
     };
 
+    const inlineReferenceSelector = [
+      'input[data-native-field]',
+      'textarea[data-native-field]',
+      'input[data-native-custom-title]',
+      'textarea[data-native-custom-content]',
+    ].join(',');
+    let activeInlineReferenceControl = null;
+    let inlineReferenceRequestId = 0;
+    const hideInlineReferenceMenu = () => {
+      inlineReferenceRequestId += 1;
+      activeInlineReferenceControl = null;
+      inlineReferenceMenu.hidden = true;
+      inlineReferenceCopy.textContent = '';
+      inlineReferenceResults.replaceChildren();
+    };
+    const placeInlineReferenceMenu = (control) => {
+      const bounds = control.getBoundingClientRect();
+      const width = Math.min(Math.max(bounds.width, 260), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(bounds.left, window.innerWidth - width - 8));
+      inlineReferenceMenu.style.width = `${width}px`;
+      inlineReferenceMenu.style.left = `${left}px`;
+      inlineReferenceMenu.style.top = `${Math.min(bounds.bottom + 6, window.innerHeight - 72)}px`;
+    };
+    const showInlineReferenceMenu = async (control) => {
+      const query = detectArchiveReferenceQuery(control.value);
+      if (query === null) {
+        hideInlineReferenceMenu();
+        return;
+      }
+      activeInlineReferenceControl = control;
+      placeInlineReferenceMenu(control);
+      inlineReferenceMenu.hidden = false;
+      inlineReferenceResults.replaceChildren();
+      const requestId = ++inlineReferenceRequestId;
+      if (!query) {
+        inlineReferenceCopy.textContent = '输入档号或名称以检索引用档案';
+        return;
+      }
+      if (!client) {
+        inlineReferenceCopy.textContent = '档案系统未连接，暂时无法检索引用';
+        return;
+      }
+      inlineReferenceCopy.textContent = '正在检索可引用档案…';
+      try {
+        const matches = await client.searchArchives(query, { limit: 8 });
+        if (requestId !== inlineReferenceRequestId || activeInlineReferenceControl !== control) return;
+        inlineReferenceCopy.textContent = matches.length
+          ? '选择一份档案插入当前内容'
+          : '未找到可引用档案';
+        inlineReferenceResults.innerHTML = matches.map((archive) => `
+          <button type="button" data-inline-reference-result
+            data-id="${escapeHtml(archive.id)}"
+            data-code="${escapeHtml(archive.code)}"
+            data-label="${escapeHtml(archive.title)}">
+            <b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span>
+          </button>
+        `).join('');
+      } catch {
+        if (requestId !== inlineReferenceRequestId || activeInlineReferenceControl !== control) return;
+        inlineReferenceCopy.textContent = '检索失败；请稍后重试';
+      }
+    };
+
     const populateDraft = (draft) => {
       if (!draft) return;
       editorDraft = { ...editorDraft, ...draft };
@@ -1425,7 +1590,6 @@ export function initializeArchiveWorkspace({
       references = [...editorDocument.references];
       populateNativeDocument(editorDocument);
       renderPendingMedia();
-      renderReferenceList(referenceList, references);
       updateMode();
       if (draft.id && draft.archiveId && draft.kind !== 'new') {
         void (async () => {
@@ -1551,6 +1715,27 @@ export function initializeArchiveWorkspace({
     });
 
     form.addEventListener('click', (event) => {
+      const inlineReferenceResult = event.target.closest('[data-inline-reference-result]');
+      if (inlineReferenceResult) {
+        const control = activeInlineReferenceControl;
+        if (!control) return;
+        const reference = buildArchiveReference({
+          id: inlineReferenceResult.dataset.id,
+          code: inlineReferenceResult.dataset.code,
+          title: inlineReferenceResult.dataset.label,
+        });
+        const nextValue = replaceArchiveReferenceQuery(control.value, reference);
+        if (nextValue === control.value) return;
+        control.value = nextValue;
+        if (!references.some((entry) => entry.archiveId === reference.archiveId)) {
+          references.push(reference);
+        }
+        hideInlineReferenceMenu();
+        control.focus();
+        control.setSelectionRange?.(nextValue.length, nextValue.length);
+        control.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
       const addCustom = event.target.closest('[data-add-native-custom-entry]');
       if (addCustom) {
         const id = `entry-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
@@ -1575,11 +1760,22 @@ export function initializeArchiveWorkspace({
     });
 
     form.addEventListener('input', (event) => {
-      if (event.target.closest('[data-reference-search]')) return;
       if (event.target.closest('[data-archive-media-editor]')) return;
       showNativeErrors([]);
+      if (event.target.name === 'index:anomalyKind') syncNativeAnomalyFieldLabels(nativeFormRoot, nativeProfile);
+      const control = event.target.matches?.(inlineReferenceSelector) ? event.target : null;
+      if (control) void showInlineReferenceMenu(control);
       queueDraftAutosave();
     });
+    form.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !inlineReferenceMenu.hidden) hideInlineReferenceMenu();
+    });
+    form.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!inlineReferenceMenu.contains(document.activeElement)) hideInlineReferenceMenu();
+      }, 0);
+    });
+    editorScroll.addEventListener('scroll', hideInlineReferenceMenu, { passive: true });
     form.addEventListener('change', (event) => {
       if (event.target.closest('[data-archive-media-editor]')) return;
       if (event.target === editableArchiveSelect) {
@@ -1613,51 +1809,6 @@ export function initializeArchiveWorkspace({
         message.textContent = '当前内容已保存到本地并同步云端。';
       } finally {
         if (!submitted) saveButton.disabled = false;
-      }
-    });
-
-    const referenceSearch = form.querySelector('[data-reference-search]');
-    const runReferenceSearch = async () => {
-      const query = referenceSearch.querySelector('[name="referenceQuery"]').value.trim();
-      if (!query || !client) return;
-      referenceResults.hidden = false;
-      referenceResults.textContent = '正在检索可引用档案…';
-      try {
-        const matches = await client.searchArchives(query);
-        referenceResults.innerHTML = matches.length
-          ? matches.map((archive) => `
-              <button type="button" data-reference-result data-add-reference="${escapeHtml(archive.id)}" data-code="${escapeHtml(archive.code)}" data-label="${escapeHtml(archive.title)}">
-                <b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span><small>${escapeHtml(archive.category)}</small>
-              </button>
-            `).join('')
-          : '<p>没有找到可引用档案。</p>';
-      } catch {
-        referenceResults.textContent = '检索失败；本地内容仍已保存。';
-      }
-    };
-    referenceSearch.querySelector('[data-reference-search-submit]').addEventListener('click', runReferenceSearch);
-    referenceSearch.querySelector('[name="referenceQuery"]').addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      runReferenceSearch();
-    });
-    referenceResults.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-add-reference]');
-      if (!button || references.some((reference) => reference.archiveId === button.dataset.addReference)) return;
-      references.push(buildArchiveReference({
-        id: button.dataset.addReference,
-        code: button.dataset.code,
-        title: button.dataset.label,
-      }));
-      renderReferenceList(referenceList, references);
-      queueDraftAutosave();
-    });
-    referenceList.addEventListener('click', (event) => {
-      const remove = event.target.closest('[data-remove-reference]');
-      if (remove) {
-        references.splice(Number(remove.dataset.removeReference), 1);
-        renderReferenceList(referenceList, references);
-        queueDraftAutosave();
       }
     });
 
@@ -1789,9 +1940,10 @@ export function initializeArchiveWorkspace({
           control.disabled = true;
         });
         const submissionId = submissionResult.submission?.id || editorDraft.id || 'PENDING';
-        message.textContent = `已提交审核 / ${submissionId}。批复会出现在“审核回信”。`;
+        message.textContent = `已投递至邮筒 / 等待审核 / ${submissionId}。批复会寄回“档案邮筒”。`;
         autosave.clear(localKey);
         reportDirtyState();
+        void refreshMailboxAlert();
       } catch (error) {
         message.textContent = error.message;
         setAutosaveState('offline-saved');
@@ -1916,7 +2068,7 @@ export function initializeArchiveWorkspace({
       chooser.innerHTML = `
         <h3>选择档案类别</h3>
         <p>选定一类设定卡后，才会建立新的档案草稿。管理员打回的新增提交列在原类别旁。</p>
-        ${ARCHIVE_TEMPLATES.map((template) => {
+        ${ARCHIVE_TEMPLATES.filter(canStartCategoryArchive).map((template) => {
           const placed = newDrafts.filter((draft) =>
             buildClerkDraftPlacement(draft).templateCode === template.code);
           return `
@@ -1969,9 +2121,141 @@ export function initializeArchiveWorkspace({
       }
       const button = event.target.closest('[data-new-archive-template]');
       const template = ARCHIVE_TEMPLATE_BY_CODE[button?.dataset.newArchiveTemplate];
-      if (!template) return;
+      if (!template || !canStartCategoryArchive(template)) return;
       const editor = await createEditor(template, { kind: 'new' });
       await replaceChooserWithEditor(state, editor, 'new-archive');
+    });
+    await reload();
+    return state;
+  };
+
+  const openCategoryNewArchiveChooser = async (template) => {
+    if (!ensureWorkspaceAccess() || !template || !canStartCategoryArchive(template)) return null;
+    const command = `archive-category:${template.code}`;
+    const state = createWindow({
+      key: `new-archive-chooser-${template.code}`,
+      title: `${template.title} / 新增`,
+      code: `NEW_${template.code}`,
+      className: 'archive-workflow-list-window archive-category-chooser-window',
+      body: `<div class="archive-workflow-list" data-new-archive-chooser data-category-new-archive-chooser="${escapeHtml(template.code)}"><p>正在读取档案与暂存记录…</p></div>`,
+    });
+    if (state.categoryNewArchiveChooserReady) return state;
+    state.categoryNewArchiveChooserReady = true;
+    const chooser = state.windowElement.querySelector('[data-category-new-archive-chooser]');
+    let draftContext = { drafts: [], draftError: null, reviewError: null };
+    let editableArchives = [];
+    let archiveError = null;
+    const archiveNumber = (archive) => {
+      if (archive.sequence_number && archive.abbreviation) {
+        return `${String(archive.sequence_number).padStart(3, '0')}.${archive.abbreviation}`;
+      }
+      return archive.code || '未编号档案';
+    };
+    const render = () => {
+      const categoryDrafts = draftContext.drafts.filter((draft) => (
+        buildClerkDraftPlacement(draft).action === 'new'
+        && buildClerkDraftPlacement(draft).templateCode === template.code
+      ));
+      const newArchiveDrafts = categoryDrafts.filter((draft) => !buildClerkDraftPlacement(draft).archiveId);
+      const visibleArchiveIds = new Set(editableArchives.map((archive) => archive.id));
+      const unplacedContributionDrafts = categoryDrafts.filter((draft) => {
+        const archiveId = buildClerkDraftPlacement(draft).archiveId;
+        return archiveId && !visibleArchiveIds.has(archiveId);
+      });
+      chooser.innerHTML = `
+        <h3>${escapeHtml(template.title)} / 新增</h3>
+        <p>可建立独立档案，或在既有档案内新增另一份独立正文；两者均保留各自的审核与版本记录。</p>
+        <button type="button" data-new-independent-template="${escapeHtml(template.code)}">
+          <b>新建独立${escapeHtml(template.title)}</b>
+          <span>${escapeHtml(template.abbreviation)} · 独立归档记录</span>
+        </button>
+        ${newArchiveDrafts.map((draft) => renderPlacedDraft(draft, {
+          returnedAttribute: 'data-open-returned-new',
+          draftAttribute: 'data-open-new-draft',
+        })).join('')}
+        <h3>在既有档案内新增独立正文</h3>
+        ${editableArchives.length ? editableArchives.map((archive) => {
+          const placedDrafts = categoryDrafts.filter((draft) => (
+            buildClerkDraftPlacement(draft).archiveId === archive.id
+          ));
+          return `
+            <button type="button" data-new-contribution-archive="${escapeHtml(archive.id)}">
+              <b>${escapeHtml(archiveNumber(archive))} / ${escapeHtml(archive.title)}</b>
+              <span>新增一份独立正文，不修改既有正文</span>
+            </button>
+            ${placedDrafts.map((draft) => renderPlacedDraft(draft, {
+              returnedAttribute: 'data-open-returned-new',
+              draftAttribute: 'data-open-new-draft',
+            })).join('')}
+          `;
+        }).join('') : '<p>当前没有可写入的既有档案；可先建立独立档案。</p>'}
+        ${unplacedContributionDrafts.length ? `
+          <h3>待继续的独立正文</h3>
+          ${unplacedContributionDrafts.map((draft) => renderPlacedDraft(draft, {
+            returnedAttribute: 'data-open-returned-new',
+            draftAttribute: 'data-open-new-draft',
+          })).join('')}
+        ` : ''}
+        ${(archiveError || draftContext.draftError || draftContext.reviewError) ? `
+          <article role="alert">
+            <b>部分记录暂时未能读取</b>
+            <p>${escapeHtml(
+              archiveError?.message
+              || draftContext.draftError?.message
+              || draftContext.reviewError?.message
+              || '请稍后重试',
+            )}</p>
+            <button type="button" data-retry-category-new>重新读取</button>
+          </article>
+        ` : ''}
+      `;
+    };
+    const reload = async () => {
+      chooser.innerHTML = '<p>正在读取档案与暂存记录…</p>';
+      archiveError = null;
+      const [nextDraftContext, archiveResult] = await Promise.all([
+        loadClerkDraftContext(),
+        client
+          ? client.listEditableArchives({ category: template.category })
+            .then((archives) => ({ archives, error: null }))
+            .catch((error) => ({ archives: [], error }))
+          : Promise.resolve({ archives: [], error: new Error('档案服务未连接') }),
+      ]);
+      draftContext = nextDraftContext;
+      editableArchives = archiveResult.archives;
+      archiveError = archiveResult.error;
+      render();
+    };
+    chooser.addEventListener('click', async (event) => {
+      if (event.target.closest('[data-retry-category-new]')) {
+        await reload();
+        return;
+      }
+      const draftButton = event.target.closest('[data-open-returned-new], [data-open-new-draft]');
+      if (draftButton) {
+        const draft = draftContext.drafts.find((entry) => entry.id === draftButton.dataset.draftId);
+        if (!draft) return;
+        const editor = await createEditor(template, serverDraftToEditorDraft(draft, {
+          reviewReason: draft.status === 'changes_requested' ? draft.reviewReason : '',
+        }));
+        await replaceChooserWithEditor(state, editor, command);
+        return;
+      }
+      if (event.target.closest('[data-new-independent-template]')) {
+        const editor = await createEditor(template, { kind: 'new' });
+        await replaceChooserWithEditor(state, editor, command);
+        return;
+      }
+      const archiveButton = event.target.closest('[data-new-contribution-archive]');
+      const archive = editableArchives.find((entry) => entry.id === archiveButton?.dataset.newContributionArchive);
+      if (!archive) return;
+      const editor = await createEditor(template, {
+        kind: 'contribution',
+        archiveId: archive.id,
+        archiveCode: archive.code || '',
+        title: archive.title || '',
+      });
+      await replaceChooserWithEditor(state, editor, command);
     });
     await reload();
     return state;
@@ -2103,18 +2387,25 @@ export function initializeArchiveWorkspace({
       try {
         const documents = await client.listArchiveDocuments(archive.id);
         selectedDocuments = [
-          ...(archive.origin === 'official' ? [{
-            id: `official:${archive.id}`,
-            title: '官方档案正文',
+          ...[{
+            id: `archive:${archive.id}`,
+            title: '当前档案系统记录',
             latestVersionId: null,
-            ownerName: 'PALIS',
-          }] : []),
+            ownerName: archive.origin === 'official' ? 'PALIS' : '档案系统',
+          }],
           ...documents,
         ];
         const archiveDrafts = draftContext.drafts.filter((draft) => {
           const placement = buildClerkDraftPlacement(draft);
           return placement.action === 'modify' && placement.archiveId === archive.id;
         });
+        const directDocument = archiveDrafts.length
+          ? null
+          : (documents.length === 1 ? documents[0] : documents.length === 0 ? selectedDocuments[0] : null);
+        if (directDocument) {
+          await openSelectedDocument(archive, directDocument);
+          return;
+        }
         const visibleDocumentIds = new Set(selectedDocuments.map((document) => document.id));
         const unplacedDrafts = archiveDrafts.filter((draft) => {
           const documentId = buildClerkDraftPlacement(draft).documentId;
@@ -2159,27 +2450,39 @@ export function initializeArchiveWorkspace({
       }
     };
     const openSelectedDocument = async (archive, selectedDocument) => {
-      const officialBase = selectedDocument.id === `official:${archive.id}`;
+      const officialBase = selectedDocument.id === `archive:${archive.id}`;
       list.innerHTML = `
         <button type="button" data-modify-back-documents>← 返回文档列表</button>
         <h3>${escapeHtml(selectedDocument.title || archive.title)}</h3>
         <p>正在载入所选文档的固定版本…</p>
       `;
       try {
-        const source = await client.loadArchiveEditorSource(archive.id, {
-          contributionId: officialBase ? null : selectedDocument.id,
-          versionId: selectedDocument.latestVersionId,
-          officialBase,
-        });
+        const template = ARCHIVE_TEMPLATES.find((entry) =>
+          entry.category === archive.category)
+          || ARCHIVE_TEMPLATES.find((entry) => entry.category === selectedCategory);
+        if (!template) throw new Error('未找到该档案类别对应的设定卡，请重试');
+        const source = officialBase && archive.origin !== 'official'
+          ? {
+            archiveId: archive.id,
+            contributionId: null,
+            versionId: null,
+            sourceKind: 'official-static',
+            content: toEditorDocumentFromArchiveBase(archive, null, template),
+            archive,
+            references: [],
+            mediaContributionId: null,
+            version: null,
+          }
+          : await client.loadArchiveEditorSource(archive.id, {
+            contributionId: officialBase ? null : selectedDocument.id,
+            versionId: selectedDocument.latestVersionId,
+            officialBase,
+          });
         if (!source) throw new Error('未找到可修改的档案正文，请重试');
         const media = source.mediaContributionId
           && typeof client.listPublishedMedia === 'function'
           ? await client.listPublishedMedia(source.mediaContributionId)
           : source.content?.media || [];
-        const template = ARCHIVE_TEMPLATES.find((entry) =>
-          entry.category === archive.category)
-          || ARCHIVE_TEMPLATES.find((entry) => entry.category === selectedCategory);
-        if (!template) throw new Error('未找到该档案类别对应的设定卡，请重试');
         const initial = buildAmendmentInitialState(
           archive,
           selectedDocument,
@@ -2273,6 +2576,44 @@ export function initializeArchiveWorkspace({
     return state;
   };
 
+  const openCategoryArchiveActions = async (template) => {
+    if (!ensureWorkspaceAccess() || !template) return null;
+    const state = createWindow({
+      key: `archive-category-actions-${template.code}`,
+      title: `${template.title} / 档案操作`,
+      code: `ARCHIVE_${template.code}`,
+      className: 'archive-category-actions-window',
+      body: `
+        <section class="archive-category-actions" data-category-archive-actions="${escapeHtml(template.code)}">
+          <p>${escapeHtml(template.code)} / ${escapeHtml(template.title)}</p>
+          <button type="button" data-category-action="modify"><b>修改</b><span>读取并修订既有独立正文</span></button>
+          <button type="button" data-category-action="new"><b>新增</b><span>新建档案或新增一份独立正文</span></button>
+        </section>
+      `,
+    });
+    if (state.categoryArchiveActionsReady) return state;
+    state.categoryArchiveActionsReady = true;
+    const actions = state.windowElement.querySelector('[data-category-archive-actions]');
+    if (!canStartCategoryArchive(template)) {
+      actions.querySelector('[data-category-action="new"]')?.remove();
+    }
+    actions.addEventListener('click', async (event) => {
+      const action = event.target.closest('[data-category-action]')?.dataset.categoryAction;
+      if (!action) return;
+      if (action === 'new' && !canStartCategoryArchive(template)) return;
+      await state.close();
+      if (action === 'new') {
+        await openCategoryNewArchiveChooser(template);
+        return;
+      }
+      const chooser = await openModifyArchiveChooser();
+      const categoryButton = [...chooser.windowElement.querySelectorAll('[data-modify-category]')]
+        .find((button) => button.dataset.modifyCategory === template.category);
+      categoryButton?.click();
+    });
+    return state;
+  };
+
   const openInboxPanel = async () => {
     if (!ensureWorkspaceAccess()) return;
     const state = createWindow({
@@ -2289,6 +2630,16 @@ export function initializeArchiveWorkspace({
     }
     try {
       const notifications = await client.listNotifications(context.profile.id);
+      const unread = notifications.filter((notification) => !notification.read_at);
+      if (unread.length && typeof client.markNotificationRead === 'function') {
+        const results = await Promise.allSettled(unread.map((notification) =>
+          client.markNotificationRead(notification.id, context.profile.id)));
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            unread[index].read_at = result.value?.read_at || new Date().toISOString();
+          }
+        });
+      }
       list.innerHTML = notifications.length
         ? notifications.map((notification) => `
             <article class="${notification.read_at ? 'is-read' : 'is-unread'}">
@@ -2298,6 +2649,7 @@ export function initializeArchiveWorkspace({
             </article>
           `).join('')
         : '<p>尚未收到审核回信。</p>';
+      void refreshMailboxAlert();
     } catch (error) {
       list.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
     }
@@ -2474,7 +2826,10 @@ export function initializeArchiveWorkspace({
             </form>
           </header>
           <p data-admin-archive-message>正在读取正式档案目录…</p>
-          <div data-admin-archive-list><p>正在读取正式档案目录…</p></div>
+          <div class="archive-admin-archive-browser" data-admin-archive-list>
+            <nav class="archive-admin-category-tabs" data-admin-archive-tabs aria-label="档案分类"></nav>
+            <div class="archive-admin-archive-results" data-admin-archive-results><p>正在读取正式档案目录…</p></div>
+          </div>
         </section>
       `,
     });
@@ -2485,6 +2840,7 @@ export function initializeArchiveWorkspace({
     const message = panel.querySelector('[data-admin-archive-message]');
     const list = panel.querySelector('[data-admin-archive-list]');
     let archives = [];
+    let activeCategory = ARCHIVE_TEMPLATES[0]?.category ?? null;
 
     const visibilityLabel = (visibility) => ({
       public: '公开',
@@ -2493,8 +2849,33 @@ export function initializeArchiveWorkspace({
     }[visibility] || visibility || '未设定');
 
     const renderArchives = () => {
-      list.innerHTML = archives.length
-        ? archives.map((archive) => `
+      const activeTemplate = ARCHIVE_TEMPLATES.find((template) => template.category === activeCategory)
+        ?? ARCHIVE_TEMPLATES.find((template) => archives.some((archive) => archive.category === template.category))
+        ?? ARCHIVE_TEMPLATES[0];
+      activeCategory = activeTemplate?.category ?? null;
+      const visibleArchives = archives.filter((archive) => archive.category === activeCategory);
+      list.innerHTML = `
+        <nav class="archive-admin-category-tabs" data-admin-archive-tabs aria-label="档案分类">
+          ${ARCHIVE_TEMPLATES.map((template) => {
+            const count = archives.filter((archive) => archive.category === template.category).length;
+            const active = template.category === activeCategory;
+            return `
+              <button
+                type="button"
+                class="archive-admin-category-tab${active ? ' is-active' : ''}"
+                data-admin-archive-category="${escapeHtml(template.category)}"
+                aria-pressed="${active ? 'true' : 'false'}"
+              >
+                <b>${escapeHtml(template.code)}</b>
+                <span>${escapeHtml(template.title)}</span>
+                <em>${count}</em>
+              </button>
+            `;
+          }).join('')}
+        </nav>
+        <div class="archive-admin-archive-results" data-admin-archive-results>
+        ${visibleArchives.length
+        ? visibleArchives.map((archive) => `
             <article class="archive-admin-archive" data-managed-archive="${escapeHtml(archive.id)}">
               <header>
                 <div><b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span></div>
@@ -2519,7 +2900,9 @@ export function initializeArchiveWorkspace({
               </form>
             </article>
           `).join('')
-        : '<p>没有符合条件的正式档案。</p>';
+        : '<p>这个类别当前没有符合条件的正式档案。</p>'}
+        </div>
+      `;
     };
 
     const loadArchives = async () => {
@@ -2545,6 +2928,12 @@ export function initializeArchiveWorkspace({
     });
     search.querySelector('[data-refresh-admin-archives]').addEventListener('click', loadArchives);
     list.addEventListener('click', async (event) => {
+      const categoryTab = event.target.closest('[data-admin-archive-category]');
+      if (categoryTab) {
+        activeCategory = categoryTab.dataset.adminArchiveCategory;
+        renderArchives();
+        return;
+      }
       const toggle = event.target.closest('[data-toggle-archive-new]');
       if (toggle) {
         const card = toggle.closest('[data-managed-archive]');
@@ -2847,6 +3236,7 @@ export function initializeArchiveWorkspace({
             }));
             submit.remove();
             await loadQueue();
+            void refreshMailboxAlert();
           } catch (error) {
             message.textContent = error.message;
             submit.disabled = false;
@@ -2875,6 +3265,7 @@ export function initializeArchiveWorkspace({
           } else {
             output.textContent = '已退回书记官，批复已进入对方回信箱。';
             await loadQueue();
+            void refreshMailboxAlert();
           }
         } catch (error) {
           output.textContent = error.message;
@@ -2941,8 +3332,16 @@ export function initializeArchiveWorkspace({
   window.addEventListener('palis:workspace-command', (event) => {
     if (!ensureWorkspaceAccess()) return;
     const command = event.detail?.command;
+    if (command?.startsWith('archive-category:')) {
+      const template = ARCHIVE_TEMPLATE_BY_CODE[command.slice('archive-category:'.length)];
+      if (template) void openCategoryArchiveActions(template);
+    }
     if (command === 'new-archive') void openNewArchiveChooser();
     if (command === 'modify-archive') void openModifyArchiveChooser();
+    if (command === 'mailbox') {
+      if (canReview(context.role)) void openReviewPanel();
+      else void openInboxPanel();
+    }
     if (command === 'review' && canReview(context.role)) void openReviewPanel();
     if (command === 'users' && canReview(context.role)) void openUserManagementPanel();
     if (command === 'archives' && canReview(context.role)) void openArchiveManagementPanel();
@@ -2960,6 +3359,7 @@ export function initializeArchiveWorkspace({
       ? 'granted'
       : context.profile?.id ? 'observer' : 'visitor';
     workspaceEntry.removeAttribute('data-access-denied');
+    root.dataset.workspaceRole = context.role;
     adminButtons.forEach((button) => { button.hidden = !canReview(context.role); });
     const workspaceName = context.role === 'admin' ? '管理员工作台' : '书记官工作台';
     const workspaceNameEnglish = context.role === 'admin' ? 'ADMIN WORKSPACE' : 'CLERK WORKSPACE';
@@ -2977,6 +3377,7 @@ export function initializeArchiveWorkspace({
     root.querySelector('#assistant-taskbar')?.setAttribute('aria-label', `${workspaceName}任务栏`);
     if (roleOutput) roleOutput.textContent = context.role === 'admin' ? 'ADMIN / 管理员' : context.role === 'clerk' ? 'CLERK / 书记官' : 'OBSERVER / 观察员';
     setWorkspaceMessage(allowed ? 'WORKSPACE READY' : 'READ ONLY / WORKSPACE LOCKED');
+    void refreshMailboxAlert();
   };
   const applySession = (next = {}) => {
     const previousPrincipalId = context.profile?.id ?? null;
@@ -2990,22 +3391,49 @@ export function initializeArchiveWorkspace({
   window.addEventListener('palis:workspace-close-all', () => { [...windows.values()].forEach((state) => { void state.close?.(); }); });
 
   window.addEventListener('palis:session-change', (event) => applySession(event.detail));
-  window.addEventListener('palis:open-amendment', (event) => {
+  window.addEventListener('palis:open-amendment', async (event) => {
     if (!ensureWorkspaceAccess()) return;
     const detail = event.detail || {};
     const template = ARCHIVE_TEMPLATE_BY_CODE[detail.templateCode];
     if (!template) return;
     if (root.hidden) workspaceEntry.click();
-    createEditor(template, {
+    let initial = {
       archiveId: detail.archiveId || null,
       archiveCode: detail.archiveCode || '',
       targetContributionId: detail.targetContributionId || null,
       targetDocumentId: detail.targetContributionId
-        || (detail.officialBase && detail.archiveId ? `official:${detail.archiveId}` : ''),
+        || (detail.officialBase && detail.archiveId ? `archive:${detail.archiveId}` : ''),
       officialBase: Boolean(detail.officialBase),
       kind: 'amendment',
       title: detail.title || '档案修改申请',
-    });
+    };
+    if (detail.archiveId && typeof client?.loadArchiveEditorSource === 'function') {
+      const source = await client.loadArchiveEditorSource(detail.archiveId, {
+        contributionId: detail.targetContributionId || null,
+        officialBase: Boolean(detail.officialBase),
+      });
+      if (source?.content) {
+        const sourceTitle = source.content.title
+          || source.content.indexData?.title
+          || source.archive?.title
+          || detail.title;
+        const documentChoice = {
+          id: detail.targetContributionId || `archive:${detail.archiveId}`,
+          title: sourceTitle,
+          latestVersionId: source.versionId ?? null,
+        };
+        const media = source.mediaContributionId
+          && typeof client.listPublishedMedia === 'function'
+          ? await client.listPublishedMedia(source.mediaContributionId)
+          : source.content.media || [];
+        initial = buildAmendmentInitialState(
+          source.archive || { id: detail.archiveId, code: detail.archiveCode, title: sourceTitle },
+          documentChoice,
+          { ...source, media },
+        );
+      }
+    }
+    createEditor(template, initial);
   });
   applySession(initialSession ?? {
     role: document.body.dataset.operatorRole || 'observer',

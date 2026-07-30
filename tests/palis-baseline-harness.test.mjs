@@ -111,6 +111,8 @@ test('page fixture permits only the preview origin and exact archive GET/OPTIONS
       return {
         get: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives'),
         options: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives', { method: 'OPTIONS' }),
+        workspaceNotes: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/workspace_notes'),
+        archiveContributions: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archive_contributions'),
         post: await status('https://hpzdccfrouhljqlzczuv.supabase.co/rest/v1/archives', { method: 'POST' }),
         evilArchive: await status('https://evil.invalid/rest/v1/archives'),
         otherLoopback: await status('http://127.0.0.1:9/not-preview'),
@@ -122,7 +124,15 @@ test('page fixture permits only the preview origin and exact archive GET/OPTIONS
     }));
     assert.deepEqual(state.dates, [1785240000000, 1785240000000]);
     assert.equal(state.reduced, true);
-    assert.deepEqual(network, { get: 200, options: 200, post: 'blocked', evilArchive: 'blocked', otherLoopback: 'blocked' });
+    assert.deepEqual(network, {
+      get: 200,
+      options: 200,
+      workspaceNotes: 200,
+      archiveContributions: 200,
+      post: 'blocked',
+      evilArchive: 'blocked',
+      otherLoopback: 'blocked',
+    });
     assert.ok(requestLog.archives.some((entry) => entry.method === 'GET'));
     assert.ok(requestLog.archives.some((entry) => entry.method === 'OPTIONS'));
     assert.ok(requestLog.fatal.some((entry) => entry.method === 'POST'));
@@ -152,6 +162,66 @@ test('scene waiter enters the countries directory through its folder code', { ti
     assert.deepEqual(await page.$eval('#mascot-idle-frame', (node) => ({
       frame: node.dataset.mascotFrame, complete: node.complete, width: node.naturalWidth,
     })), { frame: '02', complete: true, width: 1254 });
+  } finally {
+    await browser.close();
+    await preview.close();
+  }
+});
+
+test('country stack renders a published country and remains wheel-navigable at the cloud tail', { timeout: 60_000 }, async () => {
+  const preview = await startPalisPreview({ root: previewFixtureRoot, port: 0 });
+  const browser = await puppeteer.launch({ executablePath: resolveBrowserExecutable(), headless: true });
+  const page = await browser.newPage();
+  try {
+    await installPalisPageFixture(page, {
+      previewOrigin: new URL(preview.url).origin,
+      publishedArchives: [{
+        id: 'cloud-country-19',
+        category: 'country',
+        title: '111',
+        visibility: 'public',
+        sequence_number: 19,
+        new_badge_visible: true,
+        index_payload: {
+          title: '111',
+          archivePeriod: '战后早期',
+          bloc: 'neutral',
+        },
+      }],
+    });
+    await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
+    await enterPalisPreview(page);
+    const closeButton = await page.$('#version-notice:not([hidden]) button[data-version-notice-action="close"]');
+    if (closeButton) {
+      await page.$eval('#version-notice:not([hidden]) button[data-version-notice-action="close"]', (button) => button.click());
+      await page.waitForFunction(() => document.querySelector('#version-notice')?.hidden);
+    }
+    await page.evaluate(() => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 2 / 3));
+    await page.waitForSelector('#folder-orbit[data-category="root"][data-mode="orbit"]');
+    await page.waitForSelector('.folder-button.is-folder[data-code="01"]');
+    await page.$eval('.folder-button.is-folder[data-code="01"]', (button) => button.click());
+    await page.waitForSelector('#folder-orbit[data-category="countries"][data-mode="country-stack"]');
+    await page.waitForSelector('.folder-button[data-code="N19"]');
+
+    await page.$eval('.folder-button[data-code="N19"]', (button) => button.click());
+    await page.waitForFunction(() => document.querySelector('.country-stack-readout h3')?.textContent === '111');
+    assert.equal(await page.$eval('#archive-position', (node) => node.textContent), '19 / 19');
+    assert.equal(
+      await page.$eval('.country-stack-vault > footer span', (node) => node.textContent),
+      'NATIONAL ACCESSION STACK / 19 FILES',
+    );
+    assert.equal(await page.$('.country-stack-readout .country-flag img'), null);
+    assert.equal(
+      await page.$eval('.country-stack-readout .country-flag__placeholder', (node) => node.textContent.trim()),
+      'N19FLAG PENDING',
+    );
+
+    await page.$eval('#folder-orbit', (orbit) => orbit.dispatchEvent(new WheelEvent('wheel', {
+      deltaY: 120,
+      bubbles: true,
+      cancelable: true,
+    })));
+    await page.waitForFunction(() => document.querySelector('#archive-position')?.textContent === '01 / 19');
   } finally {
     await browser.close();
     await preview.close();

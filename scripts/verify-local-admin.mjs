@@ -16,8 +16,8 @@ export const EXPECTED_LOCAL_ADMIN_NUMBERING = Object.freeze({
   entrance: Object.freeze({ code: 'EN19', formalNumber: '019.CRD' }),
   ecology: Object.freeze({ code: 'E08', formalNumber: '008.ECO' }),
   person: Object.freeze({ code: 'P47', formalNumber: '047.PER' }),
-  event: Object.freeze({ code: 'EV27', formalNumber: '027.RLL' }),
-  anomaly: Object.freeze({ code: 'A26', formalNumber: '026.TRC' }),
+  event: Object.freeze({ code: 'EV02', formalNumber: '002.RLL' }),
+  anomaly: Object.freeze({ code: 'A04', formalNumber: '004.TRC' }),
   species: Object.freeze({ code: 'S23', formalNumber: '023.SPC' }),
 });
 
@@ -133,7 +133,7 @@ const CATEGORY_FIXTURES = Object.freeze([
     summary: '本地验收用异常附卷。',
     indexData: {
       title: '白幕回声异常',
-      parentEvent: 'EV27',
+      parentEvent: 'EV02',
       occurredAt: '1965-01-17',
       location: '白幕副入口',
       anomalyType: '声音复现',
@@ -715,10 +715,10 @@ export async function verifyLocalAdministrator({
     await exitWorkspace(page);
 
     await enterDirectory(page, ROOT_DIRECTORY.anomaly);
-    await page.waitForSelector('.folder-button[data-code="A26"]', { timeout: 20_000 });
+    await page.waitForSelector('.folder-button[data-code="A04"]', { timeout: 20_000 });
     const anomalyEvidence = await page.evaluate(() => {
       const buttons = [...document.querySelectorAll('#folder-orbit .folder-button')];
-      const button = buttons.find((candidate) => candidate.dataset.code === 'A26');
+      const button = buttons.find((candidate) => candidate.dataset.code === 'A04');
       const archiveRect = button?.getBoundingClientRect();
       return {
         count: buttons.length,
@@ -745,26 +745,26 @@ export async function verifyLocalAdministrator({
       layer: 'ui',
       actual: anomalyEvidence,
       expected: {
-        count: 26,
-        index: 25,
-        code: 'A26',
+        count: 4,
+        index: 3,
+        code: 'A04',
         title: '白幕回声异常',
         isNew: true,
         inViewport: true,
       },
       evidence: ['03-anomaly-title-tail-new.png'],
     });
-    await page.$eval('.folder-button[data-code="A26"]', (button) => button.click());
-    await page.waitForSelector('.folder-button[data-code="A26"].is-selected', {
+    await page.$eval('.folder-button[data-code="A04"]', (button) => button.click());
+    await page.waitForSelector('.folder-button[data-code="A04"].is-selected', {
       timeout: 10_000,
     });
     await capture(page, report, 'anomaly-title-tail-new', anomalyEvidence);
 
     await enterDirectory(page, ROOT_DIRECTORY.event);
-    await page.waitForSelector('.folder-button[data-code="EV27"]', { timeout: 20_000 });
+    await page.waitForSelector('.folder-button[data-code="EV02"]', { timeout: 20_000 });
     const eventEvidence = await page.evaluate(() => {
       const buttons = [...document.querySelectorAll('#folder-orbit .folder-button')];
-      const button = buttons.find((candidate) => candidate.dataset.code === 'EV27');
+      const button = buttons.find((candidate) => candidate.dataset.code === 'EV02');
       const archiveRect = button?.getBoundingClientRect();
       return {
         count: buttons.length,
@@ -792,9 +792,9 @@ export async function verifyLocalAdministrator({
       layer: 'ui',
       actual: eventEvidence,
       expected: {
-        count: 27,
-        index: 26,
-        code: 'EV27',
+        count: 2,
+        index: 1,
+        code: 'EV02',
         title: '白幕初垂事件',
         year: '1965',
         isNew: true,
@@ -855,13 +855,13 @@ export async function verifyLocalAdministrator({
     await exitWorkspace(page);
 
     await enterDirectory(page, ROOT_DIRECTORY.anomaly);
-    await page.waitForSelector('.folder-button[data-code="A26"]', { timeout: 20_000 });
-    await page.$eval('.folder-button[data-code="A26"]', (button) => button.click());
-    await page.waitForSelector('.folder-button[data-code="A26"].is-selected', {
+    await page.waitForSelector('.folder-button[data-code="A04"]', { timeout: 20_000 });
+    await page.$eval('.folder-button[data-code="A04"]', (button) => button.click());
+    await page.waitForSelector('.folder-button[data-code="A04"].is-selected', {
       timeout: 10_000,
     });
     const anomalyBadgeAfter = await page.$eval(
-      '.folder-button[data-code="A26"]',
+      '.folder-button[data-code="A04"]',
       (button) => Boolean(button.querySelector('.archive-new-badge')),
     );
     report.uiEvidence.anomalyDirectory.newAfterToggle = anomalyBadgeAfter;
@@ -873,7 +873,7 @@ export async function verifyLocalAdministrator({
       evidence: ['06-anomaly-new-off-directory.png'],
     });
     await capture(page, report, 'anomaly-new-off-directory', {
-      code: 'A26',
+      code: 'A04',
       newBadgeVisible: anomalyBadgeAfter,
     });
 

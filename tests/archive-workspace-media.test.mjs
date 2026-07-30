@@ -20,7 +20,7 @@ const imageFile = (name, {
   lastModified,
 });
 
-test('workspace renders bounded media slots only for person and event archives', () => {
+test('workspace renders bounded media slots for every archive type with image support', () => {
   const person = renderArchiveMediaEditor('person');
   assert.match(person, /data-archive-media-role="portrait"/);
   assert.doesNotMatch(person, /event-cover|event-evidence|multiple/);
@@ -31,15 +31,27 @@ test('workspace renders bounded media slots only for person and event archives',
   assert.match(event, /data-archive-media-input="event-evidence"[^>]*multiple/);
   assert.match(event, /最多 6 张/);
 
-  for (const category of [
-    'species',
-    'station',
-    'entrance',
-    'anomaly',
-    'organization',
-    'item',
-    'document',
+  const anomaly = renderArchiveMediaEditor('anomaly');
+  assert.match(anomaly, /data-archive-media-role="anomaly-cover"/);
+  assert.match(anomaly, /data-archive-media-role="anomaly-image"/);
+  assert.match(anomaly, /data-archive-media-input="anomaly-image"[^>]*multiple/);
+
+  const species = renderArchiveMediaEditor('species');
+  assert.match(species, /data-archive-media-role="species-cover"/);
+  assert.match(species, /data-archive-media-role="species-image"/);
+  assert.match(species, /data-archive-media-input="species-image"[^>]*multiple/);
+
+  for (const [category, role] of [
+    ['country', 'country-flag'],
+    ['organization', 'organization-cover'],
+    ['station', 'station-cover'],
+    ['entrance', 'entrance-cover'],
+    ['ecology', 'ecology-cover'],
   ]) {
+    assert.match(renderArchiveMediaEditor(category), new RegExp(`data-archive-media-role="${role}"`));
+  }
+
+  for (const category of ['item', 'document']) {
     assert.equal(renderArchiveMediaEditor(category), '');
   }
 });

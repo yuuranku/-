@@ -16,7 +16,7 @@ const EXPECTED_KEYS = Object.freeze({
   ecology: ['title', 'recordType', 'firstObservedAt', 'scope', 'status'],
   person: ['title', 'archiveChain', 'organization', 'role', 'activePeriod', 'status'],
   event: ['title', 'startDate', 'endDate', 'timePrecision', 'location', 'reviewStatus'],
-  anomaly: ['title', 'parentEvent', 'occurredAt', 'location', 'anomalyType', 'severity', 'status'],
+  anomaly: ['title', 'anomalyKind', 'parentEvent', 'occurredAt', 'location', 'anomalyType', 'severity', 'status'],
   species: ['title', 'specimenClass', 'discoveredAt', 'location', 'specimenStatus', 'hazard'],
 });
 
@@ -28,6 +28,18 @@ test('all nine category profiles expose the approved public index keys', () => {
     ])),
     EXPECTED_KEYS,
   );
+});
+
+test('organizations use one required red, blue, or neutral classification outside the formal document', () => {
+  const channel = ARCHIVE_CATEGORY_PROFILES.organization.indexFields.find(({ key }) => key === 'channel');
+  const invalid = validateArchiveIndexData('organization', {
+    title: '\u5185\u9646\u7279\u522b\u4f5c\u4e1a\u5c40', channel: 'unknown', foundedAt: '1949',
+  });
+
+  assert.equal(channel.type, 'select');
+  assert.deepEqual(channel.options.map(({ value }) => value), ['red', 'blue', 'neutral']);
+  assert.equal(invalid.valid, false);
+  assert.deepEqual(invalid.missing, ['channel']);
 });
 
 test('normalization keeps only category index fields and converts controlled values', () => {
@@ -108,14 +120,15 @@ test('station and entrance coordinates require finite values in geographic range
 
 test('generated index controls expose labels, keys, select options, and errors', () => {
   const species = renderArchiveIndexFields('species', {
-    title: '白壳复合体',
-    specimenClass: 'COMPOSITE',
+    title: '白壳虫',
+    specimenClass: 'FAUNA',
   });
   assert.match(species, /data-archive-index-panel/);
   assert.match(species, /data-archive-index-field="title"/);
   assert.match(species, /name="index:specimenClass"/);
   assert.match(species, /<select[^>]+data-index-key="specimenClass"/);
-  assert.match(species, /value="COMPOSITE" selected/);
-  assert.match(species, /植物／动物／复合群落/);
+  assert.match(species, /value="FAUNA" selected/);
+  assert.match(species, /植物／动物/);
+  assert.doesNotMatch(species, /COMPOSITE|复合群落/);
   assert.match(species, /data-index-errors/);
 });

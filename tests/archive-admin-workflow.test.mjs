@@ -69,6 +69,9 @@ test('administrator workspace exposes an archive manager with typed-code permane
   assert.match(workspace, /!ensureWorkspaceAccess\(\) \|\| !canReview\(context\.role\)/);
   assert.match(workspace, /key:\s*'archives'/);
   assert.match(workspace, /data-admin-archive-management/);
+  assert.match(workspace, /data-admin-archive-category/);
+  assert.match(workspace, /data-admin-archive-results/);
+  assert.match(workspace, /archive-admin-category-tabs/);
   assert.match(workspace, /command === 'archives' && canReview\(context\.role\)/);
   assert.match(workspace, /listAdminArchives/);
   assert.match(workspace, /data-delete-archive-confirmation/);

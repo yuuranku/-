@@ -207,6 +207,7 @@ const countries = Object.entries(countryNotes).map(([name, note], index) => ({
   ...countryDisplayNames[name],
   bloc: countryBlocs[name] || 'neutral',
   priority: majorCountryOrder.includes(name) ? majorCountryOrder.indexOf(name) : 100 + index,
+  webContent: true,
 }));
 
 const organizationLaneLabels = {
@@ -292,6 +293,7 @@ const ecology = [
   ...doc(`eco-${index + 1}`, `E${String(index + 1).padStart(2, '0')}`, name, '生态分层', name, note,
     [['层级', String(index + 1).padStart(2, '0')], ['光照', '极低'], ['记录', '野外口径']]),
   depth: index,
+  webContent: true,
 }));
 
 const peopleRecords = [
@@ -387,13 +389,17 @@ const eventRecords = [
   ['EV26', '1965.02.08', '西线复核 / 两种归队状态', '同一调查队同时拥有“全员归队”与“仍在林中”的有效状态。营地接收了归队人员的装备，远端值班表却继续记录他们的夜间活动。', null, '回返者观察卷 / 持续补录'],
 ];
 
-const events = eventRecords.map(([code, year, name, note, image, status], index) => ({
-  ...doc(`event-${index + 1}`, code, name, status, `${year} / ${name}`, note,
-    [['目录', '事件'], ['年份', year], ['状态', status]]),
-  year,
-  image,
-  webContent: code === 'EV10',
-}));
+const events = eventRecords
+  // HZ-6 is the retained source record. It is the first event dossier, so
+  // subsequent clerk-created records continue from EV02.
+  .filter(([code]) => code === 'EV10')
+  .map(([, year, name, note, image, status]) => ({
+    ...doc('event-1', 'EV01', name, status, `${year} / ${name}`, note,
+      [['目录', '事件'], ['年份', year], ['状态', status]]),
+    year,
+    image,
+    webContent: true,
+  }));
 
 const abnormalities = [
   ['1947.02.11', 'E-14 返航计数事件', '罗斯海临时航空营地', '一架执行跳高行动测绘任务的飞机按六人起飞、七人落地完成归航手续；燃油、口粮和座位记录仍只支持六人。', '人数不闭合', 'critical'],
@@ -421,50 +427,54 @@ const abnormalities = [
   ['1960.04.09', '麦克默多重复医检', '麦克默多站医务室', '一名无线电员在相隔十二分钟的两个诊室完成全套医检，两份记录含相同旧伤，却由不同医生当面签认。', '人员重叠', 'warning'],
   ['1961.01.27', '哈雷湾同频双台', '哈雷湾站监听室', '同一呼号在同一频率上并行发送两份天气广播，接收站能分别抄收且互不干扰，两台发射机都被值班员确认处于工作状态。', '证据互斥', 'warning'],
   ['1963.08.31', '西线营地第零班', '西线九号井前进营地', '营地只有三班编制，却连续六日消耗了第四班的口粮、灯油和铺位；所有在册人员又都能与原三班点名闭合。', '人数不闭合', 'critical'],
-].map(([eventDate, name, site, note, rule, severity], index) => ({
+].slice(0, 3).map(([eventDate, name, site, note, rule, severity], index) => ({
   ...doc(`anomaly-${index + 1}`, `A${String(index + 1).padStart(2, '0')}`, name, `${eventDate} / ${site}`, `${eventDate} / ${name}`, note,
     [['日期', eventDate], ['地点', site], ['规则', rule], ['状态', severity === 'critical' ? '红档复核' : '持续核验']]),
   eventDate,
   site,
   rule,
   severity,
+  webContent: index === 0,
 }));
 
 const hz6SpeciesImages = {
-  Abyssodendron_aciculatum: '/assets/hz6/photos/hz6-r06-f25.png',
-  Leucocuticulata_complex: '/assets/hz6/photos/hz6-r06-f07.png',
+  S01: '/assets/hz6/photos/hz6-r06-f25.png',
+  S07: '/assets/hz6/photos/hz6-r06-f07.png',
 };
 
 const species = [
-  ['Abyssodendron aciculatum', '野外俗称“黑针木”。暮色针叶层的优势拟植物，依靠根部化能共生体获得主要碳输入。', 'FLORA'],
-  ['Argenteofrutex glacialis', '野外俗称“银皮冷杉”。集中在较亮冰窗和暖湿谷地，是判断地下光照与空气交换的指示生物。', 'FLORA'],
-  ['Hyalobryum recurvatum', '野外俗称“玻璃苔”。半透明苔藓状地被，沿冰窗下缘形成薄片。', 'FLORA'],
-  ['Ferrilichen rubrovenosus', '野外俗称“红脉地衣”。附着在暖岩和旧骨层表面，铁质脉络会随氧化条件改变色泽。', 'FLORA'],
-  ['Halorhizoma consortium', '野外俗称“盐根毡”。生长于盐地与暖泉之间的多物种根毡群落。', 'FLORA'],
-  ['Cyanosporopteris ventosa', '野外俗称“蓝孢蕨”。孢子在紫外灯下呈冷蓝色，可用于判断地下通风方向。', 'FLORA'],
-  ['Leucocuticulata complex', '野外俗称“白壳虫”。多个小型节肢动物形态组的集合名，会堵塞滤芯并进入食品箱。', 'FAUNA'],
-  ['Argentichthys caecus', '野外俗称“盲银鱼”。生活在黑湖，依靠侧线、电感或水压变化活动。', 'FAUNA'],
-  ['Tacitornis tremulans', '野外俗称“静默鸟”。通过低频振动、敲击或地面传导交流。', 'FAUNA'],
-  ['Cervocinerus thermophilus', '野外俗称“灰鹿”。低密度大型植食或杂食动物，沿暖泉与盐地迁徙。', 'FAUNA'],
-  ['Dendrotherium longirameum', '野外俗称“长枝兽”，HZ-6卷内曾以HZ6-CO-01登记。', 'FAUNA'],
-  ['Palaeobatrachomorpha lacustris', '野外俗称“古两栖样动物”。生活在湖岸、暗河和暖泥边缘。', 'FAUNA'],
-  ['Hyalolepis filata', '野外俗称“丝翼蛾”。翼面几乎没有鳞粉，常聚集在暖电缆附近。', 'FAUNA'],
-  ['Rhizocaris loricata', '野外俗称“根甲兽”。会把脱落根皮固定在体表，静止时接近根板纹理。', 'FAUNA'],
-  ['Cryovenia salina', '野外俗称“冰脉草”。沿盐水细沟生长，深色纵脉随融水增减改变色泽。', 'FLORA'],
-  ['Saccophonia ferrica', '野外俗称“铁铃囊”。固着在暖岩冷缘，气压改变时产生空腔共振。', 'FLORA'],
-  ['Bathyanguilla pectinata', '野外俗称“黑湖栉鳗”。活动于黑湖低氧深层，体侧具有梳齿状褶片。', 'FAUNA'],
-  ['Funambularachne longipes', '野外俗称“索足蛛”。在根板与裂缝间架设粗丝，伏击小型节肢动物。', 'FAUNA'],
-  ['Osteopecten radulans', '野外俗称“骨篦虫”。以篦状软突刮取旧骨水膜中的有机物。', 'FAUNA'],
-  ['Ferriphyllum candelabrum', '野外俗称“铁烛叶”。叉枝内的铁质颗粒在灯光下呈铜红反射。', 'FLORA'],
-  ['Nebulorhiza condensata', '野外俗称“雾根草”。垂挂在高湿岩檐下，丝束表面持续凝结水珠。', 'FLORA'],
-  ['Nivellophyton lamellatum', '野外俗称“雪幕叶”。乳白叶状片沿冷水渗面层叠生长。', 'FLORA'],
-].map(([name, note, specimenClass], index) => ({
-  ...doc(`species-${index + 1}`, `S${String(index + 1).padStart(2, '0')}`, name, '', name, note,
+  ['黑针木', '野外俗称“黑针木”。暮色针叶层的优势拟植物，依靠根部化能共生体获得主要碳输入。', 'FLORA'],
+  ['银皮冷杉', '野外俗称“银皮冷杉”。集中在较亮冰窗和暖湿谷地，是判断地下光照与空气交换的指示生物。', 'FLORA'],
+  ['玻璃苔', '野外俗称“玻璃苔”。半透明苔藓状地被，沿冰窗下缘形成薄片。', 'FLORA'],
+  ['红脉地衣', '野外俗称“红脉地衣”。附着在暖岩和旧骨层表面，铁质脉络会随氧化条件改变色泽。', 'FLORA'],
+  ['盐根毡', '野外俗称“盐根毡”。生长于盐地与暖泉之间的多物种根毡群落。', 'FLORA'],
+  ['蓝孢蕨', '野外俗称“蓝孢蕨”。孢子在紫外灯下呈冷蓝色，可用于判断地下通风方向。', 'FLORA'],
+  ['白壳虫', '野外俗称“白壳虫”。多个小型节肢动物形态组的集合名，会堵塞滤芯并进入食品箱。', 'FAUNA'],
+  ['盲银鱼', '野外俗称“盲银鱼”。生活在黑湖，依靠侧线、电感或水压变化活动。', 'FAUNA'],
+  ['静默鸟', '野外俗称“静默鸟”。通过低频振动、敲击或地面传导交流。', 'FAUNA'],
+  ['灰鹿', '野外俗称“灰鹿”。低密度大型植食或杂食动物，沿暖泉与盐地迁徙。', 'FAUNA'],
+  ['长枝兽', '野外俗称“长枝兽”，HZ-6卷内曾以HZ6-CO-01登记。', 'FAUNA'],
+  ['古两栖样动物', '野外俗称“古两栖样动物”。生活在湖岸、暗河和暖泥边缘。', 'FAUNA'],
+  ['丝翼蛾', '野外俗称“丝翼蛾”。翼面几乎没有鳞粉，常聚集在暖电缆附近。', 'FAUNA'],
+  ['根甲兽', '野外俗称“根甲兽”。会把脱落根皮固定在体表，静止时接近根板纹理。', 'FAUNA'],
+  ['冰脉草', '野外俗称“冰脉草”。沿盐水细沟生长，深色纵脉随融水增减改变色泽。', 'FLORA'],
+  ['铁铃囊', '野外俗称“铁铃囊”。固着在暖岩冷缘，气压改变时产生空腔共振。', 'FLORA'],
+  ['黑湖栉鳗', '野外俗称“黑湖栉鳗”。活动于黑湖低氧深层，体侧具有梳齿状褶片。', 'FAUNA'],
+  ['索足蛛', '野外俗称“索足蛛”。在根板与裂缝间架设粗丝，伏击小型节肢动物。', 'FAUNA'],
+  ['骨篦虫', '野外俗称“骨篦虫”。以篦状软突刮取旧骨水膜中的有机物。', 'FAUNA'],
+  ['铁烛叶', '野外俗称“铁烛叶”。叉枝内的铁质颗粒在灯光下呈铜红反射。', 'FLORA'],
+  ['雾根草', '野外俗称“雾根草”。垂挂在高湿岩檐下，丝束表面持续凝结水珠。', 'FLORA'],
+  ['雪幕叶', '野外俗称“雪幕叶”。乳白叶状片沿冷水渗面层叠生长。', 'FLORA'],
+].map(([name, note, specimenClass], index) => {
+  const code = `S${String(index + 1).padStart(2, '0')}`;
+  return {
+  ...doc(`species-${index + 1}`, code, name, '', name, note,
     [['目录', '物种'], ['分类', '临时'], ['样本', '受限']]),
   specimenClass,
-  image: hz6SpeciesImages[name.replaceAll(' ', '_')],
-  webContent: Boolean(hz6SpeciesImages[name.replaceAll(' ', '_')]),
-}));
+  image: hz6SpeciesImages[code],
+  webContent: true,
+  };
+});
 
 export const ARCHIVE_ROOTS = [
   ['countries', '01', '国家', countries],

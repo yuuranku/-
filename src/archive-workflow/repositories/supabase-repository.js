@@ -1,6 +1,6 @@
 import { assertArchiveWorkflowRepository } from '../repository-contract.js';
 import { ARCHIVE_ROOTS } from '../../archive-data.js';
-import { toEditorDocumentFromOfficialArchive } from '../official-archive-source.js';
+import { toEditorDocumentFromArchiveBase } from '../official-archive-source.js';
 import { ARCHIVE_TEMPLATES } from '../templates.js';
 
 export class ArchiveWorkflowError extends Error {
@@ -29,6 +29,11 @@ const requireId = (value, label) => {
   const id = String(value ?? '').trim();
   if (!id) throw new ArchiveWorkflowError(`${label} is required`, { code: 'invalid_input' });
   return id;
+};
+
+const storageObjectExtension = (fileName) => {
+  const match = /\.([a-z0-9]{1,12})$/i.exec(String(fileName ?? '').trim());
+  return match ? `.${match[1].toLowerCase()}` : '.bin';
 };
 
 const workspaceNotePayload = ({ title, content, sortOrder = 0 } = {}) => {
@@ -254,9 +259,9 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const searchArchives = (query, { limit = 20 } = {}) => {
     const term = String(query ?? '').trim().replaceAll(',', ' ');
     let request = supabase.from('archives')
-      .select('id,code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation')
+      .select('id,code,business_code,category,title,summary,visibility,origin,is_mother,is_archived,published_at,sequence_number,abbreviation')
       .eq('visibility', 'public').order('code', { ascending: true }).limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
-    if (term) request = request.or(`code.ilike.%${term}%,title.ilike.%${term}%`);
+    if (term) request = request.or(`code.ilike.%${term}%,business_code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to search archives');
   };
   const addPublishedArchiveCovers = async (archives) => {
@@ -380,7 +385,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     const staticRoot = ARCHIVE_ROOTS.find((candidate) => candidate.code === template?.code);
     return {
       ...source,
-      content: toEditorDocumentFromOfficialArchive(source.archive, staticRoot, template),
+      content: toEditorDocumentFromArchiveBase(source.archive, staticRoot, template),
     };
   };
   const listArchiveReferences = (archiveId) => unwrap(
@@ -465,9 +470,8 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (!supabase.storage?.from) {
       throw new ArchiveWorkflowError('Attachment storage is unavailable', { code: 'storage_unavailable' });
     }
-    const safeName = String(file.name).replaceAll(/[^a-zA-Z0-9._\-\u4e00-\u9fff]/g, '_').slice(-120);
     const uniqueId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const storagePath = `${owner}/${contribution}/${uniqueId}-${safeName}`;
+    const storagePath = `${owner}/${contribution}/${uniqueId}${storageObjectExtension(file.name)}`;
     const uploaded = await unwrap(supabase.storage.from('archive-attachments').upload(storagePath, file, {
       cacheControl: '3600', contentType: file.type || 'application/octet-stream', upsert: false,
     }), 'Unable to upload attachment');

@@ -34,7 +34,14 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
     templateCode: '02',
     indexFields: [
       defineIndexField('title', '正式名称', { syncField: 'hero' }),
-      defineIndexField('channel', '阵营通道'),
+      defineIndexField('channel', '组织分类', {
+        type: 'select',
+        options: [
+          { value: 'red', label: '红方' },
+          { value: 'blue', label: '蓝方' },
+          { value: 'neutral', label: '中立方' },
+        ],
+      }),
       defineIndexField('foundedAt', '成立或首次确认时期'),
     ],
   }),
@@ -57,9 +64,9 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
         max: 180,
         step: 'any',
       }),
-      defineIndexField('owner', '所属方'),
-      defineIndexField('stationType', '站点类型'),
-      defineIndexField('status', '当前状态'),
+      defineIndexField('owner', '所属'),
+      defineIndexField('stationType', '站型'),
+      defineIndexField('status', '行动网'),
     ],
   }),
   entrance: defineProfile('entrance', {
@@ -117,12 +124,12 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
   event: defineProfile('event', {
     prefix: 'EV',
     abbreviation: 'RLL',
-    floor: 26,
+    floor: 1,
     templateCode: '07',
     indexFields: [
       defineIndexField('title', '名称', { syncField: 'hero' }),
-      defineIndexField('startDate', '开始时间', { type: 'date' }),
-      defineIndexField('endDate', '结束时间', { type: 'date', required: false }),
+      defineIndexField('startDate', '开始时间', { type: 'date', nativeHidden: true }),
+      defineIndexField('endDate', '结束时间', { type: 'date', required: false, nativeHidden: true }),
       defineIndexField('timePrecision', '时间精度', {
         type: 'select',
         options: [
@@ -131,24 +138,31 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
           { value: 'YEAR', label: '精确到年' },
           { value: 'APPROXIMATE', label: '模糊时期' },
           { value: 'UNKNOWN', label: '时间未定' },
-        ],
+        ], nativeHidden: true,
       }),
-      defineIndexField('location', '地点'),
+      defineIndexField('location', '地点', { nativeHidden: true }),
       defineIndexField('reviewStatus', '复核状态'),
     ],
   }),
   anomaly: defineProfile('anomaly', {
     prefix: 'A',
     abbreviation: 'TRC',
-    floor: 25,
+    floor: 3,
     templateCode: '08',
     indexFields: [
       defineIndexField('title', '名称', { syncField: 'hero' }),
-      defineIndexField('parentEvent', '母事件'),
-      defineIndexField('occurredAt', '发生时间'),
-      defineIndexField('location', '地点'),
-      defineIndexField('anomalyType', '异常类型'),
-      defineIndexField('severity', '严重度'),
+      defineIndexField('anomalyKind', '档案类型', {
+        type: 'select',
+        options: [
+          { value: 'EVENT', label: '异常事件' },
+          { value: 'OBJECT', label: '异常物' },
+        ],
+      }),
+      defineIndexField('parentEvent', '母事件', { nativeHidden: true }),
+      defineIndexField('occurredAt', '发生时间', { nativeHidden: true }),
+      defineIndexField('location', '地点', { nativeHidden: true }),
+      defineIndexField('anomalyType', '异常类型', { nativeHidden: true }),
+      defineIndexField('severity', '严重度', { nativeHidden: true }),
       defineIndexField('status', '卷内状态'),
     ],
   }),
@@ -159,18 +173,17 @@ export const ARCHIVE_CATEGORY_PROFILES = Object.freeze({
     templateCode: '09',
     indexFields: [
       defineIndexField('title', '名称', { syncField: 'hero' }),
-      defineIndexField('specimenClass', '植物／动物／复合群落', {
+      defineIndexField('specimenClass', '植物／动物', {
         type: 'select',
         options: [
           { value: 'FLORA', label: '植物 / FLORA' },
           { value: 'FAUNA', label: '动物 / FAUNA' },
-          { value: 'COMPOSITE', label: '复合群落 / COMPOSITE' },
         ],
       }),
-      defineIndexField('discoveredAt', '首次发现时间'),
-      defineIndexField('location', '地点'),
-      defineIndexField('specimenStatus', '标本状态'),
-      defineIndexField('hazard', '危险级'),
+      defineIndexField('discoveredAt', '首次发现时间', { nativeHidden: true }),
+      defineIndexField('location', '地点', { nativeHidden: true }),
+      defineIndexField('specimenStatus', '标本状态', { nativeHidden: true }),
+      defineIndexField('hazard', '危险级', { nativeHidden: true }),
     ],
   }),
 });
