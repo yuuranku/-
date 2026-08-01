@@ -24,10 +24,24 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character
 const subscribeToMainlineChanges = (client, refresh) => {
   if (typeof client?.subscribeMainlineChanges !== 'function') return () => {};
   try {
-    const unsubscribe = client.subscribeMainlineChanges(() => {
-      if (document.visibilityState === 'visible') void refresh();
-    });
-    return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    let changedWhileHidden = false;
+    const reloadIfVisible = () => {
+      if (document.visibilityState !== 'visible') {
+        changedWhileHidden = true;
+        return;
+      }
+      changedWhileHidden = false;
+      void refresh();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && changedWhileHidden) reloadIfVisible();
+    };
+    const unsubscribe = client.subscribeMainlineChanges(reloadIfVisible);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   } catch {
     return () => {};
   }
