@@ -635,7 +635,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     const code = String(versionCode ?? '').replace(/^ver\s*/i, '').trim();
     const rows = await unwrap(
       supabase.from('archive_contributions')
-        .select('id,archive_id,owner_id,template_id,title,status,draft_content,submitter_name,submitted_at,reviewed_at,updated_at,owner:profiles!archive_contributions_owner_id_fkey(id,email,display_name)')
+        .select('id,archive_id,owner_id,template_id,title,status,draft_content,submitted_at,reviewed_at,updated_at,owner:profiles!archive_contributions_owner_id_fkey(id,email,display_name)')
         .in('status', ['submitted', 'in_review', 'approved', 'published', 'sealed', 'offline'])
         .order('submitted_at', { ascending: true }),
       '无法读取已提交的主线人员档案',
