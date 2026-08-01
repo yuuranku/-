@@ -7,6 +7,7 @@ import {
   getEcologySpecimenReading,
 } from '../src/archive-layout.js';
 import { ARCHIVE_ROOTS } from '../src/archive-data.js';
+import { ARCHIVE_LONGFORM } from '../src/archive-longform.js';
 
 const peopleFixtures = Array.from({ length: 32 }, (_, index) => ({
   code: `P${String(index + 1).padStart(2, '0')}`,
@@ -40,18 +41,33 @@ test('people network exposes a stable twelve-person neighborhood without hidden-
   );
 });
 
-test('event drawer holds all twenty-six pockets filed in chronological order', () => {
+test('event plane keeps HZ-6 as EV01 and reserves the later event positions', () => {
   const events = ARCHIVE_ROOTS.find((root) => root.id === 'events').children;
 
-  assert.equal(events.length, 26);
-  assert.equal(new Set(events.map((event) => event.code)).size, 26);
-  const startYear = (year) => parseInt(String(year).match(/\d{4}/)?.[0] ?? '1965', 10);
-  const years = events.map((event) => startYear(event.year));
-  years.slice(1).forEach((year, index) => {
-    assert.ok(year >= years[index], `pockets should be filed chronologically near ${events[index + 1].code}`);
-  });
-  assert.equal(events[0].code, 'V16');
-  assert.equal(events.at(-1).code, 'V09');
+  assert.equal(events.length, 1);
+  assert.deepEqual(events.map((event) => event.code), ['EV01']);
+  assert.equal(events[0].name, 'HZ-6 / 样本线任务');
+  assert.ok(events[0].webContent, 'the available HZ-6 record should be first');
+});
+
+test('the first anomaly dossier is available as the public incident-trace layout preview', () => {
+  const anomalies = ARCHIVE_ROOTS.find((root) => root.id === 'abnormalities').children;
+  const preview = anomalies.find((record) => record.code === 'A01');
+
+  assert.deepEqual(anomalies.map((record) => record.code), ['A01', 'A02', 'A03']);
+  assert.ok(preview?.webContent, 'A01 should open its existing formal anomaly dossier');
+  assert.equal(preview.recordType, 'incident-trace');
+  assert.ok(preview.longform?.blocks?.length, 'A01 should retain its existing report content');
+});
+
+test('every country registry is online so its original record can be opened and amended', () => {
+  const countries = ARCHIVE_ROOTS.find((root) => root.id === 'countries').children;
+
+  assert.ok(countries.length > 0);
+  assert.ok(
+    countries.every((record) => record.webContent),
+    'every country registry should open its original document instead of the offline cover',
+  );
 });
 
 test('every entrance carries the survey fields the section drawings are generated from', () => {
@@ -75,6 +91,24 @@ test('every entrance carries the survey fields the section drawings are generate
   assert.ok(measured.length >= 14, 'most descents should provide a parsable depth or route length');
 });
 
+test('station and entrance dossiers are all available in the public archive', () => {
+  const stations = ARCHIVE_ROOTS.find((root) => root.id === 'stations').children;
+  const entrances = ARCHIVE_ROOTS.find((root) => root.id === 'entrances').children;
+
+  assert.ok(stations.length > 0);
+  assert.ok(entrances.length > 0);
+  assert.ok(stations.every((record) => record.webContent), 'every research station should open online');
+  assert.ok(entrances.every((record) => record.webContent), 'every White Abyss entrance should open online');
+});
+
+test('the seven original ecology strata are online and retain their field-log base', () => {
+  const ecology = ARCHIVE_ROOTS.find((root) => root.id === 'ecology').children;
+
+  assert.equal(ecology.length, 7);
+  assert.ok(ecology.every((record) => record.webContent), 'every original stratum should open online');
+  assert.deepEqual(ecology.map(({ code }) => code), ['E01', 'E02', 'E03', 'E04', 'E05', 'E06', 'E07']);
+});
+
 test('ecology cabinet provides seven distinct specimen drawer readings', () => {
   const readings = Array.from({ length: 7 }, (_, index) => getEcologySpecimenReading(index));
 
@@ -88,11 +122,32 @@ test('ecology cabinet provides seven distinct specimen drawer readings', () => {
   });
 });
 
-test('approved archive counts include the expanded sixteen-event chronology', () => {
+test('species archives retain Chinese directory names and original formal taxonomic names', () => {
+  const speciesRoot = ARCHIVE_ROOTS.find(({ code }) => code === '09');
+  const entries = speciesRoot?.children ?? [];
+
+  assert.equal(entries.length, 22);
+  assert.deepEqual(
+    ['S01', 'S02', 'S03'].map((code) => entries.find((entry) => entry.code === code)?.name),
+    ['黑针木', '银皮冷杉', '玻璃苔'],
+  );
+  assert.ok(entries.every(({ name }) => !/[A-Za-z]/.test(name)));
+  assert.ok(entries.every(({ webContent }) => webContent));
+  const formalTitles = entries.map(({ code }) => ARCHIVE_LONGFORM.species[code]?.title);
+  assert.deepEqual(formalTitles.slice(0, 3), [
+    'Abyssodendron aciculatum',
+    'Argenteofrutex glacialis',
+    'Hyalobryum recurvatum',
+  ]);
+  assert.ok(formalTitles.every((title) => /[A-Za-z]/.test(title)));
+});
+
+test('approved archive counts include the current personnel and event records', () => {
   const counts = Object.fromEntries(ARCHIVE_ROOTS.map((root) => [root.id, root.children.length]));
 
-  assert.equal(counts.people, 32);
-  assert.equal(counts.events, 26);
+  assert.equal(counts.people, 36);
+  assert.equal(counts.events, 1);
+  assert.equal(counts.abnormalities, 3);
   assert.equal(counts.entrances, 18);
   assert.equal(counts.ecology, 7);
 });
@@ -101,28 +156,43 @@ test('every event dossier has complete chronology metadata', () => {
   const events = ARCHIVE_ROOTS.find((root) => root.id === 'events').children;
 
   events.forEach((event) => {
-    assert.match(event.code, /^V\d{2}$/);
+    assert.match(event.code, /^EV\d{2}$/);
     assert.ok(event.year?.length > 0, `${event.code} is missing a year`);
     assert.ok(event.body?.length > 0, `${event.code} is missing a body`);
     assert.ok(event.meta?.length > 0, `${event.code} is missing a status`);
   });
 });
 
-test('approved C C B B directory renderers are wired into the live archive page', async () => {
+test('people relationship nodes are generated from the personnel directory entries', async () => {
   const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 
-  assert.match(source, /events:\s*'case-chronology'/);
+  const peopleRenderer = source.match(/function buildPeopleNetwork\([\s\S]*?\n}\r?\n\r?\nfunction renderPeopleNetwork/);
+  assert.ok(peopleRenderer, 'people network renderer should be present');
+  assert.match(peopleRenderer[0], /const buttons = entries\.map\(\(archive, index\) =>/);
+});
+
+test('current directory renderers are wired into the live archive page', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+
+  assert.match(source, /events:\s*'event-plane'/);
   assert.match(source, /function buildPeopleNetwork\(/);
-  assert.match(source, /function buildEventChronology\(/);
+  assert.match(source, /function buildEventPlane\(/);
   assert.match(source, /function buildEntranceElevation\(/);
   assert.match(source, /function buildEcologyCabinet\(/);
   assert.match(source, /entranceSheetMarkup/);
-  assert.match(source, /function renderEventChronology\(/);
-  assert.match(source, /ev-directory/);
+  assert.match(source, /function resetEventPlane\(/);
+  assert.match(source, /event-plane-world/);
   assert.match(source, /eco-log-svg/);
+  assert.match(source, /eco-log-additions/);
+  assert.match(source, /const strataEntries = entries\.slice\(0, 7\)/);
+  assert.match(source, /const buttons = strataEntries\.map\(\(archive, index\) =>/);
+  assert.doesNotMatch(source, /增补生态记录/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
   assert.doesNotMatch(source, /classList\.toggle\('is-off-deck'/);
+  assert.match(source, /archive-new-badge/);
+  assert.match(source, /archive\.isNew/);
+  assert.doesNotMatch(source, /archive\?\.code\s*\|\|\s*`S\$\{/);
 });
 
 test('new directory layouts include their responsive workbench styling', async () => {
@@ -131,16 +201,30 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /\.people-network-workbench/);
   assert.match(styles, /\.entrance-sheet-console/);
   assert.match(styles, /\.eco-log-console/);
-  assert.match(styles, /\.ev-cabinet\s*\{/);
+  assert.match(styles, /\.event-plane\s*\{/);
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
   assert.match(styles, /\.directory-open-button\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(styles, /\.ev-directory/);
-  assert.match(styles, /\.ev-record\s*\{/);
+  assert.match(styles, /\.event-plane-world/);
+  assert.match(styles, /\.mode-event-plane \.folder-button\s*\{/);
   assert.match(styles, /\.entrance-sheet-drawer/);
   assert.match(styles, /\.eco-log-bands/);
+  assert.match(styles, /\.eco-log-additions__list\s*\{[^}]*display:\s*grid/s);
+  assert.match(styles, /\.eco-log-additions \.folder-button\s*\{[^}]*grid-template-columns:\s*1fr/s);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);
   assert.match(styles, /display: block !important/);
   assert.match(styles, /width: calc\(100vw - 24px\) !important/);
   assert.match(styles, /@media\s*\(min-width:\s*2000px\)/);
+  assert.match(styles, /\.archive-new-badge/);
+});
+
+test('ecology additions sit below a fully readable field card', async () => {
+  const [source, styles] = await Promise.all([
+    readFile(new URL('../src/main.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/style.css', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(source, /has-ecology-additions[\s\S]*\?\s*34\s*:/);
+  assert.match(styles, /\.eco-log-additions\s*\{[^}]*top:\s*64%;/s);
+  assert.match(styles, /\.eco-log-console\.has-ecology-additions \.eco-log-card\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/s);
 });

@@ -24,7 +24,7 @@ export const RESEARCH_STATIONS = [
     lng: 0,
     status: '1964年常年运行',
     type: '内陆航空／气象站',
-    role: '白渊南部测线和人员转运支点，也是异常航迹最常用的公开解释。',
+    role: '白幕南部测线和人员转运支点，也是异常航迹最常用的公开解释。',
   },
   {
     code: 'US-BYD',
@@ -36,7 +36,7 @@ export const RESEARCH_STATIONS = [
     lng: -119.5333,
     status: '1964年常年运行',
     type: '内陆地球物理站',
-    role: '地震测深、冰盖钻探与承包合同掩护；承担白渊项目的账目分流。',
+    role: '地震测深、冰盖钻探与承包合同掩护；承担白幕项目的账目分流。',
   },
   {
     code: 'SU-MIR',
@@ -60,7 +60,7 @@ export const RESEARCH_STATIONS = [
     lng: 106.8369,
     status: '1964年常年运行',
     type: '中央高原站',
-    role: '白渊东部湖链的主要参照点和最重要的地震测深资料接口。',
+    role: '白幕东部湖链的主要参照点和最重要的地震测深资料接口。',
   },
   {
     code: 'SU-NOV',
@@ -108,7 +108,7 @@ export const RESEARCH_STATIONS = [
     lng: -64.2575,
     status: '1964年常年运行',
     type: '地球物理监听站',
-    role: '以电离层与地磁观测掩护对白渊通信时差和重复呼号的长期归档。',
+    role: '以电离层与地磁观测掩护对白幕通信时差和重复呼号的长期归档。',
   },
   {
     code: 'UK-D',
@@ -168,7 +168,7 @@ export const RESEARCH_STATIONS = [
     lng: 77.9695,
     status: '1964年常年运行',
     type: '海岸—高原接口',
-    role: '最接近白渊北向扇区的公开澳方节点，承担测绘营与中继物资。',
+    role: '最接近白幕北向扇区的公开澳方节点，承担测绘营与中继物资。',
   },
   {
     code: 'AU-WIL',
@@ -228,7 +228,7 @@ export const RESEARCH_STATIONS = [
     lng: -59.6636,
     status: '1964年常年运行',
     type: '海军气象站',
-    role: '以海军电台截获公开航行通告，与白渊项目伪造的运输时间发生冲突。',
+    role: '以海军电台截获公开航行通告，与白幕项目伪造的运输时间发生冲突。',
   },
   {
     code: 'CL-OHI',

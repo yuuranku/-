@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = $PSScriptRoot
-$url = 'http://127.0.0.1:4173/'
+$url = 'http://127.0.0.1:4174/'
 $logFile = Join-Path $env:TEMP 'orbital-globe-dashboard.log'
 
 function Test-DashboardReady {
@@ -36,9 +36,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules'))) {
   }
 }
 
-Write-Host 'Starting the globe dashboard...' -ForegroundColor Cyan
+Write-Host 'Starting the local administrator dashboard...' -ForegroundColor Cyan
 
-$command = 'npm.cmd run dev -- --host 127.0.0.1 --port 4173 1> "' + $logFile + '" 2>&1'
+$command = 'npm.cmd run dev:local-admin -- --host 127.0.0.1 --port 4174 1> "' + $logFile + '" 2>&1'
 Start-Process `
   -FilePath $env:ComSpec `
   -ArgumentList @('/d', '/c', $command) `

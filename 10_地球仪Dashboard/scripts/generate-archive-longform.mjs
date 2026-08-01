@@ -10,7 +10,7 @@ const categories = [
   ['countries', '01_国家档案_1964.md', 'N'],
   ['organizations', '02_组织档案.md', 'O'],
   ['stations', '03_科考站档案_1964.md', '(?:US|SU|UK|FR|AU|NZ|AR|CL)-'],
-  ['entrances', '04_白渊入口档案_1964.md', '(?:US|SU|CN|NC|FR|AU)-'],
+  ['entrances', '04_白幕入口档案_1964.md', '(?:US|SU|CN|NC|FR|AU)-'],
   ['ecology', '05_生态分层档案.md', 'E'],
   ['people', '06_人物档案.md', 'P'],
   ['events', '07_事件档案.md', 'V'],
@@ -250,7 +250,7 @@ stationRosters.forEach((roster) => {
   station.stationRosterCount = recordCount;
 });
 
-const entranceLogPath = resolve(sourceDir, '04A_白渊入口进入记录.md');
+const entranceLogPath = resolve(sourceDir, '04A_白幕入口进入记录.md');
 const entranceLogMarkdown = await readFile(entranceLogPath, 'utf8');
 const entranceLogs = parseEntries(entranceLogMarkdown, '(?:US|SU|CN|NC|FR|AU)-');
 const expectedEntranceLogCounts = {
@@ -286,7 +286,7 @@ entranceLogs.forEach((log) => {
   if (recordCount !== expectedEntranceLogCounts[log.code]) {
     throw new Error(`entrance logs ${log.code}: expected ${expectedEntranceLogCounts[log.code]} records, received ${recordCount}`);
   }
-  const judgementBlocks = entrance.blocks.filter((block) => block.type === 'paragraph' && !block.text.includes('04A_白渊入口进入记录.md'));
+  const judgementBlocks = entrance.blocks.filter((block) => block.type === 'paragraph' && !block.text.includes('04A_白幕入口进入记录.md'));
   entrance.blocks = [
     { type: 'heading', text: '入口判定' },
     ...judgementBlocks,
@@ -364,7 +364,7 @@ const expected = {
   ecology: 7,
   people: 32,
   events: 10,
-  abnormalities: 16,
+  abnormalities: 25,
   species: 22,
 };
 

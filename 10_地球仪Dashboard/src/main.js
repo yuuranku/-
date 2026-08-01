@@ -5,6 +5,25 @@ import '@fontsource/ibm-plex-mono/latin-500.css';
 import '@fontsource/ibm-plex-mono/latin-600.css';
 import '@fontsource/ibm-plex-mono/latin-700.css';
 import './style.css';
+import './auth.css';
+import './archive-workflow/workspace.css';
+import './archive-workflow/mainline.css';
+import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
+import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
+import { initializePalisRuntime } from './runtime/palis-runtime.js';
+import {
+  buildPublishedArchiveModel,
+  createPublishedMediaSession,
+  renderOfficialArchiveBanner,
+  renderPublishedContributionLedger,
+} from './archive-workflow/publication.js';
+import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
+import { projectPublishedArchive } from './archive-workflow/index-projector.js';
+import { matchesArchiveIdentifier } from './archive-workflow/archive-identity.js';
+import {
+  buildEventPlaneSlotLayout,
+  eventPlaneVisibleCount,
+} from './archive-workflow/event-plane-layout.js';
 import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -24,6 +43,938 @@ import {
 } from './data.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
+const palisRuntime = await initializePalisRuntime({ reducedMotion });
+const archiveWorkflowClient = palisRuntime.repository;
+initializeMascotAssistant({
+  client: archiveWorkflowClient,
+  initialSession: palisRuntime.initialSession,
+});
+initializeArchiveWorkspace({
+  client: archiveWorkflowClient,
+  initialSession: palisRuntime.initialSession,
+});
+palisRuntime.activate();
+
+const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
+let archiveRoots = ARCHIVE_ROOTS;
+
+function findArchiveReference(target) {
+  const normalized = String(target ?? '').trim().toLocaleLowerCase('zh-CN');
+  if (!normalized) return null;
+  return localArchiveRecords.find((archive) =>
+    [archive.id, archive.code, archive.name, archive.heading]
+      .filter(Boolean)
+      .some((value) => String(value).trim().toLocaleLowerCase('zh-CN') === normalized))
+    || localArchiveRecords.find((archive) =>
+      [archive.name, archive.heading]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase('zh-CN').includes(normalized)));
+}
+
+function createCloudArchiveRecord(archive) {
+  return projectPublishedArchive(archive);
+}
+
+async function openCloudArchiveReference(target, trigger = null) {
+  if (!archiveWorkflowClient) return false;
+  const matches = await archiveWorkflowClient.searchArchives(target, { limit: 12 });
+  const archive = matches.find((entry) => matchesArchiveIdentifier(entry, target))
+    || matches[0];
+  if (!archive) return false;
+  const source = trigger?.getBoundingClientRect
+    ? trigger
+    : document.querySelector('#sync-enter') || document.body;
+  openArchive(createCloudArchiveRecord(archive), source);
+  return true;
+}
+
+async function openArchiveReference(target, trigger = null) {
+  const archive = findArchiveReference(target);
+  if (!archive) return openCloudArchiveReference(target, trigger);
+  if (typeof versionNotice !== 'undefined' && !versionNotice.hidden) minimizeVersionNotice();
+  const source = trigger?.getBoundingClientRect
+    ? trigger
+    : document.querySelector(`[data-archive-id="${CSS.escape(archive.id)}"]`)
+      || document.querySelector('#sync-enter')
+      || document.body;
+  openArchive(archive, source);
+  return true;
+}
+
+window.openArchiveReference = openArchiveReference;
+document.addEventListener('click', (event) => {
+  const reference = event.target.closest('[data-open-archive-reference], [data-version-reference]');
+  if (!reference) return;
+  const target = reference.dataset.openArchiveReference || reference.dataset.versionReference;
+  event.preventDefault();
+  openArchiveReference(target, reference);
+});
+
+window.addEventListener('palis:open-published-archive', (event) => {
+  const target = event.detail?.code || event.detail?.title;
+  void syncPublishedArchiveDirectory();
+  if (target) openCloudArchiveReference(target, event.detail?.trigger || null);
+});
+
+window.addEventListener('palis:archive-directory-changed', () => {
+  void syncPublishedArchiveDirectory();
+});
+
+function initializeMascotAssistant({ client: workspaceNoteClient = null, initialSession = null } = {}) {
+  const assistant = document.querySelector('#mascot-assistant');
+  const trigger = document.querySelector('#mascot-trigger');
+  const startMenu = document.querySelector('#mascot-window');
+  const closeButton = document.querySelector('#mascot-window-close');
+  const frame = document.querySelector('#mascot-idle-frame');
+  const status = document.querySelector('#mascot-entry-status');
+  const directoryView = document.querySelector('#mascot-directory-view');
+  const clerkDirectory = document.querySelector('#mascot-clerk-directory');
+  const clerkList = document.querySelector('#mascot-clerk-list');
+  const clerkBack = document.querySelector('#mascot-clerk-back');
+  const documentView = document.querySelector('#mascot-document-view');
+  const entries = [...startMenu.querySelectorAll('[data-mascot-entry]')];
+  const documentContents = [...document.querySelectorAll('[data-mascot-document-content]')];
+  const experienceRoot = document.querySelector('#experience');
+  const archiveWindowLayer = document.querySelector('#archive-desktop');
+  const archiveTaskbar = document.querySelector('.taskbar');
+  const archiveTaskList = document.querySelector('#archive-task-list');
+  const desktop = document.querySelector('#clerk-desktop');
+  const desktopWindowLayer = document.querySelector('#assistant-window-layer');
+  const desktopTaskbar = document.querySelector('#assistant-taskbar');
+  const desktopTaskList = document.querySelector('#assistant-task-list');
+  const desktopEntry = document.querySelector('#clerk-workspace-entry');
+  const desktopStart = document.querySelector('#clerk-desktop-start');
+  const desktopTime = document.querySelector('#clerk-desktop-time');
+  const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
+  const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
+  const desktopStartMenu = document.querySelector('#clerk-desktop-start-menu');
+  const workspaceNoteRegion = document.querySelector('#workspace-note-region');
+  const workspaceNoteControls = document.querySelector('[data-workspace-note-controls]');
+  const workspaceNoteCreate = document.querySelector('[data-workspace-note-create]');
+  const workspaceNoteCreateForm = document.querySelector('[data-workspace-note-create-form]');
+  const workspaceNoteCreateTitle = document.querySelector('[data-workspace-note-create-title]');
+  const workspaceNoteCreateContent = document.querySelector('[data-workspace-note-create-content]');
+  const workspaceNoteCreateError = document.querySelector('[data-workspace-note-create-error]');
+  const workspaceNoteCreateCancel = document.querySelector('[data-workspace-note-create-cancel]');
+  const workspaceNoteStatus = document.querySelector('[data-workspace-note-status]');
+  const workspaceNoteRetry = document.querySelector('[data-workspace-note-retry]');
+  const desktopCommands = [...desktop.querySelectorAll('[data-workspace-command]')];
+  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
+
+  // Frame 01 has a noticeably different body axis and reads as a jump rather
+  // than part of this idle sway, so keep the coherent 02–07 loop.
+  const frames = Array.from(
+    { length: 6 },
+    (_, index) => `/assets/mascot/idle-${String(index + 2).padStart(2, '0')}.png`,
+  );
+  let frameIndex = 0;
+  let idleFrameTimer = 0;
+  let documentWindowSequence = 0;
+  let documentWindowZ = 22000;
+  let activeDocumentWindow = null;
+  let desktopCloseTimer = 0;
+  const openDocuments = new Map();
+  let selectedDesktopShortcut = null;
+  const dirtyWorkspaceKeys = new Set();
+  const exitDialog = document.querySelector('#workspace-exit-dialog');
+  const exitMessage = exitDialog?.querySelector('[data-workspace-exit-message]');
+  let pendingWorkspaceLeave = null;
+  const workspaceSyncStates = new Map();
+  const syncDialog = document.querySelector('#workspace-sync-dialog');
+  const syncSummary = syncDialog?.querySelector('[data-workspace-sync-summary]');
+  const syncTrayButton = desktop.querySelector('[data-workspace-tray="sync"]');
+  const workspacePermissionDialog = document.querySelector('[data-workspace-permission-dialog]');
+  const workspacePermissionMessage = workspacePermissionDialog?.querySelector(
+    '[data-workspace-permission-message]',
+  );
+  const workspacePermissionClose = workspacePermissionDialog?.querySelector(
+    '[data-workspace-permission-close]',
+  );
+  const narrowDocumentQuery = matchMedia('(max-width: 760px)');
+  const syncDocumentViewport = () => openDocuments.forEach((state) => {
+    if (state.surface === 'workspace') {
+      state.windowElement.classList.toggle('is-narrow-forced', narrowDocumentQuery.matches);
+    }
+  });
+  narrowDocumentQuery.addEventListener('change', syncDocumentViewport);
+
+  const createWorkspaceNoteSession = (candidate = {}, {
+    desktopOpen = document.body.classList.contains('clerk-desktop-open'),
+    fallback = null,
+  } = {}) => {
+    const profile = candidate?.profile ?? fallback?.profile ?? null;
+    return {
+      authSession: candidate?.session ?? candidate?.authSession ?? fallback?.authSession ?? null,
+      desktopOpen,
+      profile,
+      role: candidate?.role ?? profile?.role ?? fallback?.role ?? document.body.dataset.operatorRole ?? 'observer',
+    };
+  };
+  const workspaceNoteScopeChanged = (left, right) => (
+    (left?.profile?.id ?? '') !== (right?.profile?.id ?? '')
+    || (left?.role ?? '') !== (right?.role ?? '')
+  );
+  let workspaceNoteSession = createWorkspaceNoteSession(initialSession, { desktopOpen: false });
+  let pendingWorkspaceNoteSession = null;
+  let workspaceNotes = null;
+
+  const workspaceNoteBounds = () => {
+    const desktopBounds = desktop.getBoundingClientRect();
+    return {
+      height: desktopBounds.height,
+      taskbarHeight: desktopTaskbar.getBoundingClientRect().height,
+      width: desktopBounds.width,
+    };
+  };
+  const closeWorkspaceNoteCreateForm = () => {
+    if (!workspaceNoteCreateForm) return;
+    workspaceNoteCreateForm.reset();
+    workspaceNoteCreateForm.hidden = true;
+    if (workspaceNoteCreateError) {
+      workspaceNoteCreateError.hidden = true;
+      workspaceNoteCreateError.textContent = '';
+    }
+  };
+  const renderWorkspaceNoteChrome = (state = {}) => {
+    if (workspaceNoteRegion) {
+      workspaceNoteRegion.style.pointerEvents = 'none';
+      workspaceNoteRegion.querySelectorAll('.workspace-sticky-note').forEach((note) => {
+        note.style.pointerEvents = 'auto';
+      });
+    }
+    const session = state.session ?? workspaceNoteSession;
+    const desktopOpen = Boolean(session?.desktopOpen);
+    const isAdmin = desktopOpen && session?.role === 'admin';
+    if (workspaceNoteCreate) workspaceNoteCreate.hidden = !isAdmin;
+    if (!isAdmin) closeWorkspaceNoteCreateForm();
+
+    const loadError = String(state.loadError ?? '').trim();
+    if (workspaceNoteStatus) {
+      workspaceNoteStatus.hidden = !loadError;
+      workspaceNoteStatus.textContent = loadError ? `便签暂不可读取：${loadError}` : '';
+    }
+    if (workspaceNoteRetry) workspaceNoteRetry.hidden = !loadError || !desktopOpen;
+
+    const createError = String(state.mutationErrors?.create ?? '').trim();
+    if (workspaceNoteCreateError) {
+      workspaceNoteCreateError.hidden = !createError;
+      workspaceNoteCreateError.textContent = createError ? `无法新增便签：${createError}` : '';
+    }
+    if (workspaceNoteControls) workspaceNoteControls.toggleAttribute('data-workspace-notes-active', desktopOpen);
+  };
+  const syncWorkspaceNoteBounds = () => {
+    workspaceNotes?.setBounds(workspaceNoteBounds());
+  };
+  const setWorkspaceNoteSession = (nextSession, { desktopOpen } = {}) => {
+    workspaceNoteSession = createWorkspaceNoteSession(nextSession, {
+      desktopOpen: desktopOpen ?? document.body.classList.contains('clerk-desktop-open'),
+      fallback: workspaceNoteSession,
+    });
+    syncWorkspaceNoteBounds();
+    return workspaceNotes?.setSession(workspaceNoteSession);
+  };
+  const setWorkspaceNotesDesktopOpen = (open) => setWorkspaceNoteSession(workspaceNoteSession, {
+    desktopOpen: open,
+  });
+  const dispatchDesktopLifecycle = (open) => {
+    window.dispatchEvent(new CustomEvent('palis:workspace-desktop-lifecycle', {
+      detail: {
+        open,
+        session: { ...workspaceNoteSession, desktopOpen: open },
+      },
+    }));
+  };
+
+  if (workspaceNoteClient && workspaceNoteRegion) {
+    workspaceNotes = initializeWorkspaceNotes({
+      bounds: workspaceNoteBounds(),
+      client: workspaceNoteClient,
+      initialSession: workspaceNoteSession,
+      onState: renderWorkspaceNoteChrome,
+      reducedMotion,
+      root: workspaceNoteRegion,
+    });
+  }
+  renderWorkspaceNoteChrome({ session: workspaceNoteSession });
+
+  workspaceNoteCreate?.addEventListener('click', () => {
+    if (!workspaceNotes || workspaceNoteCreate.hidden) return;
+    workspaceNoteCreateForm.hidden = false;
+    workspaceNoteCreateTitle?.focus({ preventScroll: true });
+  });
+  workspaceNoteCreateCancel?.addEventListener('click', closeWorkspaceNoteCreateForm);
+  workspaceNoteCreateForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const created = await workspaceNotes?.createNote({
+      content: workspaceNoteCreateContent?.value ?? '',
+      title: workspaceNoteCreateTitle?.value ?? '',
+    });
+    if (created) closeWorkspaceNoteCreateForm();
+  });
+  workspaceNoteRetry?.addEventListener('click', () => {
+    syncWorkspaceNoteBounds();
+    void workspaceNotes?.reload();
+  });
+  window.addEventListener('resize', syncWorkspaceNoteBounds);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !document.body.classList.contains('clerk-desktop-open')) return;
+    syncWorkspaceNoteBounds();
+    void workspaceNotes?.reload();
+  });
+
+  const preloadedFrames = frames.map((source) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = source;
+    return image;
+  });
+
+  function advanceIdleFrame() {
+    frameIndex = (frameIndex + 1) % frames.length;
+    frame.src = frames[frameIndex];
+    frame.dataset.mascotFrame = String(frameIndex + 2).padStart(2, '0');
+  }
+
+  function stopIdleAnimation() {
+    window.clearInterval(idleFrameTimer);
+    idleFrameTimer = 0;
+  }
+
+  function startIdleAnimation() {
+    if (idleFrameTimer || document.visibilityState !== 'visible') return;
+    idleFrameTimer = window.setInterval(advanceIdleFrame, 260);
+  }
+
+  function restartIdleAnimation() {
+    stopIdleAnimation();
+    startIdleAnimation();
+  }
+
+  function updateDesktopClock() {
+    if (!desktopTime) return;
+    desktopTime.textContent = new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+  }
+
+  function setDesktopOpen(open) {
+    if (open && !['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
+      window.dispatchEvent(new CustomEvent('palis:workspace-denied', {
+        detail: {
+          role: document.body.dataset.operatorRole || 'observer',
+          kind: desktopEntry.dataset.workspaceAccess || 'visitor',
+        },
+      }));
+      return;
+    }
+    window.clearTimeout(desktopCloseTimer);
+    setMenuOpen(false);
+    if (!open && desktopWelcome) desktopWelcome.hidden = true;
+    desktopEntry.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('clerk-desktop-open', open);
+    experienceRoot.toggleAttribute('inert', open);
+    archiveWindowLayer.toggleAttribute('inert', open);
+    assistant.toggleAttribute('inert', open);
+    if (open) {
+      desktop.hidden = false;
+      updateDesktopClock();
+      setWorkspaceNotesDesktopOpen(true);
+      dispatchDesktopLifecycle(true);
+      requestAnimationFrame(() => {
+        syncWorkspaceNoteBounds();
+        desktop.classList.add('is-open');
+        desktop.focus({ preventScroll: true });
+      });
+      return;
+    }
+    setWorkspaceNotesDesktopOpen(false);
+    dispatchDesktopLifecycle(false);
+    desktop.classList.remove('is-open');
+    desktopCloseTimer = window.setTimeout(() => {
+      desktop.hidden = true;
+      desktopEntry.focus({ preventScroll: true });
+    }, reducedMotion ? 0 : 220);
+  }
+
+  window.addEventListener('palis:workspace-denied', (event) => {
+    if (!workspacePermissionDialog || !workspacePermissionMessage) return;
+    workspacePermissionDialog.dataset.workspaceDeniedKind =
+      event.detail?.kind === 'visitor' ? 'visitor' : 'observer';
+    workspacePermissionMessage.textContent =
+      '权限不足：当前账号未获书记官工作台操作授权。';
+    if (!workspacePermissionDialog.open) workspacePermissionDialog.showModal();
+    workspacePermissionClose?.focus({ preventScroll: true });
+  });
+
+  function setDesktopStartMenuOpen(open) {
+    desktopStartMenu.hidden = !open;
+    desktopStart.setAttribute('aria-expanded', String(open));
+    if (open) desktopStartMenu.querySelector('button:not([hidden])')?.focus({ preventScroll: true });
+  }
+
+  function dispatchWorkspaceCommand(command, trigger) {
+    const fromStartMenu = Boolean(trigger?.closest?.('#clerk-desktop-start-menu'));
+    setDesktopStartMenuOpen(false);
+    if (fromStartMenu) desktopStart.focus({ preventScroll: true }); else trigger?.focus?.({ preventScroll: true });
+    if (command === 'about') { desktopWelcome.hidden = false; desktopWelcome.focus({ preventScroll: true }); return; }
+    if (command === 'assistant') { openDocument('clerks', desktop.querySelector('[data-workspace-shortcut][data-workspace-command="assistant"]'), 'workspace'); return; }
+    if (command === 'exit') { window.dispatchEvent(new CustomEvent('palis:workspace-exit-request')); return; }
+    window.dispatchEvent(new CustomEvent('palis:workspace-command', { detail: { command } }));
+  }
+
+  function updateWorkspaceIdentityAndSync() {
+    const role = document.body.dataset.operatorRole === 'admin' ? 'admin' : 'clerk';
+    const roleLabel = role === 'admin' ? '管理员' : '书记官';
+    const roleCode = role === 'admin' ? 'ADMIN' : 'CLERK';
+    desktop.querySelectorAll('[data-workspace-tray-role]').forEach((node) => { node.textContent = roleLabel; });
+    desktop.querySelectorAll('[data-workspace-watermark-role]').forEach((node) => { node.textContent = roleCode; });
+    const states = [...workspaceSyncStates.values()];
+    const offlineStates = new Set(['offline-saved', 'network-error', 'session-expired', 'permission-denied', 'cloud-error']);
+    const localDemo = document.body.dataset.accessMode === 'local-admin';
+    const connection = states.some((state) => offlineStates.has(state)) ? 'OFFLINE'
+      : states.some((state) => state === 'cloud-syncing') ? 'SYNCING'
+        : states.some((state) => state === 'local-saving' || state === 'local-saved')
+          ? (localDemo ? '本机演示' : 'LOCAL')
+          : localDemo ? '本机演示' : '跨账号';
+    desktop.querySelectorAll('[data-workspace-connection], [data-workspace-watermark-connection]').forEach((node) => { node.textContent = connection; });
+    if (syncTrayButton) syncTrayButton.dataset.state = connection.toLowerCase();
+    if (syncSummary) syncSummary.textContent = states.length
+      ? `${states.length} 个编辑器；当前连接状态：${connection}。`
+      : `当前没有打开的档案编辑器；连接状态：${connection}。`;
+  }
+  window.addEventListener('palis:workspace-sync-state', (event) => {
+    const key = String(event.detail?.key ?? '');
+    if (!key) return;
+    if (event.detail?.state === 'closed') workspaceSyncStates.delete(key);
+    else workspaceSyncStates.set(key, String(event.detail?.state ?? 'local-saved'));
+    updateWorkspaceIdentityAndSync();
+  });
+  window.addEventListener('palis:session-change', updateWorkspaceIdentityAndSync);
+  window.addEventListener('palis:session-change', (event) => {
+    const nextSession = createWorkspaceNoteSession(event.detail, {
+      fallback: workspaceNoteSession,
+    });
+    if (
+      document.body.classList.contains('clerk-desktop-open')
+      && workspaceNoteScopeChanged(workspaceNoteSession, nextSession)
+    ) {
+      pendingWorkspaceNoteSession = nextSession;
+      return;
+    }
+    pendingWorkspaceNoteSession = null;
+    setWorkspaceNoteSession(nextSession);
+  });
+  syncTrayButton?.addEventListener('click', () => syncDialog?.showModal());
+
+  function requestWorkspaceLeave({ keys = null, proceed = () => {}, cancel = () => {}, allowCancel = true } = {}) {
+    const requestedKeys = Array.isArray(keys) ? keys.filter((key) => dirtyWorkspaceKeys.has(key)) : [...dirtyWorkspaceKeys];
+    if (!requestedKeys.length) { proceed(); return; }
+    pendingWorkspaceLeave = { keys: requestedKeys, proceed, cancel, allowCancel };
+    exitDialog.querySelector('[data-workspace-exit-action="cancel"]').hidden = !allowCancel;
+    exitMessage.textContent = requestedKeys.length === 1 ? '此档案仍有未同步内容。可保存到本地后关闭，或放弃本地未保存修改。' : `${requestedKeys.length} 份档案仍有未同步内容。可全部保存到本地后离开。`;
+    exitDialog.showModal();
+  }
+  window.addEventListener('palis:workspace-dirty-change', (event) => { const key = String(event.detail?.key ?? ''); if (key) { if (event.detail?.dirty) dirtyWorkspaceKeys.add(key); else dirtyWorkspaceKeys.delete(key); } });
+  window.addEventListener('palis:workspace-exit-request', () => requestWorkspaceLeave({ proceed: () => { window.dispatchEvent(new CustomEvent('palis:workspace-close-all')); setDesktopOpen(false); } }));
+  window.addEventListener('palis:workspace-leave-request', (event) => { event.preventDefault(); requestWorkspaceLeave({ keys: event.detail?.keys ?? null, proceed: event.detail?.proceed, cancel: event.detail?.cancel, allowCancel: event.detail?.allowCancel !== false }); });
+  window.addEventListener('palis:workspace-scope-change', (event) => requestWorkspaceLeave({
+    allowCancel: false,
+    proceed: () => {
+      window.dispatchEvent(new CustomEvent('palis:workspace-close-all'));
+      setDesktopOpen(false);
+      event.detail?.commit?.();
+      if (pendingWorkspaceNoteSession) {
+        const committedSession = pendingWorkspaceNoteSession;
+        pendingWorkspaceNoteSession = null;
+        setWorkspaceNoteSession(committedSession, { desktopOpen: false });
+      }
+    },
+  }));
+  exitDialog?.addEventListener('click', async (event) => {
+    const action = event.target.closest('[data-workspace-exit-action]')?.dataset.workspaceExitAction;
+    if (!action || !pendingWorkspaceLeave) return;
+    const pending = pendingWorkspaceLeave;
+    if (action === 'cancel') { if (pending.allowCancel) { pendingWorkspaceLeave = null; exitDialog.close(); pending.cancel(); } return; }
+    if (action === 'save') { const requests = []; window.dispatchEvent(new CustomEvent('palis:workspace-flush-request', { detail: { keys: pending.keys, requests } })); const results = await Promise.allSettled(requests); if (requests.length !== pending.keys.length || results.some((item) => item.status === 'rejected')) { exitMessage.textContent = '仍有待上传的图片或附件；请继续编辑并提交，或明确放弃。'; return; } }
+    if (action === 'discard') window.dispatchEvent(new CustomEvent('palis:workspace-discard-request', { detail: { keys: pending.keys } }));
+    pending.keys.forEach((key) => dirtyWorkspaceKeys.delete(key)); pendingWorkspaceLeave = null; exitDialog.close(action); pending.proceed();
+  });
+  updateWorkspaceIdentityAndSync();
+
+  function setMenuOpen(open) {
+    startMenu.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+    assistant.classList.toggle('is-open', open);
+    if (open) {
+      clerkDirectory.hidden = true;
+      directoryView.hidden = false;
+      entries[0]?.focus({ preventScroll: true });
+    }
+    else trigger.focus({ preventScroll: true });
+  }
+
+  function showClerkDirectory() {
+    directoryView.hidden = true;
+    clerkDirectory.hidden = false;
+    clerkList.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  function showAssistantDirectory() {
+    clerkDirectory.hidden = true;
+    directoryView.hidden = false;
+    entries.find((entry) => entry.dataset.mascotDirectory === 'clerks')?.focus({ preventScroll: true });
+  }
+
+  function syncDocumentWindows() {
+    archiveTaskList.hidden = archiveTaskList.children.length === 0;
+    desktopTaskList.hidden = desktopTaskList.children.length === 0;
+    openDocuments.forEach(({ windowElement, taskButton, minimized }) => {
+      const isActive = windowElement === activeDocumentWindow && !minimized;
+      windowElement.classList.toggle('is-active', isActive);
+      taskButton.classList.toggle('is-active', isActive);
+      taskButton.classList.toggle('is-minimized', minimized);
+      taskButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function focusDocumentWindow(windowElement, focusControl = false) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || state.minimized || state.closing) return;
+    if (state.surface === 'assistant') {
+      document.querySelectorAll('.archive-window.is-active').forEach((candidate) => candidate.classList.remove('is-active'));
+      archiveTaskList.querySelectorAll('.archive-task-button:not(.mascot-document-task-button)')
+        .forEach((button) => {
+          button.classList.remove('is-active');
+          button.setAttribute('aria-pressed', 'false');
+        });
+    }
+    documentWindowZ += 1;
+    windowElement.style.zIndex = String(documentWindowZ);
+    activeDocumentWindow = windowElement;
+    syncDocumentWindows();
+    if (state.surface === 'workspace') window.dispatchEvent(new CustomEvent('palis:workspace-window-focus', { detail: { owner: 'assistant', windowElement, taskButton: state.taskButton } }));
+    if (focusControl) windowElement.querySelector('.mascot-document-minimize')?.focus({ preventScroll: true });
+  }
+
+  window.addEventListener('palis:workspace-close-all', () => {
+    setDesktopStartMenuOpen(false);
+    [...openDocuments.values()].filter((state) => state.surface === 'workspace').forEach((state) => closeDocumentWindow(state.windowElement));
+  });
+
+  function documentTaskVector(windowElement, taskButton) {
+    const windowRect = windowElement.getBoundingClientRect();
+    const taskRect = taskButton.getBoundingClientRect();
+    return {
+      x: taskRect.left + taskRect.width / 2 - (windowRect.left + windowRect.width / 2),
+      y: taskRect.top + taskRect.height / 2 - (windowRect.top + windowRect.height / 2),
+    };
+  }
+
+  function minimizeDocumentWindow(windowElement) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || state.minimized || state.closing) return;
+    state.minimized = true;
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    if (reducedMotion) {
+      windowElement.classList.add('is-minimized');
+    } else {
+      windowElement.classList.add('is-minimizing');
+      window.setTimeout(() => {
+        windowElement.classList.remove('is-minimizing');
+        windowElement.classList.add('is-minimized');
+      }, 260);
+    }
+    if (activeDocumentWindow === windowElement) {
+      const nextVisible = [...openDocuments.values()]
+        .filter((item) => !item.minimized && !item.closing && item.windowElement !== windowElement)
+        .sort((a, b) => Number(b.windowElement.style.zIndex) - Number(a.windowElement.style.zIndex))[0];
+      activeDocumentWindow = nextVisible?.windowElement || null;
+    }
+    syncDocumentWindows();
+  }
+
+  function restoreDocumentWindow(windowElement) {
+    const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+    if (!state || !state.minimized || state.closing) return;
+    state.minimized = false;
+    windowElement.classList.remove('is-minimized', 'is-minimizing');
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    if (!reducedMotion) {
+      windowElement.classList.remove('is-restoring');
+      void windowElement.offsetWidth;
+      windowElement.classList.add('is-restoring');
+      window.setTimeout(() => windowElement.classList.remove('is-restoring'), 300);
+    }
+    focusDocumentWindow(windowElement, true);
+  }
+
+  function closeDocumentWindow(windowElement) {
+    const documentId = windowElement.dataset.mascotDocumentWindow;
+    const state = openDocuments.get(documentId);
+    if (!state || state.closing) return;
+    state.closing = true;
+    const removeWindow = () => {
+      windowElement.remove();
+      state.taskButton.remove();
+      openDocuments.delete(documentId);
+      if (state.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
+      if (activeDocumentWindow === windowElement) {
+        const nextVisible = [...openDocuments.values()]
+          .filter((item) => !item.minimized && !item.closing)
+          .sort((a, b) => Number(b.windowElement.style.zIndex) - Number(a.windowElement.style.zIndex))[0];
+        activeDocumentWindow = nextVisible?.windowElement || null;
+      }
+      syncDocumentWindows();
+    };
+    if (state.minimized || reducedMotion) {
+      removeWindow();
+      return;
+    }
+    const vector = documentTaskVector(windowElement, state.taskButton);
+    windowElement.style.setProperty('--task-x', `${vector.x}px`);
+    windowElement.style.setProperty('--task-y', `${vector.y}px`);
+    windowElement.classList.remove('is-opening', 'is-restoring');
+    windowElement.classList.add('is-closing');
+    window.setTimeout(removeWindow, 240);
+  }
+
+  function installDocumentWindowDrag(windowElement) {
+    const titlebar = windowElement.querySelector('.mascot-document-titlebar');
+    const handles = [titlebar, ...ensureWindowDragEdges(windowElement)].filter(Boolean);
+    let drag = null;
+
+    const startDrag = (event) => {
+      if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button') || windowElement.classList.contains('is-maximized')) return;
+      focusDocumentWindow(windowElement);
+      const rect = windowElement.getBoundingClientRect();
+      drag = {
+        pointerId: event.pointerId,
+        handle: event.currentTarget,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+      drag.handle.setPointerCapture(event.pointerId);
+      windowElement.classList.add('is-dragging');
+      event.preventDefault();
+    };
+
+    const moveDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const state = openDocuments.get(windowElement.dataset.mascotDocumentWindow);
+      const taskbarElement = state?.surface === 'workspace' ? desktopTaskbar : archiveTaskbar;
+      const taskbarHeight = taskbarElement.getBoundingClientRect().height || 52;
+      const nextLeft = THREE.MathUtils.clamp(
+        drag.left + event.clientX - drag.startX,
+        -drag.width + 28,
+        innerWidth - 28,
+      );
+      const nextTop = THREE.MathUtils.clamp(
+        drag.top + event.clientY - drag.startY,
+        -drag.height + 64,
+        innerHeight - taskbarHeight - 24,
+      );
+      windowElement.style.left = `${nextLeft}px`;
+      windowElement.style.top = `${nextTop}px`;
+    };
+
+    const finishDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (drag.handle.hasPointerCapture(event.pointerId)) drag.handle.releasePointerCapture(event.pointerId);
+      drag = null;
+      windowElement.classList.remove('is-dragging');
+    };
+
+    handles.forEach((handle) => {
+      handle.addEventListener('pointerdown', startDrag);
+      handle.addEventListener('pointermove', moveDrag);
+      handle.addEventListener('pointerup', finishDrag);
+      handle.addEventListener('pointercancel', finishDrag);
+    });
+  }
+
+  function buildClerkIndexContent() {
+    const content = document.createElement('div');
+    content.className = 'mascot-document-content assistant-clerk-index';
+    content.innerHTML = `
+      <div class="mascot-document-mast">
+        <p>PALIS / LOCAL CLERK DIRECTORY / 10 POSITIONS</p>
+        <h2>在案书记官</h2>
+      </div>
+      <section>
+        <p class="assistant-clerk-index__lead">当前工作台可调阅六份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
+        <ol class="assistant-clerk-index__list">
+          ${Array.from({ length: 10 }, (_, index) => {
+            const number = String(index + 1).padStart(2, '0');
+            const record = clerkRecords[index];
+            return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'disabled'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
+          }).join('')}
+        </ol>
+      </section>
+    `;
+    return content;
+  }
+
+  function openDocument(documentId, entry, surface = 'assistant') {
+    const documentKey = `${surface}:${documentId}`;
+    const existing = openDocuments.get(documentKey);
+    if (existing) {
+      if (existing.minimized) restoreDocumentWindow(existing.windowElement);
+      else focusDocumentWindow(existing.windowElement, true);
+      setMenuOpen(false);
+      return;
+    }
+    const content = documentId === 'clerks'
+      ? buildClerkIndexContent()
+      : documentContents.find((item) => item.dataset.mascotDocumentContent === documentId);
+    if (!content) return;
+
+    const isDesktopEntry = entry.hasAttribute('data-clerk-desktop-entry');
+    const entryIndex = isDesktopEntry
+      ? entry.querySelector('.clerk-desktop__icon b')?.textContent || '00'
+      : entry.querySelector('span')?.textContent || '00';
+    const entryTitle = isDesktopEntry
+      ? entry.querySelector(':scope > span')?.textContent || '书记官文档'
+      : entry.querySelector('b')?.textContent || entry.dataset.mascotEntry;
+    const windowId = `mascot-document-window-${++documentWindowSequence}`;
+    const headingId = `${windowId}-heading`;
+    const windowElement = document.createElement('section');
+    windowElement.className = 'mascot-document-window retro-window';
+    const isClerkDossier = documentId.startsWith('clerk-');
+    if (isClerkDossier) windowElement.classList.add('is-clerk-dossier');
+    if (documentId === 'clerks') windowElement.classList.add('is-clerk-index');
+    windowElement.id = windowId;
+    windowElement.dataset.mascotDocumentWindow = documentKey;
+    windowElement.dataset.mascotSurface = surface;
+    windowElement.setAttribute('role', 'dialog');
+    windowElement.setAttribute('aria-modal', 'false');
+    windowElement.setAttribute('aria-labelledby', headingId);
+    const workspaceMaximizeControl = surface === 'workspace' ? '<button type="button" class="mascot-document-maximize" aria-label="最大化窗口">□</button>' : '';
+    windowElement.innerHTML = `
+      <div class="title-bar mascot-document-titlebar">
+        <span>PALIS_ASSISTANT_${escapeRecordText(entryIndex)}.TXT</span>
+        <div class="window-controls">
+          <button type="button" class="mascot-document-minimize" aria-label="最小化${escapeRecordText(entryTitle)}窗口">_</button>
+          ${workspaceMaximizeControl}
+          <button type="button" class="mascot-document-close" aria-label="关闭${escapeRecordText(entryTitle)}窗口">×</button>
+        </div>
+      </div>
+      <article class="mascot-document-view">
+        <header class="mascot-document-toolbar">
+          <span>${escapeRecordText(entryTitle)}</span>
+          <span>${escapeRecordText(entryIndex)} / DOCUMENT</span>
+        </header>
+        <div class="mascot-document-scroll" tabindex="0" aria-label="${escapeRecordText(entryTitle)}文档滚动区"></div>
+      </article>
+    `;
+
+    const clonedContent = content.cloneNode(true);
+    clonedContent.hidden = false;
+    const heading = clonedContent.querySelector('h2');
+    if (heading) heading.id = headingId;
+    windowElement.querySelector('.mascot-document-scroll').appendChild(clonedContent);
+    if (documentId === 'clerks') {
+      clonedContent.addEventListener('click', (event) => {
+        const clerkEntry = event.target.closest('button[data-mascot-document]');
+        if (clerkEntry) openDocument(clerkEntry.dataset.mascotDocument, clerkEntry, surface);
+      });
+    }
+    if (isClerkDossier) {
+      const pages = [...windowElement.querySelectorAll('.clerk-dossier-page')];
+      const pageOutput = windowElement.querySelector('.clerk-dossier-pagination output');
+      const previousButton = windowElement.querySelector('[data-clerk-page="previous"]');
+      const nextButton = windowElement.querySelector('[data-clerk-page="next"]');
+      let activePage = 0;
+      const updateClerkPage = () => {
+        pages.forEach((page, index) => { page.hidden = index !== activePage; });
+        pageOutput.value = `${String(activePage + 1).padStart(2, '0')} / ${String(pages.length).padStart(2, '0')}`;
+        previousButton.disabled = activePage === 0;
+        nextButton.disabled = activePage === pages.length - 1;
+      };
+      previousButton.addEventListener('click', () => { activePage = Math.max(0, activePage - 1); updateClerkPage(); });
+      nextButton.addEventListener('click', () => { activePage = Math.min(pages.length - 1, activePage + 1); updateClerkPage(); });
+      updateClerkPage();
+    }
+    windowElement.style.visibility = 'hidden';
+    const taskButton = document.createElement('button');
+    taskButton.type = 'button';
+    taskButton.className = 'archive-task-button mascot-document-task-button';
+    taskButton.innerHTML = `<i></i><span><b>${escapeRecordText(entryIndex)}</b>${escapeRecordText(entryTitle)}</span>`;
+    taskButton.setAttribute('aria-controls', windowId);
+    taskButton.setAttribute('aria-label', `切换助手文档窗口：${entryTitle}`);
+    const targetTaskList = surface === 'workspace' ? desktopTaskList : archiveTaskList;
+    const targetWindowLayer = surface === 'workspace' ? desktopWindowLayer : archiveWindowLayer;
+    const targetTaskbar = surface === 'workspace' ? desktopTaskbar : archiveTaskbar;
+    targetTaskList.appendChild(taskButton);
+    targetWindowLayer.appendChild(windowElement);
+
+    const rect = windowElement.getBoundingClientRect();
+    const taskbarHeight = targetTaskbar.getBoundingClientRect().height || 52;
+    const left = THREE.MathUtils.clamp(
+      (innerWidth - rect.width) / 2,
+      8,
+      Math.max(8, innerWidth - rect.width - 8),
+    );
+    const top = THREE.MathUtils.clamp(
+      (innerHeight - taskbarHeight - rect.height) / 2,
+      8,
+      Math.max(8, innerHeight - taskbarHeight - rect.height - 8),
+    );
+    windowElement.style.left = `${left}px`;
+    windowElement.style.top = `${top}px`;
+    windowElement.style.visibility = '';
+    const triggerRect = entry.getBoundingClientRect();
+    const positionedRect = windowElement.getBoundingClientRect();
+    windowElement.style.setProperty('--dialog-from-x', `${triggerRect.left + triggerRect.width / 2 - (positionedRect.left + positionedRect.width / 2)}px`);
+    windowElement.style.setProperty('--dialog-from-y', `${triggerRect.top + triggerRect.height / 2 - (positionedRect.top + positionedRect.height / 2)}px`);
+    const state = { windowElement, taskButton, minimized: false, closing: false, surface, maximized: false, restoredBounds: null, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+    openDocuments.set(documentKey, state);
+    syncDocumentViewport();
+    installDocumentWindowDrag(windowElement);
+    const toggleDocumentMaximize = () => {
+      if (matchMedia('(max-width: 760px)').matches) return;
+      if (!state.maximized) { const rect = windowElement.getBoundingClientRect(); state.restoredBounds = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }; }
+      state.maximized = !state.maximized;
+      windowElement.classList.toggle('is-maximized', state.maximized);
+      if (state.maximized) ['left', 'top', 'width', 'height'].forEach((property) => windowElement.style.removeProperty(property));
+      else if (state.restoredBounds) Object.assign(windowElement.style, Object.fromEntries(Object.entries(state.restoredBounds).map(([name, value]) => [name, `${value}px`])));
+      focusDocumentWindow(windowElement, true);
+    };
+    if (surface === 'workspace') {
+      windowElement.querySelector('.mascot-document-maximize')?.addEventListener('click', toggleDocumentMaximize);
+      windowElement.querySelector('.mascot-document-titlebar')?.addEventListener('dblclick', (event) => { if (!event.target.closest('button')) toggleDocumentMaximize(); });
+    }
+    focusDocumentWindow(windowElement);
+
+    windowElement.addEventListener('pointerdown', () => focusDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-minimize').addEventListener('click', () => minimizeDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-close').addEventListener('click', () => closeDocumentWindow(windowElement));
+    taskButton.addEventListener('click', () => {
+      if (state.minimized) restoreDocumentWindow(windowElement);
+      else if (activeDocumentWindow === windowElement && windowElement.classList.contains('is-active')) minimizeDocumentWindow(windowElement);
+      else focusDocumentWindow(windowElement, true);
+    });
+    syncDocumentWindows();
+    if (!reducedMotion) {
+      windowElement.classList.add('is-opening');
+      window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
+    }
+    setMenuOpen(false);
+  }
+
+  directoryView.hidden = false;
+  clerkDirectory.hidden = true;
+  documentView.hidden = true;
+  startMenu.classList.add('mascot-start-menu');
+
+  const clerkRecords = [
+    { documentId: 'clerk-wei-yi', entry: '助理书记官：魏伊', title: '助理书记官：魏伊', code: 'SC-01 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-yinnar-light', entry: '助理书记官：主行', title: '助理书记官：主行', code: 'SC-02 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-jean-moreau', entry: '助理书记官：FourreTout', title: '助理书记官：FourreTout', code: 'SC-03 / ONLINE / 4 PAGES' },
+    { documentId: 'clerk-jing-quan-c', entry: '助理书记官：赭犬C', title: '助理书记官：赭犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-gabriel', entry: '书记官：Gabriel', title: '书记官：Gabriel', code: 'SC-12 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-march', entry: '书记官：3月', title: '书记官：3月', code: 'SC-35 / ONLINE / 2 PAGES' },
+  ];
+  clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, '0');
+    const record = clerkRecords[index];
+    return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'data-clerk-reserved="true"'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
+  }).join('');
+
+  trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
+  desktopEntry.addEventListener('click', () => setDesktopOpen(true));
+  desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
+  desktop.addEventListener('pointerdown', (event) => {
+    if (desktopStartMenu.hidden) return;
+    if (event.target.closest(
+      '#clerk-desktop-start-menu, #clerk-desktop-start, #workspace-note-region, [data-workspace-note-controls], .archive-workflow-window, .mascot-document-window, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
+    )) return;
+    setDesktopStartMenuOpen(false);
+  });
+  desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
+  desktopCommands.filter((entry) => entry.closest('#clerk-desktop-start-menu')).forEach((entry) => entry.addEventListener('click', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry)));
+  desktop.querySelectorAll('[data-workspace-shortcut]').forEach((entry) => {
+    entry.addEventListener('click', () => {
+      desktop.querySelectorAll('[data-workspace-shortcut]').forEach((button) => button.classList.toggle('is-selected', button === entry));
+      selectedDesktopShortcut = entry;
+    });
+    entry.addEventListener('dblclick', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry));
+    entry.addEventListener('pointerup', (event) => { if (event.pointerType !== 'mouse') dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); });
+    entry.addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); } });
+  });
+  closeButton?.addEventListener('click', () => setMenuOpen(false));
+  entries.forEach((entry) => {
+    entry.addEventListener('click', () => {
+      entries.forEach((button) => button.classList.toggle('is-selected', button === entry));
+      if (entry.dataset.mascotDirectory === 'clerks') {
+        showClerkDirectory();
+        return;
+      }
+      if (entry.dataset.mascotDocument) {
+        openDocument(entry.dataset.mascotDocument, entry);
+        return;
+      }
+      status.innerHTML = `<span>${entry.dataset.mascotEntry} / 内容尚未录入</span><b>SELECTED</b>`;
+    });
+  });
+  clerkBack?.addEventListener('click', showAssistantDirectory);
+  clerkList.addEventListener('click', (event) => {
+    const entry = event.target.closest('button');
+    if (!entry) return;
+    if (entry.dataset.mascotDocument) openDocument(entry.dataset.mascotDocument, entry);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (startMenu.hidden || assistant.contains(event.target)) return;
+    setMenuOpen(false);
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (!startMenu.hidden) { setMenuOpen(false); return; }
+    if (!desktopStartMenu.hidden) { setDesktopStartMenuOpen(false); desktopStart.focus({ preventScroll: true }); return; }
+    if (selectedDesktopShortcut) { selectedDesktopShortcut.classList.remove('is-selected'); selectedDesktopShortcut = null; }
+  });
+
+  frame.dataset.mascotFrame = '02';
+  updateDesktopClock();
+  window.setInterval(updateDesktopClock, 30_000);
+  startIdleAnimation();
+  Promise.allSettled(preloadedFrames.map((image) => image.decode()))
+    .then(() => {
+      if (!idleFrameTimer) startIdleAnimation();
+    });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') restartIdleAnimation();
+    else stopIdleAnimation();
+  });
+  window.addEventListener('focus', restartIdleAnimation);
+  window.addEventListener('pageshow', restartIdleAnimation);
+}
+
+function ensureWindowDragEdges(windowElement) {
+  const existing = [...windowElement.querySelectorAll(':scope > .window-drag-edge')];
+  if (existing.length) return existing;
+  const fragment = document.createDocumentFragment();
+  const edges = ['left', 'right', 'bottom'].map((edge) => {
+    const handle = document.createElement('div');
+    handle.className = `window-drag-edge window-drag-edge--${edge}`;
+    handle.dataset.windowDragEdge = edge;
+    handle.setAttribute('aria-hidden', 'true');
+    fragment.appendChild(handle);
+    return handle;
+  });
+  windowElement.appendChild(fragment);
+  return edges;
+}
 const RECORD_COPY_LABELS = {
   'state-registry': ['部署摘要', '证据链与归档', '本期处置'],
   'chain-ledger': ['权限范围', '组织接口', '记录与约束'],
@@ -37,6 +988,10 @@ const RECORD_COPY_LABELS = {
 };
 
 function countryFlagMarkup(archive, modifier = '') {
+  if (archive.isCloudArchive) {
+    const code = escapeRecordText(String(archive.code || 'NEW').toUpperCase());
+    return `<span class="country-flag ${modifier}"><span class="country-flag__placeholder" role="img" aria-label="${code} 国旗待补录"><b>${code}</b><small>FLAG PENDING</small></span></span>`;
+  }
   return `<span class="country-flag ${modifier}"><img src="/assets/flags/${archive.code}.svg" alt="${escapeRecordText(archive.name)}国旗" loading="lazy"></span>`;
 }
 const sceneElement = document.querySelector('#scene');
@@ -121,8 +1076,10 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.065;
 controls.enablePan = false;
 controls.enableZoom = true;
-controls.minDistance = 150;
-controls.maxDistance = 430;
+// Keep the polar globe reachable at a genuinely close inspection distance.
+// The old 150-unit floor made the last zoom level feel like a distant overview.
+controls.minDistance = 105;
+controls.maxDistance = 480;
 controls.rotateSpeed = 0.42;
 controls.zoomSpeed = 0.85;
 controls.enabled = false;
@@ -150,6 +1107,7 @@ const polarDiagnosticState = { stations: 0, entrances: 0, routes: 0, weather: 0,
 let selectedMapItem = null;
 let polarDiagnosticStarted = false;
 let polarDiagnosticComplete = false;
+let polarDiagnosticMode = '';
 let archiveDirectory = null;
 let archiveTransitioning = false;
 let archiveTransitionId = 0;
@@ -162,10 +1120,12 @@ let speciesHelixNodes = [];
 let speciesHelixTrackHeight = 520;
 let countryStackEntries = [];
 let peopleNetworkState = null;
-let eventChronologyState = null;
 let entranceElevationState = null;
 let ecologyCabinetState = null;
-let anomalyRegisterState = null;
+let anomalyCarouselSuppressClick = false;
+let eventPlaneState = null;
+let eventPlaneAnimationFrame = 0;
+let eventPlaneSuppressClick = false;
 
 const ARCHIVE_MODES = {
   countries: 'country-stack',
@@ -174,7 +1134,7 @@ const ARCHIVE_MODES = {
   entrances: 'entrance-network',
   ecology: 'ecology-strata',
   people: 'dossier',
-  events: 'case-chronology',
+  events: 'event-plane',
   abnormalities: 'anomaly-monitor',
   species: 'species-helix',
 };
@@ -188,7 +1148,7 @@ const ARCHIVE_SUBTITLES = {
   abnormalities: 'INCIDENT TRACE / FIRST-CONFIRMED DATES / CHRONOLOGY OPEN',
   species: 'MORPHOLOGY / TISSUE & PROTEIN COMPARISON / SPECIMEN CHANNEL 09',
   people: 'PERSONNEL LEDGER / ROSTERS, PHOTOGRAPHS & FIELD POSITIONS',
-  events: 'CASE CHRONOLOGY / TWENTY-SIX FOLDERS / SOURCE CONFLICTS CROSS-INDEXED',
+  events: 'CASE CHRONOLOGY / EXPANDABLE FOLDER PLANE / SOURCE CONFLICTS CROSS-INDEXED',
 };
 
 const southPole = globe.getCoords(-90, 0, 0);
@@ -261,6 +1221,8 @@ const bootChannel = document.querySelector('#boot-channel');
 const bootStatus = document.querySelector('#boot-status');
 const bootProgress = document.querySelector('.boot-line i span');
 const scrollCueLabel = document.querySelector('#scroll-cue-label');
+const versionNotice = document.querySelector('#version-notice');
+const versionNoticeTask = document.querySelector('#archive-task-list');
 
 let scrollProgress = 0;
 let targetProgress = 0;
@@ -280,11 +1242,17 @@ let archiveWheelLocked = false;
 let pageWheelLocked = false;
 let chapterScrollFrame = 0;
 let overviewSyncRun = 0;
+let capsuleBootRun = 0;
+let capsuleBootTimer = 0;
+let versionNoticeTaskButton = null;
+let versionNoticeClosed = false;
+let versionNoticeTimer = 0;
 const chapterTargets = [0, 1 / 3, 2 / 3, 1];
 
 buildArchiveOrbit();
 buildOverviewSync();
-armCapsuleBootSequence();
+void syncPublishedArchiveDirectory();
+prepareCapsuleBootSequence();
 updateClock();
 setInterval(updateClock, 30_000);
 onScroll();
@@ -295,7 +1263,7 @@ requestAnimationFrame(animate);
 {
   const devDirectory = new URLSearchParams(location.search).get('dir');
   if (devDirectory) {
-    const target = ARCHIVE_ROOTS.find((root) => root.id === devDirectory);
+    const target = archiveRoots.find((root) => root.id === devDirectory);
     if (target) {
       setTimeout(() => {
         document.querySelector('#archive-section')?.scrollIntoView({ behavior: 'instant' });
@@ -323,33 +1291,123 @@ chapterLinks.forEach((link, index) => {
 archiveBack.addEventListener('click', () => transitionArchiveDirectory(null, { force: true }));
 archivePrev.addEventListener('click', () => stepArchiveSelection(-1));
 archiveNext.addEventListener('click', () => stepArchiveSelection(1));
+versionNotice.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-version-notice-action]')?.dataset.versionNoticeAction;
+  if (action === 'minimize') minimizeVersionNotice();
+  if (action === 'close') closeVersionNotice();
+});
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !versionNotice.hidden) closeVersionNotice();
+});
+
+function syncVersionNoticeTask() {
+  if (!versionNoticeTaskButton) return;
+  versionNoticeTaskButton.classList.toggle('is-minimized', versionNotice.hidden);
+  versionNoticeTaskButton.classList.toggle('is-active', !versionNotice.hidden);
+  versionNoticeTaskButton.setAttribute('aria-pressed', String(!versionNotice.hidden));
+}
+
+function showVersionNotice() {
+  if (versionNoticeClosed) return;
+  window.clearTimeout(versionNoticeTimer);
+  versionNotice.hidden = false;
+  document.body.classList.add('version-notice-open');
+  window.requestAnimationFrame(() => versionNotice.classList.add('is-open'));
+  window.setTimeout(() => versionNotice.querySelector('[data-version-notice-action="minimize"]')?.focus(), 180);
+  syncVersionNoticeTask();
+}
+
+function minimizeVersionNotice() {
+  if (versionNotice.hidden) return;
+  versionNotice.classList.remove('is-open');
+  document.body.classList.remove('version-notice-open');
+  window.clearTimeout(versionNoticeTimer);
+  versionNoticeTimer = window.setTimeout(() => { versionNotice.hidden = true; syncVersionNoticeTask(); }, 180);
+}
+
+function closeVersionNotice() {
+  versionNoticeClosed = true;
+  minimizeVersionNotice();
+  versionNoticeTaskButton?.remove();
+  versionNoticeTaskButton = null;
+  versionNoticeTask.hidden = versionNoticeTask.children.length === 0;
+}
+
+function resetVersionNotice() {
+  versionNoticeClosed = false;
+  minimizeVersionNotice();
+  if (versionNoticeTaskButton) return;
+  versionNoticeTaskButton = document.createElement('button');
+  versionNoticeTaskButton.type = 'button';
+  versionNoticeTaskButton.className = 'archive-task-button is-minimized';
+  versionNoticeTaskButton.setAttribute('aria-pressed', 'false');
+  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.11</b>白幕初垂</span>';
+  versionNoticeTaskButton.addEventListener('click', showVersionNotice);
+  versionNoticeTask.append(versionNoticeTaskButton);
+  versionNoticeTask.hidden = false;
+}
+
+function applyCapsuleAccessState() {
+  capsuleTitle.innerHTML = '系统接入已完成<br />欢迎使用';
+  bootChannel.textContent = 'CHANNEL 09A / PALIS ONLINE';
+  bootStatus.textContent = 'SYSTEM READY';
+  scrollCueLabel.textContent = isPreviewAccess() ? '向下滚动检查索引' : '向下滚动进入系统';
+  if (currentChapter === 0) {
+    taskStatus.textContent = 'PALIS 管理系统已接入';
+  }
+}
+
+window.addEventListener('palis:access-mode-change', (event) => {
+  if (event.detail?.mode === 'locked') {
+    capsuleBootRun += 1;
+    prepareCapsuleBootSequence();
+    return;
+  }
+  armCapsuleBootSequence();
+});
+
+function prepareCapsuleBootSequence() {
+  window.clearTimeout(capsuleBootTimer);
+  capsuleBootComplete = false;
+  capsuleCopy.classList.remove('is-booting', 'is-resolving', 'is-complete');
+  capsuleLayer.classList.remove('boot-ready');
+  resetVersionNotice();
+  capsuleTitle.innerHTML = '正在接入<br />PALIS 管理系统';
+  bootChannel.textContent = 'CHANNEL 09A / ARCHIVE HANDSHAKE';
+  bootStatus.textContent = 'INDEX READY';
+  bootProgress.style.transition = 'none';
+  bootProgress.style.transform = 'scaleX(0)';
+  void bootProgress.offsetWidth;
+  bootProgress.style.removeProperty('transition');
+  bootProgress.style.removeProperty('transform');
+}
 
 function armCapsuleBootSequence() {
+  const runId = ++capsuleBootRun;
+  prepareCapsuleBootSequence();
   const commitWelcome = () => {
-    capsuleTitle.innerHTML = '系统接入已完成<br />欢迎使用';
-    bootChannel.textContent = 'CHANNEL 09A / PALIS ONLINE';
-    bootStatus.textContent = 'SYSTEM READY';
-    scrollCueLabel.textContent = '向下滚动进入系统';
-    capsuleCopy.classList.remove('is-resolving');
+    if (runId !== capsuleBootRun) return;
+    applyCapsuleAccessState();
+    capsuleCopy.classList.remove('is-booting', 'is-resolving');
     capsuleCopy.classList.add('is-complete');
     capsuleLayer.classList.add('boot-ready');
     capsuleBootComplete = true;
-    if (currentChapter === 0) taskStatus.textContent = 'PALIS 管理系统已接入';
+    applyCapsuleAccessState();
+    window.setTimeout(showVersionNotice, 480);
   };
 
   const complete = () => {
+    if (runId !== capsuleBootRun) return;
     if (capsuleBootComplete || capsuleCopy.classList.contains('is-resolving')) return;
-    if (reducedMotion) {
-      commitWelcome();
-      return;
-    }
     bootStatus.textContent = 'VERIFYING';
     capsuleCopy.classList.add('is-resolving');
     window.setTimeout(commitWelcome, 260);
   };
 
-  if (reducedMotion) return requestAnimationFrame(complete);
-  bootProgress.addEventListener('animationend', complete, { once: true });
+  window.requestAnimationFrame(() => {
+    if (runId === capsuleBootRun) capsuleCopy.classList.add('is-booting');
+  });
+  capsuleBootTimer = window.setTimeout(complete, 2020);
 }
 
 function updateCapsuleParallax(event) {
@@ -363,27 +1421,65 @@ function resetCapsuleParallax() {
   capsuleParallax.targetY = 0;
 }
 
+function onlineArchiveCount(archive) {
+  return archive.children.filter((record) => record.webContent).length;
+}
+
+function offlineArchiveCount(archive) {
+  return archive.children.length - onlineArchiveCount(archive);
+}
+
+function syncCountText(onlineCount, offlineCount) {
+  return `${String(onlineCount).padStart(3, '0')}/${String(offlineCount).padStart(3, '0')}`;
+}
+
+function archiveSyncStatus(archive) {
+  const onlineCount = onlineArchiveCount(archive);
+  if (onlineCount === 0) return '文档离线';
+  return onlineCount === archive.children.length ? '正常' : '部分在线';
+}
+
 function buildOverviewSync() {
-  syncList.innerHTML = ARCHIVE_ROOTS.map((archive, index) => `
-    <li class="sync-row" data-index="${index}" data-count="${archive.children.length}">
+  syncList.innerHTML = archiveRoots.map((archive, index) => `
+    <li class="sync-row" data-index="${index}" data-count="${archive.children.length}" data-online-count="${onlineArchiveCount(archive)}">
       <span>${String(index + 1).padStart(2, '0')}</span>
       <b>${archive.name}档案</b>
       <i>等待</i>
       <output>---</output>
     </li>
   `).join('');
-  syncCounts.innerHTML = ARCHIVE_ROOTS.map((archive) => `
-    <div><span>${archive.name}</span><b>${String(archive.children.length).padStart(2, '0')}</b></div>
+  syncCounts.innerHTML = archiveRoots.map((archive) => `
+    <div><span>${archive.name}</span><b>${syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive))}</b></div>
   `).join('');
+}
+
+async function syncPublishedArchiveDirectory() {
+  if (!archiveWorkflowClient?.listPublishedArchives) return;
+  try {
+    const pageSize = 100;
+    const publishedArchives = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await archiveWorkflowClient.listPublishedArchives({ limit: pageSize, offset }) || [];
+      publishedArchives.push(...page);
+      if (page.length < pageSize) break;
+    }
+    archiveRoots = mergePublishedArchiveDirectory(ARCHIVE_ROOTS, publishedArchives);
+    buildOverviewSync();
+    archiveDirectory = resolveArchiveDirectory(archiveDirectory, archiveRoots);
+    buildArchiveOrbit(archiveDirectory);
+  } catch {
+    // The built-in index remains available when the cloud directory is unavailable.
+  }
 }
 
 async function runOverviewSync() {
   const runId = ++overviewSyncRun;
   const rows = [...syncList.querySelectorAll('.sync-row')];
-  const recordTotal = ARCHIVE_ROOTS.reduce((total, archive) => total + archive.children.length, 0);
+  const recordTotal = archiveRoots.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
+  const offlineRecordTotal = archiveRoots.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
   const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
   const animateArchiveCount = async (row, archive, index) => {
-    const target = archive.children.length;
+    const target = onlineArchiveCount(archive);
     const output = row.querySelector('output');
     const status = row.querySelector('i');
     const pausePoints = target >= 30
@@ -394,6 +1490,7 @@ async function runOverviewSync() {
     const stepDelay = target >= 30 ? 24 : target >= 20 ? 28 : target >= 14 ? 31 : 36;
 
     output.textContent = '000';
+    if (target === 0) return true;
     for (let count = 1; count <= target; count += 1) {
       if (runId !== overviewSyncRun || currentChapter !== 1) return false;
       output.textContent = String(count).padStart(3, '0');
@@ -417,7 +1514,7 @@ async function runOverviewSync() {
     return true;
   };
 
-  syncConsole.classList.remove('is-sync-complete');
+  syncConsole.classList.remove('is-sync-complete', 'is-sync-failed');
   syncTitle.textContent = '正在校验档案索引';
   syncSubtitle.textContent = '09 INDEX CHANNELS / ACCESSION COUNT / SOURCE CHAIN';
   syncPercent.textContent = '000';
@@ -427,20 +1524,111 @@ async function runOverviewSync() {
   syncRecordTotal.textContent = '---';
   syncErrorTotal.textContent = '---';
   syncEnter.setAttribute('aria-disabled', 'true');
+  syncEnter.textContent = '打开 PALIS 09A';
   syncLog.textContent = '> AWAIT INDEX BUS RESPONSE';
+  [...syncCounts.querySelectorAll('b')].forEach((count, index) => {
+    const archive = archiveRoots[index];
+    count.textContent = syncCountText(onlineArchiveCount(archive), offlineArchiveCount(archive));
+  });
   rows.forEach((row) => {
-    row.classList.remove('is-requesting', 'is-scanning', 'is-buffering', 'is-complete');
+    row.classList.remove('is-requesting', 'is-scanning', 'is-buffering', 'is-complete', 'is-failed');
     row.querySelector('i').textContent = '等待';
     row.querySelector('output').textContent = '---';
   });
 
+  const hasEmbeddedArchiveContent = archiveRoots.every((archive) => archive.children.every((record) => record.webContent));
+  if (isPreviewAccess() && !hasEmbeddedArchiveContent) {
+    syncSubtitle.textContent = '09 INDEX CHANNELS / SOURCE FILE AVAILABILITY';
+    syncState.textContent = '等待源文件';
+    syncLog.textContent = '> OPEN INDEX BUS / SOURCE FILES NOT FOUND';
+
+    if (reducedMotion) {
+      rows.forEach((row, index) => {
+        const archive = archiveRoots[index];
+        const onlineCount = onlineArchiveCount(archive);
+        const offlineCount = offlineArchiveCount(archive);
+        row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+        row.querySelector('i').textContent = archiveSyncStatus(archive);
+        row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
+      });
+    } else {
+      await wait(240);
+      for (let index = 0; index < rows.length; index += 1) {
+        if (runId !== overviewSyncRun || currentChapter !== 1) return;
+        const row = rows[index];
+        const archive = archiveRoots[index];
+        const onlineCount = onlineArchiveCount(archive);
+        const offlineCount = offlineArchiveCount(archive);
+        row.classList.add('is-requesting');
+        row.querySelector('i').textContent = '呼叫';
+        row.querySelector('output').textContent = '000';
+        syncPhase.textContent = `BUS ${String(index + 1).padStart(2, '0')} / ${String(rows.length).padStart(2, '0')}`;
+        syncState.textContent = `建立 ${archive.code} 检索通道`;
+        syncLog.textContent = `> OPEN ${archive.code} / ${archive.name.toUpperCase()} / AWAIT SOURCE RESPONSE`;
+        const requestProgress = Math.round(((index + 0.16) / rows.length) * 100);
+        syncPercent.textContent = String(requestProgress).padStart(3, '0');
+        syncProgress.style.width = `${requestProgress}%`;
+        await wait(180 + (index % 3) * 32);
+        if (runId !== overviewSyncRun || currentChapter !== 1) return;
+
+        row.classList.remove('is-requesting');
+        row.classList.add('is-scanning');
+        row.querySelector('i').textContent = '检索中';
+        syncState.textContent = `扫描 ${archive.code} 源文件`;
+
+        const probeCount = 4 + (index % 3);
+        for (let probe = 0; probe < probeCount; probe += 1) {
+          if (runId !== overviewSyncRun || currentChapter !== 1) return;
+          const block = String((index + 1) * 0x100 + probe * 0x20).padStart(4, '0');
+          row.querySelector('output').textContent = String(probe).padStart(3, '0');
+          syncLog.textContent = `> SCAN ${archive.code} / BLOCK ${block} / ${onlineCount > 0 ? 'CONTENT INDEX FOUND' : 'NO INDEX RECORD'}`;
+          const scanProgress = Math.round(((index + 0.22 + ((probe + 1) / probeCount) * 0.62) / rows.length) * 100);
+          syncPercent.textContent = String(scanProgress).padStart(3, '0');
+          syncProgress.style.width = `${scanProgress}%`;
+          await wait(105 + (probe % 2) * 28);
+        }
+
+        row.classList.remove('is-scanning');
+        if (onlineCount > 0) {
+          row.classList.add('is-complete');
+          row.querySelector('i').textContent = archiveSyncStatus(archive);
+          row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
+          syncLog.textContent = `> ${archive.code} / ${onlineCount} RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
+          await wait(160);
+          continue;
+        }
+        row.classList.add('is-buffering');
+        row.querySelector('i').textContent = '重试';
+        row.querySelector('output').textContent = '---';
+        syncState.textContent = `重试 ${archive.code} 索引`;
+        syncLog.textContent = `> RETRY ${archive.code} / SOURCE PATH EMPTY`;
+        await wait(210 + (index % 2) * 45);
+
+        row.classList.remove('is-buffering');
+        row.classList.add('is-failed');
+        row.querySelector('i').textContent = '文档离线';
+        row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
+        const failedProgress = Math.round(((index + 1) / rows.length) * 100);
+        syncPercent.textContent = String(failedProgress).padStart(3, '0');
+        syncProgress.style.width = `${failedProgress}%`;
+        syncLog.textContent = `> ${archive.code} / 0 RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
+        await wait(160);
+      }
+    }
+
+    commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
+    return;
+  }
+
   if (reducedMotion) {
-    rows.forEach((row) => {
-      row.classList.add('is-complete');
-      row.querySelector('i').textContent = '正常';
-      row.querySelector('output').textContent = row.dataset.count;
+    rows.forEach((row, index) => {
+      const archive = archiveRoots[index];
+      const onlineCount = onlineArchiveCount(archive);
+      row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+      row.querySelector('i').textContent = archiveSyncStatus(archive);
+      row.querySelector('output').textContent = syncCountText(onlineCount, offlineArchiveCount(archive));
     });
-    commitOverviewSync(runId, recordTotal, rows.length);
+    commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
     return;
   }
 
@@ -448,7 +1636,9 @@ async function runOverviewSync() {
   for (let index = 0; index < rows.length; index += 1) {
     if (runId !== overviewSyncRun || currentChapter !== 1) return;
     const row = rows[index];
-    const archive = ARCHIVE_ROOTS[index];
+    const archive = archiveRoots[index];
+    const onlineCount = onlineArchiveCount(archive);
+    const offlineCount = offlineArchiveCount(archive);
     const requestProgress = Math.round(((index + 0.18) / rows.length) * 100);
     row.classList.add('is-requesting');
     row.querySelector('i').textContent = '呼叫';
@@ -470,24 +1660,40 @@ async function runOverviewSync() {
     syncLog.textContent = `> VERIFY ${archive.code} / ACCESSION COUNT / SOURCE CHAIN / CRC`;
     if (!await animateArchiveCount(row, archive, index)) return;
     row.classList.remove('is-scanning');
-    row.classList.add('is-complete');
-    row.querySelector('i').textContent = '正常';
-    row.querySelector('output').textContent = String(archive.children.length).padStart(3, '0');
+    row.classList.add(onlineCount > 0 ? 'is-complete' : 'is-failed');
+    row.querySelector('i').textContent = archiveSyncStatus(archive);
+    row.querySelector('output').textContent = syncCountText(onlineCount, offlineCount);
     const completeProgress = Math.round(((index + 1) / rows.length) * 100);
     syncPercent.textContent = String(completeProgress).padStart(3, '0');
     syncProgress.style.width = `${completeProgress}%`;
-    syncLog.textContent = `> ${archive.name}档案检索正常 / ${archive.children.length} RECORDS / CRC VERIFIED`;
+    syncLog.textContent = `> ${archive.name} / ${onlineCount} RECORDS ONLINE / ${offlineCount} RECORDS OFFLINE`;
     await wait(135 + (index % 2) * 28);
   }
 
-  commitOverviewSync(runId, recordTotal, rows.length);
+  commitOverviewSync(runId, recordTotal, offlineRecordTotal, rows.length);
 }
 
-function commitOverviewSync(runId, recordTotal, channelTotal) {
+function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal) {
   if (runId !== overviewSyncRun) return;
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
   syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
+  if (offlineRecordTotal > 0) {
+    syncState.textContent = '已录入内容可用，其余文档离线';
+    syncRecordTotal.textContent = String(recordTotal).padStart(3, '0');
+    syncErrorTotal.textContent = String(offlineRecordTotal).padStart(3, '0');
+    syncTitle.replaceChildren(
+      document.createTextNode('档案索引完成'),
+      document.createElement('br'),
+      document.createTextNode('已录入记录可检索'),
+    );
+    syncSubtitle.textContent = `INDEX BUS ${String(channelTotal).padStart(2, '0')}/${String(channelTotal).padStart(2, '0')} · ${String(recordTotal).padStart(3, '0')} ONLINE · ${String(offlineRecordTotal).padStart(3, '0')} OFFLINE`;
+    syncLog.textContent = `> INDEX COMPLETE / ${recordTotal} RECORDS ONLINE / ${offlineRecordTotal} RECORDS OFFLINE`;
+    syncEnter.removeAttribute('aria-disabled');
+    syncEnter.textContent = '打开 PALIS 09A';
+    syncConsole.classList.add('is-sync-complete');
+    return;
+  }
   syncState.textContent = '全部通道就绪';
   syncRecordTotal.textContent = String(recordTotal).padStart(3, '0');
   syncErrorTotal.textContent = '000';
@@ -499,7 +1705,29 @@ function commitOverviewSync(runId, recordTotal, channelTotal) {
   syncSubtitle.textContent = `INDEX BUS ${String(channelTotal).padStart(2, '0')}/${String(channelTotal).padStart(2, '0')} · ${String(recordTotal).padStart(3, '0')} RECORDS · CRC VERIFIED`;
   syncLog.textContent = `> ALL CHANNELS READY / ${recordTotal} RECORDS / 0 SYNC ERRORS`;
   syncEnter.removeAttribute('aria-disabled');
+  syncEnter.textContent = '打开 PALIS 09A';
   syncConsole.classList.add('is-sync-complete');
+}
+
+function commitRestrictedOverviewSync(runId, channelTotal) {
+  if (runId !== overviewSyncRun) return;
+  syncPercent.textContent = '100';
+  syncProgress.style.width = '100%';
+  syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
+  syncState.textContent = '源文件缺失';
+  syncRecordTotal.textContent = '---';
+  syncErrorTotal.textContent = String(channelTotal).padStart(3, '0');
+  syncTitle.replaceChildren(
+    document.createTextNode('索引检查失败'),
+    document.createElement('br'),
+    document.createTextNode('档案尚未录入'),
+  );
+  syncSubtitle.textContent = `INDEX BUS ${String(channelTotal).padStart(2, '0')}/${String(channelTotal).padStart(2, '0')} · SOURCE FILES MISSING`;
+  syncLog.textContent = `> ALL INDEX LOOKUPS FAILED / ${channelTotal} SOURCE ERRORS / CONTENT OFFLINE`;
+  [...syncCounts.querySelectorAll('b')].forEach((count) => { count.textContent = '--'; });
+  syncEnter.textContent = '打开目录框架';
+  syncEnter.removeAttribute('aria-disabled');
+  syncConsole.classList.add('is-sync-complete', 'is-sync-failed');
 }
 
 const diagnosticWait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
@@ -518,12 +1746,14 @@ function setDiagnosticRow(key, state, value) {
   if (!row) return;
   row.classList.toggle('is-active', state === 'active');
   row.classList.toggle('is-complete', state === 'complete');
+  row.classList.toggle('is-failed', state === 'failed');
   row.querySelector('output').textContent = value;
 }
 
 async function runPolarDiagnostic() {
   if (polarDiagnosticStarted || !polarDiagnostic) return;
   polarDiagnosticStarted = true;
+  polarDiagnosticMode = isPreviewAccess() ? 'preview' : 'authenticated';
   polarDiagnosticComplete = false;
   Object.keys(polarDiagnosticState).forEach((key) => { polarDiagnosticState[key] = 0; });
   const totals = {
@@ -535,13 +1765,13 @@ async function runPolarDiagnostic() {
   let completed = 0;
 
   polarDiagnostic.hidden = false;
-  polarDiagnostic.classList.remove('is-dismissed', 'is-complete');
+  polarDiagnostic.classList.remove('is-dismissed', 'is-complete', 'is-failed');
   focusLocalWindow(localWindowStates.get('polar-self-test'));
   polarDiagnostic.dataset.phase = 'standby';
   polarLayer.classList.add('is-diagnostic-running');
-  polarLayer.classList.remove('is-network-ready');
+  polarLayer.classList.remove('is-network-ready', 'is-network-offline');
   document.querySelector('#map-detail')?.setAttribute('aria-busy', 'true');
-  diagnosticRows.forEach((row) => row.classList.remove('is-active', 'is-complete'));
+  diagnosticRows.forEach((row) => row.classList.remove('is-active', 'is-complete', 'is-failed'));
   setDiagnosticRow('stations', 'pending', `00 / ${String(totals.stations).padStart(2, '0')}`);
   setDiagnosticRow('entrances', 'pending', `00 / ${String(totals.entrances).padStart(2, '0')}`);
   setDiagnosticRow('routes', 'pending', `00 / ${String(totals.routes).padStart(2, '0')}`);
@@ -549,6 +1779,13 @@ async function runPolarDiagnostic() {
   setDiagnosticRow('storm', 'pending', '等待');
   setDiagnosticProgress(0, allChecks, '正在建立南极网络会话', 'CHANNEL 00', 'OPEN POLAR CONTROL BUS');
   taskStatus.textContent = '南极网络自检 / 建立通信';
+  document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 38 ACTIVE RECORDS';
+  document.querySelector('[data-layer="stations"] small').textContent = '20 座公开站点与运输线';
+
+  if (isPreviewAccess()) {
+    await runRestrictedPolarDiagnostic(totals);
+    return;
+  }
 
   if (reducedMotion) {
     polarDiagnosticState.stations = totals.stations;
@@ -631,6 +1868,112 @@ async function finishPolarDiagnostic(allChecks) {
   selectMapItem(selectedMapItem || MAPPED_ABYSS_POINTS[0], { transient: true });
   setDiagnosticProgress(allChecks, allChecks, '南极网络检查完成', 'CHANNEL READY', 'ALL POLAR SYSTEMS NORMAL');
   taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
+  await diagnosticWait(reducedMotion ? 20 : 1250);
+  polarDiagnostic.classList.add('is-dismissed');
+  await diagnosticWait(reducedMotion ? 20 : 520);
+  polarDiagnostic.hidden = true;
+}
+
+async function runRestrictedPolarDiagnostic(totals) {
+  const shortWait = reducedMotion ? 10 : 90;
+  const stationWait = reducedMotion ? 10 : 150;
+  const entranceWait = reducedMotion ? 10 : 130;
+  const routeWait = reducedMotion ? 10 : 170;
+  const allChecks = totals.stations + totals.entrances + totals.routes + 2;
+  let completed = 0;
+  setDiagnosticProgress(0, allChecks, '正在读取站点资料', 'DATA OFFLINE', 'POLAR SOURCE FILE NOT FOUND');
+  taskStatus.textContent = '南极网络 / 资料未收录';
+
+  polarDiagnostic.dataset.phase = 'stations';
+  setDiagnosticRow('stations', 'active', `00 / ${String(totals.stations).padStart(2, '0')}`);
+  for (let index = 0; index < totals.stations; index += 1) {
+    const station = RESEARCH_STATIONS[index];
+    polarDiagnosticState.stations = index + 1;
+    completed += 1;
+    setDiagnosticRow('stations', 'active', `${String(index + 1).padStart(2, '0')} / ${String(totals.stations).padStart(2, '0')}`);
+    if (!reducedMotion) selectMapItem(station, { transient: true, diagnosticStatus: '检索中' });
+    setDiagnosticProgress(
+      completed,
+      allChecks,
+      `正在检索 ${station.name}`,
+      `STATION ${String(index + 1).padStart(2, '0')}`,
+      `PING ${station.code} / NO RESPONSE`,
+    );
+    taskStatus.textContent = `科研站检索 / ${index + 1} OF ${totals.stations}`;
+    await diagnosticWait(stationWait);
+    if (!reducedMotion) selectMapItem(station, { transient: true, diagnosticStatus: '离线' });
+  }
+  setDiagnosticRow('stations', 'failed', `${totals.stations} 离线`);
+  setDiagnosticProgress(completed, allChecks, '所有科研站均离线', 'CHANNEL 01', 'SURFACE STATION UPLINK FAILED');
+
+  await diagnosticWait(shortWait * 2);
+  polarDiagnostic.dataset.phase = 'entrances';
+  setDiagnosticRow('entrances', 'active', `00 / ${String(totals.entrances).padStart(2, '0')}`);
+  for (let index = 0; index < totals.entrances; index += 1) {
+    const entrance = MAPPED_ABYSS_POINTS[index];
+    polarDiagnosticState.entrances = index + 1;
+    completed += 1;
+    setDiagnosticRow('entrances', 'active', `${String(index + 1).padStart(2, '0')} / ${String(totals.entrances).padStart(2, '0')}`);
+    if (!reducedMotion) selectMapItem(entrance, { transient: true, diagnosticStatus: '检索中' });
+    setDiagnosticProgress(
+      completed,
+      allChecks,
+      `正在检索入口 ${entrance.name}`,
+      `BEACON ${String(index + 1).padStart(2, '0')}`,
+      `QUERY ${entrance.code} / RECORD NOT FOUND`,
+    );
+    taskStatus.textContent = `入口信标检索 / ${index + 1} OF ${totals.entrances}`;
+    await diagnosticWait(entranceWait);
+    if (!reducedMotion) selectMapItem(entrance, { transient: true, diagnosticStatus: '检索失败' });
+  }
+  setDiagnosticRow('entrances', 'failed', `${totals.entrances} 失败`);
+  setDiagnosticProgress(completed, allChecks, '所有入口信标检索失败', 'CHANNEL 02', 'DESCENT BEACON LOOKUP FAILED');
+
+  await diagnosticWait(shortWait * 2);
+  polarDiagnostic.dataset.phase = 'routes';
+  setDiagnosticRow('routes', 'active', `00 / ${String(totals.routes).padStart(2, '0')}`);
+  for (let index = 0; index < totals.routes; index += 1) {
+    const route = LOGISTICS_ROUTES[index];
+    const mapItem = getDiagnosticMapItem('routes', index);
+    polarDiagnosticState.routes = index + 1;
+    completed += 1;
+    setDiagnosticRow('routes', 'active', `${String(index + 1).padStart(2, '0')} / ${String(totals.routes).padStart(2, '0')}`);
+    if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线检索中' });
+    setDiagnosticProgress(
+      completed,
+      allChecks,
+      `正在追踪补给路线 ${String(index + 1).padStart(2, '0')}`,
+      `ROUTE ${String(index + 1).padStart(2, '0')}`,
+      `TRACE ${route?.nodes?.join(' > ') || 'UNKNOWN'} / ROUTE LOST`,
+    );
+    taskStatus.textContent = `补给路线检索 / ${index + 1} OF ${totals.routes}`;
+    await diagnosticWait(routeWait);
+    if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线未知' });
+  }
+  setDiagnosticRow('routes', 'failed', `${totals.routes} 未知`);
+  setDiagnosticProgress(completed, allChecks, '所有补给路线均未知', 'CHANNEL 03', 'LOGISTICS ROUTE STATUS UNKNOWN');
+
+  await diagnosticWait(shortWait * 2);
+  polarDiagnostic.dataset.phase = 'weather';
+  setDiagnosticRow('weather', 'failed', '未收录');
+  completed += 1;
+  setDiagnosticProgress(completed, allChecks, '天气遥测资料缺失', 'CHANNEL 04', 'WEATHER TELEMETRY RECORD NOT FOUND');
+
+  await diagnosticWait(shortWait * 2);
+  polarDiagnostic.dataset.phase = 'storm';
+  setDiagnosticRow('storm', 'failed', '未收录');
+  completed += 1;
+  setDiagnosticProgress(completed, allChecks, '网络资料检索失败', 'DATA OFFLINE', 'ALL STATIONS OFFLINE / ROUTES UNKNOWN');
+
+  polarDiagnostic.dataset.phase = 'failed';
+  polarDiagnostic.classList.add('is-failed');
+  polarLayer.classList.remove('is-diagnostic-running', 'is-network-ready');
+  polarLayer.classList.add('is-network-offline');
+  document.querySelector('#map-detail')?.removeAttribute('aria-busy');
+  selectMapItem(RESEARCH_STATIONS[0], { transient: true });
+  document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 20 STATIONS OFFLINE / ROUTES UNKNOWN';
+  document.querySelector('[data-layer="stations"] small').textContent = '20 座站点离线／补给路线未知';
+  taskStatus.textContent = '南极网络离线 / 补给路线未知';
   await diagnosticWait(reducedMotion ? 20 : 1250);
   polarDiagnostic.classList.add('is-dismissed');
   await diagnosticWait(reducedMotion ? 20 : 520);
@@ -777,7 +2120,7 @@ function focusLocalWindow(state) {
 }
 
 function startLocalWindowDrag(state, event) {
-  if (event.button !== 0 || event.target.closest('button') || state.maximized || state.mode !== 'open') return;
+  if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button') || state.maximized || state.mode !== 'open') return;
   focusLocalWindow(state);
   const windowRect = state.windowElement.getBoundingClientRect();
   const containerRect = state.container.getBoundingClientRect();
@@ -881,7 +2224,7 @@ let archiveWindowSequence = 0;
 let activeArchiveWindow = null;
 
 function syncArchiveTaskbar() {
-  archiveTaskList.hidden = archiveWindows.size === 0;
+  archiveTaskList.hidden = archiveTaskList.children.length === 0;
   archiveWindows.forEach(({ windowElement, taskButton, minimized }) => {
     const isActive = windowElement === activeArchiveWindow && !minimized;
     windowElement.classList.toggle('is-active', isActive);
@@ -894,6 +2237,11 @@ function syncArchiveTaskbar() {
 function bringArchiveWindowToFront(windowElement, focusControl = false) {
   const state = archiveWindows.get(windowElement.dataset.archiveId);
   if (!state || state.minimized) return;
+  document.querySelectorAll('.mascot-document-window.is-active').forEach((candidate) => candidate.classList.remove('is-active'));
+  archiveTaskList.querySelectorAll('.mascot-document-task-button').forEach((button) => {
+    button.classList.remove('is-active');
+    button.setAttribute('aria-pressed', 'false');
+  });
   archiveWindowZ += 1;
   windowElement.style.zIndex = String(archiveWindowZ);
   activeArchiveWindow = windowElement;
@@ -957,6 +2305,8 @@ function closeArchiveWindow(windowElement) {
   if (!state || state.closing) return;
   state.closing = true;
   const removeWindow = () => {
+    state.disposePublishedMedia?.();
+    state.disposePublishedMedia = null;
     windowElement.remove();
     state.taskButton.remove();
     archiveWindows.delete(windowElement.dataset.archiveId);
@@ -983,40 +2333,59 @@ function closeArchiveWindow(windowElement) {
 
 function installArchiveWindowDrag(windowElement) {
   const titlebar = windowElement.querySelector('.dialog-titlebar');
+  const handles = [titlebar, ...ensureWindowDragEdges(windowElement)].filter(Boolean);
   let dragState = null;
-  titlebar.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.target.closest('button')) return;
+  const startDrag = (event) => {
+    if (window.matchMedia('(max-width: 760px)').matches || event.button !== 0 || event.target.closest('button')) return;
     bringArchiveWindowToFront(windowElement);
     const rect = windowElement.getBoundingClientRect();
-    dragState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: rect.left, top: rect.top, width: rect.width };
-    titlebar.setPointerCapture(event.pointerId);
+    dragState = {
+      pointerId: event.pointerId,
+      handle: event.currentTarget,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    dragState.handle.setPointerCapture(event.pointerId);
     windowElement.classList.add('is-dragging');
     event.preventDefault();
-  });
-  titlebar.addEventListener('pointermove', (event) => {
+  };
+  const moveDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
     const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
-    const nextLeft = THREE.MathUtils.clamp(dragState.left + event.clientX - dragState.startX, -dragState.width + 150, innerWidth - 150);
-    const nextTop = THREE.MathUtils.clamp(dragState.top + event.clientY - dragState.startY, 0, innerHeight - taskbarHeight - 28);
+    const nextLeft = THREE.MathUtils.clamp(dragState.left + event.clientX - dragState.startX, -dragState.width + 28, innerWidth - 28);
+    const nextTop = THREE.MathUtils.clamp(dragState.top + event.clientY - dragState.startY, -dragState.height + 64, innerHeight - taskbarHeight - 24);
     windowElement.style.left = `${nextLeft}px`;
     windowElement.style.top = `${nextTop}px`;
-  });
+  };
   const finishDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
-    if (titlebar.hasPointerCapture(event.pointerId)) titlebar.releasePointerCapture(event.pointerId);
+    if (dragState.handle.hasPointerCapture(event.pointerId)) dragState.handle.releasePointerCapture(event.pointerId);
     dragState = null;
     windowElement.classList.remove('is-dragging');
   };
-  titlebar.addEventListener('pointerup', finishDrag);
-  titlebar.addEventListener('pointercancel', finishDrag);
+  handles.forEach((handle) => {
+    handle.addEventListener('pointerdown', startDrag);
+    handle.addEventListener('pointermove', moveDrag);
+    handle.addEventListener('pointerup', finishDrag);
+    handle.addEventListener('pointercancel', finishDrag);
+  });
 }
 
 function buildArchiveOrbit(directory = archiveDirectory) {
   const orbit = document.querySelector('#folder-orbit');
-  const sourceEntries = directory ? directory.children : ARCHIVE_ROOTS;
+  const sourceEntries = directory ? directory.children : archiveRoots;
   const mode = directory ? ARCHIVE_MODES[directory.id] || 'index' : 'orbit';
+  const keepCloudAtTail = (left, right) =>
+    Number(Boolean(left.isCloudArchive)) - Number(Boolean(right.isCloudArchive));
   const entries = mode === 'station-board'
-    ? [...sourceEntries].sort((a, b) => a.operator.localeCompare(b.operator, 'zh-CN') || a.name.localeCompare(b.name, 'zh-CN'))
+    ? [...sourceEntries].sort((a, b) =>
+      keepCloudAtTail(a, b)
+      || String(a.operator ?? '').localeCompare(String(b.operator ?? ''), 'zh-CN')
+      || a.name.localeCompare(b.name, 'zh-CN'))
     : mode === 'country-stack'
       ? [...sourceEntries].sort((a, b) => a.priority - b.priority)
       : sourceEntries;
@@ -1025,16 +2394,22 @@ function buildArchiveOrbit(directory = archiveDirectory) {
     speciesHelixVelocity = 0;
   }
   if (mode !== 'country-stack') countryStackEntries = [];
+  if (mode !== 'event-plane') {
+    if (eventPlaneAnimationFrame) cancelAnimationFrame(eventPlaneAnimationFrame);
+    eventPlaneAnimationFrame = 0;
+    eventPlaneState = null;
+    eventPlaneSuppressClick = false;
+  }
   peopleNetworkState = null;
-  eventChronologyState = null;
   entranceElevationState = null;
   ecologyCabinetState = null;
-  anomalyRegisterState = null;
+  anomalyCarouselSuppressClick = false;
   orbit.replaceChildren();
   orbit.dataset.category = directory?.id || 'root';
   orbit.dataset.mode = mode;
   orbit.className = `folder-orbit mode-${mode}${entries.length > 12 ? ' is-dense' : ''}`;
   archiveSelection = Math.min(archiveSelection, Math.max(entries.length - 1, 0));
+  if (mode === 'ecology-strata') archiveSelection = Math.min(archiveSelection, 6);
   document.querySelector('#archive-heading').textContent = directory ? directory.name : 'PALIS 09A 总目录';
   document.querySelector('#archive-subtitle').textContent = directory
     ? ARCHIVE_SUBTITLES[directory.id] || `${directory.meta} / PALIS ARCHIVE CHANNEL`
@@ -1050,7 +2425,8 @@ function buildArchiveOrbit(directory = archiveDirectory) {
     item.setAttribute('role', 'listitem');
     const button = document.createElement('button');
     const isFolder = Boolean(archive.children);
-    button.className = `folder-button ${isFolder ? 'is-folder' : 'is-document'}`;
+    const availabilityClass = !isFolder ? (archive.webContent ? 'is-online' : 'is-offline') : '';
+    button.className = `folder-button ${isFolder ? 'is-folder' : 'is-document'} ${availabilityClass}`;
     button.type = 'button';
     button.dataset.index = String(index);
     button.dataset.code = archive.code;
@@ -1070,13 +2446,18 @@ function buildArchiveOrbit(directory = archiveDirectory) {
       ${entryIconMarkup(archive, isFolder, index, mode)}
       <span class="folder-name${displayNameClass}">${displayName}</span>
       <small>${archive.meta}</small>
+      ${archive.isNew ? '<span class="archive-new-badge" aria-label="新档案">NEW</span>' : ''}
     `;
     button.addEventListener('click', () => {
+      if (anomalyCarouselSuppressClick || eventPlaneSuppressClick) return;
       if (isFolder) transitionArchiveDirectory(archive);
       else if (mode === 'film') {
         openArchive(archive, button);
       }
-      else if ((mode === 'dossier' || mode === 'case-chronology' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor') && index !== archiveSelection) updateArchiveSelection(index, true);
+      else if (mode === 'event-plane') {
+        openArchive(archive, button);
+      }
+      else if ((mode === 'dossier' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor' || mode === 'species-helix') && index !== archiveSelection) updateArchiveSelection(index, true);
       else openArchive(archive, button);
     });
     item.appendChild(button);
@@ -1117,8 +2498,8 @@ function buildArchiveOrbit(directory = archiveDirectory) {
     buildEcologyCabinet(orbit, entries, appendArchiveEntry);
   } else if (mode === 'dossier') {
     buildPeopleNetwork(orbit, entries, appendArchiveEntry);
-  } else if (mode === 'case-chronology') {
-    buildEventChronology(orbit, entries, appendArchiveEntry);
+  } else if (mode === 'event-plane') {
+    buildEventPlane(orbit, entries, appendArchiveEntry);
   } else if (mode === 'anomaly-monitor') {
     buildAnomalyMonitor(orbit, entries, appendArchiveEntry);
   } else if (mode === 'species-helix') {
@@ -1148,11 +2529,14 @@ function entryIconMarkup(archive, isFolder, index, mode) {
       : `<span class="film-missing">FRAME ${String(index + 1).padStart(2, '0')}<br>IMAGE UNAVAILABLE</span>`;
     return `<span class="film-card"><span class="film-perf top"></span><span class="film-photo">${frame}</span><span class="film-perf bottom"></span><em>${archive.year || '19--'} / ${archive.code}</em></span>`;
   }
-  if (mode === 'case-chronology') {
-    const band = eventBandClass(archive);
-    const yearTab = (archive.year || '').match(/\d{4}/)?.[0] || '19XX';
-    const attr = { open: 'P', incident: 'C', file: 'F' }[band];
-    return `<span class="ev-attr" data-band="${band}"><b>${attr}</b><i>${archive.code}</i><em>${yearTab}</em></span>`;
+  if (mode === 'event-plane') {
+    const frame = archive.image
+      ? `<img src="${archive.image}" alt="" loading="lazy">`
+      : `<span class="event-plane-missing">PLATE ${String(index + 1).padStart(2, '0')}<br>IMAGE WITHHELD</span>`;
+    const eventDate = archive.year || '19--';
+    const primaryYear = eventDate.match(/\d{4}/)?.[0] || eventDate;
+    const dateDetail = primaryYear === eventDate ? '' : eventDate.slice(eventDate.indexOf(primaryYear) + primaryYear.length);
+    return `<span class="event-plane-poster"><span class="event-plane-image">${frame}</span><span class="event-plane-year"><b>${primaryYear}</b>${dateDetail ? `<i>${dateDetail}</i>` : ''}</span><span class="event-plane-code">${archive.code}</span><span class="event-plane-rule">SPATIAL ACCESSION / ${String(index + 1).padStart(2, '0')}</span></span>`;
   }
   if (mode === 'country-stack') {
     const bloc = { west: 'WEST / BLUE', east: 'EAST / RED', neutral: 'NON-ALIGNED' }[archive.bloc] || 'UNFILED';
@@ -1168,7 +2552,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
     return `<span class="strata-index"><b>${archive.code}</b><i>${String(index + 1).padStart(2, '0')} / 07</i></span>`;
   }
   if (mode === 'anomaly-monitor') {
-    return `<span class="film-cell" data-severity="${archive.severity || 'observed'}"><span class="film-cell-strip" aria-hidden="true"></span><b>${archive.code}</b><em>${(archive.eventDate || '----').slice(0, 4)}</em></span>`;
+    return `<span class="anomaly-card-face"><span class="anomaly-card-kicker"><i>PALIS / 09A</i><em>${archive.severity || 'observed'}</em></span><b>${archive.code}</b><span class="anomaly-card-rule">${archive.rule || 'CLOSURE FAILURE'}</span><span class="anomaly-card-lines"><i></i><i></i><i></i></span></span>`;
   }
   if (mode === 'species-helix') {
     return specimenPhotoMarkup(archive, index);
@@ -1193,7 +2577,7 @@ function buildCountryStack(orbit, entries, appendArchiveEntry) {
       <div class="country-folder-stack" role="list" aria-label="堆叠国家档案"></div>
       <aside class="country-stack-readout" aria-live="polite"></aside>
     </div>
-    <footer><span>NATIONAL ACCESSION STACK / 18 FILES</span><b>SOURCE ORDER PRESERVED</b></footer>
+    <footer><span>NATIONAL ACCESSION STACK / ${String(entries.length).padStart(2, '0')} FILES</span><b>SOURCE ORDER PRESERVED</b></footer>
   `;
   orbit.appendChild(vault);
   const deck = vault.querySelector('.country-folder-stack');
@@ -1250,12 +2634,17 @@ function updateCountryStackReadout(archive) {
   const readout = folderOrbit.querySelector('.country-stack-readout');
   if (!readout || !archive) return;
   const bloc = { west: 'BLUE ACCESSION', east: 'RED ACCESSION', neutral: 'NON-ALIGNED ACCESSION' }[archive.bloc] || 'UNFILED';
+  const stats = Array.isArray(archive.stats) && archive.stats.length
+    ? archive.stats
+    : [['目录', '国家'], ['档案期', archive.archivePeriod || '待定'], ['状态', archive.isNew ? '新入档' : '已上线']];
   readout.dataset.bloc = archive.bloc || 'neutral';
   readout.innerHTML = `
     <p><span>${bloc}</span><b>${archive.code} / STATE FILE</b></p>
     <div class="country-readout-heading">${countryFlagMarkup(archive, 'country-flag--readout')}<span><h3>${archive.englishName || archive.name}</h3><small>${archive.officialName || archive.heading}</small></span></div>
-    <div>${archive.body[0]}</div>
-    <dl>${archive.stats.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
+    <div class="country-readout-redaction" role="img" aria-label="国家档案摘要已遮蔽">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <dl>${stats.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
     <footer>PALIS SOURCE CONTROL / VERSION PRESERVED</footer>
   `;
 }
@@ -1533,200 +2922,449 @@ function renderPeopleNetwork(animate = true) {
   }
 }
 
-function eventReferenceTokens(archive) {
-  const text = [...(archive.fields || []).map(([, value]) => value), ...(archive.body || [])].join(' ');
-  const matches = text.match(/[A-Z]{1,4}-\d+/g) || [];
-  return [...new Set(matches)];
-}
-
-function buildEventCrossReferences(entries) {
-  const entryTokens = entries.map((archive) => eventReferenceTokens(archive));
-  const tokenMap = new Map();
-  entryTokens.forEach((tokens, index) => {
-    tokens.forEach((token) => {
-      if (!tokenMap.has(token)) tokenMap.set(token, []);
-      tokenMap.get(token).push(index);
-    });
-  });
-  return entries.map((archive, index) => {
-    const related = new Map();
-    entryTokens[index].forEach((token) => {
-      (tokenMap.get(token) || []).forEach((otherIndex) => {
-        if (otherIndex === index) return;
-        if (!related.has(otherIndex)) related.set(otherIndex, new Set());
-        related.get(otherIndex).add(token);
-      });
-    });
-    return [...related.entries()]
-      .map(([otherIndex, tokens]) => ({ index: otherIndex, tokens: [...tokens] }))
-      .sort((left, right) => left.index - right.index);
-  });
-}
-
-function splitExhibitList(value = '') {
-  return value.split(/[、，,]/).map((item) => item.trim()).filter(Boolean);
-}
-
-function eventBandClass(archive) {
-  const text = `${archive.meta || ''}${archive.status || ''}`;
-  if (/失踪|事故|监听|医检|撤离/.test(text)) return 'incident';
-  if (/公开/.test(text)) return 'open';
-  return 'file';
-}
-
-const EVENT_BAND_LABEL = { open: '公开行动卷', incident: '限制事故卷', file: '限制归档卷' };
-
-// The contents printed on the envelope face, inferred from the record's own
-// text. The pocket as a whole is flagged 版本冲突 when the note describes a
-// non-closure, rather than stamping every single line.
-function eventChecklist(archive) {
-  const text = `${archive.meta || ''} ${(archive.fields || []).map(([, value]) => value).join(' ')} ${(archive.body || []).join(' ')}`;
-  const catalogue = [
-    ['胶片', /胶片|印样|航片|底片|影像|画面/],
-    ['日志', /日志|记录|值班|飞行本|纸带/],
-    ['名单', /名单|名册|点名|座位|派遣表|清单/],
-    ['样本', /样本|组织|滤芯|样本箱|封条|血样|针叶/],
-    ['无线电', /无线电|呼号|电报|广播|频段|监听/],
-    ['地图', /地图|格网|坐标|母图|测线|里程/],
-  ];
-  const items = catalogue.filter(([, pattern]) => pattern.test(text)).map(([label]) => label);
-  const conflict = /互斥|冲突|双清单|双值班|双号|双附件|双批次|两套|两份|三链|三套|不闭合|漂移|重复|并存|异名/.test(text);
-  return { items, conflict };
-}
-
-// The directory record shows a real multi-paragraph readout so the panel fills
-// with case narrative rather than a single line. Longform cases preview their
-// first prose blocks; card-only cases fall back to their registered note.
-function eventNarrative(archive) {
-  const prose = (archive.longform?.blocks || [])
-    .filter((block) => block.type === 'paragraph' && block.text)
-    .map((block) => block.text);
-  if (prose.length) return prose.slice(0, 4);
-  return (archive.body || []).filter(Boolean);
-}
-
-function buildEventChronology(orbit, entries, appendArchiveEntry) {
-  const cabinet = document.createElement('section');
-  cabinet.className = 'ev-cabinet';
-  cabinet.innerHTML = `
-    <header class="ev-cabinet-bar"><span>PALIS / 案卷目录 · CASE FILE DIRECTORY</span><b>${entries.length} RECORDS · SOURCE CONFLICTS CROSS-INDEXED</b></header>
-    <nav class="ev-directory" role="list" aria-label="按年代排列的全部案卷">
-      <div class="ev-directory-head" aria-hidden="true"><span>属性</span><span>编号</span><span>年代</span><span>标题</span></div>
-    </nav>
-    <section class="ev-record" aria-live="polite">
-      <header class="ev-record-head">
-        <span class="ev-record-code" data-event-code>--</span>
-        <span class="ev-record-year" data-event-year>----</span>
-        <span class="ev-record-band" data-event-band>--</span>
-        <span class="ev-record-accession" data-event-accession>PALIS/09A/---</span>
-        <span class="ev-record-flag" data-event-flag hidden>版本冲突 · UNRECONCILED</span>
-      </header>
-      <div class="ev-record-body">
-        <div class="ev-record-main">
-          <div class="ev-record-titles">
-            <h3 data-event-name>未选择</h3>
-            <strong data-event-status>--</strong>
-          </div>
-          <div class="ev-record-narrative" data-event-narrative></div>
-          <button type="button" class="directory-open-button">打开调查卷 →</button>
-        </div>
-        <aside class="ev-record-side">
-          <figure class="ev-record-photo-block">
-            <div class="event-dossier-image ev-record-photo" data-event-image></div>
-            <figcaption data-event-caption>影像存卷</figcaption>
-          </figure>
-          <dl data-event-fields class="event-dossier-fields"></dl>
-          <div class="event-dossier-exhibits">
-            <span class="event-dossier-section-label">夹内附件</span>
-            <div data-event-exhibits class="event-exhibit-tags"></div>
-          </div>
-          <div class="event-dossier-crossref" data-event-crossref hidden>
-            <span class="event-dossier-section-label">并存版本</span>
-            <div data-event-crossref-list class="event-crossref-chips"></div>
-          </div>
-        </aside>
+function buildEventPlane(orbit, entries, appendArchiveEntry) {
+  // HZ-6 anchors the first position. Every later published event fills the
+  // next reserved baseline slot, keeping the remaining 25 positions ready.
+  const eventSlotIndexes = entries.map((_, index) => index);
+  const planeLayout = buildEventPlaneSlotLayout(eventSlotIndexes);
+  const scene = document.createElement('section');
+  scene.className = 'event-plane';
+  scene.tabIndex = 0;
+  scene.setAttribute('aria-label', '无限缩放事件墙。滚轮或双指缩放，拖拽移动，点击事件自动聚焦。');
+  scene.innerHTML = `
+    <header class="event-plane-mast">
+      <span>PALIS / DEEP ARCHIVE PLANE</span>
+      <b>${entries.length} SPATIAL ACCESSIONS · SCALE INDEPENDENT</b>
+    </header>
+    <div class="event-plane-viewport">
+      <div class="event-plane-reticle" aria-hidden="true"><i></i><b>ZOOM TARGET</b></div>
+      <div class="event-plane-world" role="list" aria-label="事件档案空间">
+        <span class="event-plane-monument monument-19" aria-hidden="true">19</span>
+        <span class="event-plane-monument monument-64" aria-hidden="true">64</span>
+        <span class="event-plane-monument monument-palis" aria-hidden="true">PALIS</span>
+        <span class="event-plane-axis axis-x" aria-hidden="true"></span>
+        <span class="event-plane-axis axis-y" aria-hidden="true"></span>
       </div>
-    </section>
+    </div>
+    <aside class="event-plane-hud" aria-live="polite">
+      <span>CAMERA DEPTH</span>
+      <strong>×0.00</strong>
+      <b>VISIBLE 00 / ${String(entries.length).padStart(2, '0')}</b>
+      <div class="event-plane-zoom-controls" aria-label="Archive plane zoom">
+        <button class="event-plane-zoom-out" type="button" aria-label="Zoom out archive plane">−</button>
+        <button class="event-plane-zoom-in" type="button" aria-label="Zoom in archive plane">+</button>
+      </div>
+      <button class="event-plane-reset" type="button">⌖ 返回全景</button>
+    </aside>
+    <nav class="event-plane-map" aria-label="事件空间快速定位">
+      <span>ARCHIVE PLANE</span>
+      <div class="event-plane-map-field">
+        <i class="event-plane-map-viewport"></i>
+      </div>
+    </nav>
+    <footer><span>DRAG TO PAN / WHEEL OR PINCH TO DIVE</span><b>CLICK CARD TO OPEN · RADAR TO FOCUS</b></footer>
   `;
-  const directory = cabinet.querySelector('.ev-directory');
-  const results = entries.map((archive, index) => appendArchiveEntry(archive, index, directory));
-  const buttons = results.map((result) => result.button);
-  const items = results.map((result) => result.item);
-  results.forEach((result, index) => {
-    const nameEl = result.button.querySelector('.folder-name');
-    if (nameEl) nameEl.textContent = entries[index].name.replace(`${entries[index].year} / `, '');
+  orbit.appendChild(scene);
+  const world = scene.querySelector('.event-plane-world');
+  const mapField = scene.querySelector('.event-plane-map-field');
+  world.style.setProperty('--event-plane-width', `${planeLayout.width}px`);
+  world.style.setProperty('--event-plane-height', `${planeLayout.height}px`);
+
+  entries.forEach((archive, index) => {
+    const layout = planeLayout.items[index];
+    const { item, button } = appendArchiveEntry(archive, index, world);
+    item.style.setProperty('--world-x', `${layout.x}px`);
+    item.style.setProperty('--world-y', `${layout.y}px`);
+    item.style.setProperty('--world-width', `${layout.width}px`);
+    item.style.setProperty('--world-height', `${layout.height}px`);
+    item.style.setProperty('--world-rotate', `${layout.rotate}deg`);
+    item.style.setProperty('--event-order', String(index));
+    item.dataset.planeIndex = String(index);
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'event-plane-map-node';
+    node.style.left = `${((layout.x + layout.width / 2) / planeLayout.width) * 100}%`;
+    node.style.top = `${((layout.y + layout.height / 2) / planeLayout.height) * 100}%`;
+    node.dataset.index = String(index);
+    node.setAttribute('aria-label', `定位 ${archive.name}`);
+    node.innerHTML = `<i></i><span>${String(index + 1).padStart(2, '0')}</span>`;
+    node.addEventListener('click', () => focusEventPlaneEntry(index));
+    mapField.appendChild(node);
   });
-  orbit.appendChild(cabinet);
-  const crossRefs = buildEventCrossReferences(entries);
-  eventChronologyState = { entries, cabinet, buttons, items, crossRefs, recordAnimation: null };
-  cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
-    openArchive(entries[archiveSelection], buttons[archiveSelection]);
+
+  eventPlaneState = {
+    scene,
+    world,
+    layout: planeLayout,
+    x: 0,
+    y: 0,
+    scale: 0.6,
+    targetX: 0,
+    targetY: 0,
+    targetScale: 0.6,
+    width: 0,
+    height: 0,
+    pointers: new Map(),
+    drag: null,
+    pinch: null,
+  };
+
+  scene.querySelector('.event-plane-reset').addEventListener('click', () => resetEventPlane());
+  scene.querySelector('.event-plane-zoom-out').addEventListener('click', () => {
+    const { width, height } = eventPlaneViewportSize();
+    zoomEventPlaneAt(width / 2, height / 2, 0.78);
   });
-  renderEventChronology(false);
+  scene.querySelector('.event-plane-zoom-in').addEventListener('click', () => {
+    const { width, height } = eventPlaneViewportSize();
+    zoomEventPlaneAt(width / 2, height / 2, 1.28);
+  });
+  scene.addEventListener('wheel', handleEventPlaneWheel, { passive: false });
+  scene.addEventListener('pointerdown', beginEventPlanePointer);
+  scene.addEventListener('pointermove', moveEventPlanePointer);
+  scene.addEventListener('pointerup', finishEventPlanePointer);
+  scene.addEventListener('pointercancel', finishEventPlanePointer);
+  scene.addEventListener('dblclick', (event) => {
+    if (!event.target.closest('.folder-button, .event-plane-hud, .event-plane-map')) resetEventPlane();
+  });
+  scene.addEventListener('keydown', (event) => {
+    if (event.target.closest('.folder-button, .event-plane-map-node, .event-plane-reset')) return;
+    const controls = ['+', '=', '-', '_', '0', 'Home', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+    if (!controls.includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === '0' || event.key === 'Home') {
+      resetEventPlane();
+      return;
+    }
+    if (event.key === '+' || event.key === '=') zoomEventPlaneAt(scene.clientWidth / 2, scene.clientHeight / 2, 1.28);
+    else if (event.key === '-' || event.key === '_') zoomEventPlaneAt(scene.clientWidth / 2, scene.clientHeight / 2, 0.78);
+    else {
+      const distance = 150;
+      const dx = event.key === 'ArrowLeft' ? distance : event.key === 'ArrowRight' ? -distance : 0;
+      const dy = event.key === 'ArrowUp' ? distance : event.key === 'ArrowDown' ? -distance : 0;
+      setEventPlaneTarget(eventPlaneState.targetX + dx, eventPlaneState.targetY + dy, eventPlaneState.targetScale);
+    }
+  });
+
+  resetEventPlane(true);
+  requestAnimationFrame(() => resetEventPlane(true));
 }
 
-function renderEventChronology(animate = true) {
-  const state = eventChronologyState;
-  if (!state || folderOrbit.dataset.mode !== 'case-chronology') return;
-  const archive = state.entries[archiveSelection];
-  const band = eventBandClass(archive);
-  state.buttons.forEach((button, index) => {
-    button.classList.toggle('is-selected', index === archiveSelection);
-    button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
-  });
-  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion ? 'instant' : 'smooth' });
-  const image = state.cabinet.querySelector('[data-event-image]');
-  image.classList.toggle('is-withheld', !archive.image);
-  image.innerHTML = archive.image
-    ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)} 的档案影像" loading="eager">`
-    : `<span class="event-redacted-stamp">${archive.code}<br>影像未公开</span>`;
-  state.cabinet.querySelector('[data-event-code]').textContent = archive.code;
-  state.cabinet.querySelector('[data-event-year]').textContent = archive.year;
-  const bandTag = state.cabinet.querySelector('[data-event-band]');
-  bandTag.textContent = EVENT_BAND_LABEL[band];
-  bandTag.dataset.band = band;
-  state.cabinet.querySelector('[data-event-flag]').hidden = !eventChecklist(archive).conflict;
-  state.cabinet.querySelector('[data-event-accession]').textContent = archive.accession;
-  state.cabinet.querySelector('[data-event-caption]').textContent = archive.image ? '影像存卷' : '影像未公开';
-  state.cabinet.querySelector('[data-event-name]').textContent = archive.name.replace(`${archive.year} / `, '');
-  state.cabinet.querySelector('[data-event-status]').textContent = archive.meta;
-  const fields = (archive.fields || []).filter(([label]) => !['证据', '片卷号', '年代'].includes(label));
-  state.cabinet.querySelector('[data-event-fields]').innerHTML = fields
-    .slice(0, 4)
-    .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
-  const evidenceField = (archive.fields || []).find(([label]) => label === '证据');
-  const exhibits = evidenceField ? splitExhibitList(evidenceField[1]) : [];
-  state.cabinet.querySelector('[data-event-exhibits]').innerHTML = exhibits.length
-    ? exhibits.map((item) => `<span class="event-exhibit-tag">${item}</span>`).join('')
-    : '<span class="event-exhibit-tag is-empty">未附实物证据登记</span>';
-  const crossref = state.crossRefs[archiveSelection] || [];
-  const crossrefWrap = state.cabinet.querySelector('[data-event-crossref]');
-  crossrefWrap.hidden = crossref.length === 0;
-  state.cabinet.querySelector('[data-event-crossref-list]').innerHTML = crossref
-    .map(({ index, tokens }) => `<button type="button" class="event-crossref-chip" data-crossref-index="${index}">${state.entries[index].code} · 共享 ${tokens[0]}</button>`)
-    .join('');
-  state.cabinet.querySelectorAll('[data-crossref-index]').forEach((chip) => {
-    chip.addEventListener('click', () => updateArchiveSelection(Number(chip.dataset.crossrefIndex), true));
-  });
-  const narrative = eventNarrative(archive);
-  state.cabinet.querySelector('[data-event-narrative]').innerHTML = narrative.length
-    ? narrative.map((paragraph) => `<p>${escapeRecordText(paragraph)}</p>`).join('')
-    : '<p>该调查卷尚无摘要。</p>';
-  // One quick record-redraw: the panel refreshes, the accession code snaps in. No further motion.
-  if (animate && !reducedMotion) {
-    const record = state.cabinet.querySelector('.ev-record');
-    const codeChip = state.cabinet.querySelector('[data-event-code]');
-    state.recordAnimation?.forEach((animation) => animation.cancel());
-    state.recordAnimation = [
-      record.animate([
-        { opacity: .5, transform: 'translateY(4px)' },
-        { opacity: 1, transform: 'translateY(0)' },
-      ], { duration: 200, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
-      codeChip.animate([
-        { opacity: 0 }, { opacity: 1 },
-      ], { duration: 140, easing: 'steps(2, end)', fill: 'backwards' }),
-    ];
+function eventPlaneViewportSize() {
+  const scene = eventPlaneState?.scene;
+  return {
+    width: scene?.clientWidth || folderOrbit.clientWidth || innerWidth,
+    height: scene?.clientHeight || folderOrbit.clientHeight || Math.min(innerHeight * 0.7, 700),
+  };
+}
+
+function resetEventPlane(immediate = false) {
+  if (!eventPlaneState) return;
+  const { width, height } = eventPlaneViewportSize();
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
+  const scale = THREE.MathUtils.clamp(
+    Math.min(width / (worldWidth + 180), height / (worldHeight + 180)) * 0.96,
+    0.02,
+    0.62,
+  );
+  const x = width / 2 - worldWidth * scale / 2;
+  const y = height / 2 - worldHeight * scale / 2;
+  setEventPlaneTarget(x, y, scale, immediate || reducedMotion);
+}
+
+function clampEventPlaneCamera(x, y, scale) {
+  const { width, height } = eventPlaneViewportSize();
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
+  const edge = Math.min(110, width * 0.22, height * 0.22);
+  const scaledWidth = worldWidth * scale;
+  const scaledHeight = worldHeight * scale;
+  const nextX = scaledWidth <= width
+    ? (width - scaledWidth) / 2
+    : THREE.MathUtils.clamp(x, width - edge - scaledWidth, edge);
+  const nextY = scaledHeight <= height
+    ? (height - scaledHeight) / 2
+    : THREE.MathUtils.clamp(y, height - edge - scaledHeight, edge);
+  return { x: nextX, y: nextY, scale };
+}
+
+function setEventPlaneTarget(x, y, scale, immediate = false) {
+  if (!eventPlaneState) return;
+  const { width, height } = eventPlaneViewportSize();
+  const { width: worldWidth, height: worldHeight } = eventPlaneState.layout;
+  const fitMinimum = Math.min(width / worldWidth, height / worldHeight) * 0.72;
+  const minimumScale = Math.max(0.02, Math.min(0.085, fitMinimum));
+  const nextScale = THREE.MathUtils.clamp(scale, minimumScale, 2.35);
+  const next = clampEventPlaneCamera(x, y, nextScale);
+  eventPlaneState.targetX = next.x;
+  eventPlaneState.targetY = next.y;
+  eventPlaneState.targetScale = next.scale;
+  if (immediate) {
+    eventPlaneState.x = next.x;
+    eventPlaneState.y = next.y;
+    eventPlaneState.scale = next.scale;
+    renderEventPlane();
+    return;
   }
+  queueEventPlaneAnimation();
+}
+
+function queueEventPlaneAnimation() {
+  if (!eventPlaneState || eventPlaneAnimationFrame) return;
+  const tick = () => {
+    if (!eventPlaneState) {
+      eventPlaneAnimationFrame = 0;
+      return;
+    }
+    const easing = reducedMotion ? 1 : 0.17;
+    eventPlaneState.x += (eventPlaneState.targetX - eventPlaneState.x) * easing;
+    eventPlaneState.y += (eventPlaneState.targetY - eventPlaneState.y) * easing;
+    eventPlaneState.scale += (eventPlaneState.targetScale - eventPlaneState.scale) * easing;
+    renderEventPlane();
+    const distance = Math.abs(eventPlaneState.targetX - eventPlaneState.x)
+      + Math.abs(eventPlaneState.targetY - eventPlaneState.y)
+      + Math.abs(eventPlaneState.targetScale - eventPlaneState.scale) * 600;
+    if (distance > 0.22) eventPlaneAnimationFrame = requestAnimationFrame(tick);
+    else {
+      eventPlaneState.x = eventPlaneState.targetX;
+      eventPlaneState.y = eventPlaneState.targetY;
+      eventPlaneState.scale = eventPlaneState.targetScale;
+      renderEventPlane();
+      eventPlaneAnimationFrame = 0;
+    }
+  };
+  eventPlaneAnimationFrame = requestAnimationFrame(tick);
+}
+
+function renderEventPlane() {
+  if (!eventPlaneState) return;
+  const { scene, world, x, y, scale } = eventPlaneState;
+  world.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+  scene.style.setProperty('--plane-grid-x', `${x % 64}px`);
+  scene.style.setProperty('--plane-grid-y', `${y % 64}px`);
+  scene.style.setProperty('--plane-grid-scale', String(scale));
+  scene.dataset.depth = scale < 0.58 ? 'far' : scale < 1.08 ? 'mid' : 'near';
+
+  const visible = eventPlaneVisibleCount(
+    eventPlaneState.layout,
+    { x, y, scale },
+    { width: scene.clientWidth, height: scene.clientHeight },
+  );
+  const hud = scene.querySelector('.event-plane-hud');
+  hud.querySelector('strong').textContent = `×${scale.toFixed(2)}`;
+  hud.querySelector('b').textContent = `VISIBLE ${String(visible).padStart(2, '0')} / ${String(eventPlaneState.layout.items.length).padStart(2, '0')}`;
+
+  const view = scene.querySelector('.event-plane-map-viewport');
+  const worldWidth = THREE.MathUtils.clamp(
+    scene.clientWidth / scale / eventPlaneState.layout.width,
+    0.035,
+    1,
+  );
+  const worldHeight = THREE.MathUtils.clamp(
+    scene.clientHeight / scale / eventPlaneState.layout.height,
+    0.035,
+    1,
+  );
+  const worldLeft = THREE.MathUtils.clamp(
+    (-x / scale) / eventPlaneState.layout.width,
+    0,
+    Math.max(0, 1 - worldWidth),
+  );
+  const worldTop = THREE.MathUtils.clamp(
+    (-y / scale) / eventPlaneState.layout.height,
+    0,
+    Math.max(0, 1 - worldHeight),
+  );
+  view.style.left = `${worldLeft * 100}%`;
+  view.style.top = `${worldTop * 100}%`;
+  view.style.width = `${worldWidth * 100}%`;
+  view.style.height = `${worldHeight * 100}%`;
+
+  folderButtons.forEach((button, index) => {
+    const selected = index === archiveSelection;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-current', selected ? 'true' : 'false');
+  });
+  scene.querySelectorAll('.event-plane-map-node').forEach((node) => {
+    node.classList.toggle('is-selected', Number(node.dataset.index) === archiveSelection);
+  });
+}
+
+function syncEventPlaneViewport() {
+  if (!eventPlaneState) return;
+  const { width, height } = eventPlaneViewportSize();
+  if (Math.abs(width - eventPlaneState.width) < 1 && Math.abs(height - eventPlaneState.height) < 1) return;
+  const previousWidth = eventPlaneState.width || width;
+  const previousHeight = eventPlaneState.height || height;
+  const worldCenterX = (previousWidth / 2 - eventPlaneState.x) / eventPlaneState.scale;
+  const worldCenterY = (previousHeight / 2 - eventPlaneState.y) / eventPlaneState.scale;
+  eventPlaneState.width = width;
+  eventPlaneState.height = height;
+  setEventPlaneTarget(
+    width / 2 - worldCenterX * eventPlaneState.scale,
+    height / 2 - worldCenterY * eventPlaneState.scale,
+    eventPlaneState.scale,
+    true,
+  );
+}
+
+function zoomEventPlaneAt(pointerX, pointerY, factor) {
+  if (!eventPlaneState) return;
+  const baseScale = eventPlaneState.targetScale;
+  const worldX = (pointerX - eventPlaneState.targetX) / baseScale;
+  const worldY = (pointerY - eventPlaneState.targetY) / baseScale;
+  const nextScale = baseScale * factor;
+  setEventPlaneTarget(pointerX - worldX * nextScale, pointerY - worldY * nextScale, nextScale);
+}
+
+function handleEventPlaneWheel(event) {
+  if (!eventPlaneState || eventPlaneState.scene !== event.currentTarget) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = eventPlaneState.scene.getBoundingClientRect();
+  const delta = THREE.MathUtils.clamp(event.deltaY || event.deltaX, -160, 160);
+  zoomEventPlaneAt(event.clientX - rect.left, event.clientY - rect.top, Math.exp(-delta * 0.0018));
+}
+
+function beginEventPlanePointer(event) {
+  // A first finger on a card still owns its native tap. A second touch may join
+  // an active canvas gesture even when it lands on a card, so phone pinch zoom
+  // remains reliable in a dense archive plane.
+  if (!eventPlaneState || event.button > 0) return;
+  const targetIsControl = event.target.closest('.event-plane-hud, .event-plane-map');
+  const targetIsCard = event.target.closest('.folder-button');
+  const joinsActiveTouchGesture = event.pointerType === 'touch' && eventPlaneState.pointers.size > 0;
+  if (targetIsControl || (targetIsCard && !joinsActiveTouchGesture)) return;
+  const scene = eventPlaneState.scene;
+  const rect = scene.getBoundingClientRect();
+  const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  eventPlaneState.pointers.set(event.pointerId, point);
+  try { scene.setPointerCapture(event.pointerId); } catch {}
+
+  if (eventPlaneState.pointers.size === 1) {
+    eventPlaneState.drag = {
+      pointerId: event.pointerId,
+      startX: point.x,
+      startY: point.y,
+      originX: eventPlaneState.x,
+      originY: eventPlaneState.y,
+      lastX: point.x,
+      lastY: point.y,
+      lastTime: performance.now(),
+      velocityX: 0,
+      velocityY: 0,
+      moved: false,
+    };
+  } else if (eventPlaneState.pointers.size === 2) {
+    const [a, b] = [...eventPlaneState.pointers.values()];
+    const centerX = (a.x + b.x) / 2;
+    const centerY = (a.y + b.y) / 2;
+    eventPlaneState.pinch = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+      scale: eventPlaneState.scale,
+      worldX: (centerX - eventPlaneState.x) / eventPlaneState.scale,
+      worldY: (centerY - eventPlaneState.y) / eventPlaneState.scale,
+    };
+    eventPlaneState.drag = null;
+    eventPlaneSuppressClick = true;
+    scene.classList.add('is-dragging', 'is-pinching');
+  }
+}
+
+function moveEventPlanePointer(event) {
+  if (!eventPlaneState?.pointers.has(event.pointerId)) {
+    if (eventPlaneState && event.pointerType === 'mouse') {
+      const rect = eventPlaneState.scene.getBoundingClientRect();
+      eventPlaneState.scene.style.setProperty('--reticle-x', `${event.clientX - rect.left}px`);
+      eventPlaneState.scene.style.setProperty('--reticle-y', `${event.clientY - rect.top}px`);
+    }
+    return;
+  }
+  const rect = eventPlaneState.scene.getBoundingClientRect();
+  const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  eventPlaneState.pointers.set(event.pointerId, point);
+
+  if (eventPlaneState.pinch && eventPlaneState.pointers.size >= 2) {
+    event.preventDefault();
+    const [a, b] = [...eventPlaneState.pointers.values()];
+    const centerX = (a.x + b.x) / 2;
+    const centerY = (a.y + b.y) / 2;
+    const distance = Math.max(Math.hypot(a.x - b.x, a.y - b.y), 10);
+    const scale = eventPlaneState.pinch.scale * distance / Math.max(eventPlaneState.pinch.distance, 10);
+    setEventPlaneTarget(
+      centerX - eventPlaneState.pinch.worldX * scale,
+      centerY - eventPlaneState.pinch.worldY * scale,
+      scale,
+      true,
+    );
+    return;
+  }
+
+  const drag = eventPlaneState.drag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const dx = point.x - drag.startX;
+  const dy = point.y - drag.startY;
+  if (!drag.moved && Math.hypot(dx, dy) > 6) {
+    drag.moved = true;
+    eventPlaneSuppressClick = true;
+    eventPlaneState.scene.classList.add('is-dragging');
+  }
+  if (!drag.moved) return;
+  event.preventDefault();
+  const now = performance.now();
+  const elapsed = Math.max(now - drag.lastTime, 8);
+  drag.velocityX = THREE.MathUtils.lerp(drag.velocityX, (point.x - drag.lastX) / elapsed, 0.45);
+  drag.velocityY = THREE.MathUtils.lerp(drag.velocityY, (point.y - drag.lastY) / elapsed, 0.45);
+  drag.lastX = point.x;
+  drag.lastY = point.y;
+  drag.lastTime = now;
+  setEventPlaneTarget(drag.originX + dx, drag.originY + dy, eventPlaneState.scale, true);
+}
+
+function finishEventPlanePointer(event) {
+  if (!eventPlaneState?.pointers.has(event.pointerId)) return;
+  const drag = eventPlaneState.drag;
+  const wasPinching = Boolean(eventPlaneState.pinch);
+  eventPlaneState.pointers.delete(event.pointerId);
+  try {
+    if (eventPlaneState.scene.hasPointerCapture(event.pointerId)) eventPlaneState.scene.releasePointerCapture(event.pointerId);
+  } catch {}
+
+  if (wasPinching) {
+    eventPlaneState.pinch = null;
+    eventPlaneState.drag = null;
+    eventPlaneState.scene.classList.remove('is-pinching', 'is-dragging');
+    setTimeout(() => { eventPlaneSuppressClick = false; }, 0);
+    return;
+  }
+
+  if (drag?.moved) {
+    setEventPlaneTarget(
+      eventPlaneState.x + drag.velocityX * 180,
+      eventPlaneState.y + drag.velocityY * 180,
+      eventPlaneState.scale,
+    );
+    setTimeout(() => { eventPlaneSuppressClick = false; }, 0);
+  }
+  eventPlaneState.drag = null;
+  eventPlaneState.scene.classList.remove('is-dragging');
+}
+
+function focusEventPlaneEntry(index, immediate = false) {
+  if (!eventPlaneState || !folderButtons[index]) return;
+  const layout = eventPlaneState.layout.items[index];
+  if (!layout) return;
+  if (index !== archiveSelection) updateArchiveSelection(index, false);
+  const { width, height } = eventPlaneViewportSize();
+  const mobile = width <= 760;
+  const widthPadding = mobile ? 1.08 : 1.34;
+  const heightPadding = mobile ? 1.22 : 1.4;
+  const scale = THREE.MathUtils.clamp(
+    Math.min(width / (layout.width * widthPadding), height / (layout.height * heightPadding)),
+    mobile ? 0.5 : 0.9,
+    mobile ? 1.12 : 1.62,
+  );
+  const centerX = layout.x + layout.width / 2;
+  const centerY = layout.y + layout.height / 2;
+  setEventPlaneTarget(width / 2 - centerX * scale, height / 2 - centerY * scale, scale, immediate || reducedMotion);
 }
 
 const ENTRANCE_PROFILE_SHAPES = {
@@ -2319,9 +3957,14 @@ const ECO_BAND_PATTERNS = [
 ];
 
 function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
+  // The recorder represents seven physical strata. Entries created afterwards
+  // are supplemental ecology files and belong in the reading area, not a new
+  // eighth layer in the left-hand depth column.
+  const strataEntries = entries.slice(0, 7);
+  const supplementaryEntries = entries.slice(7);
   const bands = ecoBands();
-  const tempRanges = entries.map((_, index) => ecoTemperatureRange(index));
-  const oxygenRanges = entries.map((archive) => ecoOxygenRange(archive));
+  const tempRanges = strataEntries.map((_, index) => ecoTemperatureRange(index));
+  const oxygenRanges = strataEntries.map((archive) => ecoOxygenRange(archive));
   const temp = ecoEnvelopePaths(tempRanges, -10, 20);
   const oxygen = ecoEnvelopePaths(oxygenRanges, 17.5, 22);
 
@@ -2379,22 +4022,43 @@ function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
           <p class="eco-card-materials" data-ecology-materials></p>
           <button type="button" class="directory-open-button">打开生态记录 →</button>
         </article>
+        ${supplementaryEntries.length ? `
+          <section class="eco-log-additions" aria-label="新增生态记录">
+            <div class="eco-log-additions__list" role="list"></div>
+          </section>
+        ` : ''}
       </div>
     </div>
   `;
   orbit.appendChild(cabinet);
 
   const bandNav = cabinet.querySelector('.eco-log-bands');
-  const buttons = entries.map((archive, index) => {
+  const buttons = strataEntries.map((archive, index) => {
     const result = appendArchiveEntry(archive, index, bandNav);
     const band = bands[index];
     result.item.style.setProperty('--band-top', `${(band.y0 / 620) * 100}%`);
     result.item.style.setProperty('--band-height', `${((band.y1 - band.y0) / 620) * 100}%`);
     return result.button;
   });
-  ecologyCabinetState = { entries, cabinet, buttons, bands, cardAnimation: null };
+  const additionList = cabinet.querySelector('.eco-log-additions__list');
+  supplementaryEntries.forEach((archive) => {
+    if (!additionList) return;
+    const item = document.createElement('div');
+    item.className = 'folder-item';
+    item.setAttribute('role', 'listitem');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `folder-button is-document ${archive.webContent ? 'is-online' : 'is-offline'}`;
+    button.setAttribute('aria-label', `打开 ${archive.name}`);
+    button.innerHTML = `<b>${archive.code}</b><span>${archive.name}</span>${archive.isNew ? '<em>NEW</em>' : ''}`;
+    button.addEventListener('click', () => openArchive(archive, button));
+    item.appendChild(button);
+    additionList.appendChild(item);
+  });
+  cabinet.classList.toggle('has-ecology-additions', supplementaryEntries.length > 0);
+  ecologyCabinetState = { entries: strataEntries, cabinet, buttons, bands, cardAnimation: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
-    openArchive(entries[archiveSelection], buttons[archiveSelection]);
+    openArchive(strataEntries[archiveSelection], buttons[archiveSelection]);
   });
   if (!reducedMotion) {
     cabinet.querySelectorAll('[data-trace]').forEach((trace, index) => {
@@ -2428,10 +4092,12 @@ function renderEcologyCabinet(animate = true) {
   head.style.transform = `translateY(${center}px)`;
 
   const card = state.cabinet.querySelector('.eco-log-card');
-  // Keep the vertically-centered card fully inside the stage: with a max-height
-  // of 78% (half = 39%), the center must stay within [40, 60] so neither edge
-  // spills past the panel and clips the title.
-  const cardCenter = Math.min(Math.max((center / 620) * 100, 40), 60);
+  // When new records exist, reserve the lower panel for them and keep the
+  // selected record fully readable above it. Otherwise retain the original
+  // selected-band tracking behaviour.
+  const cardCenter = state.cabinet.classList.contains('has-ecology-additions')
+    ? 34
+    : Math.min(Math.max((center / 620) * 100, 40), 60);
   card.style.setProperty('--card-top', `${cardCenter}%`);
   const connector = state.cabinet.querySelector('.el-connector');
   const cardY = (cardCenter / 100) * 620;
@@ -2465,120 +4131,150 @@ function renderEcologyCabinet(animate = true) {
   }
 }
 
-const ANOMALY_STATUS = {
-  critical: { tag: '红档 · 悬置复核', verdict: '不予结案' },
-  warning: { tag: '黄档 · 持续核验', verdict: '悬置' },
-  observed: { tag: '观测 · 未结案', verdict: '悬置' },
-};
-
-function anomalyFact(archive, label) {
-  return (archive.fields || archive.stats || []).find(([key]) => key === label)?.[1] || '';
-}
-
-// The first prose block lists the ordinary explanations the review ruled out,
-// then the residual that still won't close; split them so the register can show
-// the excluded checks struck through, official-report style.
-function anomalyExclusions(archive) {
-  const text = archive.longform?.blocks?.[0]?.text || archive.body?.[0] || '';
-  const match = text.match(/^(先排查了?|调查组检查了|调查人员检查了)(.+?)。(.*)$/);
-  if (!match) return { checks: [], residual: text };
-  const checks = match[2]
-    .split(/[、，,]/)
-    .flatMap((part) => part.split('和'))
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return { checks, residual: match[3].trim() };
-}
-
-// The second block usually reads "影响…。处理方式是…"; split scope + disposition.
-function anomalyDisposition(archive) {
-  const text = archive.longform?.blocks?.[1]?.text || archive.body?.[1] || '';
-  const idx = text.indexOf('处理方式是');
-  if (idx < 0) return { scope: text, disposition: '' };
-  return { scope: text.slice(0, idx).trim(), disposition: `处理方式是${text.slice(idx + 5).trim()}` };
-}
-
 function buildAnomalyMonitor(orbit, entries, appendArchiveEntry) {
-  const reader = document.createElement('section');
-  reader.className = 'film-reader-console';
-  reader.innerHTML = `
-    <header class="film-reader-bar"><span>PALIS / 微缩胶片核销台 · MICROFILM RECONCILIATION</span><b>${entries.length} 帧 · 闭合失败悬置</b></header>
-    <div class="film-stage">
-      <article class="film-frame" data-a-frame>
-        <span class="film-perf film-perf--l" aria-hidden="true"></span>
-        <span class="film-perf film-perf--r" aria-hidden="true"></span>
-        <div class="film-sheet">
-          <div class="film-sheet-head"><b data-a-code>A--</b><span data-a-type>--</span><em data-a-status>--</em></div>
-          <h3 data-a-title>未选择</h3>
-          <p class="film-conflict film-glitch" data-a-conflict data-text="首次异常待读">首次异常待读</p>
-          <dl class="film-fields" data-a-fields></dl>
-          <div class="film-verdict film-glitch" data-a-verdict data-text="悬置 · UNRECONCILED">悬置 · UNRECONCILED</div>
-        </div>
-        <span class="film-scanband" aria-hidden="true"></span>
-        <span class="film-grain" aria-hidden="true"></span>
-      </article>
-      <div class="film-stage-foot">
-        <p class="film-caption" data-a-caption>FRAME -- / ---- · ----</p>
-        <button type="button" class="directory-open-button">打开异常附页 →</button>
-      </div>
-    </div>
-    <nav class="film-reel" role="list" aria-label="全部异常胶片帧"></nav>
+  const scene = document.createElement('section');
+  scene.className = 'anomaly-carousel';
+  scene.innerHTML = `
+    <header class="anomaly-carousel-mast">
+      <span>PALIS / OFFSET INDEX WHEEL</span>
+      <b>25 ACCESSIONS · MAGNETIC CARRIER ONLINE</b>
+    </header>
+    <div class="anomaly-orbit-rail" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+    <div class="anomaly-carousel-track" role="list" aria-label="异常档案偏心轮盘"></div>
+    <aside class="anomaly-carousel-index" aria-live="polite">
+      <span>SELECTED ACCESSION</span>
+      <strong>A01</strong>
+      <div><i></i></div>
+      <b>01 / ${String(entries.length).padStart(2, '0')}</b>
+    </aside>
+    <footer><span>DRAG / WHEEL / SELECT</span><b>CLICK ACTIVE CARD TO OPEN</b></footer>
   `;
-  const reel = reader.querySelector('.film-reel');
-  const results = entries.map((archive, i) => appendArchiveEntry(archive, i, reel));
-  const buttons = results.map((result) => result.button);
-  const items = results.map((result) => result.item);
-  results.forEach((result, i) => {
-    const nameEl = result.button.querySelector('.folder-name');
-    if (nameEl) nameEl.textContent = entries[i].name;
+  const track = scene.querySelector('.anomaly-carousel-track');
+  entries.forEach((archive, index) => {
+    const { button } = appendArchiveEntry(archive, index, track);
+    button.addEventListener('pointermove', (event) => {
+      if (reducedMotion || event.pointerType === 'touch') return;
+      const rect = button.getBoundingClientRect();
+      const x = THREE.MathUtils.clamp((event.clientX - rect.left) / rect.width - 0.5, -0.5, 0.5);
+      const y = THREE.MathUtils.clamp((event.clientY - rect.top) / rect.height - 0.5, -0.5, 0.5);
+      button.style.setProperty('--magnet-x', `${(x * 18).toFixed(2)}px`);
+      button.style.setProperty('--magnet-y', `${(y * 15).toFixed(2)}px`);
+      button.style.setProperty('--magnet-rotate-x', `${(-y * 7).toFixed(2)}deg`);
+      button.style.setProperty('--magnet-rotate-y', `${(x * 8).toFixed(2)}deg`);
+    });
+    button.addEventListener('pointerleave', () => {
+      button.style.removeProperty('--magnet-x');
+      button.style.removeProperty('--magnet-y');
+      button.style.removeProperty('--magnet-rotate-x');
+      button.style.removeProperty('--magnet-rotate-y');
+    });
   });
-  orbit.appendChild(reader);
-  anomalyRegisterState = { entries, register: reader, buttons, items };
-  reader.querySelector('.directory-open-button').addEventListener('click', () => {
-    openArchive(entries[archiveSelection], buttons[archiveSelection]);
+
+  let drag = null;
+  scene.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    drag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      lastX: event.clientX,
+      lastTime: performance.now(),
+      velocity: 0,
+      selection: archiveSelection,
+      moved: false,
+    };
   });
-  renderAnomalyRegister(false);
+  scene.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (!drag.moved && Math.abs(distance) > 7) {
+      drag.moved = true;
+      scene.setPointerCapture(event.pointerId);
+      scene.classList.add('is-dragging');
+    }
+    if (!drag.moved) return;
+    const now = performance.now();
+    const elapsed = Math.max(now - drag.lastTime, 1);
+    drag.velocity = (event.clientX - drag.lastX) / elapsed;
+    drag.lastX = event.clientX;
+    drag.lastTime = now;
+    const stepWidth = Math.max(72, Math.min(scene.clientWidth * 0.085, 118));
+    const steps = Math.round(-distance / stepWidth);
+    const next = drag.selection + steps;
+    if (next !== archiveSelection) updateArchiveSelection(next, false);
+  });
+  const finishDrag = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { moved, velocity } = drag;
+    drag = null;
+    scene.classList.remove('is-dragging');
+    if (!moved) return;
+    anomalyCarouselSuppressClick = true;
+    window.setTimeout(() => { anomalyCarouselSuppressClick = false; }, 0);
+    if (!reducedMotion && Math.abs(velocity) > 0.35) {
+      const carry = THREE.MathUtils.clamp(Math.round(Math.abs(velocity) * 1.8), 1, 3);
+      updateArchiveSelection(archiveSelection + (velocity < 0 ? carry : -carry), false);
+    }
+  };
+  scene.addEventListener('pointerup', finishDrag);
+  scene.addEventListener('pointercancel', finishDrag);
+  scene.addEventListener('click', (event) => {
+    if (!anomalyCarouselSuppressClick) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  orbit.appendChild(scene);
 }
 
-function renderAnomalyRegister(animate = true) {
-  const state = anomalyRegisterState;
-  if (!state || folderOrbit.dataset.mode !== 'anomaly-monitor') return;
-  const archive = state.entries[archiveSelection];
-  const severity = archive.severity || 'observed';
-  const status = ANOMALY_STATUS[severity] || ANOMALY_STATUS.observed;
-  state.buttons.forEach((button, i) => {
-    button.classList.toggle('is-selected', i === archiveSelection);
-    button.setAttribute('aria-current', i === archiveSelection ? 'true' : 'false');
+function layoutAnomalyCarousel(orbitElement, viewportWidth, viewportHeight, mobile) {
+  const scene = orbitElement.querySelector('.anomaly-carousel');
+  if (!scene || !folderButtons.length) return;
+  const width = scene.clientWidth || viewportWidth;
+  const height = scene.clientHeight || Math.min(560, viewportHeight * 0.68);
+  const mainX = mobile ? width * 0.5 : width * 0.31;
+  const mainY = mobile ? height * 0.43 : height * 0.5;
+  const centerX = mobile ? width * 1.42 : width * 1.04;
+  const centerY = mobile ? height * 1.18 : height * 1.36;
+  const deltaX = mainX - centerX;
+  const deltaY = mainY - centerY;
+  const radius = Math.hypot(deltaX, deltaY);
+  const baseAngle = Math.atan2(deltaY, deltaX);
+  const angleStep = mobile ? 0.24 : 0.145;
+  const half = folderButtons.length / 2;
+
+  scene.style.setProperty('--rail-size', `${radius * 2}px`);
+  scene.style.setProperty('--rail-left', `${centerX - radius}px`);
+  scene.style.setProperty('--rail-top', `${centerY - radius}px`);
+
+  folderButtons.forEach((button, index) => {
+    let offset = index - archiveSelection;
+    if (offset > half) offset -= folderButtons.length;
+    if (offset < -half) offset += folderButtons.length;
+    const visibleLimit = mobile ? 2 : 6;
+    const distance = Math.abs(offset);
+    const angle = baseAngle + offset * angleStep;
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+    const scale = offset === 0 ? 1 : Math.max(mobile ? 0.68 : 0.58, 0.9 - distance * 0.075);
+    const cardOpacity = distance > visibleLimit ? 0 : Math.max(0.18, 0.9 - distance * 0.13);
+    const tilt = offset * (mobile ? 5.5 : 4.2);
+    const item = button.parentElement;
+    item.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) rotate(${tilt}deg) scale(${scale})`;
+    item.style.opacity = String(cardOpacity);
+    item.style.zIndex = String(80 - distance * 5);
+    item.classList.toggle('is-outside-arc', distance > visibleLimit);
+    item.classList.toggle('is-selected', offset === 0);
+    button.classList.toggle('is-selected', offset === 0);
+    button.setAttribute('aria-current', offset === 0 ? 'true' : 'false');
+    button.tabIndex = distance <= visibleLimit ? 0 : -1;
   });
-  state.items[archiveSelection]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
-  const q = (selector) => state.register.querySelector(selector);
-  const frame = q('[data-a-frame]');
-  frame.dataset.severity = severity;
-  q('[data-a-code]').textContent = archive.code;
-  q('[data-a-type]').textContent = anomalyFact(archive, '事件型') || archive.rule || '未分类';
-  q('[data-a-status]').textContent = status.tag;
-  q('[data-a-title]').textContent = archive.name;
-  const conflict = anomalyFact(archive, '首次异常') || anomalyFact(archive, '当前条目') || '首次异常待读';
-  const conflictEl = q('[data-a-conflict]');
-  conflictEl.textContent = conflict;
-  conflictEl.dataset.text = conflict;
-  const fields = [
-    ['固定证据', anomalyFact(archive, '固定证据')],
-  ].filter(([, value]) => value);
-  q('[data-a-fields]').innerHTML = fields
-    .map(([key, value]) => `<div><dt>${key}</dt><dd>${escapeRecordText(value)}</dd></div>`).join('');
-  const verdictEl = q('[data-a-verdict]');
-  const verdictText = `${status.verdict} · UNRECONCILED`;
-  verdictEl.textContent = verdictText;
-  verdictEl.dataset.text = verdictText;
-  const ruledOut = anomalyExclusions(archive).checks.length;
-  q('[data-a-caption]').textContent = `FRAME ${archive.code} / ${archive.eventDate || '----'} · ${archive.site || '现场未标'}${ruledOut ? ` · 常规解释 ${ruledOut} 项已排除` : ''}`;
-  if (animate && !reducedMotion) {
-    // Reloading a new frame: a quick exposure flash + re-scan pass.
-    frame.classList.remove('is-rescan');
-    void frame.offsetWidth;
-    frame.classList.add('is-rescan');
-    setTimeout(() => frame.classList.remove('is-rescan'), 760);
+
+  const selected = archiveDirectory?.children?.[archiveSelection];
+  const indexPanel = scene.querySelector('.anomaly-carousel-index');
+  if (selected && indexPanel) {
+    indexPanel.querySelector('strong').textContent = selected.code;
+    indexPanel.querySelector('b').textContent = `${String(archiveSelection + 1).padStart(2, '0')} / ${String(folderButtons.length).padStart(2, '0')}`;
+    indexPanel.querySelector('div i').style.width = `${((archiveSelection + 1) / folderButtons.length) * 100}%`;
+    scene.dataset.severity = selected.severity || 'observed';
   }
 }
 
@@ -2587,21 +4283,29 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
   speciesHelixVelocity = 0;
   speciesHelixNodes = [];
 
-  const floraCount = entries.filter((archive) => archive.specimenClass === 'FLORA').length;
-  const faunaCount = entries.filter((archive) => archive.specimenClass === 'FAUNA').length;
-  const largestGroup = Math.max(floraCount, faunaCount, 1);
-  const cardGap = 74;
-  const cardTop = 58;
-  speciesHelixTrackHeight = Math.max(520, cardTop * 2 + (largestGroup - 1) * cardGap);
+  const normalizeSpecimenClass = (value) =>
+    ['FLORA', 'FAUNA', 'COMPOSITE'].includes(value) ? value : 'COMPOSITE';
+  const floraCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'FLORA').length;
+  const faunaCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'FAUNA').length;
+  const compositeCount = entries.filter((archive) =>
+    normalizeSpecimenClass(archive.specimenClass) === 'COMPOSITE').length;
+  const largestGroup = Math.max(floraCount, faunaCount, compositeCount, 1);
+  const cardGap = 68;
+  const cardTop = 62;
+  speciesHelixTrackHeight = Math.max(560, cardTop * 2 + (largestGroup - 1) * cardGap);
   const consolePanel = document.createElement('section');
   consolePanel.className = 'species-helix-console';
   consolePanel.innerHTML = `
     <header>
-      <span>PALIS / TAXONOMIC TRACE CONSOLE</span>
-      <b>FLORA ${String(floraCount).padStart(2, '0')} / FAUNA ${String(faunaCount).padStart(2, '0')}</b>
+      <div><span>PALIS / TAXONOMIC TRACE CONSOLE</span><b>物种关联链</b></div>
+      <p>FLORA ${String(floraCount).padStart(2, '0')} / FAUNA ${String(faunaCount).padStart(2, '0')} / COMPOSITE ${String(compositeCount).padStart(2, '0')}</p>
+      <aside class="species-sequence-readout" aria-live="polite"><span>ACTIVE SPECIMEN</span><strong>---</strong><small>等待序列节点</small></aside>
     </header>
     <div class="species-helix-stage">
       <div class="species-helix-label flora"><span>FLORA</span><b>BOTANICAL TRACE</b></div>
+      <div class="species-helix-label composite"><span>COMPOSITE</span><b>DUAL TRACE</b></div>
       <div class="species-helix-label fauna"><span>FAUNA</span><b>ZOOLOGICAL TRACE</b></div>
       <div class="species-helix-scroll">
         <div class="species-helix-track" style="--species-track-height: ${speciesHelixTrackHeight}px">
@@ -2613,7 +4317,7 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
             <g class="species-nodes"></g>
           </svg>
           <div class="species-helix-cards" role="list"></div>
-          <div class="species-helix-core" aria-hidden="true"><span>SPECIMEN RELATION</span><b>MORPH / TISSUE / PROTEIN</b></div>
+          <div class="species-helix-core" aria-hidden="true"><span>PALIS SEQUENCE BUS</span><b>形态 / 组织 / 蛋白</b><i>SCROLL TO ROTATE</i></div>
         </div>
       </div>
     </div>
@@ -2626,16 +4330,22 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
   const rungLayer = consolePanel.querySelector('.species-rungs');
   const connectorLayer = consolePanel.querySelector('.species-connectors');
   const nodeLayer = consolePanel.querySelector('.species-nodes');
-  const groupIndexes = { FLORA: 0, FAUNA: 0 };
+  const sequenceReadout = consolePanel.querySelector('.species-sequence-readout');
+  const groupIndexes = { FLORA: 0, FAUNA: 0, COMPOSITE: 0 };
   let previous = null;
 
   entries.forEach((archive, index) => {
-    const specimenClass = archive.specimenClass === 'FLORA' ? 'FLORA' : 'FAUNA';
-    const side = specimenClass === 'FLORA' ? 'left' : 'right';
+    const specimenClass = normalizeSpecimenClass(archive.specimenClass);
+    const side = specimenClass === 'FLORA'
+      ? 'left'
+      : specimenClass === 'FAUNA'
+        ? 'right'
+        : 'dual';
     const groupIndex = groupIndexes[specimenClass];
     groupIndexes[specimenClass] += 1;
     const cardY = cardTop + groupIndex * cardGap;
     const { item, button } = appendArchiveEntry(archive, index, cards);
+    item.classList.add('species-helix-card');
     item.dataset.side = side;
     item.style.setProperty('--card-y', `${cardY}px`);
 
@@ -2647,8 +4357,8 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
     connector.classList.add('species-connector', side);
     connectorLayer.appendChild(connector);
 
-    const nodeA = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    const nodeB = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    const nodeA = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    const nodeB = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
     nodeA.classList.add('species-node', side);
     nodeB.classList.add('species-node', side);
     nodeA.setAttribute('r', '6');
@@ -2660,8 +4370,8 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
     if (previous) {
       railA = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       railB = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      railA.classList.add('species-rail');
-      railB.classList.add('species-rail');
+      railA.classList.add('species-rail', 'strand-a');
+      railB.classList.add('species-rail', 'strand-b');
       railLayer.append(railA, railB);
     }
 
@@ -2679,6 +4389,7 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
       railA,
       railB,
       previous,
+      sequenceReadout,
       xA: 500,
       xB: 500,
       y: 0,
@@ -2697,46 +4408,80 @@ function buildSpeciesHelix(orbit, entries, appendArchiveEntry) {
 function updateSpeciesHelix(delta) {
   if (!speciesHelixNodes.length || folderOrbit.dataset.mode !== 'species-helix') return;
   if (!reducedMotion && delta > 0) {
-    speciesHelixRotation += delta * (0.34 + speciesHelixVelocity);
-    speciesHelixVelocity *= Math.pow(0.08, delta);
+    speciesHelixRotation += delta * (0.11 + speciesHelixVelocity);
+    speciesHelixVelocity *= Math.pow(0.42, delta);
     if (Math.abs(speciesHelixVelocity) < 0.002) speciesHelixVelocity = 0;
   }
 
+  const helixSvg = speciesHelixNodes[0]?.nodeA.ownerSVGElement;
+  const svgWidth = Math.max(helixSvg?.clientWidth || 1000, 1);
+  const svgHeight = Math.max(helixSvg?.clientHeight || speciesHelixTrackHeight, 1);
+  const scaleX = svgWidth / 1000;
+  const scaleY = svgHeight / speciesHelixTrackHeight;
+  const halfWidthPx = THREE.MathUtils.clamp(svgWidth * 0.098, 92, 116);
+  const helixSwing = halfWidthPx / scaleX;
+
   speciesHelixNodes.forEach((node, index) => {
-    const y = 42 + (index / Math.max(speciesHelixNodes.length - 1, 1)) * Math.max(speciesHelixTrackHeight - 84, 1);
-    const phase = speciesHelixRotation + index * 0.82;
+    const y = 30 + (index / Math.max(speciesHelixNodes.length - 1, 1)) * Math.max(speciesHelixTrackHeight - 60, 1);
+    const phase = speciesHelixRotation + index * 1.08;
     const swing = Math.sin(phase);
     const depth = (Math.cos(phase) + 1) / 2;
-    const xA = 500 + swing * 112;
-    const xB = 500 - swing * 112;
+    const xA = 500 + swing * helixSwing;
+    const xB = 500 - swing * helixSwing;
     node.xA = xA;
     node.xB = xB;
     node.y = y;
 
     setSvgLine(node.rung, xA, y, xB, y);
-    node.rung.style.opacity = String(0.28 + depth * 0.68);
+    node.rung.style.opacity = String(0.2 + Math.abs(swing) * 0.68);
     node.rung.classList.toggle('is-selected', index === archiveSelection);
     node.nodeA.setAttribute('cx', xA);
     node.nodeA.setAttribute('cy', y);
     node.nodeB.setAttribute('cx', xB);
     node.nodeB.setAttribute('cy', y);
-    node.nodeA.setAttribute('r', String(3.8 + depth * 3.1));
-    node.nodeB.setAttribute('r', String(6.9 - depth * 3.1));
+    const radiusA = 3.5 + depth * 1.9;
+    const radiusB = 5.4 - depth * 1.9;
+    node.nodeA.setAttribute('rx', String(radiusA / scaleX));
+    node.nodeA.setAttribute('ry', String(radiusA / scaleY));
+    node.nodeB.setAttribute('rx', String(radiusB / scaleX));
+    node.nodeB.setAttribute('ry', String(radiusB / scaleY));
     node.nodeA.classList.toggle('is-selected', index === archiveSelection);
     node.nodeB.classList.toggle('is-selected', index === archiveSelection);
 
     if (node.previous && node.railA && node.railB) {
       setSvgLine(node.railA, node.previous.xA, node.previous.y, xA, y);
       setSvgLine(node.railB, node.previous.xB, node.previous.y, xB, y);
+      const averageDepth = (depth + (Math.cos(speciesHelixRotation + (index - 1) * 1.08) + 1) / 2) / 2;
+      node.railA.style.opacity = String(0.24 + averageDepth * 0.56);
+      node.railB.style.opacity = String(0.8 - averageDepth * 0.56);
+      node.railA.style.strokeWidth = String(0.9 + averageDepth * 0.55);
+      node.railB.style.strokeWidth = String(1.45 - averageDepth * 0.55);
     }
 
-    const anchorX = node.side === 'left' ? Math.min(xA, xB) : Math.max(xA, xB);
-    const targetX = node.side === 'left' ? 185 : 815;
-    const elbowX = node.side === 'left' ? anchorX - 48 : anchorX + 48;
-    node.connector.setAttribute('d', `M${anchorX} ${y} L${elbowX} ${y} L${targetX} ${node.cardY}`);
+    if (node.side === 'dual') {
+      const halfCardInSvg = node.item.offsetWidth / (2 * scaleX);
+      node.connector.setAttribute(
+        'd',
+        `M${Math.min(xA, xB)} ${y} L${500 - halfCardInSvg} ${node.cardY} M${Math.max(xA, xB)} ${y} L${500 + halfCardInSvg} ${node.cardY}`,
+      );
+    } else {
+      const anchorX = node.side === 'left' ? Math.min(xA, xB) : Math.max(xA, xB);
+      const targetX = node.side === 'left' ? 185 : 815;
+      const elbowX = node.side === 'left' ? anchorX - 48 : anchorX + 48;
+      node.connector.setAttribute('d', `M${anchorX} ${y} L${elbowX} ${y} L${targetX} ${node.cardY}`);
+    }
     node.connector.classList.toggle('is-selected', index === archiveSelection);
     node.item.style.setProperty('--node-depth', depth.toFixed(3));
     node.button.classList.toggle('is-selected', index === archiveSelection);
+    if (index === archiveSelection && node.sequenceReadout) {
+      node.sequenceReadout.querySelector('strong').textContent = node.archive.code;
+      const traceLabel = node.side === 'left'
+        ? 'BOTANICAL TRACE'
+        : node.side === 'right'
+          ? 'ZOOLOGICAL TRACE'
+          : 'DUAL TRACE';
+      node.sequenceReadout.querySelector('small').textContent = `${node.archive.name} / ${traceLabel}`;
+    }
   });
 
 }
@@ -2751,8 +4496,8 @@ function setSvgLine(line, x1, y1, x2, y2) {
 function specimenPhotoMarkup(archive, index, large = false) {
   const image = archive?.image
     ? `<img src="${archive.image}" alt="" loading="lazy">`
-    : '<span class="specimen-photo-missing"><i class="specimen-mark"></i><em>SPECIMEN<br>NOT IMAGED</em></span>';
-  return `<span class="specimen-photo-slot${large ? ' is-large' : ''}">${image}<b>${archive?.code || `S${String(index + 1).padStart(2, '0')}`}</b></span>`;
+    : '<span class="specimen-photo-missing"><i class="placeholder-head"></i><i class="placeholder-shoulders"></i><em>PHOTOGRAPH<br>NOT FILED</em></span>';
+  return `<span class="specimen-photo-slot${large ? ' is-large' : ''}">${image}<b>${archive?.code || 'S??'}</b></span>`;
 }
 
 function updateArchivePresentation(directory) {
@@ -2765,7 +4510,7 @@ function updateArchivePresentation(directory) {
 }
 
 function updateArchiveControls(mode, count) {
-  const enabled = mode === 'dossier' || mode === 'case-chronology' || mode === 'film' || mode === 'country-stack';
+  const enabled = mode === 'dossier' || mode === 'film' || mode === 'country-stack';
   archiveBrowserControls.hidden = !enabled;
   archivePosition.value = `${String(archiveSelection + 1).padStart(2, '0')} / ${String(count).padStart(2, '0')}`;
   archivePosition.textContent = archivePosition.value;
@@ -2784,10 +4529,8 @@ function updateArchiveSelection(index, focus = false) {
   });
   updateArchiveControls(folderOrbit.dataset.mode, folderButtons.length);
   if (folderOrbit.dataset.mode === 'dossier') renderPeopleNetwork(true);
-  if (folderOrbit.dataset.mode === 'case-chronology') renderEventChronology(true);
   if (folderOrbit.dataset.mode === 'entrance-network') renderEntranceElevation(true);
   if (folderOrbit.dataset.mode === 'ecology-strata') renderEcologyCabinet(true);
-  if (folderOrbit.dataset.mode === 'anomaly-monitor') renderAnomalyRegister(true);
   layoutArchiveOrbit(1);
   const selected = folderButtons[archiveSelection];
   if (folderOrbit.dataset.mode === 'film') {
@@ -3151,20 +4894,23 @@ function renderArchiveDocument(archive) {
   }
 
   if (archive.recordType === 'incident-trace') {
-    const status = ANOMALY_STATUS[archive.severity] || ANOMALY_STATUS.observed;
     return `
       <header class="incident-mast"><div><p class="dialog-meta">${archive.formatLabel} / ${archive.code}</p><h2 data-dialog-title>${archive.name}</h2></div><b>${archive.severity.toUpperCase()}</b></header>
-      <div class="incident-status-band" data-severity="${archive.severity}">
-        <div><span>事件型 / TYPE</span><b>${archive.rule || '未分类'}</b></div>
-        <div><span>首次可验证节点 / FIRST NODE</span><b>${archive.eventDate} · ${archive.site}</b></div>
-        <div class="incident-verdict"><span>闭合状态 / CLOSURE</span><b>${status.verdict} · UNRESOLVED</b></div>
+      <div class="incident-orbit-plate" data-severity="${archive.severity}">
+        <div class="incident-orbit-rings" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+        <div class="incident-orbit-code"><small>PALIS / OFFSET WHEEL</small><strong>${archive.code}</strong><em>${String(sequence).padStart(2, '0')} / 25</em></div>
+        <span>${archive.eventDate}<br>${archive.site}</span>
       </div>
       <div class="incident-layout"><dl class="record-fields">${fields}</dl><p class="record-format">FACTS / EXCLUSIONS / DISPOSITION</p></div>
       ${paragraphs}
-      ${recordFooter(archive, 'EVENT TRACE / CHRONOLOGY OPEN')}`;
+      ${recordFooter(archive, 'OFFSET INDEX / ACCESSION LOCKED')}`;
   }
 
-  const specimenClass = archive.specimenClass === 'FLORA' ? 'BOTANICAL TRACE' : 'ZOOLOGICAL TRACE';
+  const specimenClass = archive.specimenClass === 'FLORA'
+    ? 'BOTANICAL TRACE'
+    : archive.specimenClass === 'FAUNA'
+      ? 'ZOOLOGICAL TRACE'
+      : 'COMPOSITE / DUAL TRACE';
   const specimenImage = archive.image
     ? `<img src="${archive.image}" alt="${archive.name}标本影像">`
     : `<span class="specimen-image-empty"><small>SPECIMEN PLATE / NOT FILED</small><strong>${archive.code}</strong><em>本卷没有可核验的标本影像</em></span>`;
@@ -3176,6 +4922,297 @@ function renderArchiveDocument(archive) {
     </div>
     ${paragraphs}
     ${recordFooter(archive, 'MORPHOLOGY / PROTEIN / CLASSIFICATION OPEN')}`;
+}
+
+const archiveCategoryTemplateCodes = Object.freeze({
+  country: '01',
+  countries: '01',
+  organization: '02',
+  organizations: '02',
+  station: '03',
+  stations: '03',
+  entrance: '04',
+  entrances: '04',
+  ecology: '05',
+  person: '06',
+  people: '06',
+  event: '07',
+  events: '07',
+  anomaly: '08',
+  abnormalities: '08',
+  species: '09',
+});
+
+const archiveRecordTypeTemplateCodes = Object.freeze({
+  'state-registry': '01',
+  'chain-ledger': '02',
+  'station-brief': '03',
+  'entrance-dossier': '04',
+  'ecology-strata': '05',
+  'personnel-file': '06',
+  'chronology-reel': '07',
+  'anomaly-report': '08',
+  'specimen-plate': '09',
+});
+
+function archiveTemplateCode(archive, publishedArchive = null) {
+  return archiveCategoryTemplateCodes[publishedArchive?.category]
+    || archiveCategoryTemplateCodes[archive.category]
+    || archiveRecordTypeTemplateCodes[archive.recordType]
+    || '07';
+}
+
+async function resolvePublishedArchive(archive) {
+  if (!archiveWorkflowClient) return null;
+  const embeddedCode = archive.name.match(/\bHZ-\d+\b/i)?.[0]
+    || archive.heading?.match(/\bHZ-\d+\b/i)?.[0];
+  const candidates = [embeddedCode, archive.code, archive.name].filter(Boolean);
+  for (const candidate of candidates) {
+    const matches = await archiveWorkflowClient.searchArchives(candidate, { limit: 12 });
+    const exact = matches.find((entry) => matchesArchiveIdentifier(entry, candidate));
+    if (exact) return exact;
+  }
+  return null;
+}
+
+async function requestArchiveAmendment(archive, targetContributionId = null, knownPublishedArchive = null) {
+  let publishedArchive = knownPublishedArchive;
+  if (!publishedArchive && archiveWorkflowClient) {
+    try {
+      publishedArchive = await resolvePublishedArchive(archive);
+    } catch {
+      publishedArchive = null;
+    }
+  }
+  window.dispatchEvent(new CustomEvent('palis:open-amendment', {
+    detail: {
+      templateCode: archiveTemplateCode(archive, publishedArchive),
+      archiveId: publishedArchive?.id || null,
+      archiveCode: publishedArchive?.code || archive.code,
+      targetContributionId,
+      title: `修改申请 / ${publishedArchive?.title || archive.name}`,
+      officialBase: !targetContributionId,
+    },
+  }));
+}
+
+function openAmendmentHistoryModal(sheet, trigger) {
+  const amendmentId = trigger?.dataset?.openAmendmentHistory;
+  const detail = amendmentId
+    ? sheet.querySelector(`[data-amendment-history-detail="${CSS.escape(amendmentId)}"]`)
+    : null;
+  if (!detail) return;
+
+  const restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : trigger;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'archive-amendment-history-modal';
+  backdrop.dataset.amendmentHistoryModal = '';
+  backdrop.setAttribute('role', 'presentation');
+  backdrop.innerHTML = `
+    <section role="dialog" aria-modal="true" aria-labelledby="amendment-history-title">
+      <button type="button" class="archive-amendment-history-modal__close" data-close-amendment-history aria-label="关闭历史版本">×</button>
+      <div class="archive-amendment-history-modal__content">${detail.innerHTML}</div>
+    </section>
+  `;
+  document.body.append(backdrop);
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeydown);
+    backdrop.remove();
+    restoreFocus?.focus?.();
+  };
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  };
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop || event.target.closest('[data-close-amendment-history]')) close();
+  });
+  document.addEventListener('keydown', onKeydown);
+  backdrop.querySelector('[data-close-amendment-history]')?.focus();
+}
+
+async function hydratePublishedContributions(archive, sheet) {
+  if (!archiveWorkflowClient) return;
+  try {
+    const officialMarkup = archive.cloudRecord ? '' : sheet.innerHTML;
+    const publishedArchive = archive.cloudRecord || await resolvePublishedArchive(archive);
+    if (!publishedArchive || publishedArchive.visibility !== 'public') return;
+    const [contributions, reverseReferences] = await Promise.all([
+      archiveWorkflowClient.listArchiveContributions(publishedArchive.id),
+      archiveWorkflowClient.listArchiveReferences?.(publishedArchive.id) ?? Promise.resolve([]),
+    ]);
+    const model = buildPublishedArchiveModel({
+      archive: publishedArchive,
+      contributions,
+      reverseReferences,
+      officialRecord: archive.cloudRecord
+        ? null
+        : {
+            id: `official-${publishedArchive.id}`,
+            title: '官方档案',
+            markup: officialMarkup,
+          },
+    });
+    const amendmentCount = model
+      ? [...model.amendmentsByTarget.values()]
+          .reduce((total, amendments) => total + amendments.length, 0)
+      : 0;
+    if (!model || model.contributions.length + amendmentCount === 0 || !sheet.isConnected) return;
+
+    sheet.innerHTML = renderPublishedContributionLedger(model);
+
+    const mediaSession = createPublishedMediaSession({
+      model,
+      listPublishedMedia: (contributionId) =>
+        archiveWorkflowClient.listPublishedMedia(contributionId),
+      mount: (contributionId, markup) => {
+        if (!sheet.isConnected) return;
+        const mount = [...sheet.querySelectorAll('[data-published-media-mount]')]
+          .find((candidate) =>
+            candidate.dataset.publishedMediaMount === contributionId);
+        if (mount) mount.innerHTML = markup;
+      },
+    });
+    const tabs = [...sheet.querySelectorAll('[data-contribution-tab]')];
+    const panels = [...sheet.querySelectorAll('[data-contribution-panel]')];
+    const selectTab = (id) => {
+      tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.contributionTab === id)));
+      panels.forEach((panel) => { panel.hidden = panel.dataset.contributionPanel !== id; });
+      sheet.scrollTop = 0;
+      void mediaSession.selectTab(id);
+    };
+    tabs.forEach((tab) => tab.addEventListener('click', () => selectTab(tab.dataset.contributionTab)));
+    selectTab(model.tabs[0].id);
+
+    sheet.querySelectorAll('[data-request-amendment]').forEach((button) => {
+      button.addEventListener('click', () => {
+        requestArchiveAmendment(archive, button.dataset.requestAmendment, publishedArchive);
+      });
+    });
+    sheet.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-open-amendment-history]');
+      if (!trigger) return;
+      event.preventDefault();
+      openAmendmentHistoryModal(sheet, trigger);
+    });
+    return () => mediaSession.dispose();
+  } catch {
+    // Static records remain fully usable if the free-tier data service is offline.
+    return null;
+  }
+}
+
+function downloadArchiveDocument(archive, windowElement) {
+  const sheet = windowElement.querySelector('.document-sheet');
+  const source = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeRecordText(archive.code)} · ${escapeRecordText(archive.name)}</title>
+  <style>
+    body{max-width:1000px;margin:0 auto;padding:40px;color:#101514;background:#f2efdf;font:17px/1.8 serif}
+    img{max-width:100%;height:auto}button{display:none}dt{font-weight:700}dd{margin:0}
+  </style>
+</head>
+<body>${sheet.innerHTML}</body>
+</html>`;
+  const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/html;charset=utf-8' }));
+  const link = document.createElement('a');
+  const safeCode = String(archive.code || 'PALIS-ARCHIVE').replaceAll(/[^a-zA-Z0-9_-]/g, '-');
+  link.href = blobUrl;
+  link.download = `${safeCode}-官方档案.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+}
+
+function initializeArchiveFileMenu(state) {
+  const { archive, windowElement } = state;
+  const fileTrigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
+  const editTrigger = windowElement.querySelector('[data-archive-menu-trigger="edit"]');
+  const fileMenu = windowElement.querySelector('[data-archive-file-menu]');
+  const editMenu = windowElement.querySelector('[data-archive-edit-menu]');
+  if (!fileTrigger || !editTrigger || !fileMenu || !editMenu) return;
+  const amendAction = editMenu.querySelector('[data-archive-edit-action="amend"]');
+  amendAction.disabled = !archive.webContent;
+  amendAction.textContent = archive.webContent ? '提交修改申请' : '正文离线，不能修改';
+
+  const setMenuOpen = (activeMenu = null) => {
+    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger]]) {
+      const open = menu === activeMenu;
+      menu.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+    }
+    windowElement.classList.toggle('is-file-menu-open', activeMenu === fileMenu);
+    windowElement.classList.toggle('is-edit-menu-open', activeMenu === editMenu);
+  };
+
+  const toggleMenu = (menu) => (event) => {
+    event.stopPropagation();
+    setMenuOpen(menu.hidden ? menu : null);
+  };
+  fileTrigger.addEventListener('click', toggleMenu(fileMenu));
+  editTrigger.addEventListener('click', toggleMenu(editMenu));
+  windowElement.addEventListener('pointerdown', (event) => {
+    if (!event.target.closest('.dialog-menu__group')) setMenuOpen();
+  });
+  windowElement.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden)) {
+      event.preventDefault();
+      const activeTrigger = fileMenu.hidden ? editTrigger : fileTrigger;
+      setMenuOpen();
+      activeTrigger.focus();
+    }
+  });
+  windowElement.addEventListener('click', (event) => {
+    const officialAmendment = event.target.closest('[data-request-official-amendment]');
+    if (officialAmendment) {
+      event.preventDefault();
+      requestArchiveAmendment(archive);
+      return;
+    }
+    const recordAction = event.target.closest('[data-archive-record-action]')?.dataset.archiveRecordAction;
+    if (recordAction) {
+      windowElement.querySelector(`[data-contribution-tab="${CSS.escape(recordAction)}"]`)?.click();
+      setMenuOpen();
+      return;
+    }
+    const action = event.target.closest('[data-archive-edit-action]')?.dataset.archiveEditAction;
+    if (!action) return;
+    setMenuOpen();
+    if (action === 'amend' && archive.webContent) requestArchiveAmendment(archive);
+    if (action === 'export') downloadArchiveDocument(archive, windowElement);
+    if (action === 'print') {
+      document.body.classList.add('archive-printing');
+      windowElement.classList.add('is-print-target');
+      const cleanup = () => {
+        document.body.classList.remove('archive-printing');
+        windowElement.classList.remove('is-print-target');
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    }
+    if (action === 'close') closeArchiveWindow(windowElement);
+  });
+}
+
+function populateArchiveRecordMenu(windowElement) {
+  const menu = windowElement.querySelector('[data-archive-file-menu]');
+  const records = [...windowElement.querySelectorAll('[data-contribution-tab]')];
+  if (!menu) return;
+  if (!records.length) {
+    menu.innerHTML = '<span class="dialog-menu__empty">当前档案</span>';
+    return;
+  }
+  menu.innerHTML = records.map((record, index) => `
+    <button type="button" role="menuitem" data-archive-record-action="${escapeRecordText(record.dataset.contributionTab)}"${index === 0 ? ' aria-current="true"' : ''}>${escapeRecordText(record.textContent)}</button>
+  `).join('');
 }
 
 function openArchive(archive, trigger) {
@@ -3198,7 +5235,27 @@ function openArchive(archive, trigger) {
   windowElement.querySelector('.window-file').textContent = archive.file;
   const sheet = windowElement.querySelector('.document-sheet');
   sheet.className = `document-sheet record-${archive.recordType}`;
-  sheet.innerHTML = renderArchiveDocument(archive);
+  if (archive.cloudRecord) {
+    sheet.innerHTML = `
+      <section class="document-offline-cover" role="status">
+        <h2 id="${titleId}" class="document-offline-title">${escapeRecordText(archive.name)}</h2>
+        <span>PALIS / CHANNEL 09A</span>
+        <strong>正在读取正式档案</strong>
+        <p>LOADING ACCESSION</p>
+      </section>`;
+  } else if (!archive.webContent) {
+    sheet.classList.add('document-sheet--offline');
+    sheet.innerHTML = `
+      <section class="document-offline-cover" role="status">
+        <h2 id="${titleId}" class="document-offline-title">${escapeRecordText(archive.name)}</h2>
+        <span>PALIS / CHANNEL 09A</span>
+        <strong>文档未在线</strong>
+        <p>DOCUMENT OFFLINE</p>
+        <small>该文档内容尚未录入，当前没有可供检索的正文。</small>
+      </section>`;
+  } else {
+    sheet.innerHTML = `${renderOfficialArchiveBanner(archive)}${renderArchiveDocument(archive)}`;
+  }
   const titleElement = sheet.querySelector('[data-dialog-title]');
   if (titleElement) titleElement.id = titleId;
 
@@ -3208,10 +5265,26 @@ function openArchive(archive, trigger) {
   taskButton.setAttribute('aria-controls', windowId);
   taskButton.setAttribute('aria-label', `切换档案窗口：${archive.name}`);
 
-  const state = { archive, windowElement, taskButton, trigger, minimized: false, closing: false };
+  const state = {
+    archive,
+    windowElement,
+    taskButton,
+    trigger,
+    minimized: false,
+    closing: false,
+    disposePublishedMedia: null,
+  };
   archiveWindows.set(archive.id, state);
   archiveTaskList.appendChild(taskButton);
   archiveDesktop.appendChild(windowElement);
+  initializeArchiveFileMenu(state);
+  void hydratePublishedContributions(archive, sheet).then((disposePublishedMedia) => {
+    populateArchiveRecordMenu(windowElement);
+    if (typeof disposePublishedMedia === 'function') {
+      if (state.closing) disposePublishedMedia();
+      else state.disposePublishedMedia = disposePublishedMedia;
+    }
+  });
 
   windowElement.style.visibility = 'hidden';
   const measuredRect = windowElement.getBoundingClientRect();
@@ -3233,7 +5306,7 @@ function openArchive(archive, trigger) {
   windowElement.addEventListener('pointerdown', () => bringArchiveWindowToFront(windowElement));
   taskButton.addEventListener('click', () => {
     if (state.minimized) restoreArchiveWindow(windowElement);
-    else if (activeArchiveWindow === windowElement) minimizeArchiveWindow(windowElement);
+    else if (activeArchiveWindow === windowElement && windowElement.classList.contains('is-active')) minimizeArchiveWindow(windowElement);
     else bringArchiveWindowToFront(windowElement, true);
   });
   installArchiveWindowDrag(windowElement);
@@ -3253,22 +5326,55 @@ function onScroll() {
 }
 
 function onPageWheel(event) {
-  if (event.defaultPrevented || event.target.closest('.archive-window')) return;
+  if (event.defaultPrevented) return;
   const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  if (!versionNotice.hidden) {
+    const noticeCopy = event.target.closest('.version-notice__copy');
+    event.preventDefault();
+    if (noticeCopy) noticeCopy.scrollTop += delta;
+    return;
+  }
+  const overlay = event.target.closest(
+    '.archive-window, .archive-workflow-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
+  );
+  if (overlay) {
+    let scrollTarget = event.target;
+    while (scrollTarget && scrollTarget !== overlay.parentElement) {
+      if (scrollTarget instanceof HTMLElement) {
+        const styles = getComputedStyle(scrollTarget);
+        const canScrollY = /(auto|scroll)/.test(styles.overflowY) && scrollTarget.scrollHeight > scrollTarget.clientHeight + 2;
+        const canScrollX = /(auto|scroll)/.test(styles.overflowX) && scrollTarget.scrollWidth > scrollTarget.clientWidth + 2;
+        if (canScrollY || canScrollX) {
+          event.preventDefault();
+          if (canScrollY) scrollTarget.scrollTop += delta;
+          else scrollTarget.scrollLeft += delta;
+          return;
+        }
+      }
+      if (scrollTarget === overlay) break;
+      scrollTarget = scrollTarget.parentElement;
+    }
+    event.preventDefault();
+    return;
+  }
 
   // An open directory owns the wheel. It must never leak through to the
   // chapter navigator and accidentally send the visitor to the polar map.
   if (archiveDirectory) {
     const mode = folderOrbit.dataset.mode;
+    if (mode === 'event-plane') {
+      event.preventDefault();
+      return;
+    }
     if (mode === 'species-helix') {
       const scrollTrack = event.target.closest('.species-helix-scroll');
       if (scrollTrack) {
         event.preventDefault();
         scrollTrack.scrollTop += delta;
         speciesHelixVelocity = THREE.MathUtils.clamp(
-          speciesHelixVelocity + delta * 0.0012,
-          -1.8,
-          1.8,
+          speciesHelixVelocity + delta * 0.00075,
+          -1.1,
+          1.1,
         );
         return;
       }
@@ -3276,9 +5382,9 @@ function onPageWheel(event) {
       event.preventDefault();
       if (Math.abs(delta) < 8) return;
       speciesHelixVelocity = THREE.MathUtils.clamp(
-        speciesHelixVelocity + delta * 0.0028,
-        -3.4,
-        3.4,
+        speciesHelixVelocity + delta * 0.00165,
+        -1.65,
+        1.65,
       );
       if (reducedMotion) speciesHelixRotation += delta * 0.004;
       if (!archiveWheelLocked) {
@@ -3292,7 +5398,16 @@ function onPageWheel(event) {
     event.preventDefault();
     if (Math.abs(delta) < 8) return;
 
-    const steppedModes = new Set(['dossier', 'film', 'country-stack', 'anomaly-monitor', 'entrance-network']);
+    if (mode === 'anomaly-monitor') {
+      if (archiveWheelLocked) return;
+      archiveWheelLocked = true;
+      const steps = THREE.MathUtils.clamp(Math.round(Math.abs(delta) / 72), 1, 3);
+      updateArchiveSelection(archiveSelection + (delta > 0 ? steps : -steps), false);
+      setTimeout(() => { archiveWheelLocked = false; }, reducedMotion ? 60 : 150);
+      return;
+    }
+
+    const steppedModes = new Set(['dossier', 'film', 'country-stack', 'entrance-network']);
     if (steppedModes.has(mode) && !archiveWheelLocked) {
       archiveWheelLocked = true;
       stepArchiveSelection(delta > 0 ? 1 : -1);
@@ -3462,7 +5577,8 @@ function animate(now) {
   markerMaterials.forEach((material) => {
     const type = material.userData.bootType;
     const checked = polarDiagnosticComplete || material.userData.bootIndex < polarDiagnosticState[type];
-    const target = checked ? 1 : 0.035;
+    const previewVisible = checked || polarLayer.classList.contains('is-network-offline');
+    const target = isPreviewAccess() ? (previewVisible ? 0.82 : 0.035) : checked ? 1 : 0.035;
     material.userData.bootOpacity = THREE.MathUtils.damp(material.userData.bootOpacity || 0, target, checked ? 8.5 : 4, delta);
     material.opacity = (material.userData.baseOpacity || 1) * mapReveal * material.userData.bootOpacity;
   });
@@ -3477,7 +5593,7 @@ function animate(now) {
   });
   routeLines.forEach((line) => {
     const checked = polarDiagnosticComplete || line.userData.bootIndex < polarDiagnosticState.routes;
-    const target = checked ? 1 : 0.025;
+    const target = isPreviewAccess() ? 0.025 : checked ? 1 : 0.025;
     line.material.userData.bootOpacity = THREE.MathUtils.damp(line.material.userData.bootOpacity || 0, target, checked ? 7 : 4, delta);
     line.material.opacity = 0.48 * mapReveal * line.material.userData.bootOpacity;
     if (polarDiagnostic?.dataset.phase === 'routes') line.material.dashOffset -= delta * 1.1;
@@ -3537,10 +5653,18 @@ function setChapter(chapter) {
   chapterName.textContent = chapters[chapter][0];
   taskStatus.textContent = chapters[chapter][1];
   if (chapter === 3) {
-    if (polarDiagnosticComplete) taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
+    const requestedMode = isPreviewAccess() ? 'preview' : 'authenticated';
+    if (polarDiagnosticMode && polarDiagnosticMode !== requestedMode) {
+      polarDiagnosticStarted = false;
+      polarDiagnosticComplete = false;
+    }
+    if (isPreviewAccess() && polarDiagnosticStarted) taskStatus.textContent = '南极网络离线 / 补给路线未知';
+    else if (polarDiagnosticComplete) taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
     else runPolarDiagnostic();
   }
-  if (chapter === 0 && capsuleBootComplete) taskStatus.textContent = 'PALIS 管理系统已接入';
+  if (chapter === 0 && capsuleBootComplete) {
+    taskStatus.textContent = 'PALIS 管理系统已接入';
+  }
   chapterLinks.forEach((link, index) => {
     link.classList.toggle('active', index === chapter);
     if (index === chapter) link.setAttribute('aria-current', 'step');
@@ -3553,7 +5677,11 @@ function getGlobeLayout(progress) {
   const viewportHeight = window.visualViewport?.height || innerHeight;
   const taskbarHeight = document.querySelector('.taskbar')?.getBoundingClientRect().height || 44;
   const stageHeight = Math.max(viewportHeight - taskbarHeight, 1);
-  const worldHeight = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+  // Keep responsive layout in the initial 340-unit camera space. Deriving layout
+  // scale from the live OrbitControls distance cancels zoom: every camera move
+  // would resize the globe back to the same apparent diameter.
+  const layoutCameraDistance = 340;
+  const worldHeight = 2 * layoutCameraDistance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
   const worldPerPixel = worldHeight / Math.max(viewportHeight, 1);
   const stageCenterY = taskbarHeight * 0.5 * worldPerPixel;
   const introCornerX = viewportWidth * 0.5 * worldPerPixel;
@@ -3657,6 +5785,8 @@ function layoutArchiveOrbit(opacity, exitProgress = 0) {
         item.style.zIndex = String(selected ? 20 : 10 - Math.min(distance, 8));
       });
     }
+    if (mode === 'event-plane') syncEventPlaneViewport();
+    if (mode === 'anomaly-monitor') layoutAnomalyCarousel(orbitElement, viewportWidth, viewportHeight, viewportWidth <= 760);
     if (mode === 'species-helix') updateSpeciesHelix(0);
     if (mode === 'country-stack') layoutCountryStack();
     return;
@@ -3851,7 +5981,7 @@ function populatePointPicker() {
   const select = document.querySelector('#point-picker');
   const groups = [
     ['科考站', RESEARCH_STATIONS],
-    ['白渊入口', MAPPED_ABYSS_POINTS],
+    ['白幕入口', MAPPED_ABYSS_POINTS],
   ];
   groups.forEach(([label, points]) => {
     const group = document.createElement('optgroup');
@@ -3879,6 +6009,7 @@ function getDiagnosticMapItem(phase, index) {
 
 function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) {
   const isStation = RESEARCH_STATIONS.includes(item);
+  const previewStatus = isPreviewAccess() ? (isStation ? '离线' : '资料未收录') : '';
   document.querySelector('#detail-kind').textContent = isStation ? 'SURFACE STATION' : item.datum ? 'REGIONAL DATUM' : 'DESCENT NODE';
   document.querySelector('#detail-index').textContent = item.code;
   document.querySelector('#detail-name').textContent = item.name;
@@ -3886,8 +6017,12 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
   document.querySelector('#detail-coords').textContent = formatCoordinate(item.lat, item.lng);
   document.querySelector('#detail-operator').textContent = item.operator;
   document.querySelector('#detail-type').textContent = item.type;
-  document.querySelector('#detail-status').textContent = diagnosticStatus ? `◉ ${diagnosticStatus}` : `● ${item.status}`;
-  document.querySelector('#detail-note').textContent = item.role;
+  document.querySelector('#detail-status').textContent = diagnosticStatus
+    ? `◉ ${diagnosticStatus}`
+    : `● ${previewStatus || item.status}`;
+  document.querySelector('#detail-note').textContent = isPreviewAccess()
+    ? (isStation ? '站点通信资料尚未录入；最近一次状态无法确认。' : '该节点资料尚未录入，当前无法检索状态。')
+    : item.role;
   if (!transient) {
     selectedMapItem = item;
     document.querySelector('#point-picker').value = item.code;

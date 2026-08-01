@@ -10,7 +10,7 @@
       "type": "Feature",
       "properties": {
         "code": "BZ-FP-1964",
-        "name": "白渊1964地表物理投影核定线",
+        "name": "白幕1964地表物理投影核定线",
         "status": "fictional_approximate_boundary",
         "nominal_center": [75.15, -81.7667],
         "equal_area_estimate_km2": 2768987,

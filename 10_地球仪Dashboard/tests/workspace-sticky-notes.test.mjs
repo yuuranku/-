@@ -1,0 +1,763 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  canManageWorkspaceNotes,
+  clampWorkspaceNotePosition,
+  defaultWorkspaceNotePosition,
+  initializeWorkspaceNotes,
+} from '../src/archive-workflow/workspace-notes.js';
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, reject, resolve };
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createClient({ notes = [], layouts = [] } = {}) {
+  const calls = {
+    createWorkspaceNote: [],
+    deleteWorkspaceNote: [],
+    listWorkspaceNoteLayouts: [],
+    listWorkspaceNotes: [],
+    saveWorkspaceNoteLayout: [],
+    updateWorkspaceNote: [],
+  };
+
+  return {
+    calls,
+    async createWorkspaceNote(input) {
+      calls.createWorkspaceNote.push(clone(input));
+      return {
+        content: input.content,
+        id: `created-${calls.createWorkspaceNote.length}`,
+        sort_order: notes.length,
+        title: input.title,
+      };
+    },
+    async deleteWorkspaceNote(id) {
+      calls.deleteWorkspaceNote.push(id);
+      return { id };
+    },
+    async listWorkspaceNoteLayouts(profileId) {
+      calls.listWorkspaceNoteLayouts.push(profileId);
+      return clone(layouts);
+    },
+    async listWorkspaceNotes() {
+      calls.listWorkspaceNotes.push(true);
+      return clone(notes);
+    },
+    async saveWorkspaceNoteLayout(input) {
+      calls.saveWorkspaceNoteLayout.push(clone(input));
+      return clone(input);
+    },
+    async updateWorkspaceNote(id, input) {
+      calls.updateWorkspaceNote.push({ id, ...clone(input) });
+      return { ...notes.find((note) => note.id === id), ...input, id };
+    },
+  };
+}
+
+class FakeClassList {
+  #values = new Set();
+
+  add(...values) {
+    for (const value of values) {
+      this.#values.add(value);
+    }
+  }
+
+  contains(value) {
+    return this.#values.has(value);
+  }
+
+  remove(...values) {
+    for (const value of values) {
+      this.#values.delete(value);
+    }
+  }
+}
+
+class FakeElement {
+  constructor(tagName, ownerDocument, rect = {}) {
+    this.tagName = tagName.toUpperCase();
+    this.ownerDocument = ownerDocument;
+    this.children = [];
+    this.attributes = new Map();
+    this.classList = new FakeClassList();
+    this.dataset = {};
+    this.style = {};
+    this.hidden = false;
+    this.disabled = false;
+    this.parentElement = null;
+    this.#rect = {
+      height: rect.height ?? 600,
+      left: rect.left ?? 0,
+      top: rect.top ?? 0,
+      width: rect.width ?? 900,
+    };
+  }
+
+  #listeners = new Map();
+  #rect;
+  #textContent = '';
+
+  append(...nodes) {
+    this.#textContent = '';
+    for (const node of nodes) {
+      if (node == null) {
+        continue;
+      }
+
+      node.parentElement = this;
+      this.children.push(node);
+    }
+  }
+
+  addEventListener(type, listener) {
+    const listeners = this.#listeners.get(type) ?? [];
+    listeners.push(listener);
+    this.#listeners.set(type, listeners);
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(String(name)) ?? null;
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(String(name), String(value));
+  }
+
+  dispatch(type, event = {}) {
+    const dispatched = {
+      ...event,
+      bubbles: event.bubbles ?? true,
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+      stopPropagation() {
+        this.propagationStopped = true;
+      },
+      target: event.target ?? this,
+      type,
+    };
+    let current = this;
+    while (current) {
+      const listeners = current.#listeners.get(type) ?? [];
+      dispatched.currentTarget = current;
+      for (const listener of listeners) {
+        listener(dispatched);
+      }
+      if (!dispatched.bubbles || dispatched.propagationStopped) break;
+      current = current.parentElement;
+    }
+    return dispatched;
+  }
+
+  find(predicate) {
+    if (predicate(this)) {
+      return this;
+    }
+
+    for (const child of this.children) {
+      const result = child.find(predicate);
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  getBoundingClientRect() {
+    return { ...this.#rect };
+  }
+
+  contains(candidate) {
+    if (candidate === this) return true;
+    return this.children.some((child) => child.contains(candidate));
+  }
+
+  focus() {
+    this.ownerDocument.activeElement = this;
+  }
+
+  replaceChildren(...nodes) {
+    const activeElement = this.ownerDocument.activeElement;
+    if (activeElement && this.children.some((child) => child.contains(activeElement))) {
+      this.ownerDocument.activeElement = null;
+    }
+    this.children = [];
+    this.#textContent = '';
+    this.append(...nodes);
+  }
+
+  setPointerCapture(pointerId) {
+    this.capturedPointerIds ??= [];
+    this.capturedPointerIds.push(pointerId);
+  }
+
+  setRect(nextRect) {
+    this.#rect = { ...this.#rect, ...nextRect };
+  }
+
+  set innerHTML(_value) {
+    throw new Error('workspace notes must render user content with textContent');
+  }
+
+  get textContent() {
+    return this.#textContent + this.children.map((child) => child.textContent).join('');
+  }
+
+  set textContent(value) {
+    this.children = [];
+    this.#textContent = String(value);
+  }
+}
+
+function createRoot(rect) {
+  const document = {
+    activeElement: null,
+    createElement(tagName) {
+      return new FakeElement(tagName, document);
+    },
+  };
+
+  return new FakeElement('section', document, rect);
+}
+
+const ADMIN_SESSION = Object.freeze({ desktopOpen: true, profileId: 'admin-1', role: 'admin' });
+const CLERK_SESSION = Object.freeze({ desktopOpen: true, profileId: 'clerk-1', role: 'clerk' });
+const NOTE_SIZE = Object.freeze({ height: 150, width: 240 });
+
+test('only admins can manage shared workspace note content', () => {
+  assert.equal(canManageWorkspaceNotes('admin'), true);
+  assert.equal(canManageWorkspaceNotes('clerk'), false);
+  assert.equal(canManageWorkspaceNotes('visitor'), false);
+  assert.equal(canManageWorkspaceNotes(null), false);
+});
+
+test('default note positions fill a right-side stack before moving left, while saved coordinates win', async () => {
+  const bounds = { height: 700, taskbarHeight: 40, width: 1_000 };
+  const options = { bounds, gap: 10, gutter: 20, noteSize: NOTE_SIZE };
+
+  assert.deepEqual(defaultWorkspaceNotePosition(0, options), { left: 740, top: 20 });
+  assert.deepEqual(defaultWorkspaceNotePosition(1, options), { left: 740, top: 180 });
+  assert.deepEqual(defaultWorkspaceNotePosition(2, options), { left: 740, top: 340 });
+  assert.deepEqual(defaultWorkspaceNotePosition(3, options), { left: 490, top: 20 });
+
+  const notes = [
+    { content: 'first', id: 'note-1', title: 'First' },
+    { content: 'second', id: 'note-2', title: 'Second' },
+    { content: 'third', id: 'note-3', title: 'Third' },
+    { content: 'fourth', id: 'note-4', title: 'Fourth' },
+  ];
+  const client = createClient({
+    layouts: [{ left_px: 111, note_id: 'note-1', profile_id: 'admin-1', top_px: 222 }],
+    notes,
+  });
+  const controller = initializeWorkspaceNotes({
+    bounds,
+    client,
+    gap: 10,
+    gutter: 20,
+    initialSession: ADMIN_SESSION,
+    noteSize: NOTE_SIZE,
+    root: createRoot(bounds),
+  });
+
+  await controller.ready;
+
+  assert.deepEqual(controller.getState().positions, {
+    'note-1': { left: 111, top: 222 },
+    'note-2': { left: 740, top: 180 },
+    'note-3': { left: 740, top: 340 },
+    'note-4': { left: 490, top: 20 },
+  });
+});
+
+test('clamping protects the visible region above the taskbar', () => {
+  assert.deepEqual(
+    clampWorkspaceNotePosition(
+      { left: -20, top: 999 },
+      { height: 400, taskbarHeight: 50, width: 500 },
+      { height: 100, width: 120 },
+    ),
+    { left: 0, top: 250 },
+  );
+});
+
+test('resize only re-clamps visual coordinates and dragging saves rounded coordinates on release', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({
+    layouts: [{ left_px: 200, note_id: 'note-1', profile_id: 'clerk-1', top_px: 100 }],
+    notes: [{ content: 'body', id: 'note-1', title: 'Saved' }],
+  });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 50, width: 400 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+
+  await controller.ready;
+  controller.setBounds({ height: 130, taskbarHeight: 30, width: 200 });
+
+  assert.deepEqual(controller.getState().layouts['note-1'], { left: 200, top: 100 });
+  assert.deepEqual(controller.getState().positions['note-1'], { left: 100, top: 40 });
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+
+  controller.setBounds({ height: 300, taskbarHeight: 50, width: 400 });
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 7 });
+  assert.deepEqual(card.capturedPointerIds, [7]);
+
+  card.dispatch('pointermove', { clientX: 28.7, clientY: 13.2, pointerId: 7 });
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+
+  card.dispatch('pointerup', { clientX: 28.7, clientY: 13.2, pointerId: 7 });
+  await Promise.resolve();
+
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, [{
+    leftPx: 229,
+    noteId: 'note-1',
+    profileId: 'clerk-1',
+    topPx: 113,
+  }]);
+});
+
+test('switching profile scope discards an administrator draft before the next administrator edits', async () => {
+  const root = createRoot();
+  const client = createClient({ notes: [{ content: 'shared body', id: 'note-1', title: 'Shared title' }] });
+  const updateFromFirstAdministrator = deferred();
+  client.updateWorkspaceNote = (id, input) => {
+    client.calls.updateWorkspaceNote.push({ id, ...clone(input) });
+    return updateFromFirstAdministrator.promise;
+  };
+  const controller = initializeWorkspaceNotes({ client, initialSession: ADMIN_SESSION, root });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  controller.setDraft('note-1', { content: 'A-only content', title: 'A-only title' });
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'A-only content', title: 'A-only title' });
+  const savingFirstAdministrator = controller.updateNote('note-1');
+  assert.deepEqual(controller.getState().pendingOperations, ['update:note-1']);
+
+  await controller.setSession({ desktopOpen: true, profileId: 'admin-2', role: 'admin' });
+  assert.deepEqual(controller.getState().drafts, {});
+  assert.deepEqual(controller.getState().pendingOperations, []);
+  controller.startEditing('note-1');
+
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'shared body', title: 'Shared title' });
+  assert.equal(titleInput.value, 'Shared title');
+
+  updateFromFirstAdministrator.resolve({ content: 'A-only content', id: 'note-1', title: 'A-only title' });
+  await savingFirstAdministrator;
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'shared body', title: 'Shared title' });
+});
+
+test('typing into an administrator edit field keeps the current input node and focus', async () => {
+  const root = createRoot();
+  const controller = initializeWorkspaceNotes({
+    client: createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] }),
+    initialSession: ADMIN_SESSION,
+    root,
+  });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  titleInput.focus();
+  titleInput.value = 'Typed title';
+  titleInput.dispatch('input');
+
+  assert.strictEqual(root.find((element) => element.tagName === 'INPUT'), titleInput);
+  assert.strictEqual(root.ownerDocument.activeElement, titleInput);
+  assert.deepEqual(controller.getState().drafts['note-1'], { content: 'body', title: 'Typed title' });
+});
+
+test('interactive note controls neither start a drag nor save a layout', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: ADMIN_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  controller.startEditing('note-1');
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const titleInput = root.find((element) => element.tagName === 'INPUT');
+  const downEvent = titleInput.dispatch('pointerdown', { clientX: 10, clientY: 10, pointerId: 31 });
+  titleInput.dispatch('pointerup', { clientX: 10, clientY: 10, pointerId: 31 });
+  await Promise.resolve();
+
+  assert.equal(downEvent.defaultPrevented, false);
+  assert.deepEqual(card.capturedPointerIds ?? [], []);
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, []);
+});
+
+test('the dedicated drag handle captures the pointer and persists only after release', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Original' }] });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.ok(handle, 'a note exposes a dedicated drag handle');
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 32 });
+  assert.deepEqual(card.capturedPointerIds, [32]);
+
+  card.dispatch('pointermove', { clientX: 10.5, clientY: 15.5, pointerId: 32 });
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, []);
+  card.dispatch('pointerup', { clientX: 10.5, clientY: 15.5, pointerId: 32 });
+  await Promise.resolve();
+
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 1);
+});
+
+test('a failed layout save keeps the visual position and exposes a retryable sync error', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Saved' }] });
+  client.saveWorkspaceNoteLayout = async (input) => {
+    client.calls.saveWorkspaceNoteLayout.push(clone(input));
+    throw new Error('offline');
+  };
+
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  const startingPosition = controller.getState().positions['note-1'];
+  handle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 3 });
+  card.dispatch('pointermove', { clientX: 25, clientY: 15, pointerId: 3 });
+  card.dispatch('pointercancel', { clientX: 25, clientY: 15, pointerId: 3 });
+  await Promise.resolve();
+
+  assert.deepEqual(
+    controller.getState().positions['note-1'],
+    clampWorkspaceNotePosition(
+      { left: startingPosition.left + 25, top: startingPosition.top + 15 },
+      { height: 300, taskbarHeight: 0, width: 400 },
+      { height: 60, width: 100 },
+    ),
+  );
+  assert.match(controller.getState().layoutErrors['note-1'], /offline/i);
+});
+
+test('clerk close is session-only, tears before hiding, and reopens with the desktop', async () => {
+  const client = createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Notice' }] });
+  const controller = initializeWorkspaceNotes({
+    client,
+    initialSession: CLERK_SESSION,
+    root: createRoot(),
+  });
+  await controller.ready;
+
+  controller.closeNote('note-1');
+  assert.deepEqual(controller.getState().tearingNoteIds, ['note-1']);
+  assert.equal(controller.getState().visibleNoteIds.includes('note-1'), true);
+
+  controller.completeTear('note-1');
+  assert.deepEqual(controller.getState().closedNoteIds, ['note-1']);
+  assert.equal(controller.getState().visibleNoteIds.includes('note-1'), false);
+  assert.deepEqual(client.calls.deleteWorkspaceNote, []);
+
+  await controller.setSession({ ...CLERK_SESSION, desktopOpen: false });
+  await controller.setSession(CLERK_SESSION);
+
+  assert.deepEqual(controller.getState().closedNoteIds, []);
+  assert.equal(controller.getState().visibleNoteIds.includes('note-1'), true);
+});
+
+test('reduced motion completes a clerk close immediately', async () => {
+  const controller = initializeWorkspaceNotes({
+    client: createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Notice' }] }),
+    initialSession: CLERK_SESSION,
+    reducedMotion: true,
+    root: createRoot(),
+  });
+  await controller.ready;
+
+  controller.closeNote('note-1');
+  assert.deepEqual(controller.getState().tearingNoteIds, []);
+  assert.deepEqual(controller.getState().closedNoteIds, ['note-1']);
+});
+
+test('content mutations retain failed input and a failed delete restores the torn note', async () => {
+  const note = { content: 'original content', id: 'note-1', title: 'Original' };
+  const client = createClient({ notes: [note] });
+  client.createWorkspaceNote = async (input) => {
+    client.calls.createWorkspaceNote.push(clone(input));
+    throw new Error('create unavailable');
+  };
+  client.updateWorkspaceNote = async (id, input) => {
+    client.calls.updateWorkspaceNote.push({ id, ...clone(input) });
+    throw new Error('update unavailable');
+  };
+  client.deleteWorkspaceNote = async (id) => {
+    client.calls.deleteWorkspaceNote.push(id);
+    throw new Error('delete unavailable');
+  };
+
+  const controller = initializeWorkspaceNotes({
+    client,
+    initialSession: ADMIN_SESSION,
+    reducedMotion: true,
+    root: createRoot(),
+  });
+  await controller.ready;
+
+  await controller.createNote({ content: 'new body', title: 'New title' });
+  await controller.updateNote('note-1', { content: 'edited body', title: 'Edited title' });
+  await controller.deleteNote('note-1');
+
+  const state = controller.getState();
+  assert.deepEqual(state.drafts.create, { content: 'new body', title: 'New title' });
+  assert.deepEqual(state.drafts['note-1'], { content: 'edited body', title: 'Edited title' });
+  assert.equal(state.visibleNoteIds.includes('note-1'), true);
+  assert.deepEqual(state.tearingNoteIds, []);
+  assert.match(state.mutationErrors.create, /create unavailable/i);
+  assert.match(state.mutationErrors['note-1'], /delete unavailable/i);
+});
+
+test('stale note and layout responses cannot overwrite a newer profile scope', async () => {
+  const oldNotes = deferred();
+  const oldLayouts = deferred();
+  const newNotes = deferred();
+  const newLayouts = deferred();
+  const notesRequests = [oldNotes, newNotes];
+  const layoutRequests = [oldLayouts, newLayouts];
+  const client = {
+    async createWorkspaceNote() {},
+    async deleteWorkspaceNote() {},
+    listWorkspaceNoteLayouts() {
+      return layoutRequests.shift().promise;
+    },
+    listWorkspaceNotes() {
+      return notesRequests.shift().promise;
+    },
+    async saveWorkspaceNoteLayout() {},
+    async updateWorkspaceNote() {},
+  };
+  const controller = initializeWorkspaceNotes({
+    client,
+    initialSession: ADMIN_SESSION,
+    root: createRoot(),
+  });
+
+  const newerLoad = controller.setSession({ desktopOpen: true, profileId: 'admin-2', role: 'admin' });
+  oldNotes.resolve([{ content: 'old', id: 'old-note', title: 'Old' }]);
+  oldLayouts.resolve([{ left_px: 1, note_id: 'old-note', profile_id: 'admin-1', top_px: 1 }]);
+  await Promise.resolve();
+
+  assert.equal(controller.getState().notes.some((note) => note.id === 'old-note'), false);
+
+  newNotes.resolve([{ content: 'new', id: 'new-note', title: 'New' }]);
+  newLayouts.resolve([{ left_px: 2, note_id: 'new-note', profile_id: 'admin-2', top_px: 3 }]);
+  await newerLoad;
+
+  assert.deepEqual(controller.getState().notes, [{ content: 'new', id: 'new-note', title: 'New' }]);
+  assert.deepEqual(controller.getState().layouts, { 'new-note': { left: 2, top: 3 } });
+});
+
+test('note text is rendered literally with textContent rather than injected markup', async () => {
+  const root = createRoot();
+  const controller = initializeWorkspaceNotes({
+    client: createClient({
+      notes: [{ content: '<script>break()</script>', id: 'note-1', title: '<img src=x>' }],
+    }),
+    initialSession: ADMIN_SESSION,
+    root,
+  });
+
+  await controller.ready;
+
+  const card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  assert.match(card.textContent, /<img src=x>/);
+  assert.match(card.textContent, /<script>break\(\)<\/script>/);
+});
+
+test('note controls use Chinese accessible labels and expose retryable Chinese sync feedback', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: '请在换班前确认', id: 'note-1', title: '交接事项' }] });
+  client.saveWorkspaceNoteLayout = async (input) => {
+    client.calls.saveWorkspaceNoteLayout.push(clone(input));
+    throw new Error('网络暂不可用');
+  };
+
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: ADMIN_SESSION,
+    noteSize: { height: 60, width: 100 },
+    root,
+  });
+  await controller.ready;
+
+  let card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  const close = root.find((element) => element.dataset.workspaceNoteClose === 'true');
+  const edit = root.find((element) => element.dataset.workspaceNoteEdit === 'true');
+  const remove = root.find((element) => element.dataset.workspaceNoteDelete === 'true');
+
+  assert.equal(card.getAttribute('aria-label'), '便签：交接事项');
+  assert.equal(handle.textContent, '', 'The note drag strip must not print an instruction on the note');
+  assert.equal(handle.getAttribute('aria-label'), '拖动便签：交接事项');
+  assert.equal(close.textContent, '关闭');
+  assert.equal(close.getAttribute('aria-label'), '关闭便签：交接事项');
+  assert.equal(edit.textContent, '编辑');
+  assert.equal(remove.textContent, '删除');
+
+  edit.dispatch('click');
+  const titleInput = root.find((element) => element.dataset.workspaceNoteTitleInput === 'true');
+  const contentInput = root.find((element) => element.dataset.workspaceNoteContentInput === 'true');
+  const save = root.find((element) => element.dataset.workspaceNoteSave === 'true');
+  assert.equal(titleInput.getAttribute('aria-label'), '便签标题');
+  assert.equal(contentInput.getAttribute('aria-label'), '便签正文');
+  assert.equal(save.textContent, '保存');
+
+  card = root.find((element) => element.dataset.workspaceNoteId === 'note-1');
+  const refreshedHandle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  refreshedHandle.dispatch('pointerdown', { clientX: 0, clientY: 0, pointerId: 41 });
+  card.dispatch('pointermove', { clientX: 20, clientY: 10, pointerId: 41 });
+  card.dispatch('pointerup', { clientX: 20, clientY: 10, pointerId: 41 });
+  await Promise.resolve();
+
+  const syncError = root.find((element) => element.dataset.workspaceNoteLayoutError === 'true');
+  const retry = root.find((element) => element.dataset.workspaceNoteLayoutRetry === 'true');
+  assert.match(syncError.textContent, /^位置未同步：网络暂不可用$/);
+  assert.equal(syncError.getAttribute('role'), 'status');
+  assert.equal(retry.textContent, '重新同步位置');
+  assert.equal(retry.getAttribute('aria-label'), '重新同步便签位置：交接事项');
+});
+
+test('keyboard drag mode retains focus, coalesces arrows, and locks a pending layout save', async () => {
+  const root = createRoot({ height: 360, width: 520 });
+  const client = createClient({ notes: [{ content: '正文', id: 'note-1', title: '键盘交接' }] });
+  const pendingSaves = [deferred(), deferred()];
+  client.saveWorkspaceNoteLayout = (input) => {
+    const pendingSave = pendingSaves[client.calls.saveWorkspaceNoteLayout.length];
+    client.calls.saveWorkspaceNoteLayout.push(clone(input));
+    return pendingSave.promise;
+  };
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 360, taskbarHeight: 0, width: 520 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: { height: 90, width: 140 },
+    root,
+  });
+  await controller.ready;
+
+  let handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  handle.focus();
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'true');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  const initialPosition = controller.getState().positions['note-1'];
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  assert.equal(controller.getState().positions['note-1'].left, initialPosition.left + 12);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: 'ArrowDown' });
+  assert.equal(controller.getState().positions['note-1'].top, initialPosition.top + 12);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 0);
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'false');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, [{
+    leftPx: initialPosition.left + 12,
+    noteId: 'note-1',
+    profileId: 'clerk-1',
+    topPx: initialPosition.top + 12,
+  }]);
+
+  const settledPosition = controller.getState().positions['note-1'];
+  assert.equal(handle.getAttribute('aria-disabled'), 'true');
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'false');
+  assert.equal(handle.getAttribute('aria-disabled'), 'true');
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  assert.deepEqual(controller.getState().positions['note-1'], settledPosition);
+  assert.equal(client.calls.saveWorkspaceNoteLayout.length, 1);
+
+  pendingSaves[0].resolve({
+    left_px: initialPosition.left + 12,
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    top_px: initialPosition.top + 12,
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-disabled'), 'false');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+
+  handle.dispatch('keydown', { key: ' ' });
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.equal(handle.getAttribute('aria-pressed'), 'true');
+  handle.dispatch('keydown', { key: 'ArrowRight' });
+  handle.dispatch('keydown', { key: ' ' });
+  assert.deepEqual(client.calls.saveWorkspaceNoteLayout, [
+    {
+      leftPx: initialPosition.left + 12,
+      noteId: 'note-1',
+      profileId: 'clerk-1',
+      topPx: initialPosition.top + 12,
+    },
+    {
+      leftPx: initialPosition.left + 24,
+      noteId: 'note-1',
+      profileId: 'clerk-1',
+      topPx: initialPosition.top + 12,
+    },
+  ]);
+  pendingSaves[1].resolve({
+    left_px: initialPosition.left + 24,
+    note_id: 'note-1',
+    profile_id: 'clerk-1',
+    top_px: initialPosition.top + 12,
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  handle = root.find((element) => element.dataset.workspaceNoteDragHandle === 'true');
+  assert.strictEqual(root.ownerDocument.activeElement, handle);
+});
