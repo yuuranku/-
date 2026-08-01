@@ -21,6 +21,18 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
 
+const subscribeToMainlineChanges = (client, refresh) => {
+  if (typeof client?.subscribeMainlineChanges !== 'function') return () => {};
+  try {
+    const unsubscribe = client.subscribeMainlineChanges(() => {
+      if (document.visibilityState === 'visible') void refresh();
+    });
+    return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+  } catch {
+    return () => {};
+  }
+};
+
 const clampPart = (value) => Math.min(7, Math.max(1, Number.parseInt(value, 10) || 1));
 
 const normalizePartBriefing = (briefing = {}) => ({
@@ -570,7 +582,10 @@ const createComputerScene = (canvas, status, keyboardEntry, onEnter) => {
     const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
     pointerStart = null;
     if (moved > 8) return;
-    if (screenHit(event)) beginEnter();
+    // The imported OBJ has no separately named CRT mesh.  A ray hit is still
+    // used for cursor feedback, but a normal click on the terminal must not
+    // become a dead end when the artist's screen face and the hit plane differ.
+    if (screenHit(event) || screenReady || fittedBounds) beginEnter();
     pointerStart = null;
   };
   const onKeyDown = (event) => {
@@ -1055,12 +1070,22 @@ const adminMarkup = (current, slots, selectedPart) => {
 
 export const openMainlineWindow = async ({ createWindow, role, client, openTemplate }) => {
   let versions = defaultVersions();
+  let mainlineServerIssue = '';
 
   const loadVersions = async () => {
-    const loaded = typeof client?.listMainlineVersions === 'function'
-      ? await client.listMainlineVersions()
-      : defaultVersions();
-    versions = visibleMainlineVersions(loaded.length ? loaded : defaultVersions(), role);
+    try {
+      const loaded = typeof client?.listMainlineVersions === 'function'
+        ? await client.listMainlineVersions()
+        : defaultVersions();
+      versions = visibleMainlineVersions(loaded.length ? loaded : defaultVersions(), role);
+      mainlineServerIssue = '';
+    } catch (error) {
+      // A missing migration must not turn the entrance computer into a dead
+      // screen. The selector can still show VER 0.1, while clearly marking
+      // that configuration and cross-user data are not yet available.
+      versions = visibleMainlineVersions(defaultVersions(), role);
+      mainlineServerIssue = error?.message || '主线服务器配置尚未就绪';
+    }
     if (!versions.length) versions = defaultVersions();
     return versions;
   };
@@ -1068,9 +1093,14 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
   const loadVersionAndSlots = async (version) => {
     const nextVersions = await loadVersions();
     const current = nextVersions.find(({ code }) => code === version.code) || version;
-    const slots = typeof client?.listMainlineStaffSlots === 'function'
-      ? await client.listMainlineStaffSlots(current.code)
-      : [];
+    let slots = [];
+    try {
+      slots = typeof client?.listMainlineStaffSlots === 'function'
+        ? await client.listMainlineStaffSlots(current.code)
+        : [];
+    } catch (error) {
+      mainlineServerIssue = error?.message || '人员席位服务器配置尚未就绪';
+    }
     return { current, slots };
   };
 
@@ -1264,7 +1294,11 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       if (stage === 1 && event.detail?.templateId === '06') void reload();
     };
     window.addEventListener('palis:archive-submission-changed', onSubmissionChanged);
-    state.dispose = () => window.removeEventListener('palis:archive-submission-changed', onSubmissionChanged);
+    const unsubscribeMainline = subscribeToMainlineChanges(client, reload);
+    state.dispose = () => {
+      unsubscribeMainline();
+      window.removeEventListener('palis:archive-submission-changed', onSubmissionChanged);
+    };
     root.addEventListener('click', async (event) => {
       const submissionId = event.target.closest('[data-mainline-view-personnel]')?.dataset.mainlineViewPersonnel;
       const submission = personnelSubmissions.find((record) => record.id === submissionId);
@@ -1399,6 +1433,8 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         setStatus(error.message || '主线配置读取失败');
       }
     };
+    const unsubscribeMainline = subscribeToMainlineChanges(client, reload);
+    state.dispose = () => unsubscribeMainline();
     state.reloadMainline = reload;
 
     root.addEventListener('click', async (event) => {
@@ -1519,7 +1555,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     const canvas = root.querySelector('[data-mainline-film-canvas]');
     const accessible = root.querySelector('[data-mainline-film-accessible]');
     const status = root.querySelector('[data-mainline-film-status]');
-    const frames = futureFilmFrames(versions);
+    let frames = futureFilmFrames(versions);
     let selectedIndex = 0;
     let filmScene = null;
     const openSelected = () => {
@@ -1552,6 +1588,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       status.textContent = selected
         ? `VER ${selected.code} / ${selected.title} / ${selected.is_open ? '开放' : '关闭'}`
         : `${frames[selectedIndex]?.placeholder || '未来版本'} / 未开放`;
+      if (mainlineServerIssue) status.textContent += ' / 服务器主线配置待迁移';
       filmScene.setSelected(selectedIndex);
       accessible.innerHTML = frames.map((frame, index) => `<button type="button" data-mainline-frame-index="${index}" ${frame.version ? `data-mainline-version="${escapeHtml(frame.version.code)}"` : 'disabled'} aria-pressed="${index === selectedIndex}">${frame.version ? `VER ${escapeHtml(frame.version.code)} ${escapeHtml(frame.version.title)}` : `VER ${escapeHtml(frame.placeholder)} 未开放`}</button>`).join('');
     };
@@ -1559,6 +1596,20 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     const move = (delta) => {
       selectedIndex = ((selectedIndex + delta) % frames.length + frames.length) % frames.length;
       render();
+    };
+    const reloadVersions = async () => {
+      const selectedCode = frames[selectedIndex]?.version?.code;
+      await loadVersions();
+      frames = futureFilmFrames(versions);
+      const nextIndex = frames.findIndex((frame) => frame.version?.code === selectedCode);
+      selectedIndex = nextIndex >= 0 ? nextIndex : 0;
+      render();
+    };
+    const unsubscribeMainline = subscribeToMainlineChanges(client, reloadVersions);
+    const disposeFilmScene = state.dispose;
+    state.dispose = () => {
+      unsubscribeMainline();
+      disposeFilmScene?.();
     };
     root.addEventListener('click', (event) => {
       if (event.target.closest('[data-mainline-film-prev]')) return move(-1);

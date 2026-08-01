@@ -686,6 +686,22 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     );
   };
 
+  // Mainline configuration is shared by administrators and clerks. Keep the
+  // subscription deliberately narrow: ordinary drafts remain private until
+  // their existing submission workflow makes them readable.
+  const subscribeMainlineChanges = (listener) => {
+    if (typeof listener !== 'function' || typeof supabase.channel !== 'function') return () => {};
+    const channel = supabase.channel(`palis-mainline-${globalThis.crypto?.randomUUID?.() || Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mainline_versions' }, listener)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mainline_staff_slots' }, listener)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'archive_contributions' }, (payload) => {
+        const record = payload.new || payload.old || {};
+        if (record?.draft_content?.mainline) listener(payload);
+      });
+    channel.subscribe();
+    return () => { void supabase.removeChannel?.(channel); };
+  };
+
   return assertArchiveWorkflowRepository({
     getProfile, listTemplates, listMyDrafts, deleteDraft, saveDraft, submitDraft, listReviewQueue, reviewSubmission,
     publishContribution, inviteUser, listUsers, createUser, updateUserRole, resetUserPassword, deleteUser,
@@ -695,6 +711,6 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     listWorkspaceNotes, createWorkspaceNote, updateWorkspaceNote, deleteWorkspaceNote,
     listWorkspaceNoteLayouts, saveWorkspaceNoteLayout,
     listMainlineVersions, saveMainlineVersion, listMainlineStaffSlots, listMainlinePersonnelSubmissions, saveMainlineStaffSlot,
-    deleteMainlineStaffSlot, uploadMainlineCover,
+    deleteMainlineStaffSlot, uploadMainlineCover, subscribeMainlineChanges,
   });
 };

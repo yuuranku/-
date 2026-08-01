@@ -43,7 +43,17 @@ test('档案纠错程序 moves through computer, version selector, briefing, and
       return canvas?.dataset.modelLoaded === 'true' && canvas?.dataset.cameraFit === 'pass';
     }, { timeout: 20_000 });
     stage = 'version reel window';
-    await page.$eval('[data-mainline-enter]', (button) => button.click());
+    // Regression: the visible computer canvas, not the hidden keyboard-only
+    // fallback button, must open the version reel after the OBJ is ready.
+    await page.$eval('[data-mainline-computer-canvas]', (canvas) => {
+      const bounds = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2,
+      }));
+      canvas.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2,
+      }));
+    });
     await page.waitForSelector('[data-mainline-film]', { timeout: 10_000 });
     await page.waitForFunction(() => !document.querySelector('[data-mainline-entry]'), { timeout: 10_000 });
     stage = 'version briefing window';

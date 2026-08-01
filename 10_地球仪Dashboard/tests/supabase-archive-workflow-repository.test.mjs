@@ -11,6 +11,37 @@ test('Supabase archive repository requires a configured Supabase client', () => 
   );
 });
 
+test('mainline subscription listens only to shared mainline state and tears down its channel', async () => {
+  const watched = [];
+  let removed = null;
+  let subscribed = false;
+  const channel = {
+    on(kind, filter, listener) { watched.push({ kind, table: filter.table, listener }); return channel; },
+    subscribe() { subscribed = true; return channel; },
+  };
+  const repository = createSupabaseArchiveWorkflowRepository({
+    from: () => { throw new Error('not used'); },
+    rpc: () => { throw new Error('not used'); },
+    functions: { invoke: () => { throw new Error('not used'); } },
+    channel: () => channel,
+    removeChannel: async (value) => { removed = value; },
+  });
+
+  let received = 0;
+  const unsubscribe = repository.subscribeMainlineChanges(() => { received += 1; });
+  assert.equal(subscribed, true);
+  assert.deepEqual(watched.map(({ table }) => table), [
+    'mainline_versions', 'mainline_staff_slots', 'archive_contributions',
+  ]);
+  watched[0].listener({ new: { code: '0.1' } });
+  watched[2].listener({ new: { draft_content: { mainline: { stage: 1 } } } });
+  watched[2].listener({ new: { draft_content: {} } });
+  assert.equal(received, 2);
+  unsubscribe();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(removed, channel);
+});
+
 test('searching an original business code finds its renumbered server archive', async () => {
   const legacyArchive = {
     id: 'country-9',
