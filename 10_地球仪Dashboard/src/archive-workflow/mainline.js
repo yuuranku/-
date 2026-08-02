@@ -1436,7 +1436,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       submitter,
       modifier: null,
       reviewer: null,
-      approved_at: record.reviewed_at || record.submitted_at || record.updated_at,
+      approved_at: record.submitted_at || record.updated_at,
     },
     preview: true,
   })}</div>`;
