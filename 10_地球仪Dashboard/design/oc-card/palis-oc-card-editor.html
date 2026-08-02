@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PALIS / 九类 OC 设定卡编辑器</title>
+  <style>
+    :root {
+      --bg: #090b0c;
+      --panel: #101416;
+      --panel-2: #151a1d;
+      --line: #2c353a;
+      --ink: #e6e1d7;
+      --muted: #7e898f;
+      --blue: #527df0;
+      --amber: #c4aa68;
+      --red: #d15250;
+      --sans: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      --mono: "Cascadia Mono", "IBM Plex Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+    body {
+      background-image:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-rows: 74px minmax(0,1fr); }
+    .topbar {
+      position: relative; z-index: 4; display: flex; align-items: center; gap: 18px;
+      padding: 0 22px; border-bottom: 1px solid var(--line); background: rgba(9,11,12,.94);
+      backdrop-filter: blur(14px);
+    }
+    .brand { min-width: 280px; }
+    .brand strong { display: block; font: 700 18px/1 var(--mono); letter-spacing: .08em; }
+    .brand span { display: block; margin-top: 7px; color: var(--muted); font: 12px/1 var(--mono); letter-spacing: .06em; }
+    .save-state { margin-right: auto; color: var(--muted); font: 12px/1 var(--mono); }
+    .save-state::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 12px var(--blue); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .btn {
+      min-height: 34px; padding: 0 12px; border: 1px solid var(--line); background: var(--panel);
+      cursor: pointer; font: 12px/1 var(--mono); letter-spacing: .03em; transition: .18s ease;
+    }
+    .btn:hover { border-color: #738087; background: #1a2023; transform: translateY(-1px); }
+    .btn:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .btn.primary { border-color: #3c62c6; background: #2448a6; }
+    .btn.warn { color: #dd8a87; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 224px minmax(440px,1fr) 344px; }
+    .nav, .inspector { min-height: 0; overflow: auto; background: rgba(12,15,16,.93); }
+    .nav { border-right: 1px solid var(--line); padding: 18px 12px; }
+    .nav-title, .inspector-title { margin: 2px 8px 14px; color: var(--muted); font: 11px/1 var(--mono); letter-spacing: .12em; }
+    .card-tab {
+      width: 100%; display: grid; grid-template-columns: 38px 1fr; gap: 10px; align-items: center;
+      min-height: 58px; margin-bottom: 6px; padding: 8px 10px; border: 1px solid transparent; background: transparent;
+      text-align: left; cursor: pointer; transition: .16s ease;
+    }
+    .card-tab:hover { background: #151a1d; }
+    .card-tab.active { border-color: #3c4850; background: #181e21; }
+    .tab-code { color: var(--muted); font: 20px/1 var(--mono); }
+    .card-tab.active .tab-code { color: var(--tab-accent, var(--blue)); }
+    .tab-copy b { display: block; font-size: 14px; font-weight: 600; }
+    .tab-copy small { display: block; margin-top: 5px; color: var(--muted); font: 10px/1.2 var(--mono); }
+    .stage { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; }
+    .stage-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 18px 24px 12px; }
+    .stage-head h1 { margin: 0; font-size: 20px; font-weight: 650; }
+    .stage-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .page-count { color: var(--muted); font: 12px/1 var(--mono); }
+    .canvas-wrap { min-height: 0; overflow: auto; display: grid; place-items: start center; padding: 12px 26px 30px; }
+    .paper {
+      width: min(100%, 720px); aspect-ratio: 3 / 4; background: #0b0d0e; box-shadow: 0 28px 80px rgba(0,0,0,.52);
+      transition: .25s ease; isolation: isolate;
+    }
+    .paper svg { display: block; width: 100%; height: 100%; }
+    .paper [data-key] { cursor: pointer; }
+    .paper [data-key]:hover { filter: drop-shadow(0 0 5px rgba(97,134,239,.9)); }
+    .stage-note { padding: 11px 24px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .stage-note b { color: var(--ink); font-weight: 500; }
+    .inspector { border-left: 1px solid var(--line); padding: 18px 16px 80px; }
+    .inspector-meta { margin: -5px 8px 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .field { display: block; margin: 0 0 14px; }
+    .field > span { display: flex; justify-content: space-between; margin: 0 2px 7px; color: #abb3b6; font-size: 12px; }
+    .field em { color: var(--muted); font: normal 10px/1 var(--mono); }
+    .field input, .field textarea {
+      width: 100%; border: 1px solid #30393d; background: #0b0e10; color: var(--ink); border-radius: 0;
+      padding: 10px 11px; line-height: 1.55; resize: vertical;
+    }
+    .field input:hover, .field textarea:hover { border-color: #4e5c63; }
+    .field textarea { min-height: 76px; }
+    .field.flash input, .field.flash textarea { animation: fieldFlash .8s ease; }
+    @keyframes fieldFlash { 0%,100% { border-color: #30393d; } 35% { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(82,125,240,.18); } }
+    .toolbar-divider { width: 1px; height: 28px; background: var(--line); }
+    .toast {
+      position: fixed; left: 50%; bottom: 26px; z-index: 20; transform: translate(-50%, 16px); opacity: 0;
+      padding: 10px 14px; border: 1px solid #465158; background: #111719; color: var(--ink); pointer-events: none;
+      font-size: 13px; transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 1120px) {
+      .workspace { grid-template-columns: 188px minmax(420px,1fr) 310px; }
+      .brand { min-width: 220px; }
+      .actions .optional { display: none; }
+    }
+    @media (max-width: 820px) {
+      .app { grid-template-rows: auto auto; }
+      .topbar { min-height: 78px; padding: 12px 14px; flex-wrap: wrap; }
+      .brand { min-width: 0; margin-right: auto; }
+      .save-state { display: none; }
+      .workspace { display: block; }
+      .nav { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; }
+      .nav-title { display: none; }
+      .card-tab { min-width: 116px; margin: 0 4px; grid-template-columns: 28px 1fr; }
+      .tab-copy small { display: none; }
+      .stage { min-height: auto; }
+      .canvas-wrap { overflow: visible; padding: 10px 12px 24px; }
+      .inspector { border-left: 0; border-top: 1px solid var(--line); }
+      .toolbar-divider { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+    @media print {
+      body { background: #fff; }
+      .topbar, .nav, .inspector, .stage-head, .stage-note { display: none !important; }
+      .workspace, .stage, .canvas-wrap { display: block; padding: 0; }
+      .paper { width: 100vw; height: 100vh; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><strong>PALIS / OC CARD LAB</strong><span>九类档案 · 九种角色观察方式</span></div>
+      <div class="save-state" id="saveState">修改会自动保存在此浏览器</div>
+      <div class="actions">
+        <button class="btn optional" id="importBtn">导入数据</button>
+        <button class="btn optional" id="exportDataBtn">导出整套数据</button>
+        <span class="toolbar-divider"></span>
+        <button class="btn" id="svgBtn">导出 SVG</button>
+        <button class="btn primary" id="pngBtn">导出 PNG</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <nav class="nav" id="nav"><div class="nav-title">ARCHIVE LENSES / 档案视角</div></nav>
+      <section class="stage">
+        <div class="stage-head">
+          <div><h1 id="stageTitle"></h1><p id="stageSubtitle"></p></div>
+          <div class="page-count" id="pageCount"></div>
+        </div>
+        <div class="canvas-wrap"><div class="paper" id="paper" aria-label="OC 设定卡预览"></div></div>
+        <div class="stage-note"><b>编辑方法：</b>使用右侧字段；也可以直接点击卡片上的文字跳到对应字段。内容自动保存。</div>
+      </section>
+      <aside class="inspector">
+        <div class="inspector-title">CARD CONTENT / 卡片内容</div>
+        <div class="inspector-meta" id="inspectorMeta"></div>
+        <form id="form"></form>
+        <button class="btn warn" id="resetBtn" type="button">恢复这张卡的示例内容</button>
+      </aside>
+    </main>
+  </div>
+  <input id="fileInput" type="file" accept="application/json,.json" hidden />
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const schemas = [
+      {
+        id: "country", code: "01", title: "国家档案 OC 卡", en: "STATE OF ORIGIN", accent: "#315ed2",
+        subtitle: "角色如何被出生地、国籍与国家机器塑造",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["country","国家归属","美国"],
+          ["birthplace","出生地","纽约州罗切斯特"],["citizenship","身份状态","美国公民 / BAS 民用技术员"],
+          ["language","语言与口音","英语 / 纽约州口音"],["stateRelation","与国家的关系","受国家任务体系雇佣，但不完全信任机构对证据的解释。","long"],
+          ["politicalPressure","国家施加的压力","事故复核、保密义务与“唯一生还者”的公共叙事。","long"],
+          ["whiteAbyssLink","与白幕的国家关联","HZ-6 样本线任务 / 美国南极测绘局","long"]
+        ]
+      },
+      {
+        id: "organization", code: "02", title: "组织档案 OC 卡", en: "CHAIN OF COMMAND", accent: "#6688ef",
+        subtitle: "用任职、权限、忠诚与内部关系定义角色",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["organization","所属组织","BAS / 美国南极测绘局"],
+          ["department","部门","民用影像技术组"],["position","职位","影像技术员 / HZ-6 四号位"],["clearance","权限级别","任务影像与曝光记录 / 无底片复核权"],
+          ["superior","直接负责人","P28 艾伦·M·拉斯克"],["loyalty","忠诚对象","优先忠于可复核的记录，而非组织口径。","long"],
+          ["internalConflict","组织内冲突","事故后口述与胶片内容被分开评估，他无法接触冲洗底片。","long"]
+        ]
+      },
+      {
+        id: "station", code: "03", title: "科考站点 OC 卡", en: "STATION SHIFT BOARD", accent: "#7ba8d8",
+        subtitle: "通过空间、值班、生活痕迹与生存习惯观察角色",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["station","驻留站点","HZ-6 地表营地 / 临时设施"],
+          ["room","床位或工作区","暗袋、器材箱与胶片封套旁的四号位"],["shift","值班时段","随样本线行动 / 非固定班次"],
+          ["stationRole","站内职责","低温相机测试、胶片编号、曝光卡维护"],["routine","个人日常","出发前逐卷复核编号；回站后先封存再口述。","long"],
+          ["survivalHabit","生存习惯","把器材动作记成固定顺序，用程序对抗疲劳与失温。","long"],
+          ["roomTrace","留下的痕迹","两台相机测试记录、六卷胶片编号、未完成的曝光卡。","long"]
+        ]
+      },
+      {
+        id: "entrance", code: "04", title: "白幕入口 OC 卡", en: "DESCENT / RETURN LOG", accent: "#ded8ca",
+        subtitle: "记录角色越过边界时的身体、记忆与返回条件",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["entrance","关联入口","HZ-6A 回撤线"],
+          ["firstContact","首次接触","1952.08.19 / HZ-6 样本线行动"],["depth","最深记录","未形成可靠深度记录"],
+          ["bodyResponse","身体反应","左臂骨裂、早期失温、接触时段记忆中断","long"],["anchor","返回锚点","换卷、过片、闪光触发的肌肉记忆","long"],
+          ["lostThing","在入口失去的东西","连续时序，以及判断自己是否完成记录的把握。","long"],
+          ["returnCondition","返回后的条件","生还，但口述不得替代胶片与无线电证据。","long"]
+        ]
+      },
+      {
+        id: "ecology", code: "05", title: "生态档案 OC 卡", en: "HABITAT TOLERANCE", accent: "#9aa675",
+        subtitle: "角色与温度、光线、地貌和活体环境的相互影响",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["biome","关联生态","暮色针叶层 / 样本线环境"],
+          ["adaptation","适应方式","低温胶片经验、固定操作顺序、器材冗余"],["sensitivity","敏感因素","失温、声源不明的点名、光线与距离错判"],
+          ["environmentEffect","环境对角色的改变","越依赖机械程序，越怀疑自己的记忆是否仍属于自己。","long"],
+          ["characterEffect","角色对环境的影响","摄影把不可见的痕迹固定成可争议的证物。","long"],
+          ["fieldSign","环境留下的标记","回撤线外 1.4 英里发现；胶片与口述时序不闭合。","long"],
+          ["tolerance","耐受评估","寒冷 62 / 黑暗 71 / 声源干扰 28 / 记忆稳定 34"]
+        ]
+      },
+      {
+        id: "person", code: "06", title: "相关人物 OC 卡", en: "PERSONNEL PORTRAIT", accent: "#527df0",
+        subtitle: "最接近传统 OC 设定卡的人事卷版本",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["nameEn","英文名","THOMAS E. MALLORY"],["ocCode","人物编号","P31"],
+          ["birth","出生","1924.06.11 / 纽约州罗切斯特"],["occupation","身份职业","BAS 民用影像技术员 / 战时航空摄影冲洗员"],
+          ["appearance","外貌设定","暂无肖像资料：建议保留“面貌未公开”，由作者补写。","long"],["personality","性格","谨慎、程序化，对“看见”和“能够证明”的边界异常敏感。","long"],
+          ["motivation","角色动机","找出胶片与口述不一致的原因，恢复 HZ-6 的现场时序。","long"],
+          ["contradiction","核心矛盾","唯一确认生还者，却不是一名完整证人。","long"],["arc","人物弧光","记录者 → 被审视的证物 → 重新夺回叙述权的人。","long"]
+        ]
+      },
+      {
+        id: "event", code: "07", title: "事件档案 OC 卡", en: "INCIDENT CHRONOLOGY", accent: "#cb5755",
+        subtitle: "角色在一个事件里做了什么选择，又付出什么代价",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["eventCode","事件编号","EV10 / EV11"],
+          ["eventName","事件名称","HZ-6 第六个回答 / 胶片先行签收"],["eventDate","发生时间","1952.08.19 → 1952.11.19"],
+          ["before","事件之前","完成两台相机低温测试，将六卷胶片分别编号。","long"],["choice","关键选择","按固定动作继续换卷、过片和触发闪光，而不是追逐不明声源。","long"],
+          ["after","事件之后","在回撤线外被发现；接受医学观察和分段访谈。","long"],["consequence","长期后果","1953 年退出现场工作；证词与影像被永久分开评估。","long"]
+        ]
+      },
+      {
+        id: "anomaly", code: "08", title: "异常档案 OC 卡", en: "COGNITIVE INTERFERENCE", accent: "#db4d4b",
+        subtitle: "记录异常如何作用于角色，而不是只罗列能力数值",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["anomalyCode","异常编号","A04 / A15"],
+          ["manifestation","异常表现","第三次点名出现第六个回答；同号胶片封套先于胶卷归队。","long"],["trigger","触发条件","HZ-6 样本线行动、声源不明、胶片交接"],
+          ["symptom","角色症状","阶段性记忆缺失；只能确认操作动作，不能确认画面内容。","long"],["risk","风险等级","认知与证据链双重污染 / 高"],
+          ["containment","当前控制","口述、胶片、无线电和搜救记录必须独立交叉复核。","long"],["uncertainty","尚未确认","第六个回答者身份；先行签收封套的来源。","long"]
+        ]
+      },
+      {
+        id: "species", code: "09", title: "物种档案 OC 卡", en: "SPECIMEN RELATION", accent: "#c7ae72",
+        subtitle: "从角色与未知物种的观察、接触和互相改变建立设定",
+        fields: [
+          ["name","角色姓名","托马斯·E·马洛里"],["ocCode","人物编号","P31"],["speciesCode","物种编号","S07 / S11"],
+          ["speciesName","关联物种","Leucocuticulata complex / Dendrotherium longirameum"],["commonName","卷内称呼","白壳复合体 / 长枝树兽"],
+          ["observation","观察方式","通过失败胶片、足迹、白壳碎片与根板记录间接接触。","long"],["contact","接触结果","马洛里没有看过冲洗底片，无法确认自己是否曾直接看见它们。","long"],
+          ["mutualTrace","相互留下的痕迹","物种留下影像与样本；角色留下编号、曝光方向和一条不完整证词。","long"],
+          ["fieldQuestion","研究问题","相机记录的是生物本体，还是被白幕改写后的观察关系？","long"]
+        ]
+      }
+    ];
+
+    const STORE_KEY = "palis-oc-card-lab-v1";
+    const defaults = Object.fromEntries(schemas.map(s => [s.id, Object.fromEntries(s.fields.map(f => [f[0], f[2]]))]));
+    let data = loadData();
+    let current = "person";
+    let toastTimer;
+
+    const $ = s => document.querySelector(s);
+    const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const v = key => data[current]?.[key] ?? "";
+    const schema = () => schemas.find(s => s.id === current);
+    const safeId = value => String(value || "card").replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]+/g, "-");
+
+    function loadData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORE_KEY));
+        return Object.fromEntries(schemas.map(s => [s.id, {...defaults[s.id], ...(saved?.[s.id] || {})}]));
+      } catch { return structuredClone(defaults); }
+    }
+    function saveData() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      $("#saveState").textContent = "已自动保存 · " + new Date().toLocaleTimeString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+    }
+    function showToast(message) {
+      clearTimeout(toastTimer); const el = $("#toast"); el.textContent = message; el.classList.add("show");
+      toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function t(x,y,content,size=24,fill="#e4dfd4",weight=400,anchor="start",key="",family="'Microsoft YaHei UI','Microsoft YaHei',sans-serif",spacing=0) {
+      return `<text x="${x}" y="${y}" fill="${fill}" font-family="${family}" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}" letter-spacing="${spacing}" ${key?`data-key="${key}"`:""}>${esc(content)}</text>`;
+    }
+    function multi(x,y,content,max=18,size=22,fill="#aab0ae",leading=34,key="",weight=400) {
+      const raw = String(content || ""); const rows = []; let row = "";
+      for (const ch of raw) { if (row.length >= max || (ch === " " && row.length > max-4)) { rows.push(row.trim()); row = ""; } row += ch; }
+      if (row.trim()) rows.push(row.trim());
+      return `<text x="${x}" y="${y}" fill="${fill}" font-family="'Microsoft YaHei UI','Microsoft YaHei',sans-serif" font-size="${size}" font-weight="${weight}" data-key="${key}">${rows.slice(0,4).map((r,i)=>`<tspan x="${x}" dy="${i?leading:0}">${esc(r)}</tspan>`).join("")}</text>`;
+    }
+    const line = (x1,y1,x2,y2,color="#344047",w=1,dash="") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:""}/>`;
+    const box = (x,y,w,h,fill="none",stroke="#344047",sw=1,rx=0) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="${rx}"/>`;
+    function openSvg(bg="#080b0d") {
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600"><rect width="1200" height="1600" fill="${bg}"/>`;
+    }
+    function noisePattern(color="#fff") {
+      return `<defs><pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="${color}" stroke-opacity=".045"/></pattern></defs><rect width="1200" height="1600" fill="url(#grid)"/>`;
+    }
+    function footer(code, color="#6f7a80") {
+      return `${line(60,1534,1140,1534,"#30383c")} ${t(60,1568,"PALIS / OC CROSS-INDEX",15,color,500,"start","","Consolas,monospace",1)} ${t(1140,1568,code+" / 09",18,"#d9d4c9",700,"end","","Consolas,monospace",1)}</svg>`;
+    }
+    function fieldLabel(x,y,label,value,key,w=480,accent="#527df0") {
+      return `${t(x,y,label.toUpperCase(),15,accent,700,"start","","Consolas,monospace",1)}${line(x,y+12,x+w,y+12,"#3a4449")}${multi(x,y+43,value,Math.max(10,Math.floor(w/22)),21,"#d8d4ca",31,key,500)}`;
+    }
+
+    function renderCountry() {
+      let s=openSvg("#d9d5ca");
+      s+=`<rect x="36" y="36" width="1128" height="1528" fill="none" stroke="#1a2530" stroke-width="2"/>`;
+      s+=`<path d="M780 0H1200V1600H940L700 0Z" fill="#c8c4b8"/><path d="M920 0H978V1600H920Z" fill="#315ed2" opacity=".88"/>`;
+      s+=t(64,96,"PALIS / STATE DOSSIER",18,"#1f3040",700,"start","","Consolas,monospace",2);
+      s+=t(64,225,v("country"),112,"#111b24",800,"start","country");
+      s+=t(66,275,"STATE OF ORIGIN / 国家如何塑造角色",22,"#50616b",500);
+      s+=`<circle cx="872" cy="282" r="165" fill="none" stroke="#25394a" stroke-width="2"/><circle cx="872" cy="282" r="132" fill="none" stroke="#315ed2" stroke-width="12" stroke-dasharray="160 54"/><path d="M754 282H990M872 164V400" stroke="#25394a"/><text x="872" y="305" text-anchor="middle" font-family="Consolas" font-size="64" font-weight="700" fill="#192633" data-key="ocCode">${esc(v("ocCode"))}</text>`;
+      s+=box(64,350,680,292,"#cecac0","#6f7778");
+      s+=t(92,398,"IDENTITY HOLDER",15,"#315ed2",700,"start","","Consolas,monospace",2);
+      s+=t(92,478,v("name"),48,"#101820",750,"start","name");
+      s+=fieldLabel(92,525,"BIRTHPLACE",v("birthplace"),"birthplace",610,"#315ed2");
+      s+=fieldLabel(92,610,"CITIZENSHIP / STATUS",v("citizenship"),"citizenship",610,"#315ed2");
+      s+=fieldLabel(64,718,"LANGUAGE / VOICE",v("language"),"language",480,"#315ed2");
+      s+=fieldLabel(64,866,"RELATION TO STATE",v("stateRelation"),"stateRelation",690,"#315ed2");
+      s+=fieldLabel(64,1080,"STATE PRESSURE",v("politicalPressure"),"politicalPressure",690,"#aa3c3c");
+      s+=fieldLabel(792,718,"WHITE ABYSS LINK",v("whiteAbyssLink"),"whiteAbyssLink",330,"#315ed2");
+      s+=`<path d="M800 900c92-78 188-52 280-152v440c-82 72-194 88-280 150Z" fill="#182a39" opacity=".9"/><path d="M823 943c68 31 126-49 217-22M823 1032c90 21 146-35 224-12M823 1120c74 28 145-40 225-10" fill="none" stroke="#d9d5ca" stroke-opacity=".32" stroke-width="2"/>`;
+      s+=footer("01","#4e5b61"); return s;
+    }
+    function renderOrganization() {
+      let s=openSvg("#08101a"); s+=noisePattern("#6c91bd");
+      s+=t(58,96,"02 / CHAIN OF COMMAND",18,"#6688ef",700,"start","","Consolas,monospace",2);
+      s+=t(58,220,v("organization"),110,"#d9e0e3",800,"start","organization");
+      s+=t(62,267,"组织不是背景，而是角色必须穿过的权限结构",21,"#7f919c",400);
+      s+=`<text x="1110" y="270" text-anchor="end" font-family="Consolas" font-size="240" font-weight="800" fill="#14263b">02</text>`;
+      const nodes=[[600,370,190,56,"BOARD / COMMAND",""],[600,505,250,64,v("department"),"department"],[600,660,340,76,v("position"),"position"],[600,845,260,70,v("name"),"name"]];
+      nodes.forEach((n,i)=>{ if(i) s+=line(600,nodes[i-1][1]+nodes[i-1][3]/2,600,n[1]-n[3]/2,"#6688ef",3); s+=`<rect x="${n[0]-n[2]/2}" y="${n[1]-n[3]/2}" width="${n[2]}" height="${n[3]}" fill="${i===3?'#254fae':'#0e1c2a'}" stroke="#6688ef" stroke-width="2" data-key="${n[5]}"/>`; s+=t(n[0],n[1]+8,n[4],i===3?24:19,"#e5e4df",i===3?700:500,"middle",n[5]); });
+      s+=line(600,878,600,955,"#6688ef",3); s+=line(225,955,975,955,"#6688ef",3);
+      [[225,"DIRECT SUPERIOR",v("superior"),"superior"],[600,"CLEARANCE",v("clearance"),"clearance"],[975,"PERSONNEL CODE",v("ocCode"),"ocCode"]].forEach(n=>{s+=line(n[0],955,n[0],1008,"#6688ef",3);s+=box(n[0]-145,1008,290,118,"#0c1722","#385f9d");s+=t(n[0],1044,n[1],14,"#6688ef",700,"middle","","Consolas,monospace",1);s+=multi(n[0]-120,1081,n[2],13,18,"#d8dddf",26,n[3],500)});
+      s+=fieldLabel(58,1192,"LOYALTY",v("loyalty"),"loyalty",500,"#6688ef");
+      s+=fieldLabel(640,1192,"INTERNAL CONFLICT",v("internalConflict"),"internalConflict",500,"#d25351");
+      s+=footer("02"); return s;
+    }
+    function renderStation() {
+      let s=openSvg("#123858"); s+=noisePattern("#d3e6f2");
+      s+=t(54,80,"STATION SHIFT BOARD / 03",18,"#b9d7e9",700,"start","","Consolas,monospace",2);
+      s+=t(54,178,v("station"),65,"#f0eee6",700,"start","station");
+      s+=t(1138,180,"BLUEPRINT / OCCUPANCY",16,"#9dc2d8",500,"end","","Consolas,monospace",1);
+      s+=box(54,240,1092,748,"#0e314f","#9dc2d8",2);
+      s+=`<path d="M54 450H1146M390 240V988M808 240V988M390 650H1146M808 450V650" fill="none" stroke="#6d9ab6" stroke-width="2"/>`;
+      s+=t(82,285,"DARKROOM / 工作区",17,"#9dc2d8",700); s+=multi(82,342,v("room"),16,24,"#f0eee6",36,"room",600);
+      s+=t(420,285,"SHIFT / 值班",17,"#9dc2d8",700); s+=multi(420,342,v("shift"),18,24,"#f0eee6",36,"shift",600);
+      s+=t(840,285,"PERSONNEL",17,"#9dc2d8",700); s+=t(840,370,v("ocCode"),86,"#f0eee6",800,"start","ocCode"); s+=t(840,418,v("name"),24,"#d0e2ec",600,"start","name");
+      s+=t(838,505,"ROLE ON SITE",17,"#9dc2d8",700); s+=multi(838,558,v("stationRole"),15,22,"#f0eee6",34,"stationRole",600);
+      s+=t(420,700,"DAILY PROCEDURE",17,"#9dc2d8",700); s+=multi(420,758,v("routine"),22,23,"#f0eee6",36,"routine",500);
+      s+=t(838,700,"SURVIVAL HABIT",17,"#9dc2d8",700); s+=multi(838,758,v("survivalHabit"),15,22,"#f0eee6",34,"survivalHabit",500);
+      s+=fieldLabel(54,1065,"TRACE LEFT IN THE STATION",v("roomTrace"),"roomTrace",1092,"#b9d7e9");
+      s+=`<path d="M54 1330H1146M54 1370H1146M54 1410H1146" stroke="#9dc2d8" stroke-opacity=".35"/><text x="54" y="1300" font-family="Consolas" font-size="15" fill="#9dc2d8">SHIFT NOTES / 在这里补写角色真正生活过的痕迹</text>`;
+      s+=footer("03","#9dc2d8"); return s;
+    }
+    function renderEntrance() {
+      let s=openSvg("#050708");
+      s+=`<rect x="486" width="228" height="1600" fill="#090d10"/><path d="M490 0L556 1600M710 0L644 1600" stroke="#232b30" stroke-width="3"/>`;
+      for(let y=120,i=0;y<1480;y+=110,i++) s+=`${line(530,y,670,y,i%3===0?'#d9d4c9':'#566067',i%3===0?2:1)}${t(515,y+6,String(i*10).padStart(3,"0"),13,"#717b80",500,"end","","Consolas,monospace")}`;
+      s+=t(60,85,"04 / DESCENT — RETURN",18,"#d9d4c9",700,"start","","Consolas,monospace",2);
+      s+=t(60,184,v("entrance"),56,"#e2ddd3",700,"start","entrance");
+      s+=t(60,224,"跨过入口之后，角色仍有多少部分能够返回？",20,"#768087",400);
+      s+=`<circle cx="600" cy="390" r="70" fill="#050708" stroke="#d9d4c9" stroke-width="3"/><circle cx="600" cy="390" r="46" fill="none" stroke="#d15250" stroke-width="8" stroke-dasharray="46 20"/>`;
+      s+=t(600,397,v("ocCode"),22,"#e2ddd3",700,"middle","ocCode","Consolas,monospace");
+      s+=fieldLabel(60,310,"FIRST CONTACT",v("firstContact"),"firstContact",355,"#d9d4c9");
+      s+=fieldLabel(60,510,"MAX DEPTH",v("depth"),"depth",355,"#d9d4c9");
+      s+=fieldLabel(60,720,"BODY RESPONSE",v("bodyResponse"),"bodyResponse",355,"#d15250");
+      s+=fieldLabel(785,310,"RETURN ANCHOR",v("anchor"),"anchor",355,"#d9d4c9");
+      s+=fieldLabel(785,570,"WHAT WAS LOST",v("lostThing"),"lostThing",355,"#d15250");
+      s+=fieldLabel(785,840,"RETURN CONDITION",v("returnCondition"),"returnCondition",355,"#d9d4c9");
+      s+=t(600,1210,v("name"),30,"#e2ddd3",700,"middle","name");
+      s+=t(600,1258,"SUBJECT RETURNED / RECORD DID NOT",15,"#d15250",700,"middle","","Consolas,monospace",2);
+      s+=`<path d="M542 1320l58 58 58-58M542 1380l58 58 58-58" fill="none" stroke="#d9d4c9" stroke-width="3" opacity=".6"/>`;
+      s+=footer("04"); return s;
+    }
+    function renderEcology() {
+      let s=openSvg("#171c15");
+      s+=`<circle cx="770" cy="670" r="490" fill="#1c241a" stroke="#9aa675" stroke-opacity=".28"/><circle cx="770" cy="670" r="360" fill="none" stroke="#9aa675" stroke-opacity=".38"/><circle cx="770" cy="670" r="230" fill="none" stroke="#c8cfb0" stroke-opacity=".55"/><circle cx="770" cy="670" r="100" fill="#9aa675" fill-opacity=".14" stroke="#d8ddc5"/>`;
+      for(let a=0;a<360;a+=30){const r=490,x=770+Math.cos(a*Math.PI/180)*r,y=670+Math.sin(a*Math.PI/180)*r;s+=`<circle cx="${x}" cy="${y}" r="4" fill="#9aa675"/>`;}
+      s+=t(58,82,"05 / HABITAT TOLERANCE",18,"#b6c08c",700,"start","","Consolas,monospace",2);
+      s+=t(58,173,v("biome"),58,"#e2dfd3",700,"start","biome");
+      s+=t(58,216,"角色与环境互相留下什么？",20,"#89947c",400);
+      s+=`<path d="M770 540c-54 0-92 41-92 93 0 46 26 79 57 95l-54 135h178l-54-135c31-16 57-49 57-95 0-52-38-93-92-93Z" fill="#d6d8c6" opacity=".72"/>`;
+      s+=t(770,920,v("ocCode"),26,"#dfe3cf",700,"middle","ocCode","Consolas,monospace"); s+=t(770,960,v("name"),24,"#b6c08c",600,"middle","name");
+      s+=fieldLabel(58,300,"ADAPTATION",v("adaptation"),"adaptation",380,"#b6c08c");
+      s+=fieldLabel(58,520,"SENSITIVITY",v("sensitivity"),"sensitivity",380,"#d3a06c");
+      s+=fieldLabel(58,745,"FIELD SIGN",v("fieldSign"),"fieldSign",380,"#b6c08c");
+      s+=fieldLabel(58,1060,"ENVIRONMENT → CHARACTER",v("environmentEffect"),"environmentEffect",510,"#b6c08c");
+      s+=fieldLabel(630,1060,"CHARACTER → ENVIRONMENT",v("characterEffect"),"characterEffect",510,"#b6c08c");
+      s+=fieldLabel(58,1320,"TOLERANCE INDEX",v("tolerance"),"tolerance",1082,"#dfe3cf");
+      s+=footer("05","#929d7b"); return s;
+    }
+    function renderPerson() {
+      let s=openSvg("#080b0d"); s+=noisePattern("#75828a");
+      s+=t(56,80,"PALIS / PERSONNEL DOSSIER",18,"#6688ef",700,"start","","Consolas,monospace",2);
+      s+=t(56,245,v("ocCode"),148,"#e3ded3",800,"start","ocCode","'Arial Narrow','Microsoft YaHei',sans-serif");
+      s+=t(300,170,v("nameEn"),54,"#e3ded3",800,"start","nameEn","'Arial Narrow','Microsoft YaHei',sans-serif");
+      s+=t(304,222,v("name"),29,"#a9b0ae",600,"start","name");
+      s+=line(56,270,1144,270,"#344047",2);
+      s+=box(56,320,420,630,"#0b0f11","#617079",2);
+      s+=`<ellipse cx="266" cy="520" rx="103" ry="115" fill="#c9c8c0" opacity=".78"/><path d="M105 890c22-186 74-267 161-267s139 81 161 267Z" fill="#c9c8c0" opacity=".72"/><rect x="92" y="548" width="348" height="40" fill="#080b0d"/><rect x="92" y="670" width="300" height="14" fill="#315ed2" opacity=".65"/>`;
+      s+=t(78,352,"PORTRAIT / EDIT APPEARANCE AT RIGHT",13,"#768087",500,"start","","Consolas,monospace",1);
+      s+=multi(78,840,v("appearance"),20,18,"#a9b0ae",28,"appearance",400);
+      s+=fieldLabel(520,328,"BIRTH",v("birth"),"birth",624,"#6688ef");
+      s+=fieldLabel(520,465,"OCCUPATION",v("occupation"),"occupation",624,"#6688ef");
+      s+=fieldLabel(520,630,"PERSONALITY",v("personality"),"personality",624,"#6688ef");
+      s+=fieldLabel(520,835,"MOTIVATION",v("motivation"),"motivation",624,"#c5a96b");
+      s+=fieldLabel(56,1015,"CORE CONTRADICTION",v("contradiction"),"contradiction",510,"#d15250");
+      s+=fieldLabel(634,1015,"CHARACTER ARC",v("arc"),"arc",510,"#c5a96b");
+      s+=box(56,1310,1088,124,"#0d1113","#344047"); s+=t(82,1346,"ROLE AXIS",14,"#6688ef",700,"start","","Consolas,monospace",1); s+=t(82,1404,"记录者",28,"#e3ded3",700); s+=t(600,1404,"→ 被审视的证物 →",24,"#d15250",600,"middle"); s+=t(1114,1404,"叙述者",28,"#e3ded3",700,"end");
+      s+=footer("06"); return s;
+    }
+    function renderEvent() {
+      let s=openSvg("#0c0d0e");
+      s+=t(56,80,"07 / INCIDENT CHRONOLOGY",18,"#d25a57",700,"start","","Consolas,monospace",2);
+      s+=t(56,180,v("eventName"),52,"#e0dbd1",700,"start","eventName");
+      s+=t(56,226,v("eventCode")+"  //  "+v("eventDate"),20,"#d25a57",600,"start","eventCode","Consolas,monospace",1);
+      s+=`<path d="M88 410H1112" stroke="#5f6668" stroke-width="4"/><path d="M88 410H730" stroke="#d25a57" stroke-width="8"/>`;
+      const stops=[[120,"BEFORE",v("before"),"before"],[600,"CHOICE",v("choice"),"choice"],[1080,"AFTER",v("after"),"after"]];
+      stops.forEach((n,i)=>{s+=`<circle cx="${n[0]}" cy="410" r="${i===1?28:18}" fill="${i===1?'#d25a57':'#101416'}" stroke="#e0dbd1" stroke-width="3"/>`;s+=t(n[0],365,n[1],16,i===1?'#d25a57':'#8e989b',700,"middle","","Consolas,monospace",1);s+=multi(Math.max(56,n[0]-145),470,n[2],18,21,"#d6d2c9",32,n[3],500)});
+      s+=line(600,280,600,1260,"#d25a57",1,"7 9");
+      s+=`<rect x="430" y="720" width="340" height="190" fill="#151011" stroke="#d25a57" stroke-width="2" transform="rotate(-2 600 815)"/>`;
+      s+=t(600,778,v("ocCode"),56,"#e0dbd1",800,"middle","ocCode","Consolas,monospace"); s+=t(600,830,v("name"),26,"#e0dbd1",700,"middle","name"); s+=t(600,870,"SUBJECT / DECISION POINT",13,"#d25a57",700,"middle","","Consolas,monospace",1);
+      s+=fieldLabel(56,1030,"LONG-TERM CONSEQUENCE",v("consequence"),"consequence",1088,"#d25a57");
+      s+=t(56,1330,"事件卡只保留能改变人物轨迹的选择。其余内容回到事件档案。",18,"#747e82",400);
+      s+=footer("07"); return s;
+    }
+    function renderAnomaly() {
+      let s=openSvg("#090707");
+      s+=t(56,80,"08 / COGNITIVE INTERFERENCE",18,"#db4d4b",700,"start","","Consolas,monospace",2);
+      s+=t(56,172,v("anomalyCode"),84,"#e2ddd3",800,"start","anomalyCode","Consolas,monospace");
+      s+=t(1144,156,v("name"),27,"#e2ddd3",700,"end","name"); s+=t(1144,196,v("ocCode"),18,"#db4d4b",700,"end","ocCode","Consolas,monospace");
+      let wave="M56 340"; for(let x=56;x<=1144;x+=12){const y=340+Math.sin(x*.055)*18+(x>410&&x<790?Math.sin(x*.21)*72:0);wave+=` L${x} ${y.toFixed(1)}`;} s+=`<path d="${wave}" fill="none" stroke="#db4d4b" stroke-width="4"/><path d="M56 340H1144" stroke="#43484a"/>`;
+      s+=multi(56,425,v("manifestation"),37,27,"#e2ddd3",40,"manifestation",600);
+      s+=`<rect x="790" y="420" width="360" height="32" fill="#e2ddd3" opacity=".14"/><rect x="850" y="470" width="300" height="32" fill="#e2ddd3" opacity=".09"/>`;
+      s+=fieldLabel(56,620,"TRIGGER",v("trigger"),"trigger",500,"#db4d4b");
+      s+=fieldLabel(644,620,"RISK",v("risk"),"risk",500,"#db4d4b");
+      s+=fieldLabel(56,840,"SUBJECT SYMPTOM",v("symptom"),"symptom",1088,"#db4d4b");
+      s+=fieldLabel(56,1080,"CONTAINMENT",v("containment"),"containment",520,"#9da5a7");
+      s+=fieldLabel(624,1080,"UNRESOLVED",v("uncertainty"),"uncertainty",520,"#db4d4b");
+      s+=`<g opacity=".28"><rect x="56" y="1410" width="480" height="17" fill="#db4d4b"/><rect x="664" y="1450" width="480" height="17" fill="#e2ddd3"/><rect x="230" y="1490" width="620" height="10" fill="#db4d4b"/></g>`;
+      s+=footer("08"); return s;
+    }
+    function renderSpecies() {
+      let s=openSvg("#d8d3c5");
+      s+=`<rect x="34" y="34" width="1132" height="1532" fill="none" stroke="#2b302d" stroke-width="2"/>`;
+      s+=t(58,82,"09 / SPECIMEN RELATION",18,"#5c5d4f",700,"start","","Consolas,monospace",2);
+      s+=t(58,170,v("commonName"),54,"#1a211e",800,"start","commonName");
+      s+=multi(60,216,v("speciesName"),55,18,"#656a61",28,"speciesName",500);
+      s+=`<path d="M650 405c42-87 134-132 210-60 42 40 28 99 90 137 63 38 120 20 144 86-62-31-118 19-127 75-12 77 36 132-8 213-25 46-80 62-115 98-32 34-35 93-89 108-52 14-83-32-93-78-14-65-62-91-101-136-61-69-49-166-9-244 34-65 59-116 98-199Z" fill="#202b26" opacity=".86"/><path d="M704 383c-20-92 6-156 54-223M753 370c31-104 80-159 140-202M812 391c74-92 134-117 220-130" fill="none" stroke="#202b26" stroke-width="15" stroke-linecap="round"/>`;
+      s+=`<circle cx="736" cy="577" r="11" fill="#c6a95f"/><path d="M747 577H1050V505" fill="none" stroke="#6f735f"/>${t(1050,485,v("speciesCode"),25,"#1a211e",700,"end","speciesCode","Consolas,monospace")}`;
+      s+=`<circle cx="875" cy="810" r="8" fill="#c6a95f"/><path d="M867 810H250V710" fill="none" stroke="#6f735f"/>${t(250,690,v("ocCode")+" / "+v("name"),22,"#1a211e",700,"start","name")}`;
+      s+=fieldLabel(58,1040,"OBSERVATION",v("observation"),"observation",510,"#676b55");
+      s+=fieldLabel(632,1040,"CONTACT RESULT",v("contact"),"contact",510,"#676b55");
+      s+=fieldLabel(58,1260,"MUTUAL TRACE",v("mutualTrace"),"mutualTrace",510,"#676b55");
+      s+=fieldLabel(632,1260,"FIELD QUESTION",v("fieldQuestion"),"fieldQuestion",510,"#a27f35");
+      s+=footer("09","#5c625c"); return s;
+    }
+
+    const renderers = {country:renderCountry,organization:renderOrganization,station:renderStation,entrance:renderEntrance,ecology:renderEcology,person:renderPerson,event:renderEvent,anomaly:renderAnomaly,species:renderSpecies};
+
+    function renderNav() {
+      const old = $("#nav").querySelectorAll(".card-tab"); old.forEach(el=>el.remove());
+      schemas.forEach(s => {
+        const b=document.createElement("button"); b.className="card-tab"+(s.id===current?" active":""); b.style.setProperty("--tab-accent",s.accent);
+        b.innerHTML=`<span class="tab-code">${s.code}</span><span class="tab-copy"><b>${s.title.replace(" OC 卡","")}</b><small>${s.en}</small></span>`;
+        b.onclick=()=>{current=s.id; renderAll();}; $("#nav").appendChild(b);
+      });
+    }
+    function renderForm() {
+      const form=$("#form"); form.innerHTML="";
+      schema().fields.forEach(f=>{
+        const labelEl=document.createElement("label"); labelEl.className="field"; labelEl.dataset.field=f[0];
+        labelEl.innerHTML=`<span>${f[1]}<em>${f[0]}</em></span>`;
+        const input=document.createElement(f[3]==="long"?"textarea":"input"); input.name=f[0]; input.value=v(f[0]);
+        input.addEventListener("input",()=>{data[current][f[0]]=input.value; renderCard(); saveData();});
+        labelEl.appendChild(input); form.appendChild(labelEl);
+      });
+    }
+    function renderCard() {
+      $("#paper").innerHTML=renderers[current]();
+      $("#paper").querySelector("svg").addEventListener("click",e=>{
+        const target=e.target.closest("[data-key]"); if(!target) return; const key=target.dataset.key;
+        const input=$("#form").elements[key]; if(input){input.focus(); input.scrollIntoView({behavior:"smooth",block:"center"}); const field=input.closest(".field"); field.classList.remove("flash"); void field.offsetWidth; field.classList.add("flash");}
+      });
+    }
+    function renderAll() {
+      const s=schema(); renderNav(); renderForm(); renderCard();
+      $("#stageTitle").textContent=s.title; $("#stageSubtitle").textContent=s.subtitle;
+      $("#pageCount").textContent=s.code+" / 09"; $("#inspectorMeta").textContent=s.subtitle+"。字段内容仅保存在你的浏览器中，导出数据可用于备份。";
+    }
+    function downloadBlob(blob,name) { const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+    function currentSvg() { return $("#paper").querySelector("svg").outerHTML; }
+    $("#svgBtn").onclick=()=>{downloadBlob(new Blob([currentSvg()],{type:"image/svg+xml;charset=utf-8"}),`PALIS-${schema().code}-${safeId(v("name"))}.svg`);showToast("SVG 已导出，可继续用矢量软件编辑");};
+    $("#pngBtn").onclick=()=>{
+      const blob=new Blob([currentSvg()],{type:"image/svg+xml;charset=utf-8"}); const url=URL.createObjectURL(blob); const image=new Image();
+      image.onload=()=>{const c=document.createElement("canvas");c.width=1200;c.height=1600;c.getContext("2d").drawImage(image,0,0);URL.revokeObjectURL(url);c.toBlob(b=>{downloadBlob(b,`PALIS-${schema().code}-${safeId(v("name"))}.png`);showToast("PNG 已导出");},"image/png");}; image.src=url;
+    };
+    $("#exportDataBtn").onclick=()=>{const payload={format:"PALIS_OC_CARD_LAB",version:1,exportedAt:new Date().toISOString(),cards:data};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),"PALIS-OC九卡数据.json");showToast("整套数据已导出");};
+    $("#importBtn").onclick=()=>$("#fileInput").click();
+    $("#fileInput").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const parsed=JSON.parse(await file.text());const incoming=parsed.cards||parsed;schemas.forEach(s=>{if(incoming[s.id])data[s.id]={...defaults[s.id],...incoming[s.id]};});saveData();renderAll();showToast("九张卡的数据已导入");}catch{showToast("无法读取：请选择本编辑器导出的 JSON");}e.target.value="";};
+    $("#resetBtn").onclick=()=>{if(!confirm(`恢复“${schema().title}”的示例内容？当前卡片的修改会被覆盖。`))return;data[current]=structuredClone(defaults[current]);saveData();renderAll();showToast("当前卡片已恢复");};
+    renderAll();
+  </script>
+</body>
+</html>

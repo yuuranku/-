@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
 
-const source = 'C:/Users/yuuranko/Documents/白渊/10_地球仪Dashboard/public/assets/capsule-real-window-empty.png';
-const target = 'C:/Users/yuuranko/Documents/白渊/10_地球仪Dashboard/public/assets/capsule-real-window-pixel.png';
+const source = 'C:/Users/yuuranko/Documents/白幕/10_地球仪Dashboard/public/assets/capsule-real-window-empty.png';
+const target = 'C:/Users/yuuranko/Documents/白幕/10_地球仪Dashboard/public/assets/capsule-real-window-pixel.png';
 const data = fs.readFileSync(source).toString('base64');
 const browser = await chromium.launch({
   headless: true,

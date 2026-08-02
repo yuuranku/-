@@ -10,45 +10,7 @@ import { defineArchiveWorkflowRepositoryConformance } from './helpers/archive-wo
 
 const completeRepositoryExcept = (missingMethod) =>
   Object.fromEntries(
-    [
-      'getProfile',
-      'listTemplates',
-      'listMyDrafts',
-      'deleteDraft',
-      'saveDraft',
-      'submitDraft',
-      'listReviewQueue',
-      'reviewSubmission',
-      'publishContribution',
-      'inviteUser',
-      'listUsers',
-      'createUser',
-      'updateUserRole',
-      'resetUserPassword',
-      'deleteUser',
-      'sendAnnouncement',
-      'listNotifications',
-      'markNotificationRead',
-      'searchArchives',
-      'listPublishedArchives',
-      'listEditableArchives',
-      'listAdminArchives',
-      'deleteArchive',
-      'loadArchiveEditorSource',
-      'listArchiveContributions',
-      'listArchiveDocuments',
-      'listArchiveReferences',
-      'listContributionMedia',
-      'listPublishedMedia',
-      'setArchiveNewBadge',
-      'uploadAttachment',
-      'listWorkspaceNotes',
-      'createWorkspaceNote',
-      'updateWorkspaceNote',
-      'deleteWorkspaceNote',
-      'listWorkspaceNoteLayouts',
-      'saveWorkspaceNoteLayout',
-    ]
+    ARCHIVE_WORKFLOW_METHODS
       .filter((method) => method !== missingMethod)
       .map((method) => [method, () => undefined]),
   );
@@ -182,13 +144,13 @@ test('repository contract rejects an incomplete repository at the construction b
   );
 });
 
-test('repository contract publishes the frozen 37-method workflow surface and permits extensions', () => {
+test('repository contract publishes the frozen 41-method workflow surface and permits extensions', () => {
   const repository = {
     ...completeRepositoryExcept(),
     reset: () => undefined,
   };
 
-  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 37);
+  assert.equal(ARCHIVE_WORKFLOW_METHODS.length, 41);
   assert.equal(Object.isFrozen(ARCHIVE_WORKFLOW_METHODS), true);
   assert.equal(assertArchiveWorkflowRepository(repository), repository);
 });

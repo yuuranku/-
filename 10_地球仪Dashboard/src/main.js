@@ -20,6 +20,15 @@ import {
 import { mergePublishedArchiveDirectory, resolveArchiveDirectory } from './archive-workflow/directory.js';
 import { projectPublishedArchive } from './archive-workflow/index-projector.js';
 import { matchesArchiveIdentifier } from './archive-workflow/archive-identity.js';
+import { applyTextareaTabIndent } from './archive-workflow/text-indent.js';
+import {
+  canCreateArchiveStoryPage,
+  canManageArchiveStoryPage,
+  renderArchiveStoryMenu,
+  storyPageLabel,
+  validateArchiveStoryBody,
+  validateArchiveStoryTitle,
+} from './archive-workflow/story-pages.js';
 import {
   buildEventPlaneSlotLayout,
   eventPlaneVisibleCount,
@@ -46,6 +55,25 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
 const palisRuntime = await initializePalisRuntime({ reducedMotion });
 const archiveWorkflowClient = palisRuntime.repository;
+let activeArchiveStorySession = palisRuntime.initialSession ?? null;
+
+const getArchiveStorySession = () => {
+  const profile = activeArchiveStorySession?.profile ?? null;
+  return {
+    profileId: profile?.id
+      ?? activeArchiveStorySession?.profileId
+      ?? activeArchiveStorySession?.session?.user?.id
+      ?? null,
+    role: activeArchiveStorySession?.role
+      ?? profile?.role
+      ?? document.body.dataset.operatorRole
+      ?? 'visitor',
+  };
+};
+
+window.addEventListener('palis:session-change', (event) => {
+  activeArchiveStorySession = event.detail ?? null;
+});
 initializeMascotAssistant({
   client: archiveWorkflowClient,
   initialSession: palisRuntime.initialSession,
@@ -1341,7 +1369,7 @@ function resetVersionNotice() {
   versionNoticeTaskButton.type = 'button';
   versionNoticeTaskButton.className = 'archive-task-button is-minimized';
   versionNoticeTaskButton.setAttribute('aria-pressed', 'false');
-  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.11</b>白幕初垂</span>';
+  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.12</b>白幕初垂</span>';
   versionNoticeTaskButton.addEventListener('click', showVersionNotice);
   versionNoticeTask.append(versionNoticeTaskButton);
   versionNoticeTask.hidden = false;
@@ -2307,6 +2335,8 @@ function closeArchiveWindow(windowElement) {
   const removeWindow = () => {
     state.disposePublishedMedia?.();
     state.disposePublishedMedia = null;
+    state.storyWindows?.forEach((storyWindow) => storyWindow.remove());
+    state.storyWindows?.clear();
     windowElement.remove();
     state.taskButton.remove();
     archiveWindows.delete(windowElement.dataset.archiveId);
@@ -5131,25 +5161,247 @@ function downloadArchiveDocument(archive, windowElement) {
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
 }
 
+function formatArchiveStoryTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间未记录';
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+async function resolveArchiveStoryArchiveId(state) {
+  if (state.storyArchiveId) return state.storyArchiveId;
+  if (!state.storyArchivePromise) {
+    state.storyArchivePromise = (async () => {
+      const publishedArchive = state.archive.cloudRecord || await resolvePublishedArchive(state.archive);
+      state.storyArchiveId = publishedArchive?.id || null;
+      return state.storyArchiveId;
+    })().catch(() => null);
+  }
+  return state.storyArchivePromise;
+}
+
+function renderArchiveStoryMenuState(state) {
+  const menu = state.windowElement.querySelector('[data-archive-view-menu]');
+  if (!menu) return;
+  menu.innerHTML = renderArchiveStoryMenu(state.storyPages, {
+    canCreate: Boolean(state.storyArchiveId)
+      && canCreateArchiveStoryPage(getArchiveStorySession()),
+  });
+}
+
+function installArchiveStoryWindowDrag(windowElement) {
+  const titlebar = windowElement.querySelector('.dialog-titlebar');
+  if (!titlebar) return;
+  let dragState = null;
+  titlebar.addEventListener('pointerdown', (event) => {
+    if (window.matchMedia('(max-width: 620px)').matches || event.button !== 0 || event.target.closest('button')) return;
+    const rect = windowElement.getBoundingClientRect();
+    dragState = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    titlebar.setPointerCapture(event.pointerId);
+    windowElement.classList.add('is-dragging');
+    event.preventDefault();
+  });
+  titlebar.addEventListener('pointermove', (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
+    const nextLeft = THREE.MathUtils.clamp(
+      dragState.left + event.clientX - dragState.startX,
+      -dragState.width + 40,
+      innerWidth - 40,
+    );
+    const nextTop = THREE.MathUtils.clamp(
+      dragState.top + event.clientY - dragState.startY,
+      0,
+      innerHeight - taskbarHeight - 28,
+    );
+    windowElement.style.left = `${nextLeft}px`;
+    windowElement.style.top = `${nextTop}px`;
+  });
+  const finishDrag = (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    if (titlebar.hasPointerCapture(event.pointerId)) titlebar.releasePointerCapture(event.pointerId);
+    dragState = null;
+    windowElement.classList.remove('is-dragging');
+  };
+  titlebar.addEventListener('pointerup', finishDrag);
+  titlebar.addEventListener('pointercancel', finishDrag);
+}
+
+async function refreshArchiveStoryMenu(state) {
+  const menu = state.windowElement.querySelector('[data-archive-view-menu]');
+  if (!menu) return;
+  if (!archiveWorkflowClient?.listArchiveStoryPages) {
+    menu.innerHTML = '<span class="dialog-menu__empty">留言暂不可用</span>';
+    return;
+  }
+  menu.innerHTML = '<span class="dialog-menu__empty">正在读取留言…</span>';
+  const archiveId = await resolveArchiveStoryArchiveId(state);
+  if (!archiveId) {
+    menu.innerHTML = '<span class="dialog-menu__empty">该档案尚未入库</span>';
+    return;
+  }
+  try {
+    state.storyPages = await archiveWorkflowClient.listArchiveStoryPages(archiveId);
+    renderArchiveStoryMenuState(state);
+  } catch {
+    menu.innerHTML = '<span class="dialog-menu__empty">暂时无法读取留言</span>';
+  }
+}
+
+function openArchiveStoryWindow(state, page = null) {
+  const pageIndex = page
+    ? Math.max(0, state.storyPages.findIndex((entry) => entry.id === page.id))
+    : state.storyPages.length;
+  const label = storyPageLabel(pageIndex);
+  const session = getArchiveStorySession();
+  const canEdit = page
+    ? canManageArchiveStoryPage(page, session)
+    : canCreateArchiveStoryPage(session);
+  if (!page && !canEdit) return;
+
+  const storyWindow = document.createElement('section');
+  storyWindow.className = 'archive-story-window retro-window';
+  storyWindow.dataset.archiveStoryWindow = '';
+  storyWindow.setAttribute('role', 'dialog');
+  storyWindow.setAttribute('aria-modal', 'false');
+  storyWindow.setAttribute('aria-label', `${state.archive.code} ${label}`);
+  storyWindow.innerHTML = `
+    <div class="title-bar dialog-titlebar">
+      <span class="window-file">${escapeRecordText(state.archive.code)} / ${label}</span>
+      <div class="window-controls">
+        <button class="window-close" type="button" data-archive-story-close aria-label="关闭留言窗口">×</button>
+      </div>
+    </div>
+    <div class="archive-story-meta">
+      <input type="text" data-archive-story-title maxlength="60" aria-label="留言标题"${canEdit ? '' : ' readonly'} />
+      <span data-archive-story-meta>${page
+        ? `${escapeRecordText(page.author_name || '未署名')} · ${formatArchiveStoryTime(page.updated_at || page.created_at)}`
+        : '新留言 · 尚未保存'}</span>
+    </div>
+    <label class="archive-story-paper">
+      <textarea data-archive-story-body maxlength="4000" placeholder="在这里写下日后谈……"${canEdit ? '' : ' readonly'}></textarea>
+    </label>
+    <p class="archive-story-status" data-archive-story-status aria-live="polite"></p>
+    <footer class="archive-story-actions">
+      ${canEdit ? `<button type="button" data-archive-story-save>${page ? '保存修改' : '保存留言'}</button>` : ''}
+      ${page && canEdit ? '<button type="button" data-archive-story-delete>删除留言</button>' : ''}
+      <button type="button" data-archive-story-close>关闭</button>
+    </footer>
+  `;
+  const titleInput = storyWindow.querySelector('[data-archive-story-title]');
+  const textarea = storyWindow.querySelector('[data-archive-story-body]');
+  const status = storyWindow.querySelector('[data-archive-story-status]');
+  titleInput.value = page?.title || label;
+  textarea.value = page?.body || '';
+  textarea.addEventListener('keydown', applyTextareaTabIndent);
+
+  const close = () => {
+    state.storyWindows?.delete(storyWindow);
+    storyWindow.remove();
+    state.windowElement.querySelector('[data-archive-menu-trigger="view"]')?.focus({ preventScroll: true });
+  };
+  storyWindow.querySelectorAll('[data-archive-story-close]').forEach((button) => {
+    button.addEventListener('click', close);
+  });
+  storyWindow.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close();
+  });
+  storyWindow.addEventListener('pointerdown', () => {
+    archiveWindowZ += 1;
+    storyWindow.style.zIndex = String(archiveWindowZ);
+  });
+
+  storyWindow.querySelector('[data-archive-story-save]')?.addEventListener('click', async (event) => {
+    const titleValidation = validateArchiveStoryTitle(titleInput.value);
+    if (titleValidation.error) {
+      status.textContent = titleValidation.error;
+      titleInput.focus();
+      return;
+    }
+    const validation = validateArchiveStoryBody(textarea.value);
+    if (validation.error) {
+      status.textContent = validation.error;
+      textarea.focus();
+      return;
+    }
+    const button = event.currentTarget;
+    button.disabled = true;
+    status.textContent = '正在保存…';
+    try {
+      const input = { title: titleValidation.value, body: validation.value };
+      if (page) await archiveWorkflowClient.updateArchiveStoryPage(page.id, input);
+      else await archiveWorkflowClient.createArchiveStoryPage(state.storyArchiveId, input);
+      await refreshArchiveStoryMenu(state);
+      close();
+    } catch {
+      button.disabled = false;
+      status.textContent = '保存失败，请稍后重试。';
+    }
+  });
+
+  storyWindow.querySelector('[data-archive-story-delete]')?.addEventListener('click', async (event) => {
+    if (!page || !window.confirm(`确定删除${label}？`)) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    status.textContent = '正在删除…';
+    try {
+      await archiveWorkflowClient.deleteArchiveStoryPage(page.id);
+      await refreshArchiveStoryMenu(state);
+      close();
+    } catch {
+      button.disabled = false;
+      status.textContent = '删除失败，请稍后重试。';
+    }
+  });
+
+  state.storyWindows ??= new Set();
+  state.storyWindows.add(storyWindow);
+  archiveDesktop.appendChild(storyWindow);
+  archiveWindowZ += 1;
+  storyWindow.style.zIndex = String(archiveWindowZ);
+  storyWindow.style.left = `${Math.max(12, (innerWidth - Math.min(560, innerWidth - 24)) / 2)}px`;
+  storyWindow.style.top = `${Math.max(12, (innerHeight - Math.min(660, innerHeight - 80)) / 2)}px`;
+  installArchiveStoryWindowDrag(storyWindow);
+  if (canEdit) titleInput.focus({ preventScroll: true });
+  else textarea.focus({ preventScroll: true });
+}
+
 function initializeArchiveFileMenu(state) {
   const { archive, windowElement } = state;
   const fileTrigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
   const editTrigger = windowElement.querySelector('[data-archive-menu-trigger="edit"]');
+  const viewTrigger = windowElement.querySelector('[data-archive-menu-trigger="view"]');
   const fileMenu = windowElement.querySelector('[data-archive-file-menu]');
   const editMenu = windowElement.querySelector('[data-archive-edit-menu]');
-  if (!fileTrigger || !editTrigger || !fileMenu || !editMenu) return;
+  const viewMenu = windowElement.querySelector('[data-archive-view-menu]');
+  if (!fileTrigger || !editTrigger || !viewTrigger || !fileMenu || !editMenu || !viewMenu) return;
   const amendAction = editMenu.querySelector('[data-archive-edit-action="amend"]');
   amendAction.disabled = !archive.webContent;
   amendAction.textContent = archive.webContent ? '提交修改申请' : '正文离线，不能修改';
 
   const setMenuOpen = (activeMenu = null) => {
-    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger]]) {
+    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger], [viewMenu, viewTrigger]]) {
       const open = menu === activeMenu;
       menu.hidden = !open;
       trigger.setAttribute('aria-expanded', String(open));
     }
     windowElement.classList.toggle('is-file-menu-open', activeMenu === fileMenu);
     windowElement.classList.toggle('is-edit-menu-open', activeMenu === editMenu);
+    windowElement.classList.toggle('is-view-menu-open', activeMenu === viewMenu);
   };
 
   const toggleMenu = (menu) => (event) => {
@@ -5158,13 +5410,17 @@ function initializeArchiveFileMenu(state) {
   };
   fileTrigger.addEventListener('click', toggleMenu(fileMenu));
   editTrigger.addEventListener('click', toggleMenu(editMenu));
+  viewTrigger.addEventListener('click', (event) => {
+    toggleMenu(viewMenu)(event);
+    if (!viewMenu.hidden) void refreshArchiveStoryMenu(state);
+  });
   windowElement.addEventListener('pointerdown', (event) => {
     if (!event.target.closest('.dialog-menu__group')) setMenuOpen();
   });
   windowElement.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden)) {
+    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden || !viewMenu.hidden)) {
       event.preventDefault();
-      const activeTrigger = fileMenu.hidden ? editTrigger : fileTrigger;
+      const activeTrigger = !fileMenu.hidden ? fileTrigger : !editMenu.hidden ? editTrigger : viewTrigger;
       setMenuOpen();
       activeTrigger.focus();
     }
@@ -5180,6 +5436,19 @@ function initializeArchiveFileMenu(state) {
     if (recordAction) {
       windowElement.querySelector(`[data-contribution-tab="${CSS.escape(recordAction)}"]`)?.click();
       setMenuOpen();
+      return;
+    }
+    const storyPageId = event.target.closest('[data-archive-story-page]')?.dataset.archiveStoryPage;
+    if (storyPageId) {
+      const page = state.storyPages.find((entry) => entry.id === storyPageId);
+      setMenuOpen();
+      if (page) openArchiveStoryWindow(state, page);
+      return;
+    }
+    const storyAction = event.target.closest('[data-archive-story-action]')?.dataset.archiveStoryAction;
+    if (storyAction === 'create') {
+      setMenuOpen();
+      openArchiveStoryWindow(state);
       return;
     }
     const action = event.target.closest('[data-archive-edit-action]')?.dataset.archiveEditAction;
@@ -5273,6 +5542,10 @@ function openArchive(archive, trigger) {
     minimized: false,
     closing: false,
     disposePublishedMedia: null,
+    storyArchiveId: archive.cloudRecord?.id || null,
+    storyArchivePromise: null,
+    storyPages: [],
+    storyWindows: new Set(),
   };
   archiveWindows.set(archive.id, state);
   archiveTaskList.appendChild(taskButton);

@@ -36,6 +36,10 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'deleteWorkspaceNote',
   'listWorkspaceNoteLayouts',
   'saveWorkspaceNoteLayout',
+  'listArchiveStoryPages',
+  'createArchiveStoryPage',
+  'updateArchiveStoryPage',
+  'deleteArchiveStoryPage',
 ]);
 
 export const assertArchiveWorkflowRepository = (repository) => {
@@ -162,6 +166,18 @@ const assertWorkspaceNoteLayout = (layout, prefix = '') =>
     'profile_id',
     'left_px',
     'top_px',
+    'updated_at',
+  ], prefix);
+
+const assertArchiveStoryPage = (page, prefix = '') =>
+  requireFields(page, [
+    'id',
+    'archive_id',
+    'author_id',
+    'author_name',
+    'title',
+    'body',
+    'created_at',
     'updated_at',
   ], prefix);
 
@@ -327,6 +343,16 @@ export const assertArchiveWorkflowResult = (method, result) => {
       return result;
     case 'saveWorkspaceNoteLayout':
       return assertWorkspaceNoteLayout(result);
+    case 'listArchiveStoryPages':
+      for (const [index, page] of requireList(result, method).entries()) {
+        assertArchiveStoryPage(page, `${method}[${index}].`);
+      }
+      return result;
+    case 'createArchiveStoryPage':
+    case 'updateArchiveStoryPage':
+      return assertArchiveStoryPage(result);
+    case 'deleteArchiveStoryPage':
+      return requireFields(result, ['id']);
     default:
       return result;
   }

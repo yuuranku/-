@@ -56,6 +56,22 @@ const workspaceNotePayload = ({ title, content, sortOrder = 0 } = {}) => {
   };
 };
 
+const archiveStoryPagePayload = ({ title, body } = {}) => {
+  const normalizedTitle = String(title ?? '').trim();
+  const normalizedBody = String(body ?? '').trim();
+  if (!normalizedTitle || [...normalizedTitle].length > 60) {
+    throw new ArchiveWorkflowError('Archive story page title must contain between 1 and 60 characters', {
+      code: 'invalid_input',
+    });
+  }
+  if (!normalizedBody || [...normalizedBody].length > 4000) {
+    throw new ArchiveWorkflowError('Archive story page body must contain between 1 and 4000 characters', {
+      code: 'invalid_input',
+    });
+  }
+  return { title: normalizedTitle, body: normalizedBody };
+};
+
 const requireCoordinate = (value, label) => {
   if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
     throw new ArchiveWorkflowError(`${label} must be a finite non-negative integer`, {
@@ -593,6 +609,44 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     );
   };
 
+  const listArchiveStoryPages = (archiveId) => unwrap(
+    supabase.from('archive_story_pages')
+      .select('id,archive_id,author_id,author_name,title,body,created_at,updated_at')
+      .eq('archive_id', requireId(archiveId, 'archiveId'))
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }),
+    'Unable to load archive story pages',
+  );
+
+  const createArchiveStoryPage = (archiveId, input) => unwrap(
+    supabase.from('archive_story_pages')
+      .insert({ archive_id: requireId(archiveId, 'archiveId'), ...archiveStoryPagePayload(input) })
+      .select('id,archive_id,author_id,author_name,title,body,created_at,updated_at')
+      .single(),
+    'Unable to create archive story page',
+  );
+
+  const updateArchiveStoryPage = (pageId, input) => unwrap(
+    supabase.from('archive_story_pages')
+      .update(archiveStoryPagePayload(input))
+      .eq('id', requireId(pageId, 'pageId'))
+      .select('id,archive_id,author_id,author_name,title,body,created_at,updated_at')
+      .single(),
+    'Unable to update archive story page',
+  );
+
+  const deleteArchiveStoryPage = async (pageId) => {
+    const deleted = await unwrap(
+      supabase.from('archive_story_pages')
+        .delete()
+        .eq('id', requireId(pageId, 'pageId'))
+        .select('id')
+        .single(),
+      'Unable to delete archive story page',
+    );
+    return { id: deleted.id };
+  };
+
   const mainlineVersionPayload = (input = {}) => ({
     code: String(input.code ?? '').replace(/^ver\s*/i, '').trim(),
     title: String(input.title ?? '').trim(),
@@ -710,6 +764,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
     listWorkspaceNotes, createWorkspaceNote, updateWorkspaceNote, deleteWorkspaceNote,
     listWorkspaceNoteLayouts, saveWorkspaceNoteLayout,
+    listArchiveStoryPages, createArchiveStoryPage, updateArchiveStoryPage, deleteArchiveStoryPage,
     listMainlineVersions, saveMainlineVersion, listMainlineStaffSlots, listMainlinePersonnelSubmissions, saveMainlineStaffSlot,
     deleteMainlineStaffSlot, uploadMainlineCover, subscribeMainlineChanges,
   });

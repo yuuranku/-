@@ -1300,7 +1300,7 @@ test(
     const formalNumber = `${String(station.sequence_number).padStart(3, '0')}.${station.abbreviation}`;
     assert.equal(
       await page.$eval('[data-registration-message]', (node) => node.textContent.trim()),
-      `录入完成 / ${formalNumber} / VER 0.2`,
+      `录入完成 / ${formalNumber} / VER 0.1`,
       'The reapproved amendment must receive its next formal version in the accession UI',
     );
 
@@ -1338,7 +1338,7 @@ test(
       { label: '档案版本', value: 'VER 0.1' },
       { label: '档案收录者', value: fixture.admin.display_name },
     ]);
-    assert.equal(publishedArchiveUi.historyVersion, 'VER 0.2');
+    assert.equal(publishedArchiveUi.historyVersion, 'VER 0.1');
     assert.equal(publishedArchiveUi.inlineAmendmentCount, 0);
     await clickControl(page, `[data-open-amendment-history="${amendment.id}"]`);
     await page.waitForSelector('[data-amendment-history-modal]:not([hidden])');

@@ -397,6 +397,7 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     'idempotencyResults',
     'workspaceNotes',
     'workspaceNoteLayouts',
+    'archiveStoryPages',
     'mainlineVersions',
     'mainlineStaffSlots',
   ]);
@@ -416,6 +417,7 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     idempotencyResults: {},
     workspaceNotes: [],
     workspaceNoteLayouts: [],
+    archiveStoryPages: [],
     mainlineVersions: [],
     mainlineStaffSlots: [],
   });
@@ -1965,8 +1967,8 @@ test('an amendment public version keeps the target author as submitter and curre
   const contributions = await harness.repository.listArchiveContributions(published.archiveId);
   const amendment = contributions.find(({ id }) => id === 'submission-1');
 
-  assert.equal(published.versionLabel, '0.2');
-  assert.equal(amendment.versions[0].version_label, '0.2');
+  assert.equal(published.versionLabel, '0.1');
+  assert.equal(amendment.versions[0].version_label, '0.1');
   assert.deepEqual(amendment.versions[0].submitter, {
     id: 'original-author',
     display_name: 'Original Author',

@@ -1,0 +1,82 @@
+<style>
+  .palis-wireframe { overflow: hidden; border: 2px solid #1d1d1d; background: #0b5555; box-shadow: 6px 6px 0 #1a1a1a; color: #f5f0df; font-family: "IBM Plex Mono", monospace; }
+  .palis-wireframe * { box-sizing: border-box; }
+  .palis-wireframe__title { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 7px 10px; color: #fff; background: #0b1688; font-size: 13px; font-weight: 700; }
+  .palis-wireframe__body { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(360px, 510px); min-height: 570px; }
+  .palis-wireframe__desktop { position: relative; min-height: 570px; padding: 24px 18px; background: linear-gradient(135deg, #0b5555 0%, #0d5050 55%, #094848 100%); }
+  .palis-wireframe__desktop::after { content: "PALIS / CLERK DESKTOP"; position: absolute; right: 14px; bottom: 16px; color: rgba(255,255,255,.48); font-size: 10px; letter-spacing: .08em; }
+  .wf-icons { display: grid; grid-template-columns: repeat(2, 92px); gap: 18px 20px; }
+  .wf-icon { display: grid; place-items: center; min-height: 100px; padding: 8px; color: #fff; text-align: center; font-size: 11px; line-height: 1.35; }
+  .wf-icon i { display: block; width: 48px; height: 48px; margin-bottom: 7px; border: 2px solid #121212; background: #e8e2cf; box-shadow: inset 3px 3px 0 #fff, inset -3px -3px 0 #787878; }
+  .wf-icon:first-child i { background: linear-gradient(#e8e2cf 0 16%, #1b3761 16% 22%, #e8e2cf 22% 42%, #1b3761 42% 48%, #e8e2cf 48% 70%, #1b3761 70% 76%, #e8e2cf 76%); }
+  .wf-icon:nth-child(2) i { background: linear-gradient(135deg, #e8e2cf 0 30%, #d0a42e 30% 42%, #1b3761 42% 100%); }
+  .palis-wireframe__panel { min-width: 0; border-left: 3px solid #111; background: #14283d; box-shadow: -5px 0 0 rgba(0,0,0,.24); }
+  .wf-panelbar { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 7px 10px; color: #fff; background: #0b1688; font-size: 12px; font-weight: 700; }
+  .wf-controls { display: flex; gap: 3px; }
+  .wf-controls b { display: grid; place-items: center; width: 20px; height: 20px; color: #111; background: #c9c7bf; border: 1px solid #111; }
+  .wf-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border-bottom: 1px solid rgba(239,230,210,.28); background: #0d1e31; }
+  .wf-mode span { padding: 8px 10px; border: 1px solid #7990a5; color: #d7dfdf; text-align: center; font-size: 11px; }
+  .wf-mode span:first-child { color: #101010; border-color: #d6a53b; background: #d6a53b; font-weight: 700; }
+  .wf-form { display: grid; gap: 11px; padding: 14px; }
+  .wf-form section { padding: 11px; border: 1px solid rgba(239,230,210,.28); background: #1b354e; }
+  .wf-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: #e0b846; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+  .wf-section-head small { color: #bbc8cf; font-weight: 400; letter-spacing: 0; }
+  .wf-input, .wf-textarea { display: block; width: 100%; margin-top: 6px; border: 1px solid #9badb4; background: #25435d; color: #dfe8e8; }
+  .wf-input { height: 29px; }
+  .wf-textarea { height: 68px; }
+  .wf-label { display: block; color: #d7dfdf; font-size: 10px; }
+  .wf-row { display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px; }
+  .wf-custom { padding: 9px; border-left: 3px solid #d6a53b; background: #152b42; }
+  .wf-custom + .wf-custom { margin-top: 7px; }
+  .wf-add { display: inline-block; margin-top: 8px; padding: 6px 9px; color: #101010; background: #c9c7bf; border: 1px solid #fff; box-shadow: 2px 2px 0 #080808; font-size: 10px; font-weight: 700; }
+  .wf-system { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid rgba(239,230,210,.28); color: #d7dfdf; background: #0d1e31; font-size: 10px; }
+  .wf-system strong { color: #e0b846; }
+  .wf-submit { padding: 10px 14px; color: #fff; border: 2px solid #94b5c9; background: #174879; box-shadow: inset 1px 1px 0 #78b0d4; font-weight: 700; }
+  .wf-flow { display: flex; align-items: center; gap: 7px; margin: 13px 0 0; color: #d7dfdf; font-size: 11px; }
+  .wf-flow b { color: #e0b846; }
+  @media (max-width: 760px) { .palis-wireframe__body { grid-template-columns: 1fr; } .palis-wireframe__desktop { display: none; } }
+</style>
+
+<h2>书记官工作台：内嵌精简表单</h2>
+<p class="subtitle">不再加载外部 A4 设定卡；一张纵向表单完成新增或修改，细节信息可在审核时补齐。</p>
+
+<div class="option" data-choice="embedded-native-dock" onclick="toggleSelect(this)">
+  <div class="palis-wireframe">
+    <div class="palis-wireframe__title"><span>PALIS LOCAL 09A / 书记官工作台</span><span>任务栏保留在底部</span></div>
+    <div class="palis-wireframe__body">
+      <aside class="palis-wireframe__desktop" aria-label="仍可见的工作台桌面">
+        <div class="wf-icons">
+          <div class="wf-icon"><i></i><span>新增档案</span></div>
+          <div class="wf-icon"><i></i><span>修改档案</span></div>
+        </div>
+      </aside>
+      <section class="palis-wireframe__panel" aria-label="右侧原生编辑器">
+        <header class="wf-panelbar"><span>新增档案</span><span class="wf-controls"><b>−</b><b>×</b></span></header>
+        <div class="wf-mode"><span>新增档案</span><span>修改档案</span></div>
+        <div class="wf-form">
+          <section>
+            <div class="wf-section-head"><span>01 / 档案识别</span><small>只需先填必要内容</small></div>
+            <div class="wf-row"><label class="wf-label">档案类型<div class="wf-input"></div></label><label class="wf-label">档案标题 <b style="color:#e0b846">*</b><div class="wf-input"></div></label></div>
+          </section>
+          <section>
+            <div class="wf-section-head"><span>02 / 档案正文</span><small>主要叙述</small></div>
+            <label class="wf-label">内容 <b style="color:#e0b846">*</b><div class="wf-textarea"></div></label>
+          </section>
+          <section>
+            <div class="wf-section-head"><span>03 / 补充内容</span><small>按需要添加</small></div>
+            <div class="wf-custom"><label class="wf-label">自定义标题<div class="wf-input"></div></label><label class="wf-label">内容<div class="wf-textarea" style="height:36px"></div></label></div>
+            <span class="wf-add">＋ 添加一条补充内容</span>
+          </section>
+          <section>
+            <div class="wf-section-head"><span>可选索引信息</span><small>审核时也可补充</small></div>
+            <div class="wf-row"><label class="wf-label">地点 / 机构<div class="wf-input"></div></label><label class="wf-label">日期 / 状态<div class="wf-input"></div></label></div>
+          </section>
+        </div>
+        <footer class="wf-system"><span><strong>系统自动生成：</strong>投稿编号 · 版本号 · 提交署名</span><button class="wf-submit">提交审核</button></footer>
+      </section>
+    </div>
+  </div>
+  <div class="wf-flow"><b>书记官：</b> 新增 / 修改 → 提交审核　<b>管理员：</b> 通过并录入　<b>档案系统：</b> 正式显示</div>
+</div>
+
+<p class="subtitle">点击此稿即可标记认可；也可以直接告诉我哪里需要改。</p>

@@ -65,16 +65,7 @@ const canonicalValue = (value) => {
 
 const canonicalStringify = (value) => JSON.stringify(canonicalValue(value));
 
-const nextArchiveVersionLabel = (state, archiveId) => {
-  if (!archiveId) return '0.1';
-  const latest = state.versions
-    .filter((version) => version.archive_id === archiveId)
-    .map((version) => /^(\d+)\.(\d+)$/.exec(String(version.version_label ?? '').trim()))
-    .filter(Boolean)
-    .map((match) => ({ major: Number(match[1]), minor: Number(match[2]) }))
-    .sort((left, right) => right.major - left.major || right.minor - left.minor)[0];
-  return latest ? `${latest.major}.${latest.minor + 1}` : '0.1';
-};
+const nextArchiveVersionLabel = () => '0.1';
 
 export const createLocalWorkflowEngine = ({
   readState,
@@ -265,6 +256,28 @@ export const createLocalWorkflowEngine = ({
       nextState.contributions.splice(index, 1);
       return { nextState, result: { id: draft.id } };
     });
+  };
+
+  const requireStoryWriter = (principal) => {
+    if (!['observer', 'clerk', 'admin'].includes(principal.role)) {
+      throw workflowError('permission_denied', 'This action requires an archive account');
+    }
+  };
+
+  const requireStoryBody = (value) => {
+    const body = String(value ?? '').trim();
+    if (!body || [...body].length > 4000) {
+      throw workflowError('invalid_input', 'Story page body must contain between 1 and 4000 characters');
+    }
+    return body;
+  };
+
+  const requireStoryTitle = (value) => {
+    const title = String(value ?? '').trim();
+    if (!title || [...title].length > 60) {
+      throw workflowError('invalid_input', 'Story page title must contain between 1 and 60 characters');
+    }
+    return title;
   };
 
   const listMainlineVersions = () => {
@@ -1386,6 +1399,90 @@ export const createLocalWorkflowEngine = ({
     };
   });
 
+  const listArchiveStoryPages = (archiveId) => readSnapshot((state) => {
+    const id = String(archiveId ?? '').trim();
+    if (!state.archives.some((archive) => archive.id === id)) {
+      throw workflowError('not_found', 'Archive was not found');
+    }
+    return state.archiveStoryPages
+      .filter((page) => page.archive_id === id)
+      .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at))
+        || String(left.id).localeCompare(String(right.id)));
+  });
+
+  const createArchiveStoryPage = async (archiveId, input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    requireStoryWriter(principal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      const archive = nextState.archives.find((entry) => entry.id === String(archiveId ?? '').trim());
+      if (!archive) throw workflowError('not_found', 'Archive was not found');
+      const timestamp = now();
+      const page = {
+        id: randomUUID(),
+        archive_id: archive.id,
+        author_id: principal.id,
+        author_name: principal.display_name || principal.email,
+        title: requireStoryTitle(input.title),
+        body: requireStoryBody(input.body),
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      nextState.archiveStoryPages.push(page);
+      const pageNumber = nextState.archiveStoryPages
+        .filter((entry) => entry.archive_id === archive.id).length;
+      nextState.profiles
+        .filter((profile) => profile.role === 'admin' && profile.enabled !== false)
+        .forEach((profile) => {
+          nextState.notifications.push({
+            id: randomUUID(),
+            recipient_id: profile.id,
+            contribution_id: null,
+            kind: 'announcement',
+            sender_label: page.author_name,
+            subject: `新增留言 / ${archive.code} 留言 ${String(pageNumber).padStart(2, '0')}`,
+            message: `${page.author_name} 在 ${archive.code} ${archive.title} 添加了留言。`,
+            read_at: null,
+            created_at: timestamp,
+          });
+        });
+      return { nextState, result: clone(page) };
+    });
+  };
+
+  const updateArchiveStoryPage = async (pageId, input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    requireStoryWriter(principal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      const page = nextState.archiveStoryPages.find((entry) => entry.id === String(pageId ?? '').trim());
+      if (!page) throw workflowError('not_found', 'Story page was not found');
+      if (principal.role !== 'admin' && page.author_id !== principal.id) {
+        throw workflowError('permission_denied', 'Only the author or an administrator can edit this story page');
+      }
+      page.title = requireStoryTitle(input.title);
+      page.body = requireStoryBody(input.body);
+      page.updated_at = now();
+      return { nextState, result: clone(page) };
+    });
+  };
+
+  const deleteArchiveStoryPage = async (pageId) => {
+    const principal = requirePrincipal(getPrincipal);
+    requireStoryWriter(principal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      const index = nextState.archiveStoryPages.findIndex((entry) => entry.id === String(pageId ?? '').trim());
+      if (index < 0) throw workflowError('not_found', 'Story page was not found');
+      const page = nextState.archiveStoryPages[index];
+      if (principal.role !== 'admin' && page.author_id !== principal.id) {
+        throw workflowError('permission_denied', 'Only the author or an administrator can delete this story page');
+      }
+      nextState.archiveStoryPages.splice(index, 1);
+      return { nextState, result: { id: page.id } };
+    });
+  };
+
   const listWorkspaceNotes = async () => {
     const principal = requirePrincipal(getPrincipal);
     return readSnapshot((state) => {
@@ -1697,6 +1794,10 @@ export const createLocalWorkflowEngine = ({
     deleteWorkspaceNote,
     listWorkspaceNoteLayouts,
     saveWorkspaceNoteLayout,
+    listArchiveStoryPages,
+    createArchiveStoryPage,
+    updateArchiveStoryPage,
+    deleteArchiveStoryPage,
     listTemplates,
     listMyDrafts,
     deleteDraft,

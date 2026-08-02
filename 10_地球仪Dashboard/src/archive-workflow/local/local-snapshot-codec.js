@@ -17,6 +17,7 @@ const ARRAY_STORES = Object.freeze([
   'auditEvents',
   'workspaceNotes',
   'workspaceNoteLayouts',
+  'archiveStoryPages',
   'mainlineVersions',
   'mainlineStaffSlots',
 ]);

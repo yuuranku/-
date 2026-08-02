@@ -751,3 +751,781 @@
   .mainline-personnel-roster { grid-template-columns: repeat(auto-fill, 140px); }
   .mainline-brief__progress ol { grid-template-columns: repeat(7, minmax(100px, 1fr)); }
 }
+
+/* PALIS mission atlas ---------------------------------------------------- */
+.mainline-brief-window {
+  width: min(1510px, calc(100vw - 20px));
+  height: min(910px, calc(100dvh - 58px));
+}
+.mainline-brief-window .archive-workflow-window__body { background: #e7e3d8; }
+.mainline-brief {
+  --atlas-paper: #e9e6dc;
+  --atlas-paper-deep: #d8d4c8;
+  --atlas-ink: #092a4b;
+  --atlas-blue: #124b80;
+  --atlas-night: #031e3b;
+  --atlas-red: #ae3129;
+  --atlas-rule: rgba(9, 42, 75, .24);
+  position: relative;
+  height: calc(100% - 28px);
+  overflow: hidden;
+  color: var(--atlas-ink);
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255,255,255,.52), transparent 30%),
+    repeating-linear-gradient(0deg, rgba(9,42,75,.018) 0 1px, transparent 1px 4px),
+    var(--atlas-paper);
+  font-family: var(--font-body);
+}
+.mainline-brief::after {
+  content: '';
+  position: absolute;
+  inset: 29px 0 0;
+  z-index: 30;
+  pointer-events: none;
+  opacity: .22;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+.mainline-brief__mast {
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 8px 16px;
+  color: #d8e6ee;
+  border-bottom: 1px solid rgba(232,238,239,.22);
+  background: #061d36;
+}
+.mainline-brief__mast div { display: flex; }
+.mainline-brief__mast b { color: #f0efe8; font: 600 12px/1.2 var(--font-mono); letter-spacing: .04em; }
+.mainline-brief__mast span,
+.mainline-brief__mast output { color: #9eb0bf; font: 9px/1.3 var(--font-mono); }
+.mainline-brief__layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 220px minmax(630px, 1fr) 286px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: calc(100% - 40px);
+  overflow: auto;
+}
+.mainline-brief__rail {
+  position: relative;
+  z-index: 4;
+  min-height: 760px;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 22px 20px;
+  border-right: 1px solid var(--atlas-rule);
+  background: rgba(235,232,222,.94);
+}
+.mainline-brief__rail footer { margin-top: auto; padding-top: 22px; color: #263d51; font: 8px/1.8 var(--font-mono); letter-spacing: .08em; }
+.mainline-brief__rail footer span::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--atlas-red); }
+.mainline-brief__progress { margin-top: 22px; border: 0; background: transparent; }
+.mainline-brief__progress > header { display: grid; gap: 3px; padding: 0 0 10px; }
+.mainline-brief__progress > header b { color: var(--atlas-ink); font: 700 11px/1.2 var(--font-body); }
+.mainline-brief__progress > header span { color: #677683; font: 7px/1.2 var(--font-mono); }
+.mainline-brief__progress ol { display: grid; grid-template-columns: 1fr; gap: 7px; overflow: visible; padding: 0; }
+.mainline-brief__progress li {
+  min-width: 0;
+  min-height: 44px;
+  display: block;
+  padding: 0;
+  border: 1px solid rgba(9,42,75,.18);
+  border-radius: 3px;
+  color: rgba(9,42,75,.55);
+  background: rgba(255,255,255,.24);
+  box-shadow: 0 2px 5px rgba(5,26,45,.05);
+}
+.mainline-brief__progress li::before { display: none; }
+.mainline-brief__progress li > button,
+.mainline-brief__progress li:not(:has(button)) {
+  grid-template-columns: 34px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 7px 10px;
+}
+.mainline-brief__progress li > button > span,
+.mainline-brief__progress li > span { color: inherit; font: 500 19px/1 var(--font-mono); }
+.mainline-brief__progress li > button > b,
+.mainline-brief__progress li > b { color: inherit; font: 600 10px/1.2 var(--font-body); }
+.mainline-brief__progress li > button > small,
+.mainline-brief__progress li > small { color: inherit; font: 7px/1.2 var(--font-body); text-align: right; }
+.mainline-brief__progress li.is-current,
+.mainline-brief__progress li.is-selected {
+  color: #f3f1e8;
+  border-color: #092a4b;
+  background: linear-gradient(100deg, #0b3760, #092746);
+  box-shadow: inset 4px 0 0 var(--atlas-red), 0 5px 12px rgba(5,28,52,.18);
+}
+.mainline-brief__progress li.is-complete { color: #31536d; border-color: rgba(9,42,75,.28); background: rgba(255,255,255,.38); }
+.mainline-brief__progress li.is-locked { opacity: .68; }
+.mainline-brief__legend { display: grid; gap: 0; margin-top: 26px; }
+.mainline-brief__legend > b { padding-bottom: 8px; color: var(--atlas-red); border-bottom: 1px dotted rgba(9,42,75,.28); font: 700 10px/1.2 var(--font-body); }
+.mainline-brief__legend > span { display: flex; align-items: center; gap: 9px; padding: 9px 6px; color: #263c4f; border-bottom: 1px dotted rgba(9,42,75,.18); font: 9px/1.2 var(--font-body); }
+.mainline-brief__legend i { width: 9px; height: 9px; background: #6e7475; }
+.mainline-brief__legend i.is-red { background: var(--atlas-red); }
+.mainline-brief__legend i.is-blue { background: #2d63a3; }
+.mainline-brief__legend i.is-navy { background: var(--atlas-ink); }
+.mainline-brief__center { position: relative; min-width: 0; min-height: 760px; overflow: hidden; background: var(--atlas-night); }
+.mainline-brief__hero {
+  position: relative;
+  z-index: 6;
+  min-height: 128px;
+  box-sizing: border-box;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 20px 34px;
+  color: var(--atlas-ink);
+  background: linear-gradient(90deg, rgba(236,233,224,.98) 0 48%, rgba(236,233,224,.76) 65%, transparent 100%);
+}
+.mainline-brief__hero span { font: 700 25px/1 var(--font-body); letter-spacing: .08em; }
+.mainline-brief__hero h1 { margin: 0; font: 700 clamp(28px, 3vw, 46px)/1.1 var(--font-body); letter-spacing: .03em; }
+.mainline-brief__hero small { color: #67788a; font: 8px/1.2 var(--font-mono); letter-spacing: .16em; }
+.mainline-brief__atlas { position: relative; min-height: 475px; isolation: isolate; overflow: hidden; background: radial-gradient(circle at 72% 46%, #0f4778, #061f3b 54%, #02152a 100%); }
+.mainline-brief__atlas::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(circle at 72% 48%, transparent 0 38%, rgba(2,17,33,.18) 62%, rgba(2,17,33,.72) 100%); }
+.mainline-brief__atlas > canvas { position: absolute; inset: -8% -8% -6% 22%; z-index: 1; width: 94%; height: 112%; }
+.mainline-brief__station {
+  position: absolute;
+  z-index: 7;
+  top: 18px;
+  right: 20px;
+  max-width: 270px;
+  display: flex;
+  align-items: start;
+  gap: 9px;
+  padding: 9px 11px;
+  color: #eef2ec;
+  border-left: 2px solid var(--atlas-red);
+  background: rgba(2,20,40,.72);
+  backdrop-filter: blur(5px);
+}
+.mainline-brief__station > i { width: 9px; height: 9px; margin-top: 3px; flex: 0 0 auto; border: 2px solid #eef2ec; box-shadow: 0 0 0 2px var(--atlas-red); }
+.mainline-brief__station > span { display: grid; gap: 2px; }
+.mainline-brief__station b { color: #fff; font: 700 10px/1.25 var(--font-body); }
+.mainline-brief__station small { color: #b8cad5; font: 7px/1.3 var(--font-mono); }
+.mainline-brief__station em { color: #ed766c; font: normal 7px/1.3 var(--font-mono); }
+.mainline-brief__mission {
+  position: relative;
+  z-index: 5;
+  width: min(440px, 51%);
+  min-height: 304px;
+  box-sizing: border-box;
+  margin: 20px 0 0 34px;
+  padding: 20px 24px 16px 28px;
+  color: #11191e;
+  border: 1px solid rgba(9,42,75,.25);
+  border-left: 8px solid var(--atlas-red);
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 75% 70%, rgba(9,42,75,.055), transparent 32%),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(9,42,75,.018) 3px 4px),
+    #e9e5da;
+  box-shadow: 0 13px 28px rgba(0,10,24,.32), inset 0 0 32px rgba(87,72,45,.05);
+  rotate: -.3deg;
+}
+.mainline-brief__mission::after { content: 'PALIS\A ARCHIVE'; white-space: pre; position: absolute; right: 22px; bottom: 58px; width: 68px; height: 68px; display: grid; place-items: center; color: rgba(9,42,75,.18); border: 2px solid rgba(9,42,75,.14); border-radius: 50%; font: 700 8px/1.2 var(--font-mono); text-align: center; rotate: -14deg; }
+.mainline-brief__mission > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 0 10px; border-bottom: 1px dotted rgba(9,42,75,.3); background: transparent; }
+.mainline-brief__mission > header div { display: flex; gap: 12px; }
+.mainline-brief__mission > header span,
+.mainline-brief__mission > header em { color: #2f4351; font: normal 7px/1.2 var(--font-mono); }
+.mainline-brief__mission > header em { color: var(--atlas-red); }
+.mainline-brief__mission > header b { color: var(--atlas-red); font: 700 10px/1 var(--font-mono); }
+.mainline-brief__case-year { margin: 20px 0 2px; color: var(--atlas-red); font: 500 24px/1 var(--font-body); }
+.mainline-brief__mission h2 { max-width: 82%; margin: 0; color: #11181e; font: 700 28px/1.12 var(--font-body); }
+.mainline-brief__summary { max-width: 84%; margin: 15px 0 12px; padding: 0; color: #24313a; font: 11px/1.65 var(--font-body); }
+.mainline-brief__mission dl { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; margin: 0; padding-top: 8px; border: 0; border-top: 1px dotted rgba(9,42,75,.24); }
+.mainline-brief__mission dl div { min-height: 38px; padding: 7px 9px 5px 0; border: 0; }
+.mainline-brief__mission dt { color: #68747b; font: 7px/1.2 var(--font-mono); }
+.mainline-brief__mission dd { margin-top: 3px; overflow: hidden; color: #24313a; font: 8px/1.3 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
+.mainline-brief__mission > footer { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; padding-top: 9px; border-top: 1px solid rgba(9,42,75,.2); }
+.mainline-brief__mission > footer button { padding: 0; color: #172d3e; border: 0; background: transparent; font: 700 9px/1.2 var(--font-body); cursor: pointer; }
+.mainline-brief__mission > footer button span { margin-left: 8px; font-size: 15px; }
+.mainline-brief__mission > footer button:disabled { opacity: .42; cursor: not-allowed; }
+.mainline-brief__mission > footer em { color: rgba(9,42,75,.42); font: normal 7px/1.2 var(--font-mono); }
+.mainline-brief__vacancies { position: relative; z-index: 8; min-height: 160px; padding: 12px 26px 20px; background: linear-gradient(#082746, #031e3b); }
+.mainline-brief__vacancies > header { padding: 0 0 9px; color: #e8ece8; border: 0; border-bottom: 1px solid rgba(232,236,232,.18); background: transparent; }
+.mainline-brief__vacancies > header b { color: #f0eee7; font: 700 10px/1.2 var(--font-body); }
+.mainline-brief__vacancies > header span { color: #879eaf; font: 7px/1.2 var(--font-mono); }
+.mainline-brief__vacancy-grid { grid-template-columns: repeat(4,minmax(112px,1fr)); gap: 10px; padding: 11px 0 0; }
+.mainline-brief__vacancy-grid .mainline-vacancy { position: relative; display: grid; grid-template-columns: 1fr; gap: 6px; min-height: 94px; padding: 12px 10px 10px 48px; color: var(--atlas-ink); border: 1px solid rgba(231,232,224,.62); border-radius: 2px; background: #dedbd1; box-shadow: 0 4px 10px rgba(0,0,0,.2); }
+.mainline-brief__vacancy-grid .mainline-vacancy::before { content: ''; position: absolute; left: 8px; bottom: 8px; width: 34px; height: 64px; opacity: .2; background: var(--atlas-ink); mask: url('/assets/icons/archive-person.svg') center bottom / contain no-repeat; }
+.mainline-brief__vacancy-grid .mainline-vacancy > header { align-self: end; gap: 3px; padding: 0; border: 0; }
+.mainline-brief__vacancy-grid .mainline-vacancy > header span { color: var(--atlas-red); font-size: 6px; }
+.mainline-brief__vacancy-grid .mainline-vacancy > header b { color: #213441; font: 700 11px/1.2 var(--font-body); }
+.mainline-brief__vacancy-grid .mainline-vacancy dl { margin: 0; }
+.mainline-brief__vacancy-grid .mainline-vacancy dt { display: none; }
+.mainline-brief__vacancy-grid .mainline-vacancy dd { margin: 0; overflow: hidden; color: #5d676c; font: 7px/1.3 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
+.mainline-brief__inspector { position: relative; z-index: 4; min-height: 760px; padding: 28px 20px 20px; border-left: 1px solid var(--atlas-rule); background: rgba(234,231,221,.97); }
+.mainline-brief__focus { display: block; min-height: 0; padding: 0; color: var(--atlas-ink); border: 1px solid rgba(9,42,75,.23); border-radius: 4px; background: rgba(249,247,240,.62); box-shadow: 0 4px 12px rgba(5,25,43,.08); }
+.mainline-brief__focus > header { display: flex; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid rgba(9,42,75,.18); }
+.mainline-brief__focus > header b { color: var(--atlas-blue); font: 700 11px/1.2 var(--font-body); }
+.mainline-brief__focus-index { padding: 14px 14px 0; color: rgba(9,42,75,.14); font-size: 42px; }
+.mainline-brief__focus-copy { padding: 0 14px 12px; }
+.mainline-brief__focus-copy > span { color: var(--atlas-red); font-size: 7px; }
+.mainline-brief__focus-copy h2 { color: var(--atlas-ink); font: 700 20px/1.1 var(--font-body); }
+.mainline-brief__focus-copy p { color: #364a58; font: 10px/1.55 var(--font-body); }
+.mainline-brief__focus-copy small { color: #71808a; font: 7px/1.45 var(--font-mono); }
+.mainline-brief__focus-action { padding: 12px 14px 14px; border-top: 1px solid rgba(9,42,75,.14); }
+.mainline-brief__focus-action > b,
+.mainline-brief__focus-action > span { color: #435969; text-align: left; }
+.mainline-brief__focus-action button { min-height: 36px; color: #fff; border-color: var(--atlas-ink); background: var(--atlas-ink); box-shadow: none; font-size: 9px; }
+.mainline-brief__focus-admin { grid-template-columns: 1fr; }
+.mainline-brief__focus-admin > span,
+.mainline-brief__focus-admin button:first-of-type { grid-column: auto; }
+.mainline-brief__focus-admin > span { color: #6b7780; text-align: left; }
+.mainline-brief__focus-admin button { color: var(--atlas-ink); border-color: rgba(9,42,75,.35); background: rgba(255,255,255,.4); }
+.mainline-brief__focus-admin button:first-of-type { color: #fff; border-color: var(--atlas-ink); background: var(--atlas-ink); }
+.mainline-brief__stages { margin-top: 16px; min-height: 300px; border: 1px solid rgba(9,42,75,.18); background: rgba(249,247,240,.5); }
+.mainline-brief__stages > header { padding: 12px 13px; border-color: rgba(9,42,75,.18); background: transparent; }
+.mainline-brief__stages > header b { color: var(--atlas-ink); font: 700 10px/1.2 var(--font-body); }
+.mainline-brief__stages > header span { color: #6b7c88; font-size: 7px; }
+.mainline-brief__stages > ol { gap: 0; padding: 0; border: 0; }
+.mainline-brief__stages li { border-bottom: 1px solid rgba(9,42,75,.13); }
+.mainline-brief__stages li:last-child { border: 0; }
+.mainline-brief__stages button { grid-template-columns: 28px 1fr; gap: 7px; min-height: 66px; padding: 10px 12px; color: var(--atlas-ink); border: 0; background: transparent; }
+.mainline-brief__stages button > span { grid-row: 1 / span 2; color: rgba(9,42,75,.35); font-size: 18px; }
+.mainline-brief__stages button > b { color: #273d4d; font: 700 9px/1.3 var(--font-body); }
+.mainline-brief__stages button > small { color: #78858d; font-size: 7px; text-align: left; }
+.mainline-brief__stages li.is-current button { color: #fff; background: var(--atlas-ink); box-shadow: inset 4px 0 0 var(--atlas-red); }
+.mainline-brief__stages li.is-current button > span,
+.mainline-brief__stages li.is-current button > b { color: #fff; }
+.mainline-brief__stages li.is-current button > small { color: #b5c2cb; }
+.mainline-brief__admin { grid-column: 1 / -1; padding: 0; color: var(--atlas-ink); background: #dedbd1; }
+.mainline-brief__admin .mainline-admin { margin: 0; border-color: rgba(9,42,75,.3); background: #e9e6dc; }
+.mainline-brief__admin .mainline-admin > summary,
+.mainline-brief__admin .mainline-admin__slots > summary,
+.mainline-brief__admin .mainline-admin__slot > summary { color: var(--atlas-ink); }
+.mainline-brief__admin .mainline-admin form { border-color: rgba(9,42,75,.24); }
+.mainline-brief__admin .mainline-admin fieldset { border-color: rgba(9,42,75,.28); }
+.mainline-brief__admin .mainline-admin legend,
+.mainline-brief__admin .mainline-admin label { color: #536573; }
+.mainline-brief__admin .mainline-admin input,
+.mainline-brief__admin .mainline-admin select,
+.mainline-brief__admin .mainline-admin textarea { color: #172d3e; border-color: rgba(9,42,75,.38); background: rgba(255,255,255,.56); }
+.mainline-brief__admin .mainline-admin button { color: #fff; border-color: var(--atlas-ink); background: var(--atlas-ink); }
+
+@media (max-width: 1180px) {
+  .mainline-brief__layout { grid-template-columns: 190px minmax(560px,1fr) 244px; }
+  .mainline-brief__rail { padding-inline: 16px; }
+  .mainline-brief__mission { width: 56%; margin-left: 22px; }
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(2,minmax(130px,1fr)); }
+}
+@media (max-width: 860px) {
+  .mainline-brief { overflow: auto; }
+  .mainline-brief__layout { display: grid; grid-template-columns: 160px minmax(560px,1fr); height: auto; min-height: 100%; }
+  .mainline-brief__rail { grid-row: 1 / span 2; min-height: 760px; }
+  .mainline-brief__inspector { grid-column: 2; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--atlas-rule); border-left: 0; }
+  .mainline-brief__stages { margin: 0; }
+  .mainline-brief__admin { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .mainline-brief__layout { display: block; }
+  .mainline-brief__rail { min-height: 0; padding: 18px; border-right: 0; border-bottom: 1px solid var(--atlas-rule); }
+  .mainline-brief__progress ol { grid-template-columns: repeat(7,120px); overflow-x: auto; }
+  .mainline-brief__legend,
+  .mainline-brief__rail footer { display: none; }
+  .mainline-brief__center { min-height: 0; }
+  .mainline-brief__atlas { min-height: 560px; }
+  .mainline-brief__atlas > canvas { inset: -2% -25% 10% 5%; width: 120%; height: 82%; }
+  .mainline-brief__mission { width: calc(100% - 28px); margin: 230px 14px 0; }
+  .mainline-brief__inspector { display: block; min-height: 0; }
+  .mainline-brief__stages { margin-top: 12px; }
+  .mainline-brief__vacancy-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Reference-layout correction: the center is one continuous atlas field.
+   Dossier and personnel cards float on it; administration is an overlay. */
+.mainline-brief::after { opacity: .07; }
+
+.mainline-brief__layout {
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.mainline-brief__center {
+  isolation: isolate;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 61% 50%, rgba(31, 89, 128, .38), transparent 34%),
+    linear-gradient(112deg, #061f3a 0%, #052747 52%, #031a33 100%);
+}
+
+.mainline-brief__rail .mainline-brief__progress { margin-top: 0; }
+
+.mainline-brief__focus-admin {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+.mainline-brief__focus-admin > span { grid-column: 1 / -1; }
+.mainline-brief__focus-admin button,
+.mainline-brief__focus-admin button:first-of-type {
+  grid-column: auto;
+  min-height: 34px;
+  padding-inline: 4px;
+  font-size: 7px;
+}
+
+.mainline-brief__hero {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 9;
+  min-height: 132px;
+  padding: 22px 36px 26px;
+  background: linear-gradient(90deg, rgba(236,233,224,.98) 0 43%, rgba(236,233,224,.84) 59%, rgba(236,233,224,.12) 88%, transparent 100%);
+}
+
+.mainline-brief__atlas {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.mainline-brief__atlas::before {
+  z-index: 3;
+  background:
+    linear-gradient(180deg, rgba(3,24,46,.04) 0 63%, rgba(3,24,46,.32) 100%),
+    radial-gradient(circle at 62% 52%, transparent 0 44%, rgba(2,17,33,.16) 68%, rgba(2,17,33,.46) 100%);
+}
+
+.mainline-brief__atlas > canvas {
+  inset: 90px -3% 0 18%;
+  width: 88%;
+  height: calc(100% - 90px);
+  opacity: .86;
+}
+
+.mainline-brief__station {
+  top: 152px;
+  right: 22px;
+  background: rgba(2,20,40,.58);
+  backdrop-filter: blur(3px);
+}
+
+.mainline-brief__mission {
+  position: absolute;
+  top: 164px;
+  left: 34px;
+  width: min(438px, 50%);
+  min-height: 300px;
+  margin: 0;
+  box-shadow: 0 10px 22px rgba(0,10,24,.24), inset 0 0 32px rgba(87,72,45,.04);
+}
+
+.mainline-brief__vacancies {
+  position: absolute;
+  right: 26px;
+  bottom: 20px;
+  left: 26px;
+  z-index: 10;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.mainline-brief__vacancies > header {
+  padding: 0 0 8px;
+  border-bottom-color: rgba(236,239,235,.36);
+  text-shadow: 0 1px 5px rgba(0,12,27,.65);
+}
+
+.mainline-brief__vacancy-grid {
+  grid-template-columns: repeat(auto-fill, 174px);
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.mainline-brief__vacancy-grid .mainline-vacancy {
+  min-height: 86px;
+  padding: 11px 9px 9px 45px;
+  border-color: rgba(243,240,230,.78);
+  background: rgba(233,230,220,.94);
+  box-shadow: 0 4px 12px rgba(0,10,24,.2);
+}
+
+.mainline-brief__vacancy-grid .mainline-vacancy footer { margin: 1px 0 0; }
+.mainline-brief__vacancy-grid .mainline-vacancy button {
+  min-height: 26px;
+  padding: 0;
+  color: var(--atlas-red);
+  border: 0;
+  background: transparent;
+  font: 700 7px/1.2 var(--font-body);
+  text-align: left;
+  box-shadow: none;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy button:hover { color: var(--atlas-ink); background: transparent; }
+
+.mainline-brief__personnel-column {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+.mainline-brief__personnel-column .mainline-vacancy { min-height: 86px; }
+.mainline-brief__personnel-submissions {
+  min-height: 30px;
+  max-height: 82px;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid rgba(236,239,235,.28);
+  background: rgba(2,20,40,.42);
+}
+.mainline-brief__personnel-submissions > p {
+  margin: 0;
+  padding: 7px 3px;
+  color: #a8bbc6;
+  font: 7px/1.35 var(--font-mono);
+  text-align: center;
+}
+.mainline-brief__personnel-submission {
+  min-width: 0;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  color: var(--atlas-ink);
+  text-align: left;
+  border: 1px solid rgba(236,239,235,.42);
+  background: rgba(234,231,221,.95);
+  cursor: pointer;
+}
+.mainline-brief__personnel-submission:hover,
+.mainline-brief__personnel-submission:focus-visible {
+  border-color: #fff;
+  background: #f4f1e8;
+}
+.mainline-brief__personnel-submission > span {
+  position: relative;
+  width: 27px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: rgba(9,42,75,.08);
+}
+.mainline-brief__personnel-submission img { width: 100%; height: 100%; object-fit: cover; }
+.mainline-brief__personnel-submission i {
+  position: absolute;
+  inset: 5px 4px 0;
+  background: var(--atlas-ink);
+  opacity: .24;
+  mask: url('/assets/icons/archive-person.svg') center bottom / contain no-repeat;
+}
+.mainline-brief__personnel-submission b {
+  overflow: hidden;
+  color: var(--atlas-ink);
+  font: 7px/1.25 var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mainline-brief__rail,
+.mainline-brief__inspector { min-height: 0; }
+
+.mainline-brief__admin {
+  position: absolute;
+  inset: 58px 304px 24px 238px;
+  z-index: 60;
+  display: none;
+  overflow: auto;
+  padding: 0;
+  color: var(--atlas-ink);
+  border: 1px solid rgba(9,42,75,.42);
+  background: #e9e6dc;
+  box-shadow: 0 20px 56px rgba(1,13,26,.44);
+}
+
+.mainline-brief__admin:has(.mainline-admin[open]) { display: block; }
+.mainline-brief__admin .mainline-admin { min-height: 100%; }
+.mainline-brief__admin .mainline-admin > summary {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 46px;
+  color: #f4f1e9;
+  background: var(--atlas-ink);
+}
+
+@media (max-width: 1180px) {
+  .mainline-brief__atlas > canvas { inset-inline: 10% -8%; width: 98%; }
+  .mainline-brief__mission { left: 22px; width: 54%; }
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(auto-fill, 158px); }
+  .mainline-brief__admin { inset: 52px 258px 20px 205px; }
+}
+
+@media (max-width: 860px) {
+  .mainline-brief__layout { overflow: auto; }
+  .mainline-brief__center { min-height: 760px; }
+  .mainline-brief__admin { position: fixed; inset: 52px 24px 24px; }
+}
+
+@media (max-width: 620px) {
+  .mainline-brief__center { min-height: 800px; }
+  .mainline-brief__atlas { min-height: 0; }
+  .mainline-brief__atlas > canvas { inset: 110px -38% 180px -8%; width: 146%; height: 510px; }
+  .mainline-brief__mission { top: 168px; left: 14px; width: calc(100% - 28px); }
+  .mainline-brief__station { top: 136px; right: 14px; }
+  .mainline-brief__vacancies { right: 14px; bottom: 16px; left: 14px; }
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mainline-brief__admin { inset: 42px 8px 8px; }
+}
+
+/* Each role owns its own dossier disclosure triangle. Slots fill a five-card
+   first row and wrap into a second row; only selected roles expand. */
+.mainline-brief__vacancies > header {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.mainline-brief__vacancies > header span { margin-left: auto; }
+.mainline-brief__vacancy-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  justify-content: start;
+  overflow-x: hidden;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(235,232,222,.52) rgba(2,20,40,.35);
+}
+.mainline-brief__personnel-column { position: relative; }
+.mainline-brief__personnel-toggle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 18;
+  width: 27px;
+  height: 27px;
+  min-height: 27px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.mainline-brief__personnel-toggle::before {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 12px;
+  height: 12px;
+  border-right: 3px solid #149fe5;
+  border-bottom: 3px solid #149fe5;
+  transform: rotate(0deg);
+  transition: transform 150ms ease-out, border-color 150ms ease-out;
+}
+.mainline-brief__personnel-toggle:hover::before,
+.mainline-brief__personnel-toggle:focus-visible::before { border-color: #fff; }
+.mainline-brief__personnel-toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
+.mainline-brief__personnel-toggle:disabled { opacity: .28; cursor: default; }
+
+@media (max-width: 1180px) {
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mainline-brief__vacancies > header { flex-wrap: wrap; }
+}
+
+/* Reference alignment: keep the dossier inside the marked orange frame,
+   lift the globe behind it, and let the globe texture remain unmasked. */
+.mainline-brief__atlas::before { background: none; }
+.mainline-brief__atlas > canvas {
+  inset: 40px -3% 0 18%;
+  width: 88%;
+  height: calc(100% - 40px);
+}
+.mainline-brief__mission {
+  top: 164px;
+  left: 28px;
+  width: min(320px, calc(100% - 56px));
+  min-height: 410px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 620px) {
+  .mainline-brief__mission {
+    top: 168px;
+    left: 14px;
+    width: calc(100% - 28px);
+    min-height: 380px;
+    box-sizing: border-box;
+  }
+}
+
+/* Personnel cards float over the atlas. The selected dossier window is a
+   separate layer, so opening one role never reflows or lifts every card. */
+.mainline-brief__center { overflow: visible; }
+.mainline-brief__vacancies {
+  overflow: visible;
+  background: transparent;
+}
+.mainline-brief__submission-window {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 24;
+  width: min(432px, calc(100% - 12px));
+  min-height: 88px;
+  box-sizing: border-box;
+  padding: 9px 11px 10px;
+  color: #e7ece8;
+  border: 1px solid rgba(236,239,235,.48);
+  border-top: 2px solid #f0b33b;
+  background: rgba(3, 27, 50, .94);
+  box-shadow: 0 12px 28px rgba(0, 10, 24, .35);
+}
+.mainline-brief__submission-window > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 0 6px;
+  border: 0;
+  background: transparent;
+}
+.mainline-brief__submission-window > header b { color: #f1eee4; font: 700 9px/1.2 var(--font-body); }
+.mainline-brief__submission-window > header span { color: #98adba; font: 7px/1.2 var(--font-mono); }
+.mainline-brief__submission-window-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 5px;
+  max-height: 108px;
+  overflow: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(236,239,235,.18);
+}
+.mainline-brief__submission-window-list > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 6px 2px 2px;
+  color: #9db0ba;
+  font: 7px/1.3 var(--font-mono);
+}
+.mainline-brief__submission-window .mainline-brief__personnel-submission {
+  min-height: 34px;
+  background: rgba(234,231,221,.95);
+}
+.mainline-submissions-window {
+  width: min(226px, calc(100vw - 28px));
+  height: min(430px, calc(100dvh - 90px));
+  color: #dce8df;
+  background: #06130e;
+}
+.mainline-submissions-window [data-mainline-submission-window-shell] {
+  display: block;
+  height: calc(100% - 29px);
+  box-sizing: border-box;
+  padding: 9px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(190, 255, 211, .025) 3px 4px),
+    #06130e;
+}
+.mainline-slot-submissions {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 9px;
+  border: 1px solid rgba(139, 221, 165, .42);
+  border-top: 2px solid #149fe5;
+  background: rgba(3, 18, 13, .96);
+}
+.mainline-slot-submissions > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(139, 221, 165, .28);
+}
+.mainline-slot-submissions > header div { display: grid; gap: 2px; }
+.mainline-slot-submissions > header span,
+.mainline-slot-submissions > header em { color: #7fae91; font: 7px/1.2 var(--font-mono); font-style: normal; }
+.mainline-slot-submissions > header b { color: #e0f4e5; font: 700 11px/1.2 var(--font-body); }
+.mainline-slot-submissions__hint { margin: 0; color: #94b7a0; font: 7px/1.2 var(--font-mono); }
+.mainline-slot-submissions__list {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  align-content: start;
+  gap: 9px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.mainline-slot-submissions__list > button {
+  display: grid;
+  grid-template-rows: 134px auto;
+  gap: 5px;
+  width: 100%;
+  min-height: 162px;
+  padding: 7px;
+  color: #baf1c8;
+  border: 1px solid rgba(139, 221, 165, .4);
+  background: rgba(5, 25, 17, .82);
+  cursor: pointer;
+  text-align: left;
+}
+.mainline-slot-submissions__list > button:hover,
+.mainline-slot-submissions__list > button:focus-visible { border-color: #149fe5; background: rgba(10, 47, 32, .94); outline: 0; }
+.mainline-slot-submissions__list > button > span { display: block; min-height: 0; overflow: hidden; border: 1px solid rgba(139, 221, 165, .46); background: #07150e; }
+.mainline-slot-submissions__list > button img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.76) contrast(1.06); }
+.mainline-slot-submissions__list > button small { color: #9ee4b2; font: 8px/1.25 var(--font-body); }
+.mainline-slot-submissions__empty { margin: 0; padding: 12px 3px; color: #8ca598; font: 8px/1.5 var(--font-mono); }
+
+/* Lift and enlarge the atlas viewport so Antarctica sits on the visual
+   centreline instead of being cut by the personnel band. */
+.mainline-brief__atlas > canvas {
+  inset: -12px -3% -8px 18%;
+  width: 88%;
+  height: calc(100% + 20px);
+}
+
+@media (max-width: 620px) {
+  .mainline-brief__atlas > canvas {
+    inset: -10px -25% 0 5%;
+    width: 120%;
+    height: calc(100% + 10px);
+  }
+  .mainline-brief__submission-window { width: min(432px, calc(100vw - 28px)); }
+}
+
+/* Use the supplied overexposed expedition portrait wherever a role or
+   submission has no uploaded photograph. */
+.mainline-brief__vacancy-grid .mainline-vacancy::before { display: none; }
+.mainline-brief__vacancy-grid .mainline-vacancy {
+  height: 94px;
+  min-height: 94px;
+  max-height: 94px;
+  box-sizing: border-box;
+  padding-left: 64px;
+  overflow: hidden;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy > .mainline-vacancy__portrait {
+  position: absolute;
+  left: 9px;
+  bottom: 8px;
+  width: 44px !important;
+  height: 64px !important;
+  min-width: 44px !important;
+  min-height: 64px !important;
+  box-sizing: border-box;
+  display: block;
+  overflow: hidden;
+  opacity: .82;
+  border: 1px solid rgba(9,42,75,.18);
+  background: #d6d3ca;
+}
+.mainline-vacancy__portrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.7) contrast(1.05); }
+.mainline-personnel-seat__portrait > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.68) contrast(1.06); }
+.mainline-brief__personnel-submission > span > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.72) contrast(1.08); }

@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const source = 'E:/QQ存档/717652849/FileRecv/MobileFile/小红书_28601_Kimi的招聘网站绝了谁教Kimi这样做招聘网站的很月之暗面美学SO.mp4';
-const output = 'C:/Users/yuuranko/Documents/白渊/10_地球仪Dashboard/.audit-reference/video-frames';
+const output = 'C:/Users/yuuranko/Documents/白幕/10_地球仪Dashboard/.audit-reference/video-frames';
 fs.mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import puppeteer from 'puppeteer-core';
@@ -66,16 +67,39 @@ test('档案纠错程序 moves through computer, version selector, briefing, and
     stage = 'final evidence';
     evidence = await page.evaluate(() => ({
       briefing: document.querySelector('[data-mainline-briefing]')?.textContent || '',
+      globeSource: document.querySelector('[data-mainline-station-canvas]')?.dataset.globeSource || '',
+      stationCode: document.querySelector('[data-mainline-station-canvas]')?.dataset.stationCode || '',
+      missionLayoutColumns: getComputedStyle(document.querySelector('.mainline-brief__layout')).gridTemplateColumns,
       stageCount: document.querySelectorAll('[data-mainline-open-stage]').length,
       stage2Disabled: document.querySelector('[data-mainline-open-stage="2"]')?.disabled ?? null,
       shortcutCount: document.querySelectorAll('[data-workspace-shortcut][data-workspace-command="mainline"]').length,
+      identityCount: document.querySelectorAll('.mainline-brief__identity').length,
+      globalSubmissionToggle: Boolean(document.querySelector('[data-mainline-toggle-submissions]')),
+      personnelGridFlow: getComputedStyle(document.querySelector('.mainline-brief__vacancy-grid')).gridAutoFlow,
+      personnelGridOverflowX: getComputedStyle(document.querySelector('.mainline-brief__vacancy-grid')).overflowX,
+      missionWidth: Math.round(document.querySelector('.mainline-brief__mission')?.getBoundingClientRect().width || 0),
+      globeCanvasTop: getComputedStyle(document.querySelector('[data-mainline-station-canvas]')).top,
+      atlasMask: getComputedStyle(document.querySelector('.mainline-brief__atlas'), '::before').backgroundImage,
     }));
   } catch (error) {
     throw new Error(`${stage}: ${error.message}\n${pageErrors.join('\n')}`, { cause: error });
   }
   assert.equal(pageErrors.length, 0, pageErrors.join('\n'));
   assert.ok(evidence.briefing.trim().length > 0);
+  assert.equal(evidence.globeSource, 'site-archive-globe');
+  assert.equal(evidence.stationCode, 'SU-NOV');
+  assert.match(evidence.missionLayoutColumns, /px/);
   assert.equal(evidence.stageCount, 3);
   assert.equal(evidence.stage2Disabled, true);
   assert.equal(evidence.shortcutCount, 1);
+  assert.equal(evidence.identityCount, 0);
+  assert.equal(evidence.globalSubmissionToggle, false);
+  assert.equal(evidence.personnelGridFlow, 'row');
+  assert.equal(evidence.personnelGridOverflowX, 'hidden');
+  assert.ok(evidence.missionWidth <= 322);
+  assert.equal(evidence.globeCanvasTop, '-12px');
+  assert.equal(evidence.atlasMask, 'none');
+  const mainlineSource = await readFile(new URL('../src/archive-workflow/mainline.js', import.meta.url), 'utf8');
+  assert.match(mainlineSource, /data-mainline-toggle-slot-submissions/);
+  assert.match(mainlineSource, /mainline-slot-submissions-/);
 });

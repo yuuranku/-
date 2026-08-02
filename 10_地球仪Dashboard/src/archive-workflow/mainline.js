@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import ThreeGlobe from 'three-globe';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { RESEARCH_STATIONS } from '../data.js';
 import {
   MAINLINE_DEFAULT_VERSION,
   annotateMainlineDocument,
@@ -12,6 +14,7 @@ import { renderFormalArchiveDocument } from './public-renderer.js';
 
 const COMPUTER_ROOT = '/assets/mainline/computer';
 const MAINLINE_ICON = '/assets/icons/archive-event.svg';
+const DEFAULT_PERSON_PORTRAIT = '/assets/archive/person-default.png';
 const MAINLINE_SCENE_SLOT = '__PALIS_MAINLINE_ACTIVE_SCENE__';
 
 globalThis[MAINLINE_SCENE_SLOT]?.();
@@ -53,6 +56,7 @@ const normalizePartBriefing = (briefing = {}) => ({
   summary: String(briefing.summary ?? '').trim(),
   objective: String(briefing.objective ?? '').trim(),
   location: String(briefing.location ?? '').trim(),
+  stationCode: String(briefing.stationCode ?? '').trim(),
   time: String(briefing.time ?? '').trim(),
   knownMaterials: String(briefing.knownMaterials ?? '').trim(),
   constraints: String(briefing.constraints ?? '').trim(),
@@ -63,6 +67,23 @@ const briefingText = (briefing = {}) => {
   return [normalized.summary, normalized.objective, normalized.location, normalized.time,
     normalized.knownMaterials, normalized.constraints].filter(Boolean).join('\n');
 };
+
+const DEFAULT_PART_STATIONS = ['SU-NOV', 'US-MCM', 'SU-VOS', 'UK-HAL', 'FR-DDU', 'AU-DAV', 'NZ-SCO'];
+
+const resolveMissionStation = (briefing = {}, part = 1) => {
+  const stationCode = String(briefing.stationCode || '').trim().toLocaleLowerCase('zh-CN');
+  const location = String(briefing.location || '').trim().toLocaleLowerCase('zh-CN');
+  const exact = RESEARCH_STATIONS.find((station) => station.code.toLocaleLowerCase('zh-CN') === stationCode);
+  if (exact) return exact;
+  const matched = location && RESEARCH_STATIONS.find((station) => [station.code, station.name, station.english]
+    .filter(Boolean)
+    .some((value) => location.includes(String(value).toLocaleLowerCase('zh-CN'))));
+  return matched || RESEARCH_STATIONS.find((station) => station.code === DEFAULT_PART_STATIONS[clampPart(part) - 1]) || RESEARCH_STATIONS[0];
+};
+
+const stationOptionsMarkup = (selectedCode = '') => RESEARCH_STATIONS.map((station) => `
+  <option value="${escapeHtml(station.code)}" ${station.code === selectedCode ? 'selected' : ''}>${escapeHtml(station.code)} · ${escapeHtml(station.name)} / ${escapeHtml(station.english)}</option>
+`).join('');
 
 const normalizeVersionBriefing = (version = {}) => {
   const briefing = version.briefing && typeof version.briefing === 'object' ? version.briefing : {};
@@ -176,14 +197,168 @@ const briefingWindowMarkup = () => `
       <div data-mainline-version-heading></div>
       <output data-mainline-status aria-live="polite"></output>
     </header>
-    <section class="mainline-brief__focus" data-mainline-stage-focus></section>
-    <nav class="mainline-brief__progress" data-mainline-part-progress aria-label="版本任务进度"></nav>
-    <section class="mainline-brief__mission" data-mainline-briefing></section>
-    <section class="mainline-brief__stages" data-mainline-stage-entries></section>
-    <section class="mainline-brief__vacancies" data-mainline-slot-overview></section>
-    <section class="mainline-brief__admin" data-mainline-admin></section>
+    <div class="mainline-brief__layout">
+      <aside class="mainline-brief__rail">
+        <nav class="mainline-brief__progress" data-mainline-part-progress aria-label="版本任务进度"></nav>
+        <section class="mainline-brief__legend" aria-label="行动图例">
+          <b>相关行动主体</b>
+          <span><i class="is-red"></i>本次行动站点</span>
+          <span><i class="is-blue"></i>协作站点网络</span>
+          <span><i class="is-navy"></i>PALIS 档案节点</span>
+          <span><i class="is-gray"></i>待核定资料</span>
+        </section>
+        <footer>PALIS · CHANNEL 09A<br /><span>ARCHIVE MODE</span></footer>
+      </aside>
+      <main class="mainline-brief__center">
+        <header class="mainline-brief__hero" data-mainline-hero></header>
+        <section class="mainline-brief__atlas" aria-label="行动站点地球视图">
+          <canvas data-mainline-station-canvas aria-label="网站地球与当前行动站点"></canvas>
+          <div class="mainline-brief__station" data-mainline-station-label></div>
+          <section class="mainline-brief__mission" data-mainline-briefing></section>
+        </section>
+        <section class="mainline-brief__vacancies" data-mainline-slot-overview></section>
+      </main>
+      <aside class="mainline-brief__inspector">
+        <section class="mainline-brief__focus" data-mainline-stage-focus></section>
+        <section class="mainline-brief__stages" data-mainline-stage-entries></section>
+      </aside>
+      <section class="mainline-brief__admin" data-mainline-admin></section>
+    </div>
   </section>
 `;
+
+const createMissionGlobe = (canvas) => {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 800);
+    camera.position.set(0, 0, 328);
+  const globeRoot = new THREE.Group();
+  scene.add(globeRoot);
+  const globe = new ThreeGlobe({ animateIn: false })
+    .globeImageUrl('/textures/earth-blue-marble.jpg')
+    .bumpImageUrl('/textures/earth-topology.png')
+    .showAtmosphere(true)
+    .atmosphereColor('#b9d7d2')
+    .atmosphereAltitude(0.1);
+  const globeMaterial = globe.globeMaterial();
+  globeMaterial.color = new THREE.Color('#d7ddda');
+  globeMaterial.bumpScale = 2.2;
+  globeMaterial.shininess = 4;
+  globeMaterial.specular = new THREE.Color('#7b9690');
+  globeMaterial.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+      float waLuma = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+      vec2 waCell = mod(floor(gl_FragCoord.xy), 4.0);
+      float waIndex = waCell.x + waCell.y * 4.0;
+      float waThreshold = 0.5;
+      if (waIndex == 0.0) waThreshold = 0.03;
+      else if (waIndex == 1.0) waThreshold = 0.53;
+      else if (waIndex == 2.0) waThreshold = 0.16;
+      else if (waIndex == 3.0) waThreshold = 0.66;
+      else if (waIndex == 4.0) waThreshold = 0.78;
+      else if (waIndex == 5.0) waThreshold = 0.28;
+      else if (waIndex == 6.0) waThreshold = 0.91;
+      else if (waIndex == 7.0) waThreshold = 0.41;
+      else if (waIndex == 8.0) waThreshold = 0.22;
+      else if (waIndex == 9.0) waThreshold = 0.72;
+      else if (waIndex == 10.0) waThreshold = 0.09;
+      else if (waIndex == 11.0) waThreshold = 0.59;
+      else if (waIndex == 12.0) waThreshold = 0.97;
+      else if (waIndex == 13.0) waThreshold = 0.47;
+      else if (waIndex == 14.0) waThreshold = 0.84;
+      else if (waIndex == 15.0) waThreshold = 0.34;
+      float waInk = smoothstep(waThreshold - 0.08, waThreshold + 0.08, waLuma);
+      gl_FragColor.rgb = mix(vec3(0.018), vec3(0.94), waInk);`,
+    );
+  };
+  globeMaterial.needsUpdate = true;
+  globeRoot.add(globe);
+  scene.add(new THREE.AmbientLight(0x879692, 2.05));
+  scene.add(new THREE.HemisphereLight(0xe7eee9, 0x020403, 1.2));
+  const keyLight = new THREE.DirectionalLight(0xf3f5e9, 3.2);
+  keyLight.position.set(-170, 110, 230);
+  scene.add(keyLight);
+  const markerRoot = new THREE.Group();
+  globe.add(markerRoot);
+  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xe34f42, depthTest: false });
+  const haloMaterial = new THREE.MeshBasicMaterial({ color: 0xe34f42, transparent: true, opacity: 0.74, side: THREE.DoubleSide, depthTest: false });
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 1.4), markerMaterial);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(3.8, 4.6, 32), haloMaterial);
+  markerRoot.add(marker, halo);
+  const southPole = globe.getCoords(-90, 0, 0);
+  const southRotation = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(southPole.x, southPole.y, southPole.z).normalize(),
+    new THREE.Vector3(0, 0, 1),
+  );
+  globe.quaternion.copy(southRotation);
+  let currentStation = null;
+
+  const setStation = (station) => {
+    if (!station) return;
+    currentStation = station;
+    const point = globe.getCoords(station.lat, station.lng, 0.024);
+    markerRoot.position.set(point.x, point.y, point.z);
+    markerRoot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), markerRoot.position.clone().normalize());
+    globe.quaternion.copy(southRotation);
+    canvas.dataset.stationCode = station.code;
+  };
+
+  let width = 0;
+  let height = 0;
+  const resize = () => {
+    const nextWidth = Math.max(1, Math.round(canvas.clientWidth || 1));
+    const nextHeight = Math.max(1, Math.round(canvas.clientHeight || 1));
+    if (nextWidth === width && nextHeight === height) return;
+    width = nextWidth;
+    height = nextHeight;
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  };
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
+  resize();
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sceneWindow = canvas.closest('.archive-workflow-window');
+  let animationFrame = 0;
+  let lastRenderedAt = -Infinity;
+  const render = (time = 0) => {
+    resize();
+    if ((!sceneWindow || sceneWindow.classList.contains('is-active')) && time - lastRenderedAt >= 32) {
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(time / 430) * 0.14;
+      halo.scale.setScalar(pulse);
+      haloMaterial.opacity = reducedMotion ? 0.72 : 0.46 + Math.sin(time / 430) * 0.22;
+      globeRoot.rotation.z = reducedMotion ? 0 : Math.sin(time / 6200) * 0.012;
+      renderer.render(scene, camera);
+      lastRenderedAt = time;
+    }
+    animationFrame = requestAnimationFrame(render);
+  };
+  render();
+  canvas.dataset.globeSource = 'site-archive-globe';
+  return {
+    setStation,
+    get station() { return currentStation; },
+    dispose() {
+      cancelAnimationFrame(animationFrame);
+      observer.disconnect();
+      globeMaterial.map?.dispose?.();
+      globeMaterial.bumpMap?.dispose?.();
+      globe.traverse((object) => {
+        object.geometry?.dispose?.();
+        if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
+        else object.material?.dispose?.();
+      });
+      renderer.dispose();
+    },
+  };
+};
 
 const stageWindowMarkup = (stage) => `
   <section class="mainline-stage" data-mainline-stage="${stage}">
@@ -980,6 +1155,7 @@ const vacancyCards = (slots, {
   if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员空位。</p>';
   return activeSlots.map((slot) => `
     <article class="mainline-vacancy" data-mainline-slot="${escapeHtml(slot.id)}">
+      <span class="mainline-vacancy__portrait" aria-hidden="true"><img src="${DEFAULT_PERSON_PORTRAIT}" alt="" /></span>
       <header><span>PERSONNEL SLOT</span><b>${escapeHtml(slot.position || '未命名岗位')}</b></header>
       <dl>
         <div><dt>职能</dt><dd>${escapeHtml(slot.duties || '待配置')}</dd></div>
@@ -995,16 +1171,37 @@ const vacancyCards = (slots, {
   `).join('');
 };
 
+// A dossier can outlive a slot row (for example when an administrator
+// recreates a role). Keep the primary slotId match, but gracefully fall back
+// to the submitted role/position so existing clerk submissions remain
+// discoverable instead of disappearing from the role's disclosure window.
+const submissionsForSlot = (slot, submissions = []) => {
+  const slotId = String(slot?.id ?? '').trim();
+  const position = String(slot?.position ?? '').trim();
+  return submissions.filter((record) => {
+    const annotation = record?.draft_content?.mainline || {};
+    if (String(annotation.slotId ?? '').trim() === slotId && slotId) return true;
+    const submittedPosition = String(
+      annotation.position
+      ?? annotation.role
+      ?? record?.draft_content?.values?.role
+      ?? record?.draft_content?.values?.position
+      ?? '',
+    ).trim();
+    return Boolean(position && submittedPosition && submittedPosition === position);
+  });
+};
+
 const personnelRoster = (slots, submissions = []) => {
   const activeSlots = slots.filter((slot) => slot.active !== false);
   if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员席位。</p>';
   return activeSlots.map((slot, index) => {
-    const records = submissions.filter((record) => record.draft_content?.mainline?.slotId === slot.id);
+    const records = submissionsForSlot(slot, submissions);
     return `
       <section class="mainline-personnel-column" data-mainline-personnel-column="${escapeHtml(slot.id)}">
         <button class="mainline-personnel-seat" type="button" data-mainline-slot="${escapeHtml(slot.id)}" data-mainline-action="personnel" aria-label="编辑${escapeHtml(slot.position || '未命名岗位')}人员档案">
           <span class="mainline-personnel-seat__portrait" aria-hidden="true">
-            <i></i><em>${String(index + 1).padStart(2, '0')}</em>
+            <img src="${DEFAULT_PERSON_PORTRAIT}" alt="" /><em>${String(index + 1).padStart(2, '0')}</em>
           </span>
           <span class="mainline-personnel-seat__role">
             <b>${escapeHtml(slot.position || '未命名岗位')}</b>
@@ -1016,7 +1213,7 @@ const personnelRoster = (slots, submissions = []) => {
     const submitter = record.owner?.display_name || record.submitter_name || record.owner_id || '未知书记官';
     const portrait = record.portraitUrl
       ? `<img src="${escapeHtml(record.portraitUrl)}" alt="${escapeHtml(submitter)}提交的人员头像" />`
-      : '<i aria-hidden="true"></i>';
+      : `<img src="${DEFAULT_PERSON_PORTRAIT}" alt="${escapeHtml(submitter)}提交的人员头像" />`;
     return `<button type="button" class="mainline-personnel-submission" data-mainline-personnel-submission="${escapeHtml(record.id)}" data-mainline-view-personnel="${escapeHtml(record.id)}" aria-label="阅览${escapeHtml(submitter)}提交的人员档案">
               <span>${portrait}</span>
               <b>提交者：${escapeHtml(submitter)}</b>
@@ -1026,6 +1223,69 @@ const personnelRoster = (slots, submissions = []) => {
       </section>`;
   }).join('');
 };
+
+const briefingPersonnelCards = (slots, submissions = [], enabled = true, expandedSlots = new Set()) => {
+  const activeSlots = slots.filter((slot) => slot.active !== false);
+  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员空位。</p>';
+  return activeSlots.map((slot) => {
+    const records = submissionsForSlot(slot, submissions);
+    const expanded = expandedSlots.has(slot.id);
+    return `<section class="mainline-brief__personnel-column" data-mainline-personnel-column="${escapeHtml(slot.id)}">
+      ${vacancyCards([slot], {
+    compact: true,
+    action: 'personnel',
+    actionLabel: '建立人员档案',
+    enabled,
+  })}
+      <button type="button" class="mainline-brief__personnel-toggle" data-mainline-toggle-slot-submissions="${escapeHtml(slot.id)}" aria-expanded="${expanded}" aria-label="${expanded ? '收起' : '展开'}${escapeHtml(slot.position || '该岗位')}已提交人物档案"></button>
+    </section>`;
+  }).join('');
+};
+
+const briefingPersonnelSubmissionWindow = (slots, submissions = [], expandedSlots = new Set()) => {
+  const slotId = [...expandedSlots][0];
+  const slot = slots.find((item) => item.id === slotId);
+  if (!slot) return '';
+  const records = submissionsForSlot(slot, submissions);
+  return `<section class="mainline-brief__submission-window" data-mainline-submission-window="${escapeHtml(slot.id)}" aria-label="${escapeHtml(slot.position || '该岗位')}已提交人员档案">
+    <header><b>${escapeHtml(slot.position || '该岗位')} · 已提交档案</b><span>${records.length} SUBMISSIONS</span></header>
+    <div class="mainline-brief__submission-window-list">
+      ${records.length ? records.map((record) => {
+        const submitter = record.owner?.display_name || record.submitter_name || record.owner_id || '未知书记官';
+        const portrait = record.portraitUrl
+          ? `<img src="${escapeHtml(record.portraitUrl)}" alt="${escapeHtml(submitter)}提交的人员头像" />`
+          : `<img src="${DEFAULT_PERSON_PORTRAIT}" alt="${escapeHtml(submitter)}提交的人员头像" />`;
+        return `<button type="button" class="mainline-brief__personnel-submission" data-mainline-view-personnel="${escapeHtml(record.id)}" aria-label="阅览${escapeHtml(submitter)}提交的人员档案">
+          <span>${portrait}</span><b>提交者：${escapeHtml(submitter)}</b>
+        </button>`;
+      }).join('') : '<p>尚无已提交档案</p>'}
+    </div>
+  </section>`;
+};
+
+// This is deliberately a standalone-window view. It is not mounted below the
+// personnel band, so opening one role never reflows the globe or the other
+// role cards.
+const slotSubmissionWindowMarkup = (slot, records = []) => `
+  <section class="mainline-slot-submissions" data-mainline-slot-submissions-window="${escapeHtml(slot.id)}" aria-label="${escapeHtml(slot.position || '该岗位')}已提交人物档案">
+    <header>
+      <div><span>PERSONNEL DOSSIERS</span><b>${escapeHtml(slot.position || '未命名岗位')}</b></div>
+      <em>${records.length} SUBMISSIONS</em>
+    </header>
+    <p class="mainline-slot-submissions__hint">已提交人物档案</p>
+    <div class="mainline-slot-submissions__list">
+      ${records.length ? records.map((record) => {
+    const submitter = record.owner?.display_name || record.submitter_name || record.owner_id || '未知书记官';
+    const portrait = record.portraitUrl
+      ? `<img src="${escapeHtml(record.portraitUrl)}" alt="${escapeHtml(submitter)}提交的人物头像" />`
+      : `<img src="${DEFAULT_PERSON_PORTRAIT}" alt="${escapeHtml(submitter)}提交的人物头像" />`;
+    return `<button type="button" data-mainline-view-personnel="${escapeHtml(record.id)}" aria-label="阅览${escapeHtml(submitter)}提交的人物档案">
+          <span>${portrait}</span><small>提交者：${escapeHtml(submitter)}</small>
+        </button>`;
+  }).join('') : '<p class="mainline-slot-submissions__empty">该岗位暂未收到书记官提交的人物档案。</p>'}
+    </div>
+  </section>
+`;
 
 const adminMarkup = (current, slots, selectedPart) => {
   const workflow = normalizeVersionBriefing(current);
@@ -1044,7 +1304,7 @@ const adminMarkup = (current, slots, selectedPart) => {
     </details>
   `).join('');
   return `
-    <details class="mainline-admin" data-mainline-admin-panel open>
+    <details class="mainline-admin" data-mainline-admin-panel>
       <summary>管理员配置</summary>
       <form data-mainline-version-form>
         <fieldset data-mainline-admin-section="version"><legend>版本状态</legend>
@@ -1058,6 +1318,7 @@ const adminMarkup = (current, slots, selectedPart) => {
           <label class="mainline-admin__current"><input type="checkbox" name="isCurrent" value="true" ${isCurrent ? 'checked' : ''} />设为版本当前任务</label>
           <label class="is-wide">概要<textarea name="summary">${escapeHtml(briefing.summary)}</textarea></label>
           <label>行动目标<input name="objective" value="${escapeHtml(briefing.objective)}" /></label>
+          <label>关联站点<select name="stationCode"><option value="">按地点文字自动匹配</option>${stationOptionsMarkup(briefing.stationCode)}</select></label>
           <label>地点<input name="location" value="${escapeHtml(briefing.location)}" /></label>
           <label>时间<input name="time" value="${escapeHtml(briefing.time)}" /></label>
           <label>已知材料<textarea name="knownMaterials">${escapeHtml(briefing.knownMaterials)}</textarea></label>
@@ -1151,9 +1412,11 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     });
     if (state.mainlinePersonnelViewerReady) return state;
     state.mainlinePersonnelViewerReady = true;
+    const submittedMedia = record.media?.length ? record.media : (record.draft_content?.media || []);
+    const hasPortrait = submittedMedia.some((entry) => entry.role === 'portrait' || entry.field === 'photo');
     const content = {
       ...record.draft_content,
-      media: record.media?.length ? record.media : record.draft_content?.media,
+      media: hasPortrait ? submittedMedia : [{ role: 'portrait', publicUrl: DEFAULT_PERSON_PORTRAIT }, ...submittedMedia],
     };
     state.windowElement.querySelector('[data-mainline-personnel-viewer]').innerHTML = `
       <header><b>只读人员档案</b><span>VER ${escapeHtml(annotation.versionCode || '0.1')} · PART ${String(annotation.part || 1).padStart(2, '0')} · 提交者：${escapeHtml(submitter.display_name)}</span></header>
@@ -1177,6 +1440,44 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     },
     preview: true,
   })}</div>`;
+    return state;
+  };
+
+  const openSlotSubmissionsWindow = ({
+    slotId,
+    slots: availableSlots = [],
+    submissions = [],
+    returnFocus = null,
+  } = {}) => {
+    // This helper lives at the mainline-program scope, while the current
+    // part's slots and submissions live inside the briefing window.  Pass
+    // those collections explicitly; otherwise clicking a dossier corner
+    // throws before the small window can be created.
+    const slot = availableSlots.find((item) => item.id === slotId);
+    if (!slot) return null;
+    const records = submissionsForSlot(slot, submissions);
+    const state = createWindow({
+      key: `mainline-slot-submissions-${slot.id}`,
+      title: `${slot.position || '人员岗位'} / 已提交档案`,
+      code: 'DOSSIER',
+      className: 'mainline-submissions-window',
+      icon: MAINLINE_ICON,
+      body: '<section data-mainline-submission-window-shell></section>',
+      returnFocus,
+    });
+    // Refresh every time: newly submitted material becomes visible without
+    // closing a previously opened dossier window.
+    state.mainlineSubmissionRecords = records;
+    state.windowElement.querySelector('[data-mainline-submission-window-shell]').innerHTML = slotSubmissionWindowMarkup(slot, records);
+    if (!state.mainlineSubmissionWindowReady) {
+      state.mainlineSubmissionWindowReady = true;
+      state.windowElement.addEventListener('click', (event) => {
+        const recordId = event.target.closest('[data-mainline-view-personnel]')?.dataset.mainlineViewPersonnel;
+        const record = state.mainlineSubmissionRecords?.find((item) => item.id === recordId);
+        if (record) openPersonnelViewer(record, event.target.closest('[data-mainline-view-personnel]'));
+      });
+    }
+    state.windowElement.focus({ preventScroll: true });
     return state;
   };
 
@@ -1355,8 +1656,14 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     const stageEntries = root.querySelector('[data-mainline-stage-entries]');
     const slotOverview = root.querySelector('[data-mainline-slot-overview]');
     const admin = root.querySelector('[data-mainline-admin]');
+    const hero = root.querySelector('[data-mainline-hero]');
+    const stationCanvas = root.querySelector('[data-mainline-station-canvas]');
+    const stationLabel = root.querySelector('[data-mainline-station-label]');
+    const missionGlobe = createMissionGlobe(stationCanvas);
     let current = version;
     let slots = [];
+    let personnelSubmissions = [];
+    const expandedSubmissionSlots = new Set();
     let selectedPart = normalizeVersionBriefing(version).activePart;
     const setStatus = (message) => { status.textContent = message; };
 
@@ -1368,10 +1675,15 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       const focusOpen = mainlineStageIsOpen(current, focusStage, selectedPart);
       const focusTask = stageTask(focusStage, role);
       const partIsLocked = fields.status === 'locked';
+      const missionStation = resolveMissionStation(fields, selectedPart);
       heading.innerHTML = `<b>VER ${escapeHtml(current.code)}《${escapeHtml(current.title)}》</b><span>当前任务：PART ${String(workflow.activePart).padStart(2, '0')} · ${escapeHtml(stageLabel(official.activeStage))}</span>`;
+      hero.innerHTML = `<span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span><h1>${escapeHtml(focusTask.title)}</h1><small>PART ${String(selectedPart).padStart(2, '0')} · ARCHIVE CORRECTION MISSION</small>`;
+      missionGlobe.setStation(missionStation);
+      stationLabel.innerHTML = `<i aria-hidden="true"></i><span><b>${escapeHtml(missionStation.name)}</b><small>${escapeHtml(missionStation.code)} · ${escapeHtml(missionStation.english)}</small><em>${Number(missionStation.lat).toFixed(2)}° / ${Number(missionStation.lng).toFixed(2)}°</em></span>`;
       stageFocus.dataset.stage = String(focusStage);
       stageFocus.dataset.open = String(focusOpen && !partIsLocked);
       stageFocus.innerHTML = `
+        <header><b>当前修正</b><span>›</span></header>
         <div class="mainline-brief__focus-index" aria-hidden="true">0${focusStage}</div>
         <div class="mainline-brief__focus-copy">
           <span>CURRENT ASSIGNMENT / PART ${String(selectedPart).padStart(2, '0')}</span>
@@ -1392,7 +1704,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
             ? `<button type="button" data-mainline-focus-stage="${focusStage}">${escapeHtml(focusTask.action)}</button>`
             : '<span>当前没有可执行操作</span>'}
         </div>`;
-      partProgress.innerHTML = `<header><b>当前进度</b><span>VERSION TASK PROGRESS</span></header><ol>${[1, 2, 3, 4, 5, 6, 7].map((part) => {
+      partProgress.innerHTML = `<header><b>行动进度</b><span>VERSION TASK PROGRESS</span></header><ol>${[1, 2, 3, 4, 5, 6, 7].map((part) => {
         const partFields = workflow.parts[String(part)];
         const state = partFields.status === 'complete'
           ? 'is-complete'
@@ -1409,16 +1721,17 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         return `<li class="${state} ${part === selectedPart ? 'is-selected' : ''}" ${part === workflow.activePart ? 'aria-current="step"' : ''}>${selectable ? `<button type="button" data-mainline-select-part="${part}" aria-label="查看 PART ${String(part).padStart(2, '0')} 独立配置">${content}</button>` : content}</li>`;
       }).join('')}</ol>`;
       briefing.innerHTML = `
-        <header><div><b>PART ${String(selectedPart).padStart(2, '0')} 行动简报</b><span>INDEPENDENT MISSION BRIEF</span></div><em>${fields.status === 'complete' ? '管理员已确认完成' : escapeHtml(stageLabel(fields.activeStage))}</em></header>
-        <p class="mainline-brief__summary">${escapeHtml(fields.summary || '管理员尚未发布行动简报。').replaceAll('\n', '<br />')}</p>
-        <section class="mainline-brief__objective"><span>行动目标</span><b>${escapeHtml(fields.objective || '待发布')}</b></section>
+        <header><div><span>核心事件 / PRIMARY DOSSIER</span><em>CLASSIFIED // LEVEL ${focusStage}</em></div><b>PART ${String(selectedPart).padStart(2, '0')}</b></header>
+        <p class="mainline-brief__case-year">${escapeHtml(fields.time || '1952')}</p>
+        <h2>${escapeHtml(fields.summary || '管理员尚未发布任务概要。').replaceAll('\n', '<br />')}</h2>
+        <p class="mainline-brief__summary">${escapeHtml(fields.objective || `${missionStation.name}行动档案`)}</p>
         <dl>
-          <div><dt>地点</dt><dd>${escapeHtml(fields.location || '待发布')}</dd></div>
-          <div><dt>时间</dt><dd>${escapeHtml(fields.time || '待发布')}</dd></div>
+          <div><dt>行动站点</dt><dd>${escapeHtml(missionStation.name)}</dd></div>
+          <div><dt>地点</dt><dd>${escapeHtml(fields.location || missionStation.english)}</dd></div>
           <div><dt>已知材料</dt><dd>${escapeHtml(fields.knownMaterials || '无')}</dd></div>
           <div><dt>限制</dt><dd>${escapeHtml(fields.constraints || '无')}</dd></div>
-        </dl>`;
-      stageEntries.innerHTML = `<header><b>任务流程</b><span>当前阶段已置顶；其余阶段保留为流程状态</span></header><ol>${[1, 2, 3].map((stage) => {
+        </dl><footer><button type="button" data-mainline-focus-stage="${focusStage}" ${focusOpen && !partIsLocked ? '' : 'disabled'}>查看当前阶段档案 <span>→</span></button><em>PALIS ARCHIVE</em></footer>`;
+      stageEntries.innerHTML = `<header><b>阶段入口</b><span>STAGE ACCESS</span></header><ol>${[1, 2, 3].map((stage) => {
         const open = mainlineStageIsOpen(current, stage, selectedPart);
         const isCurrent = stage === focusStage;
         const flowState = isCurrent
@@ -1433,13 +1746,52 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         </li>`;
       }).join('')}</ol>`;
       const activeSlots = slots.filter((slot) => slot.active !== false);
-      slotOverview.innerHTML = `<header><b>${focusStage === 1 ? '可认领岗位' : '行动人员'}</b><span>${activeSlots.length} 个开放岗位</span></header><div class="mainline-brief__vacancy-grid">${vacancyCards(activeSlots, { compact: true })}</div>`;
+      slotOverview.innerHTML = `<header><b>${focusStage === 1 ? '行动人员空位' : '行动人员档案'}</b><span>${activeSlots.length} PERSONNEL DOSSIERS · ${personnelSubmissions.length} SUBMISSIONS</span></header><div class="mainline-brief__vacancy-grid">${briefingPersonnelCards(activeSlots, personnelSubmissions, focusOpen && !partIsLocked, expandedSubmissionSlots)}</div>`;
+      // Bind each corner disclosure directly after every render. Delegation
+      // remains below as a fallback, while this listener keeps the tiny
+      // control reliable when the atlas canvas is visually adjacent to it.
+      slotOverview.querySelectorAll('[data-mainline-toggle-slot-submissions]').forEach((toggle) => {
+        let openedByPointer = false;
+        const openSubmittedDossiers = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const slotId = toggle.dataset.mainlineToggleSlotSubmissions;
+          const opened = openSlotSubmissionsWindow({
+            slotId,
+            slots,
+            submissions: personnelSubmissions,
+            returnFocus: toggle,
+          });
+          setStatus(opened
+            ? '宸叉墦寮€璇ュ矖浣嶇殑鐙珛鎻愪氦妗ｆ绐楀彛'
+            : '鏈壘鍒拌浜哄憳绌轰綅锛岃鑱旂郴绠＄悊鍛樿ˉ鍏呭矖浣嶄俊鎭紒');
+        };
+        // Open on press rather than waiting for click. The briefing has a
+        // draggable desktop window and a WebGL atlas beside this control;
+        // opening here makes the tiny corner reliably actionable on mouse,
+        // touch, and pen input.
+        toggle.addEventListener('pointerdown', (event) => {
+          if (event.button !== 0) return;
+          openedByPointer = true;
+          openSubmittedDossiers(event);
+        });
+        toggle.addEventListener('click', (event) => {
+          if (openedByPointer) {
+            openedByPointer = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          openSubmittedDossiers(event);
+        });
+      });
       admin.innerHTML = role === 'admin' ? adminMarkup(current, slots, selectedPart) : '';
     };
 
     const reload = async () => {
       try {
         ({ current, slots } = await loadVersionAndSlots(version));
+        personnelSubmissions = await loadPersonnelSubmissions(current.code, selectedPart);
         render();
         setStatus(`VER ${current.code} 已就绪`);
       } catch (error) {
@@ -1448,15 +1800,24 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       }
     };
     const unsubscribeMainline = subscribeToMainlineChanges(client, reload);
-    state.dispose = () => unsubscribeMainline();
+    const onSubmissionChanged = (event) => {
+      if (event.detail?.templateId === '06') void reload();
+    };
+    window.addEventListener('palis:archive-submission-changed', onSubmissionChanged);
+    state.dispose = () => {
+      unsubscribeMainline();
+      window.removeEventListener('palis:archive-submission-changed', onSubmissionChanged);
+      missionGlobe.dispose();
+    };
     state.reloadMainline = reload;
 
     root.addEventListener('click', async (event) => {
       const partButton = event.target.closest('[data-mainline-select-part]');
       if (partButton) {
         selectedPart = clampPart(partButton.dataset.mainlineSelectPart);
-        render();
+        expandedSubmissionSlots.clear();
         setStatus(`正在查看 PART ${String(selectedPart).padStart(2, '0')} 的独立任务配置`);
+        await reload();
         return;
       }
       const adminJump = event.target.closest('[data-mainline-admin-jump]');
@@ -1478,10 +1839,35 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         setStatus(destination === 'slots' ? '已打开人员空位管理' : destination === 'progress' ? '已打开任务开放进度' : '已打开当前 PART 简报编辑');
         return;
       }
+      const submissionsToggle = event.target.closest('[data-mainline-toggle-slot-submissions]');
+      if (submissionsToggle) {
+        const slotId = submissionsToggle.dataset.mainlineToggleSlotSubmissions;
+        openSlotSubmissionsWindow({
+          slotId,
+          slots,
+          submissions: personnelSubmissions,
+          returnFocus: submissionsToggle,
+        });
+        setStatus('已打开该岗位的独立提交档案窗口');
+        return;
+      }
       const button = event.target.closest('[data-mainline-open-stage], [data-mainline-focus-stage]');
-      if (!button || button.disabled) return;
-      const stage = Number(button.dataset.mainlineOpenStage || button.dataset.mainlineFocusStage);
-      void openStageWindow(current, stage, selectedPart, button);
+      if (button && !button.disabled) {
+        const stage = Number(button.dataset.mainlineOpenStage || button.dataset.mainlineFocusStage);
+        void openStageWindow(current, stage, selectedPart, button);
+        return;
+      }
+      const submissionId = event.target.closest('[data-mainline-view-personnel]')?.dataset.mainlineViewPersonnel;
+      const submission = personnelSubmissions.find((record) => record.id === submissionId);
+      if (submission) {
+        openPersonnelViewer(submission, event.target.closest('[data-mainline-view-personnel]'));
+        return;
+      }
+      const personnelButton = event.target.closest('[data-mainline-action="personnel"]');
+      if (!personnelButton || personnelButton.disabled) return;
+      const slotId = personnelButton.closest('[data-mainline-slot]')?.dataset.mainlineSlot;
+      const slot = slots.find((item) => item.id === slotId);
+      if (slot) openPersonnel(current, slot, selectedPart);
     });
 
     root.addEventListener('submit', async (event) => {
@@ -1503,6 +1889,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
               summary: data.get('summary'),
               objective: data.get('objective'),
               location: data.get('location'),
+              stationCode: data.get('stationCode'),
               time: data.get('time'),
               knownMaterials: data.get('knownMaterials'),
               constraints: data.get('constraints'),

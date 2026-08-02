@@ -3,5 +3,6 @@ dist/
 .env
 .env.*
 !.env.example
+cloudbase/migration-input/
 *.log
 .worktrees/
