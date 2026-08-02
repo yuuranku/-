@@ -5,6 +5,6 @@
     "10_地球仪Dashboard"
   ],
   "scripts": {
-    "build": "npm run build --workspace=baiyuan-antarctic-globe"
+    "build": "node scripts/cloudflare-build.mjs"
   }
 }
