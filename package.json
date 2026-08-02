@@ -1,0 +1,10 @@
+{
+  "name": "baiyuan-cloudflare-build-root",
+  "private": true,
+  "workspaces": [
+    "10_地球仪Dashboard"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=baiyuan-antarctic-globe"
+  }
+}
