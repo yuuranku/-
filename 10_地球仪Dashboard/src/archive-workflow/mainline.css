@@ -1253,6 +1253,171 @@
   background: var(--atlas-ink);
 }
 
+/* Briefing typography: keep the established Noto + Plex visual language, but
+   reserve micro type for decoration. The original 6–10px metadata made the
+   actual mission and workflow information harder to scan than it needed to be. */
+.mainline-brief {
+  font-synthesis: none;
+}
+
+.mainline-brief__mast b {
+  font-size: .875rem;
+  letter-spacing: .03em;
+}
+
+.mainline-brief__mast span,
+.mainline-brief__mast output,
+.mainline-brief__progress > header span,
+.mainline-brief__hero small,
+.mainline-brief__station small,
+.mainline-brief__station em,
+.mainline-brief__mission > header span,
+.mainline-brief__mission > header em,
+.mainline-brief__mission dt,
+.mainline-brief__mission > footer em,
+.mainline-brief__vacancies > header span,
+.mainline-brief__focus-copy > span,
+.mainline-brief__focus-copy small,
+.mainline-brief__stages > header span,
+.mainline-brief__stages button > small {
+  font-size: .75rem;
+  line-height: 1.4;
+}
+
+.mainline-brief__progress > header b,
+.mainline-brief__legend > b,
+.mainline-brief__vacancies > header b,
+.mainline-brief__focus > header b,
+.mainline-brief__stages > header b {
+  font-size: .875rem;
+  line-height: 1.3;
+}
+
+.mainline-brief__progress li,
+.mainline-brief__progress li > button,
+.mainline-brief__progress li:not(:has(button)) {
+  min-height: 50px;
+}
+
+.mainline-brief__progress li > button > b,
+.mainline-brief__progress li > b,
+.mainline-brief__legend > span {
+  font-size: .875rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__progress li > button > small,
+.mainline-brief__progress li > small {
+  font-size: .75rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__hero h1 {
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.mainline-brief__hero span {
+  font-size: 1.625rem;
+  letter-spacing: .04em;
+}
+
+.mainline-brief__station b,
+.mainline-brief__mission > header b {
+  font-size: .875rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__mission {
+  min-height: 326px;
+}
+
+.mainline-brief__case-year {
+  font-size: 1.75rem;
+}
+
+.mainline-brief__mission h2 {
+  max-width: 86%;
+  font-size: 1.875rem;
+  line-height: 1.18;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.mainline-brief__summary {
+  max-width: 88%;
+  margin-block: 14px;
+  font-size: .9375rem;
+  line-height: 1.72;
+  text-align: left;
+  text-wrap: pretty;
+}
+
+.mainline-brief__mission dl div {
+  min-height: 42px;
+  padding-top: 8px;
+}
+
+.mainline-brief__mission dd {
+  margin-top: 4px;
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+
+.mainline-brief__mission > footer button {
+  font-size: .8125rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__vacancy-grid .mainline-vacancy > header span,
+.mainline-brief__vacancy-grid .mainline-vacancy dd,
+.mainline-brief__vacancy-grid .mainline-vacancy button,
+.mainline-brief__personnel-submissions > p,
+.mainline-brief__personnel-submission b {
+  font-size: .75rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__vacancy-grid .mainline-vacancy > header b {
+  font-size: .875rem;
+  line-height: 1.3;
+}
+
+.mainline-brief__focus-index {
+  font-size: 3rem;
+}
+
+.mainline-brief__focus-copy h2 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.mainline-brief__focus-copy p {
+  font-size: .875rem;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.mainline-brief__focus-action button,
+.mainline-brief__stages button > b {
+  font-size: .8125rem;
+  line-height: 1.35;
+}
+
+.mainline-brief__stages button {
+  min-height: 72px;
+}
+
+@media (max-width: 620px) {
+  .mainline-brief__hero { padding: 18px 20px 22px; }
+  .mainline-brief__hero h1 { font-size: clamp(2rem, 9vw, 2.5rem); }
+  .mainline-brief__mission { min-height: 344px; }
+  .mainline-brief__mission h2 { font-size: 1.625rem; }
+  .mainline-brief__summary { max-width: 86%; font-size: .875rem; }
+}
+
 @media (max-width: 1180px) {
   .mainline-brief__atlas > canvas { inset-inline: 10% -8%; width: 98%; }
   .mainline-brief__mission { left: 22px; width: 54%; }
