@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   SOUND_PROFILES,
+  canPlayUiSound,
   clampSoundVolume,
   validateSoundProfiles,
 } from '../src/ui-sounds.js';
@@ -11,9 +12,29 @@ test('UI sound profiles stay within the agreed UI-audio safety budget', () => {
   assert.deepEqual(validateSoundProfiles(SOUND_PROFILES), []);
 });
 
+test('loading sound palette includes separate telemetry and window cues', () => {
+  assert.ok(SOUND_PROFILES.telemetry);
+  assert.ok(SOUND_PROFILES.window);
+  assert.ok(SOUND_PROFILES.verified);
+  assert.equal(SOUND_PROFILES.telemetry.layers.every((layer) => layer.wave === 'square'), true);
+});
+
+test('loading sound palette provides each state cue used by the timed loading views', () => {
+  assert.ok(SOUND_PROFILES.boot);
+  assert.ok(SOUND_PROFILES.scan);
+  assert.ok(SOUND_PROFILES.telemetry);
+  assert.ok(SOUND_PROFILES.verified);
+});
+
 test('sound volume is clamped to a safe user-controlled range', () => {
   assert.equal(clampSoundVolume(-1), 0);
   assert.equal(clampSoundVolume(.28), .28);
   assert.equal(clampSoundVolume(2), 1);
   assert.equal(clampSoundVolume('invalid'), .28);
+});
+
+test('suspended interface audio never plays during a page transition', () => {
+  assert.equal(canPlayUiSound({ enabled: true, suspended: false }), true);
+  assert.equal(canPlayUiSound({ enabled: true, suspended: true }), false);
+  assert.equal(canPlayUiSound({ enabled: false, suspended: false }), false);
 });

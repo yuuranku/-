@@ -8,7 +8,11 @@ import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
 import './archive-workflow/mainline.css';
-import { initializeUiSounds } from './ui-sounds.js';
+import {
+  emitUiSound,
+  initializeUiSounds,
+  stopAllUiSounds,
+} from './ui-sounds.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
@@ -54,6 +58,10 @@ import {
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
+const emitLoadingCue = (name, minInterval) => {
+  void emitUiSound(name, { minInterval });
+};
+initializeUiSounds();
 const palisRuntime = await initializePalisRuntime({ reducedMotion });
 const archiveWorkflowClient = palisRuntime.repository;
 let activeArchiveStorySession = palisRuntime.initialSession ?? null;
@@ -84,7 +92,6 @@ initializeArchiveWorkspace({
   initialSession: palisRuntime.initialSession,
 });
 palisRuntime.activate();
-initializeUiSounds();
 
 const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
 let archiveRoots = ARCHIVE_ROOTS;
@@ -400,6 +407,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       }));
       return;
     }
+    if (open) stopAllUiSounds();
     window.clearTimeout(desktopCloseTimer);
     setMenuOpen(false);
     if (!open && desktopWelcome) desktopWelcome.hidden = true;
@@ -1504,6 +1512,9 @@ async function syncPublishedArchiveDirectory() {
 
 async function runOverviewSync() {
   const runId = ++overviewSyncRun;
+  // Loading sound is paced by real request / scan / verification changes,
+  // rather than an unrelated timer loop.
+  emitLoadingCue('boot', 260);
   const rows = [...syncList.querySelectorAll('.sync-row')];
   const recordTotal = archiveRoots.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
   const offlineRecordTotal = archiveRoots.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
@@ -1521,12 +1532,14 @@ async function runOverviewSync() {
 
     output.textContent = '000';
     if (target === 0) return true;
+    const cueStep = Math.max(3, Math.ceil(target / 6));
     for (let count = 1; count <= target; count += 1) {
       if (runId !== overviewSyncRun || currentChapter !== 1) return false;
       output.textContent = String(count).padStart(3, '0');
       const countProgress = Math.round(((index + 0.22 + (count / target) * 0.7) / rows.length) * 100);
       syncPercent.textContent = String(countProgress).padStart(3, '0');
       syncProgress.style.width = `${countProgress}%`;
+      if (count === 1 || count === target || count % cueStep === 0) emitLoadingCue('telemetry', 72);
 
       if (pausePoints.has(count)) {
         row.classList.add('is-buffering');
@@ -1590,6 +1603,7 @@ async function runOverviewSync() {
         const onlineCount = onlineArchiveCount(archive);
         const offlineCount = offlineArchiveCount(archive);
         row.classList.add('is-requesting');
+        emitLoadingCue('boot', 90);
         row.querySelector('i').textContent = '呼叫';
         row.querySelector('output').textContent = '000';
         syncPhase.textContent = `BUS ${String(index + 1).padStart(2, '0')} / ${String(rows.length).padStart(2, '0')}`;
@@ -1603,6 +1617,7 @@ async function runOverviewSync() {
 
         row.classList.remove('is-requesting');
         row.classList.add('is-scanning');
+        emitLoadingCue('scan', 110);
         row.querySelector('i').textContent = '检索中';
         syncState.textContent = `扫描 ${archive.code} 源文件`;
 
@@ -1615,6 +1630,7 @@ async function runOverviewSync() {
           const scanProgress = Math.round(((index + 0.22 + ((probe + 1) / probeCount) * 0.62) / rows.length) * 100);
           syncPercent.textContent = String(scanProgress).padStart(3, '0');
           syncProgress.style.width = `${scanProgress}%`;
+          emitLoadingCue('telemetry', 78);
           await wait(105 + (probe % 2) * 28);
         }
 
@@ -1671,6 +1687,7 @@ async function runOverviewSync() {
     const offlineCount = offlineArchiveCount(archive);
     const requestProgress = Math.round(((index + 0.18) / rows.length) * 100);
     row.classList.add('is-requesting');
+    emitLoadingCue('boot', 90);
     row.querySelector('i').textContent = '呼叫';
     row.querySelector('output').textContent = '000';
     syncState.textContent = `建立 ${archive.code} 通道`;
@@ -1683,6 +1700,7 @@ async function runOverviewSync() {
     const verifyProgress = Math.round(((index + 0.22) / rows.length) * 100);
     row.classList.remove('is-requesting');
     row.classList.add('is-scanning');
+    emitLoadingCue('scan', 120);
     row.querySelector('i').textContent = '核对中';
     syncState.textContent = `核对 ${archive.code} 来源链`;
     syncPercent.textContent = String(verifyProgress).padStart(3, '0');
@@ -1705,6 +1723,7 @@ async function runOverviewSync() {
 
 function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal) {
   if (runId !== overviewSyncRun) return;
+  emitLoadingCue('verified', 360);
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
   syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
@@ -1741,6 +1760,7 @@ function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal
 
 function commitRestrictedOverviewSync(runId, channelTotal) {
   if (runId !== overviewSyncRun) return;
+  emitLoadingCue('error', 360);
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
   syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
@@ -1795,6 +1815,7 @@ async function runPolarDiagnostic() {
   let completed = 0;
 
   polarDiagnostic.hidden = false;
+  emitLoadingCue('window', 260);
   polarDiagnostic.classList.remove('is-dismissed', 'is-complete', 'is-failed');
   focusLocalWindow(localWindowStates.get('polar-self-test'));
   polarDiagnostic.dataset.phase = 'standby';
@@ -1843,6 +1864,7 @@ async function runPolarDiagnostic() {
   for (const phase of phases) {
     polarDiagnostic.dataset.phase = phase.key;
     setDiagnosticRow(phase.key, 'active', `00 / ${String(phase.total).padStart(2, '0')}`);
+    emitLoadingCue('scan', 130);
     for (let index = 0; index < phase.total; index += 1) {
       polarDiagnosticState[phase.key] = index + 1;
       completed += 1;
@@ -1857,6 +1879,7 @@ async function runPolarDiagnostic() {
       }
       setDiagnosticRow(phase.key, 'active', `${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
       setDiagnosticProgress(completed, allChecks, phase.title, phase.channel, `${phase.log} ${String(index + 1).padStart(2, '0')} / RESPONSE NORMAL`);
+      emitLoadingCue('telemetry', 88);
       taskStatus.textContent = `${phase.title} / ${index + 1} OF ${phase.total}`;
       await diagnosticWait(phase.delay);
     }
@@ -1866,6 +1889,7 @@ async function runPolarDiagnostic() {
 
   polarDiagnostic.dataset.phase = 'weather';
   setDiagnosticRow('weather', 'active', '校准中');
+  emitLoadingCue('scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在校准天气遥测', 'CHANNEL 04', 'SYNC PRESSURE / WIND / TEMPERATURE TELEMETRY');
   taskStatus.textContent = '天气遥测 / 校准中';
   await diagnosticWait(720);
@@ -1877,6 +1901,7 @@ async function runPolarDiagnostic() {
 
   polarDiagnostic.dataset.phase = 'storm';
   setDiagnosticRow('storm', 'active', '扫描中');
+  emitLoadingCue('scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在检查风暴监控阵列', 'CHANNEL 05', 'SCAN STORM WATCH SECTORS');
   taskStatus.textContent = '风暴监控 / 扫描扇区';
   await diagnosticWait(820);
@@ -1887,6 +1912,7 @@ async function runPolarDiagnostic() {
 }
 
 async function finishPolarDiagnostic(allChecks) {
+  emitLoadingCue('verified', 360);
   polarDiagnosticComplete = true;
   polarDiagnostic.dataset.phase = 'complete';
   polarDiagnostic.classList.add('is-complete');
@@ -1929,6 +1955,7 @@ async function runRestrictedPolarDiagnostic(totals) {
       `STATION ${String(index + 1).padStart(2, '0')}`,
       `PING ${station.code} / NO RESPONSE`,
     );
+    emitLoadingCue('telemetry', 88);
     taskStatus.textContent = `科研站检索 / ${index + 1} OF ${totals.stations}`;
     await diagnosticWait(stationWait);
     if (!reducedMotion) selectMapItem(station, { transient: true, diagnosticStatus: '离线' });
@@ -1952,6 +1979,7 @@ async function runRestrictedPolarDiagnostic(totals) {
       `BEACON ${String(index + 1).padStart(2, '0')}`,
       `QUERY ${entrance.code} / RECORD NOT FOUND`,
     );
+    emitLoadingCue('telemetry', 88);
     taskStatus.textContent = `入口信标检索 / ${index + 1} OF ${totals.entrances}`;
     await diagnosticWait(entranceWait);
     if (!reducedMotion) selectMapItem(entrance, { transient: true, diagnosticStatus: '检索失败' });
@@ -1976,6 +2004,7 @@ async function runRestrictedPolarDiagnostic(totals) {
       `ROUTE ${String(index + 1).padStart(2, '0')}`,
       `TRACE ${route?.nodes?.join(' > ') || 'UNKNOWN'} / ROUTE LOST`,
     );
+    emitLoadingCue('telemetry', 88);
     taskStatus.textContent = `补给路线检索 / ${index + 1} OF ${totals.routes}`;
     await diagnosticWait(routeWait);
     if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线未知' });
@@ -1996,6 +2025,7 @@ async function runRestrictedPolarDiagnostic(totals) {
   setDiagnosticProgress(completed, allChecks, '网络资料检索失败', 'DATA OFFLINE', 'ALL STATIONS OFFLINE / ROUTES UNKNOWN');
 
   polarDiagnostic.dataset.phase = 'failed';
+  emitLoadingCue('error', 360);
   polarDiagnostic.classList.add('is-failed');
   polarLayer.classList.remove('is-diagnostic-running', 'is-network-ready');
   polarLayer.classList.add('is-network-offline');
@@ -5898,9 +5928,12 @@ function setLayer(element, opacity, shiftY = 0) {
 
 function setChapter(chapter) {
   const previousChapter = currentChapter;
+  if (chapter !== previousChapter) stopAllUiSounds();
   currentChapter = chapter;
   if (chapter === 1) runOverviewSync();
-  else if (previousChapter === 1) overviewSyncRun += 1;
+  else if (previousChapter === 1) {
+    overviewSyncRun += 1;
+  }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35));
   if (chapter !== previousChapter) {
     controls.reset();
@@ -6302,7 +6335,9 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
     selectedMapItem = item;
     document.querySelector('#point-picker').value = item.code;
   }
-  if (diagnosticStatus) flashDiagnosticMapDetail();
+  if (diagnosticStatus) {
+    flashDiagnosticMapDetail();
+  }
 }
 
 function flashDiagnosticMapDetail() {

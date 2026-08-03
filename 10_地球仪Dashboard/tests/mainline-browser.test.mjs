@@ -7,7 +7,7 @@ import puppeteer from 'puppeteer-core';
 import { resolveBrowserExecutable } from '../scripts/palis-browser-runtime.mjs';
 import { startPalisTestServer } from './helpers/palis-test-server.mjs';
 
-test('档案纠错程序 moves through computer, version selector, briefing, and an independent stage window', { timeout: 80_000 }, async (t) => {
+test('档案纠错程序 opens the dossier video directly, then enters briefing and an independent stage window', { timeout: 80_000 }, async (t) => {
   const previous = process.env.VITE_PALIS_LOCAL_ADMIN;
   process.env.VITE_PALIS_LOCAL_ADMIN = '1';
   const server = await startPalisTestServer();
@@ -37,28 +37,28 @@ test('档案纠错程序 moves through computer, version selector, briefing, and
     await page.$eval('[data-workspace-shortcut][data-workspace-command="mainline"]', (button) => {
       button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
-    await page.waitForSelector('[data-mainline-entry]', { timeout: 10_000 });
-    stage = 'computer model and camera fit';
-    await page.waitForFunction(() => {
-      const canvas = document.querySelector('[data-mainline-computer-canvas]');
-      return canvas?.dataset.modelLoaded === 'true' && canvas?.dataset.cameraFit === 'pass';
-    }, { timeout: 20_000 });
-    stage = 'version reel window';
-    // Regression: the visible computer canvas, not the hidden keyboard-only
-    // fallback button, must open the version reel after the OBJ is ready.
-    await page.$eval('[data-mainline-computer-canvas]', (canvas) => {
-      const bounds = canvas.getBoundingClientRect();
-      canvas.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2,
-      }));
-      canvas.dispatchEvent(new PointerEvent('pointerup', {
-        bubbles: true, clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2,
-      }));
+    stage = 'dossier opening video';
+    await page.waitForSelector('[data-mainline-dossier]', { timeout: 10_000 });
+    await page.waitForFunction(() => document.querySelector('[data-mainline-dossier-frame]')
+      ?.getAttribute('src') === '/assets/mainline/dossier-frames/frame-001.webp', { timeout: 10_000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-mainline-dossier-sheet]')]
+      .every((sheet) => getComputedStyle(sheet).visibility === 'hidden'), { timeout: 10_000 });
+    const scrollBox = await page.$eval('[data-mainline-dossier-scroll]', (scroll) => {
+      const rect = scroll.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     });
-    await page.waitForSelector('[data-mainline-film]', { timeout: 10_000 });
-    await page.waitForFunction(() => !document.querySelector('[data-mainline-entry]'), { timeout: 10_000 });
+    await page.mouse.move(scrollBox.x, scrollBox.y);
+    await page.mouse.wheel({ deltaY: 10000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-mainline-dossier-sheet]')]
+      .every((sheet) => getComputedStyle(sheet).visibility !== 'hidden'), { timeout: 10_000 });
+    await page.mouse.wheel({ deltaY: -10000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-mainline-dossier-sheet]')]
+      .every((sheet) => getComputedStyle(sheet).visibility === 'hidden'), { timeout: 10_000 });
+    await page.mouse.wheel({ deltaY: 10000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-mainline-dossier-sheet]')]
+      .every((sheet) => getComputedStyle(sheet).visibility !== 'hidden'), { timeout: 10_000 });
     stage = 'version briefing window';
-    await page.click('[data-mainline-film-canvas]');
+    await page.click('[data-mainline-dossier-sheet="0.1"]');
     await page.waitForSelector('[data-mainline-brief]', { timeout: 10_000 });
     await page.waitForFunction(() => document.querySelector('[data-mainline-status]')?.textContent.includes('0.1'), { timeout: 10_000 });
     stage = 'independent stage one window';

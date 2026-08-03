@@ -5,6 +5,9 @@ const STORAGE_KEYS = Object.freeze({
   volume: 'palis.ui-sounds.volume',
 });
 
+let activeUiSoundManager = null;
+const cueTimes = new Map();
+
 // The profiles follow the ACS sound-design plan, implemented with native Web
 // Audio because this application has no ACS runtime. All interaction sounds
 // stay short, quiet, and inside the 80–4000 Hz UI body band.
@@ -42,12 +45,57 @@ export const SOUND_PROFILES = Object.freeze({
       { kind: 'osc', wave: 'triangle', frequency: 280, endFrequency: 180, attack: .006, decay: .15, release: .03, gain: .045 },
     ]),
   }),
+  scroll: Object.freeze({
+    cap: .09,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 1120, endFrequency: 940, attack: .001, decay: .024, release: .012, gain: .014 },
+    ]),
+  }),
+  boot: Object.freeze({
+    cap: .17,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 164, endFrequency: 186, attack: .003, decay: .052, release: .016, gain: .022 },
+      { kind: 'osc', wave: 'square', frequency: 656, endFrequency: 742, start: .055, attack: .002, decay: .042, release: .014, gain: .014 },
+    ]),
+  }),
+  scan: Object.freeze({
+    cap: .16,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 372, endFrequency: 592, attack: .004, decay: .075, release: .018, gain: .024 },
+      { kind: 'osc', wave: 'triangle', frequency: 744, endFrequency: 960, start: .035, attack: .003, decay: .055, release: .016, gain: .012 },
+    ]),
+  }),
+  window: Object.freeze({
+    cap: .18,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 286, endFrequency: 428, attack: .002, decay: .065, release: .014, gain: .032 },
+      { kind: 'osc', wave: 'square', frequency: 858, endFrequency: 1024, start: .048, attack: .002, decay: .05, release: .014, gain: .016 },
+    ]),
+  }),
+  telemetry: Object.freeze({
+    cap: .16,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 188, endFrequency: 212, attack: .002, decay: .07, release: .018, gain: .02 },
+      { kind: 'osc', wave: 'square', frequency: 564, endFrequency: 636, start: .04, attack: .002, decay: .04, release: .014, gain: .014 },
+    ]),
+  }),
+  verified: Object.freeze({
+    cap: .5,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 328, endFrequency: 328, attack: .004, decay: .09, release: .025, gain: .028 },
+      { kind: 'osc', wave: 'triangle', frequency: 656, endFrequency: 656, start: .1, attack: .004, decay: .12, release: .028, gain: .026 },
+    ]),
+  }),
 });
 
 export function clampSoundVolume(value, fallback = DEFAULT_VOLUME) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(1, Math.max(0, parsed));
+}
+
+export function canPlayUiSound({ enabled, suspended = false } = {}) {
+  return Boolean(enabled) && !suspended;
 }
 
 export function validateSoundProfiles(profiles) {
@@ -81,10 +129,12 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
   const savedEnabled = safeRead(storage, STORAGE_KEYS.enabled);
   const savedVolume = safeRead(storage, STORAGE_KEYS.volume);
   let enabled = savedEnabled === 'true';
+  let suspended = false;
   let volume = clampSoundVolume(savedVolume, DEFAULT_VOLUME);
   let context = null;
   let masterGain = null;
   const activeNodes = new Set();
+  const activeLoops = new Map();
 
   const cleanupNode = (node) => {
     activeNodes.delete(node);
@@ -100,7 +150,13 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
       masterGain.gain.value = volume;
       masterGain.connect(context.destination);
     }
-    if (context.state === 'suspended') await context.resume();
+    if (context.state === 'suspended') {
+      try {
+        await context.resume();
+      } catch {
+        // Browsers may defer autoplay until the next real user gesture.
+      }
+    }
     return context;
   };
 
@@ -120,6 +176,11 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
       try { oldest.stop(); } catch { /* Ended between selection and stop. */ }
       cleanupNode(oldest);
     }
+  };
+
+  const stopActiveNodes = () => {
+    activeNodes.forEach((node) => { try { node.stop(); } catch { /* Ended. */ } });
+    activeNodes.clear();
   };
 
   const playLayer = (audioContext, layer, baseTime) => {
@@ -158,7 +219,7 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
   };
 
   const play = async (name) => {
-    if (!enabled) return false;
+    if (!canPlayUiSound({ enabled, suspended })) return false;
     const profile = SOUND_PROFILES[name];
     if (!profile) return false;
     const audioContext = await ensureContext();
@@ -168,13 +229,46 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
     return true;
   };
 
+  const startLoop = (name, { profile = 'telemetry', interval = 240 } = {}) => {
+    if (!canPlayUiSound({ enabled, suspended }) || activeLoops.has(name) || !SOUND_PROFILES[profile]) return false;
+    const safeInterval = Math.max(140, Math.min(1200, Number(interval) || 240));
+    const pulse = () => { void play(profile); };
+    pulse();
+    activeLoops.set(name, window.setInterval(pulse, safeInterval));
+    return true;
+  };
+
+  const stopLoop = (name) => {
+    const loop = activeLoops.get(name);
+    if (loop === undefined) return false;
+    window.clearInterval(loop);
+    activeLoops.delete(name);
+    return true;
+  };
+
+  const stopAllLoops = () => {
+    [...activeLoops.keys()].forEach(stopLoop);
+  };
+
+  const stopAll = () => {
+    stopAllLoops();
+    stopActiveNodes();
+  };
+
+  const setSuspended = (nextSuspended) => {
+    suspended = Boolean(nextSuspended);
+    if (suspended) stopAll();
+    return suspended;
+  };
+
   const setEnabled = async (nextEnabled) => {
     enabled = Boolean(nextEnabled);
     safeWrite(storage, STORAGE_KEYS.enabled, String(enabled));
     if (enabled) await play('success');
-    else if (context && context.state !== 'closed') {
-      activeNodes.forEach((node) => { try { node.stop(); } catch { /* Ended. */ } });
-      activeNodes.clear();
+    else {
+      stopAll();
+    }
+    if (!enabled && context && context.state !== 'closed') {
       await context.close();
       context = null;
       masterGain = null;
@@ -191,11 +285,38 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
 
   return {
     get enabled() { return enabled; },
+    get suspended() { return suspended; },
     get volume() { return volume; },
     play,
+    startLoop,
+    stopLoop,
+    stopAll,
+    setSuspended,
     setEnabled,
     setVolume,
   };
+}
+
+export function emitUiSound(name, { minInterval = 0 } = {}) {
+  const manager = activeUiSoundManager;
+  if (!manager?.enabled) return Promise.resolve(false);
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  const previous = cueTimes.get(name) ?? -Infinity;
+  if (now - previous < minInterval) return Promise.resolve(false);
+  cueTimes.set(name, now);
+  return manager.play(name);
+}
+
+export function startUiSoundLoop(name, options) {
+  return activeUiSoundManager?.startLoop(name, options) ?? false;
+}
+
+export function stopUiSoundLoop(name) {
+  return activeUiSoundManager?.stopLoop(name) ?? false;
+}
+
+export function stopAllUiSounds() {
+  activeUiSoundManager?.stopAll();
 }
 
 const openSelector = [
@@ -217,15 +338,20 @@ const closeSelector = [
   '.mascot-window-close',
 ].join(',');
 
+const quietNavigationSelector = [
+  '.chapter-nav a',
+  '[data-mainline-enter]',
+].join(',');
+
 export function initializeUiSounds() {
   const toggle = document.querySelector('#ui-sound-toggle');
   const label = document.querySelector('[data-ui-sound-label]');
   const volumeInput = document.querySelector('#ui-sound-volume');
   const status = document.querySelector('#ui-sound-status');
-  if (!toggle || !label || !volumeInput) return null;
-
   const manager = createUiSoundManager();
+  activeUiSoundManager = manager;
   const syncControl = () => {
+    if (!toggle || !label || !volumeInput) return;
     toggle.setAttribute('aria-pressed', String(manager.enabled));
     label.textContent = manager.enabled ? '声音：开' : '声音：关';
     volumeInput.disabled = !manager.enabled;
@@ -233,24 +359,33 @@ export function initializeUiSounds() {
     if (status) status.textContent = manager.enabled ? '界面音效已开启' : '界面音效已关闭';
   };
 
-  syncControl();
-  toggle.addEventListener('click', async () => {
-    await manager.setEnabled(!manager.enabled);
+  if (toggle && label && volumeInput) {
     syncControl();
-  });
-  volumeInput.addEventListener('input', () => {
-    manager.setVolume(volumeInput.value);
-    if (status) status.textContent = `音量 ${Math.round(manager.volume * 100)}%`;
-  });
+    toggle.addEventListener('click', async () => {
+      await manager.setEnabled(!manager.enabled);
+      syncControl();
+    });
+    volumeInput.addEventListener('input', () => {
+      manager.setVolume(volumeInput.value);
+      if (status) status.textContent = `音量 ${Math.round(manager.volume * 100)}%`;
+    });
+  }
 
   document.addEventListener('click', (event) => {
     const target = event.target.closest('button, a[href], [role="button"]');
     if (!target || target.closest('#ui-sound-control') || target.matches(':disabled, [aria-disabled="true"]')) return;
+    if (target.matches(quietNavigationSelector)) return;
     if (target.matches(closeSelector)) void manager.play('close');
     else if (target.matches(openSelector)) void manager.play('open');
     else void manager.play('tap');
   });
   window.addEventListener('palis:archive-submission-changed', () => { void manager.play('success'); });
   window.addEventListener('palis:workspace-denied', () => { void manager.play('error'); });
+  window.addEventListener('palis:ui-sound', (event) => {
+    const { name, minInterval } = event.detail || {};
+    if (name) void emitUiSound(name, { minInterval });
+  });
+
+  window.addEventListener('pagehide', () => manager.setSuspended(true), { once: true });
   return manager;
 }

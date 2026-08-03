@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { initializeAccessVoid } from './access-void.js';
+import { emitUiSound } from './ui-sounds.js';
 
 const BOOT_STEPS = [
   {
@@ -213,6 +214,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     boot.hidden = true;
     granted.hidden = true;
     login.hidden = false;
+    void emitUiSound('window', { minInterval: 280 });
     configWarning.hidden = configured;
     footerStatus.textContent = configured
       ? 'AUTH CHANNEL 09A / AWAIT OPERATOR'
@@ -309,6 +311,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     if (!form.reportValidity()) return;
 
     setFormBusy(true);
+    void emitUiSound('scan', { minInterval: 220 });
     setFormState('正在通过 CHANNEL 09A 核验操作员身份……', 'working');
     const { data, error } = await supabase.auth.signInWithPassword({
       email: emailInput.value.trim(),
@@ -316,6 +319,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     });
 
     if (error || !data.session) {
+      void emitUiSound('error', { minInterval: 260 });
       setFormBusy(false);
       passwordInput.select();
       setFormState(mapAuthError(error), 'error');
@@ -324,6 +328,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
 
     setFormState('身份核验通过，正在挂载档案目录。', 'success');
     await wait(reducedMotion ? 10 : 240);
+    void emitUiSound('success', { minInterval: 420 });
     await grantAccess(data.session);
     setFormBusy(false);
   }
@@ -397,7 +402,6 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   async function runBoot() {
     gate.addEventListener('pointerdown', accelerateBoot, { passive: true });
     window.addEventListener('keydown', accelerateBoot);
-
     for (let index = 0; index < BOOT_STEPS.length; index += 1) {
       const step = BOOT_STEPS[index];
       const frames = step.frames?.length ? step.frames : [step.state];

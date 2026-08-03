@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import ThreeGlobe from 'three-globe';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { RESEARCH_STATIONS } from '../data.js';
 import {
   MAINLINE_DEFAULT_VERSION,
@@ -11,6 +13,8 @@ import {
   visibleMainlineVersions,
 } from './mainline-domain.js';
 import { renderFormalArchiveDocument } from './public-renderer.js';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const COMPUTER_ROOT = '/assets/mainline/computer';
 const MAINLINE_ICON = '/assets/icons/archive-event.svg';
@@ -122,6 +126,106 @@ const defaultVersions = () => [{
   cover_url: '/assets/ver-0-1-cover.jpg',
   briefing: {},
 }];
+
+const VERSION_SHEET_SEED = Object.freeze([
+  {
+    code: '0.1',
+    title: '白幕初鸣',
+    label: 'PRIMARY DOSSIER',
+    summary: '基准档案已建立。首次整理 CHANNEL 09A 的人员、站点与事件索引。',
+    status: 'CURRENT / OPEN',
+  },
+  {
+    code: '0.2',
+    title: '索引勘误',
+    label: 'INDEX CORRECTION',
+    summary: '对照纸本记录，标记缺失的日期、归属与坐标字段。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.3',
+    title: '证词复核',
+    label: 'TESTIMONY REVIEW',
+    summary: '将同一行动的多份叙述并置，保留冲突而不强行合并。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.4',
+    title: '站点校正',
+    label: 'STATION ALIGNMENT',
+    summary: '复核地名、国际站点代号及补给路线的版本差异。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.5',
+    title: '材料补录',
+    label: 'MATERIAL INTAKE',
+    summary: '补录尚未入库的照片、附页与通信摘录，并登记来源。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.6',
+    title: '异常附卷',
+    label: 'ANOMALY ADDENDUM',
+    summary: '将无法归入既有分类的记录置入待核异常附卷。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.7',
+    title: '交叉审阅',
+    label: 'CROSS REVIEW',
+    summary: '由书记官与管理员交叉确认修改来源、依据与责任链。',
+    status: 'PENDING / NO IMAGE',
+  },
+  {
+    code: '0.8',
+    title: '封存裁定',
+    label: 'SEALING ORDER',
+    summary: '等待最终批注、版本签署与正式归档指令。',
+    status: 'PENDING / NO IMAGE',
+  },
+]);
+
+const dossierSheetsFor = (versions = []) => VERSION_SHEET_SEED.map((sheet) => {
+  const version = versions.find((item) => item.code === sheet.code);
+  return {
+    ...sheet,
+    title: version?.title || sheet.title,
+    status: version?.is_open ? 'OPEN / AVAILABLE' : sheet.status,
+    available: Boolean(version?.is_open),
+    version: version || null,
+    cover: version?.cover_url || (sheet.code === '0.1' ? '/assets/ver-0-1-cover.jpg' : ''),
+  };
+});
+
+const dossierMarkup = (sheets) => `
+  <section class="mainline-dossier" data-mainline-dossier aria-label="档案纠错程序版本档案">
+    <header class="mainline-dossier__mast">
+      <div><b>档案纠错程序</b><span>ARCHIVE CORRECTION / VERSION LEDGER</span></div>
+      <output data-mainline-dossier-status aria-live="polite">滚动以展开档案页</output>
+    </header>
+    <div class="mainline-dossier__scroll" data-mainline-dossier-scroll>
+      <section class="mainline-dossier__scene" data-mainline-dossier-scene>
+        <div class="mainline-dossier__stage">
+          <img class="mainline-dossier__frame" data-mainline-dossier-frame src="/assets/mainline/dossier-frames/frame-001.webp" alt="档案夹打开画面" />
+          <div class="mainline-dossier__veil" aria-hidden="true"></div>
+          <section class="mainline-dossier__sheets" data-mainline-dossier-sheets aria-label="八个版本档案页">
+            ${sheets.map((sheet, index) => `
+              <button type="button" class="mainline-dossier__sheet ${sheet.cover ? 'has-cover' : 'is-text-only'}" data-mainline-dossier-sheet="${escapeHtml(sheet.code)}" data-sheet-index="${index}" aria-label="打开 VER ${escapeHtml(sheet.code)}：${escapeHtml(sheet.title)}">
+                <span class="mainline-dossier__sheet-paper">
+                  <span class="mainline-dossier__sheet-titlebar"><i aria-hidden="true"></i><b>ARCHIVE / ${String(index + 1).padStart(2, '0')}</b><em>VER ${escapeHtml(sheet.code)}</em></span>
+                  ${sheet.cover ? `<img src="${escapeHtml(sheet.cover)}" alt="VER ${escapeHtml(sheet.code)} 版本封面" />` : '<strong class="mainline-dossier__unknown" aria-hidden="true">?</strong>'}
+                  <span class="mainline-dossier__sheet-scan" aria-hidden="true"></span>
+                </span>
+                <span class="mainline-dossier__sheet-copy"><b>VER ${escapeHtml(sheet.code)}</b><i>${sheet.cover ? 'OPEN' : '?'}</i></span>
+              </button>
+            `).join('')}
+          </section>
+        </div>
+      </section>
+    </div>
+  </section>
+`;
 
 const stageLabel = (stage) => [
   '全部封存',
@@ -2126,28 +2230,181 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     return state;
   };
 
-  const state = createWindow({
-    key: 'mainline-exe',
-    title: '档案纠错程序',
-    code: 'ARCHIVE.COR',
-    className: 'mainline-entry-window',
-    icon: MAINLINE_ICON,
-    body: entranceMarkup(),
-  });
-  if (state.mainlineEntryReady) return state;
-  state.mainlineEntryReady = true;
-  const root = state.windowElement.querySelector('[data-mainline-entry]');
-  const enter = root.querySelector('[data-mainline-enter]');
-  state.dispose = createComputerScene(
-    root.querySelector('[data-mainline-computer-canvas]'),
-    root.querySelector('[data-mainline-model-status]'),
-    enter,
-    () => {
-      void openFilmstrip(root.querySelector('[data-mainline-computer-canvas]')).then(() => {
-        state.windowElement.querySelector('[data-workflow-close]')?.click();
+  const openDossierSequence = async (returnFocus = null) => {
+    await loadVersions();
+    const sheets = dossierSheetsFor(versions);
+    const state = createWindow({
+      key: 'mainline-dossier-sequence',
+      title: '档案纠错程序 / 版本档案',
+      code: 'DOSSIER.08',
+      className: 'mainline-dossier-window',
+      icon: MAINLINE_ICON,
+      body: dossierMarkup(sheets),
+      returnFocus,
+    });
+    if (state.mainlineDossierReady) return state;
+    state.mainlineDossierReady = true;
+
+    const root = state.windowElement.querySelector('[data-mainline-dossier]');
+    const scroll = root.querySelector('[data-mainline-dossier-scroll]');
+    const scene = root.querySelector('[data-mainline-dossier-scene]');
+    const frameImage = root.querySelector('[data-mainline-dossier-frame]');
+    const status = root.querySelector('[data-mainline-dossier-status]');
+    const sheetElements = [...root.querySelectorAll('[data-mainline-dossier-sheet]')];
+    const sheetByCode = new Map(sheets.map((sheet) => [sheet.code, sheet]));
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let magneticFrame = 0;
+    let magneticTargets = sheetElements.map(() => 0);
+    let magneticValues = sheetElements.map(() => 0);
+    let frameRenderRequest = 0;
+    let targetFrame = 0;
+    let renderedFrame = -1;
+    const frameUrls = Array.from({ length: 97 }, (_, index) => `/assets/mainline/dossier-frames/frame-${String(index + 1).padStart(3, '0')}.webp`);
+    frameImage.decoding = 'async';
+    const preloadedFrames = frameUrls.map((url) => {
+      const frame = new Image();
+      frame.src = url;
+      return frame;
+    });
+
+    gsap.set(sheetElements, { autoAlpha: 0, y: 0, scale: 0.9, rotation: 0 });
+
+    const setStatus = (message) => { status.textContent = message; };
+    const renderMagnet = () => {
+      let stillMoving = false;
+      magneticValues.forEach((value, index) => {
+        const target = magneticTargets[index] || 0;
+        const next = Math.abs(target - value) < 0.002 ? target : value + (target - value) * 0.18;
+        if (Math.abs(target - next) > 0.002) stillMoving = true;
+        magneticValues[index] = next;
+        sheetElements[index].style.setProperty('--sheet-magnet', next.toFixed(3));
       });
-    },
-  );
-  void loadVersions();
-  return state;
+      magneticFrame = stillMoving ? requestAnimationFrame(renderMagnet) : 0;
+    };
+    const queueMagnet = () => {
+      if (!magneticFrame) magneticFrame = requestAnimationFrame(renderMagnet);
+    };
+    const clearMagnet = () => {
+      magneticTargets = magneticTargets.map(() => 0);
+      sheetElements.forEach((sheet) => {
+        sheet.style.setProperty('--sheet-tilt-x', '0deg');
+        sheet.style.setProperty('--sheet-tilt-y', '0deg');
+      });
+      queueMagnet();
+    };
+
+    let revealTimeline = null;
+    let scrollProgress = 0;
+    const revealSheets = () => {
+      if (revealTimeline || scrollProgress < 0.985) return;
+      revealTimeline = gsap.timeline({ defaults: { overwrite: 'auto' } })
+        .to(frameImage, { filter: 'blur(11px) brightness(0.34) saturate(0.2)', scale: 1.035, duration: prefersReducedMotion ? 0.01 : 0.42, ease: 'power1.out' })
+        .fromTo(sheetElements,
+          { autoAlpha: 0, y: (index) => index < 4 ? -44 : 44, scale: 0.86, rotation: (index) => (index % 2 ? 3 : -3) },
+          { autoAlpha: 1, y: 0, scale: 1, rotation: 0, duration: prefersReducedMotion ? 0.01 : 0.32, stagger: prefersReducedMotion ? 0 : { each: 0.045, from: 'edges' }, ease: 'power2.out' },
+          '>-.06')
+        .call(() => setStatus('八份版本档案已展开'));
+    };
+    const hideSheets = () => {
+      if (!revealTimeline) return;
+      revealTimeline.kill();
+      revealTimeline = null;
+      gsap.set(sheetElements, { autoAlpha: 0, y: 0, scale: 0.9, rotation: 0 });
+      gsap.set(frameImage, { clearProps: 'filter,transform' });
+      setStatus('继续下滚播放开档记录');
+    };
+    const renderFrame = (progress) => {
+      targetFrame = Math.max(0, Math.min(frameUrls.length - 1, Math.round(progress * (frameUrls.length - 1))));
+      if (frameRenderRequest) return;
+      frameRenderRequest = requestAnimationFrame(() => {
+        frameRenderRequest = 0;
+        if (renderedFrame === targetFrame) return;
+        frameImage.src = frameUrls[targetFrame];
+        renderedFrame = targetFrame;
+      });
+    };
+    const updateSequenceFromScroll = (progress) => {
+      scrollProgress = progress;
+      renderFrame(progress);
+      if (progress < 0.88) hideSheets();
+      if (progress > 0.025 && progress < 0.985) setStatus('正在打开档案…');
+      if (progress >= 0.985) revealSheets();
+      if (progress < 0.035) setStatus('向下滚动播放开档记录');
+    };
+    const onDossierScroll = () => {
+      const travel = Math.max(1, scroll.scrollHeight - scroll.clientHeight);
+      updateSequenceFromScroll(scroll.scrollTop / travel);
+    };
+    const onDossierWheel = (event) => {
+      const travel = scroll.scrollHeight - scroll.clientHeight;
+      if (travel <= 1 || !event.deltaY) return;
+      event.preventDefault();
+      event.stopPropagation();
+      scroll.scrollTop = Math.max(0, Math.min(travel, scroll.scrollTop + event.deltaY));
+      onDossierScroll();
+    };
+    scroll.addEventListener('scroll', onDossierScroll, { passive: true });
+    root.addEventListener('wheel', onDossierWheel, { passive: false });
+    const scrollTrigger = ScrollTrigger.create({
+      id: `mainline-dossier-${state.key}`,
+      trigger: scene,
+      scroller: scroll,
+      start: 'top top',
+      end: 'bottom bottom',
+      invalidateOnRefresh: true,
+      onUpdate: (trigger) => updateSequenceFromScroll(trigger.progress),
+    });
+    // The dossier lives inside a desktop-style window, so its own scroll area
+    // must be measured after the window has entered the layout.
+    requestAnimationFrame(() => {
+      ScrollTrigger.refresh();
+      onDossierScroll();
+    });
+    root.querySelector('[data-mainline-dossier-sheets]').addEventListener('pointermove', (event) => {
+      if (prefersReducedMotion || event.pointerType === 'touch') return;
+      const band = event.currentTarget.getBoundingClientRect();
+      magneticTargets = sheetElements.map((sheet) => {
+        const rect = sheet.getBoundingClientRect();
+        const distance = Math.hypot(event.clientX - (rect.left + rect.width / 2), event.clientY - (rect.top + rect.height / 2));
+        const influence = Math.max(170, Math.min(330, band.width / 3.5));
+        const factor = Math.max(0, 1 - distance / influence);
+        return factor * factor * (3 - 2 * factor);
+      });
+      const target = event.target.closest('[data-mainline-dossier-sheet]');
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const tiltY = ((event.clientX - rect.left) / rect.width - 0.5) * 8;
+        const tiltX = ((event.clientY - rect.top) / rect.height - 0.5) * -7;
+        target.style.setProperty('--sheet-tilt-x', `${tiltX.toFixed(2)}deg`);
+        target.style.setProperty('--sheet-tilt-y', `${tiltY.toFixed(2)}deg`);
+      }
+      queueMagnet();
+    });
+    root.querySelector('[data-mainline-dossier-sheets]').addEventListener('pointerleave', clearMagnet);
+    root.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-mainline-dossier-sheet]');
+      if (!button) return;
+      const sheet = sheetByCode.get(button.dataset.mainlineDossierSheet);
+      if (!sheet?.version) {
+        setStatus(`VER ${sheet?.code || '—'} 尚未归档 / 暂无可读取内容`);
+        button.classList.add('is-unavailable');
+        window.setTimeout(() => button.classList.remove('is-unavailable'), 520);
+        return;
+      }
+      setStatus(`正在读取 VER ${sheet.version.code}：${sheet.version.title}`);
+      void openBriefingWindow(sheet.version, button);
+    });
+    state.dispose = () => {
+      cancelAnimationFrame(magneticFrame);
+      cancelAnimationFrame(frameRenderRequest);
+      preloadedFrames.splice(0, preloadedFrames.length);
+      revealTimeline?.kill();
+      scrollTrigger.kill();
+      scroll.removeEventListener('scroll', onDossierScroll);
+      root.removeEventListener('wheel', onDossierWheel);
+    };
+    return state;
+  };
+
+  return openDossierSequence();
 };
