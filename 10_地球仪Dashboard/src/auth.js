@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { initializeAccessVoid } from './access-void.js';
 
 const BOOT_STEPS = [
   {
@@ -123,6 +124,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   const formStatus = document.querySelector('#access-form-status');
   const configWarning = document.querySelector('#access-config-warning');
   const sessionPanel = document.querySelector('#auth-session');
+  initializeAccessVoid({ reducedMotion });
   const sessionUser = document.querySelector('#auth-session-user');
   const signOutButton = document.querySelector('#auth-sign-out');
 

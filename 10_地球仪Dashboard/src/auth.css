@@ -29,6 +29,21 @@ body.access-locked #archive-desktop {
 
 .access-gate[hidden] { display: none !important; }
 
+.access-void {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .78;
+  background:
+    radial-gradient(ellipse 58% 78% at 72% 47%, rgba(68, 98, 77, .08), transparent 68%),
+    linear-gradient(118deg, rgba(0, 0, 0, .2), transparent 57%);
+  transition: opacity 320ms ease;
+}
+
+.access-void canvas { display: block; width: 100%; height: 100%; }
+.access-gate[data-phase='login'] .access-void { opacity: .3; }
+
 .access-crt {
   position: absolute;
   inset: 0;
@@ -150,7 +165,7 @@ body.access-locked #archive-desktop {
   padding: clamp(20px, 3vw, 34px);
   color: #91af99;
   border: 1px solid #27372d;
-  background: rgba(0, 3, 1, .82);
+  background: rgba(0, 3, 1, .72);
   box-shadow: 8px 9px 0 rgba(0, 0, 0, .35);
 }
 
@@ -736,6 +751,7 @@ body.access-locked #archive-desktop {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .access-void { display: none; }
   .access-skip-hint,
   .access-command-active i,
   .access-login,

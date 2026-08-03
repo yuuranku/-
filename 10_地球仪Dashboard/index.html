@@ -24,6 +24,7 @@
     <a class="skip-link" href="#archive-heading">跳到档案索引</a>
 
     <section class="access-gate" id="access-gate" data-phase="boot" aria-label="PALIS 档案终端身份验证">
+      <div class="access-void" aria-hidden="true"><canvas id="access-void-canvas"></canvas></div>
       <div class="access-crt" aria-hidden="true"></div>
       <div class="access-tv-power" aria-hidden="true"></div>
       <div class="access-shell">
@@ -691,6 +692,14 @@
         <article class="document-sheet"></article>
       </section>
     </template>
+
+    <aside class="ui-sound-control" id="ui-sound-control" aria-label="界面音效控制">
+      <button id="ui-sound-toggle" type="button" aria-pressed="false">
+        <span aria-hidden="true">♪</span><span data-ui-sound-label>声音：关</span>
+      </button>
+      <label for="ui-sound-volume"><span>音量</span><input id="ui-sound-volume" type="range" min="0" max="1" step="0.01" value="0.28" disabled /></label>
+      <span class="ui-sound-control__status" id="ui-sound-status" role="status">界面音效已关闭</span>
+    </aside>
 
     <script type="module" src="/src/main.js"></script>
   </body>

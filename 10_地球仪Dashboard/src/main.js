@@ -8,6 +8,7 @@ import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
 import './archive-workflow/mainline.css';
+import { initializeUiSounds } from './ui-sounds.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
@@ -83,6 +84,7 @@ initializeArchiveWorkspace({
   initialSession: palisRuntime.initialSession,
 });
 palisRuntime.activate();
+initializeUiSounds();
 
 const localArchiveRecords = ARCHIVE_ROOTS.flatMap((directory) => directory.children);
 let archiveRoots = ARCHIVE_ROOTS;

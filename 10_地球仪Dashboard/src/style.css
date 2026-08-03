@@ -10113,6 +10113,48 @@ body.clerk-desktop-open { overflow: hidden; }
   }
 }
 
+/* Audio is intentionally opt-in. This compact control keeps the setting
+   available everywhere without competing with the archive content. */
+.ui-sound-control {
+  position: fixed;
+  z-index: 31000;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  color: #e7ece6;
+  border: 1px solid rgba(210, 224, 214, .48);
+  background: rgba(3, 15, 14, .9);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .45);
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: .05em;
+}
+
+.ui-sound-control button {
+  min-height: 28px;
+  padding: 5px 7px;
+  color: inherit;
+  border: 1px solid rgba(210, 224, 214, .65);
+  border-radius: 0;
+  background: #0c302c;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ui-sound-control button[aria-pressed="true"] { color: #fff7d5; border-color: #d8a834; background: #32523a; }
+.ui-sound-control label { display: flex; align-items: center; gap: 5px; }
+.ui-sound-control input { width: 56px; accent-color: #d8a834; }
+.ui-sound-control input:disabled { opacity: .48; }
+.ui-sound-control__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 620px) {
+  .ui-sound-control { top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); gap: 5px; padding: 4px; }
+  .ui-sound-control input { width: 44px; }
+  .ui-sound-control label > span { display: none; }
+}
+
 @media (max-width: 760px) {
   #clerk-desktop #workspace-note-region .workspace-sticky-note {
     height: 180px;
