@@ -229,41 +229,48 @@ const dossierMarkup = (sheets) => `
 
 const stageLabel = (stage) => [
   '全部封存',
-  '阶段 1 / 人员建档',
-  '阶段 2 / 事件经历',
-  '阶段 3 / 正式归档',
+  '阶段 1 / 人员档案复原',
+  '阶段 2 / 行动记录重构',
+  '阶段 3 / 档案审定归库',
 ][stage] || '全部封存';
+
+const stageEnglish = (stage) => [
+  '',
+  'PERSONNEL DOSSIER RECONSTRUCTION',
+  'OPERATION RECORD RECONSTRUCTION',
+  'DOSSIER REVIEW AND ARCHIVAL',
+][stage] || '';
 
 const stageSummary = (stage) => [
   '',
   '',
-  '使用事件经历记录字段，并沿用既有草稿、附件、提交、审核和打回流程。',
-  '管理员汇总已提交的经历材料，并进入既有正式事件表单。',
+  '使用行动记录字段，并沿用既有草稿、附件、提交、审核和打回流程。',
+  '管理员汇总已复原的行动材料，进入既有正式事件表单完成档案审定归库。',
 ][stage] || '';
 
 const stageTask = (stage, role) => {
   const tasks = {
     1: {
-      title: '人物共创',
-      prompt: '为本次行动建立可被采用的行动人员。',
-      action: '查看可认领岗位',
-      support: '从下方人员空位中选择一个岗位，进入既有的人物档案表单。',
+      title: '寻回其名',
+      prompt: '确认本次行动中缺失人员的原始身份。请选择一项待复原记录，调阅旧档并完成身份比对。',
+      action: '调阅待复原记录',
+      support: '以旧档、名册、照片、证词和零散记录为依据，复原原始档案。',
     },
     2: {
-      title: '补完事件经历',
-      prompt: '围绕本次行动，补完行动人员的经历与材料。',
-      action: '进入事件经历记录',
-      support: '将使用既有事件表单的经历字段，并继续沿用现有审核流程。',
+      title: '拼合其事',
+      prompt: '拼合行动中散失的记录、证词与附件，还原事件经过。',
+      action: '调阅行动记录',
+      support: '沿用既有事件字段、附件、提交、审核与打回流程。',
     },
     3: {
-      title: '正式事件汇编',
+      title: '校定其档',
       prompt: role === 'admin'
-        ? '整合已有的行动材料，建立正式事件档案。'
-        : '本阶段由管理员整合材料，并进行正式归档。',
-      action: role === 'admin' ? '进入材料汇编' : '',
+        ? '整合已复原的卷宗与行动材料，完成审定归库。'
+        : '本阶段由管理员整合已复原材料，并进行档案审定归库。',
+      action: role === 'admin' ? '进入卷宗审定' : '',
       support: role === 'admin'
-        ? '将进入现有的正式事件表单；不会创建新的审核或归档机制。'
-        : '你可以查阅此前阶段的记录，等待管理员完成汇编。',
+        ? '将进入既有正式事件表单；不会创建新的审核或归档机制。'
+        : '你可以查阅此前阶段的记录，等待管理员完成审定归库。',
     },
   };
   return tasks[stage] || tasks[1];
@@ -303,13 +310,13 @@ const briefingWindowMarkup = () => `
     </header>
     <div class="mainline-brief__layout">
       <aside class="mainline-brief__rail">
-        <nav class="mainline-brief__progress" data-mainline-part-progress aria-label="版本任务进度"></nav>
-        <section class="mainline-brief__legend" aria-label="行动图例">
-          <b>相关行动主体</b>
-          <span><i class="is-red"></i>本次行动站点</span>
+        <nav class="mainline-brief__progress" data-mainline-part-progress aria-label="卷宗进度"></nav>
+        <section class="mainline-brief__legend" aria-label="卷宗图例">
+          <b>关联档案节点</b>
+          <span><i class="is-red"></i>本卷宗行动站点</span>
           <span><i class="is-blue"></i>协作站点网络</span>
           <span><i class="is-navy"></i>PALIS 档案节点</span>
-          <span><i class="is-gray"></i>待核定资料</span>
+          <span><i class="is-gray"></i>待比对资料</span>
         </section>
         <footer>PALIS · CHANNEL 09A<br /><span>ARCHIVE MODE</span></footer>
       </aside>
@@ -1330,19 +1337,20 @@ const vacancyCards = (slots, {
   action = '', actionLabel = '', enabled = true, compact = false,
 } = {}) => {
   const activeSlots = slots.filter((slot) => slot.active !== false);
-  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员空位。</p>';
+  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置待复原人员记录。</p>';
   return activeSlots.map((slot) => `
     <article class="mainline-vacancy" data-mainline-slot="${escapeHtml(slot.id)}">
       <span class="mainline-vacancy__portrait" aria-hidden="true"><img src="${DEFAULT_PERSON_PORTRAIT}" alt="" /></span>
-      <header><span>PERSONNEL SLOT</span><b>${escapeHtml(slot.position || '未命名岗位')}</b></header>
+      <header><span>UNRESOLVED PERSONNEL RECORD</span><b>${escapeHtml(slot.position || '未命名岗位')}</b></header>
       <dl>
         <div><dt>职能</dt><dd>${escapeHtml(slot.duties || '待配置')}</dd></div>
+        <div><dt>档案状态</dt><dd>待复原</dd></div>
         ${compact ? '' : `
         <div><dt>目标</dt><dd>${escapeHtml(slot.objective || '待配置')}</dd></div>
-        <div><dt>地点</dt><dd>${escapeHtml(slot.location || '未配置')}</dd></div>
+        <div><dt>所属区域</dt><dd>${escapeHtml(slot.location || '未配置')}</dd></div>
         <div><dt>时间</dt><dd>${escapeHtml(slot.time_label || '未配置')}</dd></div>
-        <div><dt>已知材料</dt><dd>${escapeHtml(slot.known_materials || '无')}</dd></div>
-        <div><dt>限制</dt><dd>${escapeHtml(slot.constraints || '无')}</dd></div>`}
+        <div><dt>残存材料</dt><dd>${escapeHtml(slot.known_materials || '无')}</dd></div>
+        <div><dt>访问限制</dt><dd>${escapeHtml(slot.constraints || '无')}</dd></div>`}
       </dl>
       ${action ? `<footer><button type="button" data-mainline-action="${action}" ${enabled ? '' : 'disabled'}>${escapeHtml(actionLabel)}</button></footer>` : ''}
     </article>
@@ -1372,12 +1380,12 @@ const submissionsForSlot = (slot, submissions = []) => {
 
 const personnelRoster = (slots, submissions = []) => {
   const activeSlots = slots.filter((slot) => slot.active !== false);
-  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员席位。</p>';
+  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置待复原人员记录。</p>';
   return activeSlots.map((slot, index) => {
     const records = submissionsForSlot(slot, submissions);
     return `
       <section class="mainline-personnel-column" data-mainline-personnel-column="${escapeHtml(slot.id)}">
-        <button class="mainline-personnel-seat" type="button" data-mainline-slot="${escapeHtml(slot.id)}" data-mainline-action="personnel" aria-label="编辑${escapeHtml(slot.position || '未命名岗位')}人员档案">
+        <button class="mainline-personnel-seat" type="button" data-mainline-slot="${escapeHtml(slot.id)}" data-mainline-action="personnel" aria-label="调阅${escapeHtml(slot.position || '未命名岗位')}待复原人员记录">
           <span class="mainline-personnel-seat__portrait" aria-hidden="true">
             <img src="${DEFAULT_PERSON_PORTRAIT}" alt="" /><em>${String(index + 1).padStart(2, '0')}</em>
           </span>
@@ -1404,7 +1412,7 @@ const personnelRoster = (slots, submissions = []) => {
 
 const briefingPersonnelCards = (slots, submissions = [], enabled = true, expandedSlots = new Set()) => {
   const activeSlots = slots.filter((slot) => slot.active !== false);
-  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置人员空位。</p>';
+  if (!activeSlots.length) return '<p class="mainline-empty">管理员尚未配置待复原人员记录。</p>';
   return activeSlots.map((slot) => {
     const records = submissionsForSlot(slot, submissions);
     const expanded = expandedSlots.has(slot.id);
@@ -1412,7 +1420,7 @@ const briefingPersonnelCards = (slots, submissions = [], enabled = true, expande
       ${vacancyCards([slot], {
     compact: true,
     action: 'personnel',
-    actionLabel: '建立人员档案',
+    actionLabel: '调阅待复原记录',
     enabled,
   })}
       <button type="button" class="mainline-brief__personnel-toggle" data-mainline-toggle-slot-submissions="${escapeHtml(slot.id)}" aria-expanded="${expanded}" aria-label="${expanded ? '收起' : '展开'}${escapeHtml(slot.position || '该岗位')}已提交人物档案"></button>
@@ -1490,17 +1498,17 @@ const adminMarkup = (current, slots, selectedPart) => {
           <label>版本标题<input name="title" value="${escapeHtml(current.title)}" required /></label>
           <label>开放状态<select name="isOpen"><option value="true" ${current.is_open ? 'selected' : ''}>开放</option><option value="false" ${!current.is_open ? 'selected' : ''}>关闭</option></select></label>
         </fieldset>
-        <fieldset data-mainline-admin-section="briefing"><legend>PART ${String(selectedPart).padStart(2, '0')} · 独立任务配置</legend>
-          <label>任务状态<select name="partStatus"><option value="locked" ${briefing.status === 'locked' ? 'selected' : ''}>未开放</option><option value="open" ${briefing.status === 'open' ? 'selected' : ''}>进行中</option><option value="complete" ${briefing.status === 'complete' ? 'selected' : ''}>管理员确认完成</option></select></label>
-          <label>开放至阶段<select name="activeStage">${[0, 1, 2, 3].map((stage) => `<option value="${stage}" ${briefing.activeStage === stage ? 'selected' : ''}>${escapeHtml(stageLabel(stage))}</option>`).join('')}</select></label>
-          <label class="mainline-admin__current"><input type="checkbox" name="isCurrent" value="true" ${isCurrent ? 'checked' : ''} />设为版本当前任务</label>
+        <fieldset data-mainline-admin-section="briefing"><legend>PART ${String(selectedPart).padStart(2, '0')} · 独立卷宗配置</legend>
+          <label>卷宗状态<select name="partStatus"><option value="locked" ${briefing.status === 'locked' ? 'selected' : ''}>未解封</option><option value="open" ${briefing.status === 'open' ? 'selected' : ''}>进行中</option><option value="complete" ${briefing.status === 'complete' ? 'selected' : ''}>管理员确认完成</option></select></label>
+          <label>解封至阶段<select name="activeStage">${[0, 1, 2, 3].map((stage) => `<option value="${stage}" ${briefing.activeStage === stage ? 'selected' : ''}>${escapeHtml(stageLabel(stage))}</option>`).join('')}</select></label>
+          <label class="mainline-admin__current"><input type="checkbox" name="isCurrent" value="true" ${isCurrent ? 'checked' : ''} />设为版本当前卷宗</label>
           <label class="is-wide">概要<textarea name="summary">${escapeHtml(briefing.summary)}</textarea></label>
           <label>行动目标<input name="objective" value="${escapeHtml(briefing.objective)}" /></label>
           <label>关联站点<select name="stationCode"><option value="">按地点文字自动匹配</option>${stationOptionsMarkup(briefing.stationCode)}</select></label>
-          <label>地点<input name="location" value="${escapeHtml(briefing.location)}" /></label>
+          <label>所属区域<input name="location" value="${escapeHtml(briefing.location)}" /></label>
           <label>时间<input name="time" value="${escapeHtml(briefing.time)}" /></label>
-          <label>已知材料<textarea name="knownMaterials">${escapeHtml(briefing.knownMaterials)}</textarea></label>
-          <label class="is-wide">限制<textarea name="constraints">${escapeHtml(briefing.constraints)}</textarea></label>
+          <label>残存材料<textarea name="knownMaterials">${escapeHtml(briefing.knownMaterials)}</textarea></label>
+          <label class="is-wide">访问限制<textarea name="constraints">${escapeHtml(briefing.constraints)}</textarea></label>
         </fieldset>
         <button type="submit">保存 PART ${String(selectedPart).padStart(2, '0')} 配置</button>
       </form>
@@ -1509,12 +1517,12 @@ const adminMarkup = (current, slots, selectedPart) => {
         <button type="submit">上传封面</button>
       </form>
       <details class="mainline-admin__slots" data-mainline-admin-section="slots" open>
-        <summary>人员空位 · ${slots.length}</summary>
-        ${editableSlots || '<p class="mainline-empty">尚无空位。</p>'}
+        <summary>待复原人员记录 · ${slots.length}</summary>
+        ${editableSlots || '<p class="mainline-empty">尚无待复原记录。</p>'}
         <form data-mainline-slot-form>
           <label>岗位<input name="position" required /></label>
           <label>职能<input name="duties" /></label>
-          <button type="submit">新增人员空位</button>
+          <button type="submit">新增待复原记录</button>
         </form>
       </details>
     </details>
@@ -1753,10 +1761,10 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       const partState = mainlinePartState(current, selectedPart);
       root.dataset.stageOpen = String(open);
       setStatus(open
-        ? `VER ${current.code} · PART ${String(selectedPart).padStart(2, '0')} · ${partState.status === 'complete' ? '管理员已确认完成' : '已开放'}`
-        : `VER ${current.code} · PART ${String(selectedPart).padStart(2, '0')} · 尚未开放`);
+        ? `VER ${current.code} · PART ${String(selectedPart).padStart(2, '0')} · ${partState.status === 'complete' ? '管理员已确认完成' : '已解封'}`
+        : `VER ${current.code} · PART ${String(selectedPart).padStart(2, '0')} · 尚未解封`);
       if (!open) {
-        content.innerHTML = '<p class="mainline-stage__locked">此阶段尚未由管理员开放。</p>';
+        content.innerHTML = '<p class="mainline-stage__locked">此阶段尚未由档案部解封。</p>';
         return;
       }
       if (stage === 1) {
@@ -1855,34 +1863,34 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       const partIsLocked = fields.status === 'locked';
       const missionStation = resolveMissionStation(fields, selectedPart);
       heading.innerHTML = `<b>VER ${escapeHtml(current.code)}《${escapeHtml(current.title)}》</b><span>当前任务：PART ${String(workflow.activePart).padStart(2, '0')} · ${escapeHtml(stageLabel(official.activeStage))}</span>`;
-      hero.innerHTML = `<span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span><h1>${escapeHtml(focusTask.title)}</h1><small>PART ${String(selectedPart).padStart(2, '0')} · ARCHIVE CORRECTION MISSION</small>`;
+      hero.innerHTML = `<span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span><h1>${escapeHtml(focusTask.title)}</h1><small>PART ${String(selectedPart).padStart(2, '0')} · ${escapeHtml(stageEnglish(focusStage))}</small>`;
       missionGlobe.setStation(missionStation);
       stationLabel.innerHTML = `<i aria-hidden="true"></i><span><b>${escapeHtml(missionStation.name)}</b><small>${escapeHtml(missionStation.code)} · ${escapeHtml(missionStation.english)}</small><em>${Number(missionStation.lat).toFixed(2)}° / ${Number(missionStation.lng).toFixed(2)}°</em></span>`;
       stageFocus.dataset.stage = String(focusStage);
       stageFocus.dataset.open = String(focusOpen && !partIsLocked);
       stageFocus.innerHTML = `
-        <header><b>当前修正</b><span>›</span></header>
+        <header><b>当前复原</b><span>›</span></header>
         <div class="mainline-brief__focus-index" aria-hidden="true">0${focusStage}</div>
         <div class="mainline-brief__focus-copy">
-          <span>CURRENT ASSIGNMENT / PART ${String(selectedPart).padStart(2, '0')}</span>
+          <span>CURRENT RECONSTRUCTION / PART ${String(selectedPart).padStart(2, '0')}</span>
           <h2>${escapeHtml(focusTask.title)}</h2>
-          <p>${escapeHtml(partIsLocked ? '当前 PART 尚未由管理员开放。' : focusTask.prompt)}</p>
-          <small>${escapeHtml(partIsLocked ? '请等待管理员发布行动简报。' : focusTask.support)}</small>
+          <p>${escapeHtml(partIsLocked ? '当前 PART 尚未解封。' : focusTask.prompt)}</p>
+          <small>${escapeHtml(partIsLocked ? '请等待档案部解封行动简报。' : focusTask.support)}</small>
         </div>
         <div class="mainline-brief__focus-action">
-          <b>${partIsLocked ? '尚未开放' : fields.status === 'complete' ? '管理员已确认完成' : `进行中 · 阶段 ${focusStage} / 3`}</b>
+          <b>${partIsLocked ? '尚未解封' : fields.status === 'complete' ? '管理员已确认完成' : `进行中 · 复原流程 ${focusStage} / 3`}</b>
           ${role === 'admin'
             ? `<div class="mainline-brief__focus-admin" aria-label="管理员快捷操作">
                 <span>ADMIN CONTROL</span>
-                <button type="button" data-mainline-admin-jump="briefing">编辑任务简报</button>
-                <button type="button" data-mainline-admin-jump="progress">调整开放进度</button>
-                <button type="button" data-mainline-admin-jump="slots">管理人员空位</button>
+                <button type="button" data-mainline-admin-jump="briefing">修订卷宗摘要</button>
+                <button type="button" data-mainline-admin-jump="progress">调整解封进度</button>
+                <button type="button" data-mainline-admin-jump="slots">维护待复原记录</button>
               </div>`
             : focusTask.action && focusOpen && !partIsLocked
             ? `<button type="button" data-mainline-focus-stage="${focusStage}">${escapeHtml(focusTask.action)}</button>`
             : '<span>当前没有可执行操作</span>'}
         </div>`;
-      partProgress.innerHTML = `<header><b>行动进度</b><span>VERSION TASK PROGRESS</span></header><ol>${[1, 2, 3, 4, 5, 6, 7].map((part) => {
+      partProgress.innerHTML = `<header><b>卷宗进度</b><span>DOSSIER RECOVERY PROGRESS</span></header><ol>${[1, 2, 3, 4, 5, 6, 7].map((part) => {
         const partFields = workflow.parts[String(part)];
         const state = partFields.status === 'complete'
           ? 'is-complete'
@@ -1892,31 +1900,31 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         const stateLabel = partFields.status === 'complete'
           ? '管理员已确认'
           : partFields.status === 'locked'
-            ? '尚未开放'
-            : part === workflow.activePart ? '当前任务' : '已开放';
+            ? '尚未解封'
+            : part === workflow.activePart ? '当前卷宗' : '已解封';
         const content = `<span>${String(part).padStart(2, '0')}</span><b>PART ${String(part).padStart(2, '0')}</b><small>${stateLabel}</small>`;
         const selectable = role === 'admin' || partFields.status !== 'locked';
         return `<li class="${state} ${part === selectedPart ? 'is-selected' : ''}" ${part === workflow.activePart ? 'aria-current="step"' : ''}>${selectable ? `<button type="button" data-mainline-select-part="${part}" aria-label="查看 PART ${String(part).padStart(2, '0')} 独立配置">${content}</button>` : content}</li>`;
       }).join('')}</ol>`;
       briefing.innerHTML = `
-        <header><div><span>核心事件 / PRIMARY DOSSIER</span><em>CLASSIFIED // LEVEL ${focusStage}</em></div><b>PART ${String(selectedPart).padStart(2, '0')}</b></header>
+        <header><div><span>核心卷宗 / PRIMARY DOSSIER</span><em>CLASSIFIED // LEVEL ${focusStage}</em></div><b>PART ${String(selectedPart).padStart(2, '0')}</b></header>
         <p class="mainline-brief__case-year">${escapeHtml(fields.time || '1952')}</p>
-        <h2>${escapeHtml(fields.summary || '管理员尚未发布任务概要。').replaceAll('\n', '<br />')}</h2>
-        <p class="mainline-brief__summary">${escapeHtml(fields.objective || `${missionStation.name}行动档案`)}</p>
+        <h2>${escapeHtml(fields.summary || '白幕初垂：等待档案部解封行动简报。').replaceAll('\n', '<br />')}</h2>
+        <p class="mainline-brief__summary">${escapeHtml(fields.objective || `${missionStation.name}初始卷宗`)}</p>
         <dl>
           <div><dt>行动站点</dt><dd>${escapeHtml(missionStation.name)}</dd></div>
-          <div><dt>地点</dt><dd>${escapeHtml(fields.location || missionStation.english)}</dd></div>
-          <div><dt>已知材料</dt><dd>${escapeHtml(fields.knownMaterials || '无')}</dd></div>
-          <div><dt>限制</dt><dd>${escapeHtml(fields.constraints || '无')}</dd></div>
-        </dl><footer><button type="button" data-mainline-focus-stage="${focusStage}" ${focusOpen && !partIsLocked ? '' : 'disabled'}>查看当前阶段档案 <span>→</span></button><em>PALIS ARCHIVE</em></footer>`;
+          <div><dt>所属区域</dt><dd>${escapeHtml(fields.location || missionStation.english)}</dd></div>
+          <div><dt>残存材料</dt><dd>${escapeHtml(fields.knownMaterials || '无')}</dd></div>
+          <div><dt>访问限制</dt><dd>${escapeHtml(fields.constraints || '无')}</dd></div>
+        </dl><footer><button type="button" data-mainline-focus-stage="${focusStage}" ${focusOpen && !partIsLocked ? '' : 'disabled'}>调阅本阶段卷宗 <span>→</span></button><em>PALIS ARCHIVE</em></footer>`;
       stageEntries.innerHTML = `<header><b>阶段入口</b><span>STAGE ACCESS</span></header><ol>${[1, 2, 3].map((stage) => {
         const open = mainlineStageIsOpen(current, stage, selectedPart);
         const isCurrent = stage === focusStage;
         const flowState = isCurrent
-          ? (open && !partIsLocked ? '当前进行 · 点击进入' : '等待管理员开放')
+          ? (open && !partIsLocked ? '当前进行 · 点击进入' : '等待档案部解封')
           : stage < focusStage
             ? '此前阶段 · 可查阅'
-            : `等待阶段 ${focusStage} 完成`;
+            : stage === 2 ? '待阶段 1 完成后解封' : '待阶段 2 完成后解封';
         return `<li class="${isCurrent ? 'is-current' : ''} ${open ? 'is-open' : 'is-locked'}">
           <button type="button" data-mainline-open-stage="${stage}" ${open ? '' : 'disabled'}>
             <span>0${stage}</span><b>${escapeHtml(stageLabel(stage))}</b><small>${escapeHtml(flowState)}</small>
@@ -1924,7 +1932,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
         </li>`;
       }).join('')}</ol>`;
       const activeSlots = slots.filter((slot) => slot.active !== false);
-      slotOverview.innerHTML = `<header><b>${focusStage === 1 ? '行动人员空位' : '行动人员档案'}</b><span>${activeSlots.length} PERSONNEL DOSSIERS · ${personnelSubmissions.length} SUBMISSIONS</span></header><div class="mainline-brief__vacancy-grid">${briefingPersonnelCards(activeSlots, personnelSubmissions, focusOpen && !partIsLocked, expandedSubmissionSlots)}</div>`;
+      slotOverview.innerHTML = `<header><b>${focusStage === 1 ? '待复原人员记录' : '行动人员档案'}</b><span>${activeSlots.length} PERSONNEL DOSSIERS · ${personnelSubmissions.length} SUBMISSIONS</span></header><div class="mainline-brief__vacancy-grid">${briefingPersonnelCards(activeSlots, personnelSubmissions, focusOpen && !partIsLocked, expandedSubmissionSlots)}</div>`;
       // Bind each corner disclosure directly after every render. Delegation
       // remains below as a fallback, while this listener keeps the tiny
       // control reliable when the atlas canvas is visually adjacent to it.
@@ -2014,7 +2022,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
             ? section?.querySelector('input[name="position"]')
             : section?.querySelector('textarea[name="summary"]');
         focusTarget?.focus({ preventScroll: true });
-        setStatus(destination === 'slots' ? '已打开人员空位管理' : destination === 'progress' ? '已打开任务开放进度' : '已打开当前 PART 简报编辑');
+        setStatus(destination === 'slots' ? '已打开待复原记录维护' : destination === 'progress' ? '已打开卷宗解封进度' : '已打开当前 PART 卷宗摘要修订');
         return;
       }
       const submissionsToggle = event.target.closest('[data-mainline-toggle-slot-submissions]');
@@ -2059,8 +2067,8 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
           const workflow = normalizeVersionBriefing(current);
           const nextStatus = String(data.get('partStatus') || 'locked');
           const wantsCurrent = data.get('isCurrent') === 'true';
-          if (wantsCurrent && nextStatus === 'locked') throw new Error('当前任务不能设为“未开放”。');
-          if (workflow.activePart === selectedPart && nextStatus === 'locked') throw new Error('请先将另一个已开放 PART 设为当前任务。');
+          if (wantsCurrent && nextStatus === 'locked') throw new Error('当前卷宗不能设为“未解封”。');
+          if (workflow.activePart === selectedPart && nextStatus === 'locked') throw new Error('请先将另一个已解封 PART 设为当前卷宗。');
           workflow.parts[String(selectedPart)] = {
             ...workflow.parts[String(selectedPart)],
             ...normalizePartBriefing({
