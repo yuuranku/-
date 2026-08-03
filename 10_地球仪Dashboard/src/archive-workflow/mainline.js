@@ -525,6 +525,26 @@ const createComputerScene = (canvas, status, keyboardEntry, onEnter) => {
   crtCanvas.width = 768;
   crtCanvas.height = 512;
   const crt = crtCanvas.getContext('2d');
+  const crtStarfield = Array.from({ length: 188 }, () => ({
+    x: 0,
+    y: 0,
+    z: 0,
+    previousX: Number.NaN,
+    previousY: Number.NaN,
+    speed: 0.52 + Math.random() * 0.68,
+    color: ['#d9ecdf', '#8ec6a4', '#b6c48e'][Math.floor(Math.random() * 3)],
+  }));
+  const resetCrtStar = (star, initial = false) => {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.18 + Math.random() * 0.9;
+    star.x = Math.cos(angle) * radius;
+    star.y = Math.sin(angle) * radius * 0.72;
+    star.z = initial ? 0.16 + Math.random() * 0.84 : 0.16;
+    star.previousX = Number.NaN;
+    star.previousY = Number.NaN;
+  };
+  crtStarfield.forEach((star) => resetCrtStar(star, true));
+  let crtStarfieldTime = performance.now();
   const crtTexture = new THREE.CanvasTexture(crtCanvas);
   crtTexture.colorSpace = THREE.SRGBColorSpace;
   crtTexture.minFilter = THREE.LinearFilter;
@@ -666,14 +686,68 @@ const createComputerScene = (canvas, status, keyboardEntry, onEnter) => {
   const drawCrt = (time) => {
     const elapsed = time - startedAt;
     const bootProgress = Math.min(1, elapsed / 1900);
+    const frameDelta = Math.min(64, Math.max(0, time - crtStarfieldTime));
+    crtStarfieldTime = time;
     crt.fillStyle = '#010403';
     crt.fillRect(0, 0, 768, 512);
-    const glow = crt.createRadialGradient(384, 226, 18, 384, 226, 430);
-    glow.addColorStop(0, '#123f30');
-    glow.addColorStop(0.62, '#082219');
-    glow.addColorStop(1, '#010403');
-    crt.fillStyle = glow;
+    const voidCenterX = 507;
+    const voidCenterY = 248;
+    const voidGlow = crt.createRadialGradient(voidCenterX, voidCenterY, 12, voidCenterX, voidCenterY, 408);
+    voidGlow.addColorStop(0, '#000000');
+    voidGlow.addColorStop(0.12, '#020705');
+    voidGlow.addColorStop(0.56, '#07140f');
+    voidGlow.addColorStop(1, '#010403');
+    crt.fillStyle = voidGlow;
     crt.fillRect(0, 0, 768, 512);
+
+    // A subdued adaptation of the supplied warp field: the archive terminal
+    // reads as a cold data well, not a bright sci-fi tunnel. Square points and
+    // short trails preserve the site's low-resolution CRT language.
+    const focalDepth = 0.16;
+    const projection = 360;
+    const motion = reducedMotion ? 0 : frameDelta / 16.667;
+    crt.save();
+    crt.globalCompositeOperation = 'screen';
+    for (const star of crtStarfield) {
+      star.z += 0.00225 * star.speed * motion;
+      if (star.z >= 1) resetCrtStar(star);
+      const perspective = focalDepth / Math.max(star.z, 0.0001);
+      const x = voidCenterX + star.x * perspective * projection;
+      const y = voidCenterY + star.y * perspective * projection;
+      const life = Math.min(1, (star.z - focalDepth) / (1 - focalDepth) / 0.13);
+      const alpha = (0.08 + (1 - star.z) * 0.32) * life;
+      if (!Number.isNaN(star.previousX)) {
+        crt.globalAlpha = alpha * 0.38;
+        crt.strokeStyle = star.color;
+        crt.lineWidth = .55;
+        crt.beginPath();
+        crt.moveTo(star.previousX, star.previousY);
+        crt.lineTo(x, y);
+        crt.stroke();
+      }
+      const size = Math.max(.55, Math.min(2.1, (1.4 - star.z) * 1.35));
+      crt.globalAlpha = alpha;
+      crt.fillStyle = star.color;
+      crt.fillRect(x - size / 2, y - size / 2, size, size);
+      star.previousX = x;
+      star.previousY = y;
+    }
+    const aperture = crt.createRadialGradient(voidCenterX, voidCenterY, 0, voidCenterX, voidCenterY, 102);
+    aperture.addColorStop(0, 'rgba(0, 0, 0, .92)');
+    aperture.addColorStop(.38, 'rgba(0, 0, 0, .66)');
+    aperture.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    crt.globalAlpha = 1;
+    crt.fillStyle = aperture;
+    crt.beginPath();
+    crt.arc(voidCenterX, voidCenterY, 102, 0, Math.PI * 2);
+    crt.fill();
+    crt.restore();
+    const textField = crt.createLinearGradient(0, 0, 472, 0);
+    textField.addColorStop(0, 'rgba(1, 5, 3, .76)');
+    textField.addColorStop(.72, 'rgba(1, 5, 3, .32)');
+    textField.addColorStop(1, 'rgba(1, 5, 3, 0)');
+    crt.fillStyle = textField;
+    crt.fillRect(0, 0, 510, 512);
     crt.fillStyle = '#dcffe5';
     crt.font = '700 50px "Microsoft YaHei", sans-serif';
     crt.fillText('档案纠错程序', 70, 135);

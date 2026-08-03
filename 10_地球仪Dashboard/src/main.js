@@ -1371,7 +1371,7 @@ function resetVersionNotice() {
   versionNoticeTaskButton.type = 'button';
   versionNoticeTaskButton.className = 'archive-task-button is-minimized';
   versionNoticeTaskButton.setAttribute('aria-pressed', 'false');
-  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.12</b>白幕初垂</span>';
+  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.13</b>白幕回响</span>';
   versionNoticeTaskButton.addEventListener('click', showVersionNotice);
   versionNoticeTask.append(versionNoticeTaskButton);
   versionNoticeTask.hidden = false;
