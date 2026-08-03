@@ -743,6 +743,8 @@
 
 .archive-rich-editor {
   min-height: 88px;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 8px 10px;
   color: var(--editor-cream);
   border: 1px solid rgba(239, 230, 210, .55);
@@ -750,6 +752,9 @@
   background: var(--editor-panel-strong);
   font: 13px/1.55 var(--font-body);
   white-space: pre-wrap;
+  text-indent: 2em;
+  resize: vertical;
+  overflow: auto;
   overflow-wrap: anywhere;
   cursor: text;
 }

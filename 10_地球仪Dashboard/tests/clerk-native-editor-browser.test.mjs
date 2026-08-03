@@ -1120,7 +1120,7 @@ test(
     );
     await setValue(
       page,
-      '[data-native-custom-entry] [data-native-custom-content]',
+      '[data-native-custom-entry] [data-native-rich-field]',
       `第二钻孔的温度曲线已归档。/${fixture.referenceArchive.code}`,
     );
     await page.waitForSelector(
@@ -1131,7 +1131,7 @@ test(
       `[data-inline-reference-result][data-id="${fixture.referenceArchive.id}"]`,
     );
     assert.equal(
-      await page.$eval('[data-native-custom-entry] [data-native-custom-content]', (control) => control.value),
+      await page.$eval('[data-native-custom-entry] [data-native-rich-field]', (control) => control.value),
       `第二钻孔的温度曲线已归档。〔${fixture.referenceArchive.code} ${fixture.referenceArchive.title}〕`,
       'Selecting an inline reference must replace only the slash query inside the active field',
     );

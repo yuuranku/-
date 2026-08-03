@@ -1764,6 +1764,7 @@ export function initializeArchiveWorkspace({
     };
 
     const inlineReferenceSelector = [
+      '[data-native-rich-field]',
       'input[data-native-field]',
       'textarea[data-native-field]',
       'input[data-native-custom-title]',
@@ -1978,8 +1979,12 @@ export function initializeArchiveWorkspace({
           references.push(reference);
         }
         hideInlineReferenceMenu();
-        control.focus();
-        control.setSelectionRange?.(nextValue.length, nextValue.length);
+        if (control.matches?.('[data-native-rich-field]')) {
+          restoreInlineSelection(control, nextValue.length, nextValue.length);
+        } else {
+          control.focus();
+          control.setSelectionRange?.(nextValue.length, nextValue.length);
+        }
         control.dispatchEvent(new Event('input', { bubbles: true }));
         return;
       }
