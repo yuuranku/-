@@ -2,6 +2,8 @@ import {
   isLoopbackHostname,
   shouldEnableLocalAdmin,
 } from './palis-runtime-policy.js';
+import { initializeAccessGate } from '../auth.js';
+import { createArchiveWorkflowClient } from '../archive-workflow/client.js';
 
 export async function initializePalisRuntime({
   reducedMotion = false,
@@ -19,10 +21,13 @@ export async function initializePalisRuntime({
     return createLocalAdminRuntime();
   }
 
-  const [{ initializeAccessGate }, { createArchiveWorkflowClient }] = await Promise.all([
-    import('../auth.js'),
-    import('../archive-workflow/client.js'),
-  ]);
+  // The public entry point must never depend on a second round of dynamic
+  // module requests before the boot screen can advance.  Cloud deployments
+  // can briefly serve the HTML and entry chunk before a freshly emitted
+  // dynamic chunk reaches the same edge, which left the terminal frozen at
+  // "INITIALIZING SYSTEM BUS".  Authentication is part of the normal online
+  // startup path, so keep it in the initial module graph.  The local-only
+  // administrator runtime above remains lazy and cannot ship to production.
   const accessContext = initializeAccessGate({ reducedMotion });
 
   return {
