@@ -1275,7 +1275,9 @@ export function initializeArchiveWorkspace({
         const probe = document.createRange();
         probe.selectNodeContents(control);
         probe.setEnd(container, offset);
-        return probe.toString().length;
+        // Range#toString omits <br>, while the persisted document stores it as a newline.
+        // Use the same extraction rule as persistence so visual and saved offsets never diverge.
+        return extractInlineText(probe.cloneContents()).text.length;
       };
       const start = offsetFor(range.startContainer, range.startOffset);
       const end = offsetFor(range.endContainer, range.endOffset);
@@ -1294,17 +1296,43 @@ export function initializeArchiveWorkspace({
         control?.setSelectionRange?.(start, end);
         return;
       }
-      const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
-      let position = 0;
-      let startPoint = null;
-      let endPoint = null;
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const next = position + node.nodeValue.length;
-        if (!startPoint && start >= position && start <= next) startPoint = [node, start - position];
-        if (!endPoint && end >= position && end <= next) endPoint = [node, end - position];
-        position = next;
-      }
+      const pointAt = (targetOffset) => {
+        let position = 0;
+        let point = null;
+        const visit = (parent) => {
+          const children = [...parent.childNodes];
+          for (let index = 0; index < children.length && !point; index += 1) {
+            const node = children[index];
+            if (node.nodeType === Node.TEXT_NODE) {
+              const next = position + node.nodeValue.length;
+              if (targetOffset >= position && targetOffset <= next) {
+                point = [node, targetOffset - position];
+                return;
+              }
+              position = next;
+              continue;
+            }
+            if (node.nodeName === 'BR') {
+              if (targetOffset === position) {
+                point = [parent, index];
+                return;
+              }
+              position += 1;
+              if (targetOffset === position) {
+                point = [parent, index + 1];
+                return;
+              }
+              continue;
+            }
+            visit(node);
+          }
+          if (!point && targetOffset === position) point = [parent, children.length];
+        };
+        visit(control);
+        return point;
+      };
+      const startPoint = pointAt(start);
+      const endPoint = pointAt(end);
       if (!startPoint || !endPoint) return;
       const range = document.createRange();
       range.setStart(...startPoint);

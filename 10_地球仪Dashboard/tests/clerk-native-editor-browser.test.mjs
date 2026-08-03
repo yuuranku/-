@@ -669,6 +669,48 @@ test(
 );
 
 test(
+  'inline format buttons retain the exact selection after rich-editor line breaks',
+  { timeout: 60_000 },
+  async (t) => {
+    const { page } = await openLocalAdminBrowser(t);
+    const fixture = await seedClerkAndReference(page);
+    await switchPrincipal(page, fixture.clerk);
+    await openWorkspace(page);
+    await openCategoryAction(page, '07', 'new');
+    await page.waitForSelector('[data-new-archive-chooser]');
+    await clickControl(page, '[data-new-independent-template="07"]');
+    await page.waitForSelector('.archive-editor-window:not([hidden])');
+
+    const field = '[data-native-rich-field]';
+    await page.$eval(field, (control) => {
+      control.focus();
+      control.innerHTML = 'line one<br>line two<br>public material and SECRET evidence';
+      const textNode = control.lastChild;
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.setStart(textNode, 20);
+      range.setEnd(textNode, 26);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForFunction(
+      () => !document.querySelector('.archive-editor-window:not([hidden])')?.classList.contains('is-opening'),
+    );
+    await clickControl(page, '.archive-editor-window:not([hidden]) [data-inline-mark="redacted"]');
+    assert.deepEqual(
+      await page.$eval(field, (control) => ({
+        redacted: control.querySelector('.archive-redacted')?.textContent,
+        storage: control.parentElement.querySelector('[data-native-field-storage]')?.value,
+      })),
+      { redacted: 'SECRET', storage: 'line one\nline two\npublic material and SECRET evidence' },
+    );
+    await clickControl(page, '.archive-editor-window:not([hidden]) [data-inline-mark="bold"]');
+    assert.equal(await page.$eval(field, (control) => control.querySelector('strong')?.textContent), 'SECRET');
+  },
+);
+
+test(
   'category New can append an independent document to every existing archive without selecting a document to amend',
   { timeout: 60_000 },
   async (t) => {
