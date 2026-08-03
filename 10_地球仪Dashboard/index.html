@@ -423,15 +423,8 @@
               <button type="button" data-mascot-entry="关于白幕的创作细则" data-mascot-document="creation"><span>01</span><b>关于白幕的创作细则</b><small>DOCUMENT</small></button>
               <button type="button" data-mascot-entry="关于第一期企划" data-mascot-document="phase-one"><span>02</span><b>关于第一期企划</b><small>DOCUMENT</small></button>
               <button type="button" data-mascot-entry="在案书记官" data-mascot-directory="clerks"><span>05</span><b>在案书记官</b><small>DIRECTORY</small></button>
+              <button type="button" data-mascot-entry="音乐与音效" data-mascot-directory="audio"><span>06</span><b>音乐与音效</b><small>MEDIA DECK</small></button>
             </nav>
-            <section class="mascot-sound-control" id="ui-sound-control" aria-label="界面音效控制">
-              <header><span>♪</span><b>系统声音</b><small>PALIS / AUDIO</small></header>
-              <div class="mascot-sound-control__controls">
-                <button id="ui-sound-toggle" type="button" aria-pressed="false"><span data-ui-sound-label>声音：关</span></button>
-                <label for="ui-sound-volume"><span>音量</span><input id="ui-sound-volume" type="range" min="0" max="1" step="0.01" value="0.28" disabled /></label>
-              </div>
-              <span class="mascot-sound-control__status" id="ui-sound-status" role="status">界面音效已关闭</span>
-            </section>
             <p class="mascot-entry-status" id="mascot-entry-status"><span>请选择目录项目</span><b>READY</b></p>
           </section>
 
@@ -442,6 +435,41 @@
             </header>
             <p class="mascot-window-kicker" id="mascot-clerk-title">在案书记官 / 10 POSITIONS</p>
             <ol class="mascot-clerk-list" id="mascot-clerk-list" aria-label="在案书记官目录"></ol>
+          </section>
+
+          <section class="mascot-audio-view" id="mascot-audio-view" aria-labelledby="mascot-audio-title" hidden>
+            <header class="mascot-clerk-directory__head">
+              <button type="button" id="mascot-audio-back">← 返回助手目录</button>
+              <span>PALIS 09A / MEDIA DECK</span>
+            </header>
+            <p class="mascot-window-kicker" id="mascot-audio-title">音乐与音效 / SHARED PLAYLIST</p>
+            <section class="mascot-sound-control" id="ui-sound-control" aria-label="界面音效控制">
+              <header><span>♪</span><b>系统声音</b><small>PALIS / UI AUDIO</small></header>
+              <div class="mascot-sound-control__controls">
+                <button id="ui-sound-toggle" type="button" aria-pressed="false"><span data-ui-sound-label>声音：关</span></button>
+                <label for="ui-sound-volume"><span>音量</span><input id="ui-sound-volume" type="range" min="0" max="1" step="0.01" value="0.28" disabled /></label>
+              </div>
+              <span class="mascot-sound-control__status" id="ui-sound-status" role="status">界面音效已关闭</span>
+            </section>
+            <section class="palis-music-deck" aria-label="极点之声电台">
+              <div class="palis-turntable-shell">
+                <div class="palis-turntable" aria-hidden="true">
+                  <span class="palis-turntable__plinth" aria-hidden="true"></span>
+                  <span class="palis-turntable__record" aria-hidden="true"><i></i></span>
+                  <span class="palis-turntable__arm" aria-hidden="true"><i></i></span>
+                </div>
+                <div class="palis-music-deck__meta">
+                  <span class="palis-music-deck__station">极地之声电台</span>
+                  <b><span data-music-status>待机</span><span data-music-title>небонадголовойcover.mp3</span></b>
+                </div>
+              </div>
+              <div class="palis-music-deck__actions" aria-label="电台控制">
+                <button type="button" data-music-toggle aria-pressed="false">播放</button>
+                <button type="button" data-music-next disabled>换歌</button>
+              </div>
+              <label class="palis-music-deck__volume" for="palis-music-volume"><span>音乐音量</span><input id="palis-music-volume" data-music-volume type="range" min="0" max="1" step="0.01" value="0.65" /></label>
+              <audio id="palis-music-audio" preload="metadata"></audio>
+            </section>
           </section>
 
           <article class="mascot-document-view" id="mascot-document-view" aria-labelledby="mascot-document-heading" hidden>

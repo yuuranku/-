@@ -1,0 +1,16 @@
+{
+  "tracks": [
+    {
+      "title": "极点之声电台",
+      "src": "/assets/music/небонадголовойcover.mp3"
+    },
+    {
+      "title": "SiliconDream",
+      "src": "/assets/music/SiliconDream.mp3"
+    },
+    {
+      "title": "Travelers_encore",
+      "src": "/assets/music/Travelers_encore.mp3"
+    }
+  ]
+}

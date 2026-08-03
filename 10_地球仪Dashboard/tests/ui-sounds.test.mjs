@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  DEFAULT_UI_SOUND_VOLUME,
   SOUND_PROFILES,
   canPlayUiSound,
   clampSoundVolume,
@@ -28,9 +29,10 @@ test('loading sound palette provides each state cue used by the timed loading vi
 
 test('sound volume is clamped to a safe user-controlled range', () => {
   assert.equal(clampSoundVolume(-1), 0);
-  assert.equal(clampSoundVolume(.28), .28);
+  assert.equal(DEFAULT_UI_SOUND_VOLUME, .5);
+  assert.equal(clampSoundVolume(.5), .5);
   assert.equal(clampSoundVolume(2), 1);
-  assert.equal(clampSoundVolume('invalid'), .28);
+  assert.equal(clampSoundVolume('invalid'), .5);
 });
 
 test('suspended interface audio never plays during a page transition', () => {

@@ -13,6 +13,7 @@ import {
   initializeUiSounds,
   stopAllUiSounds,
 } from './ui-sounds.js';
+import { initializePalisMusicPlayer } from './palis-music.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
@@ -63,6 +64,7 @@ const emitLoadingCue = (name, minInterval) => {
   void emitUiSound(name, { minInterval });
 };
 initializeUiSounds();
+initializePalisMusicPlayer();
 const palisRuntime = await initializePalisRuntime({ reducedMotion });
 const archiveWorkflowClient = palisRuntime.repository;
 let activeArchiveStorySession = palisRuntime.initialSession ?? null;
@@ -168,8 +170,10 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const status = document.querySelector('#mascot-entry-status');
   const directoryView = document.querySelector('#mascot-directory-view');
   const clerkDirectory = document.querySelector('#mascot-clerk-directory');
+  const audioView = document.querySelector('#mascot-audio-view');
   const clerkList = document.querySelector('#mascot-clerk-list');
   const clerkBack = document.querySelector('#mascot-clerk-back');
+  const audioBack = document.querySelector('#mascot-audio-back');
   const documentView = document.querySelector('#mascot-document-view');
   const entries = [...startMenu.querySelectorAll('[data-mascot-entry]')];
   const documentContents = [...document.querySelectorAll('[data-mascot-document-content]')];
@@ -198,7 +202,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const workspaceNoteStatus = document.querySelector('[data-workspace-note-status]');
   const workspaceNoteRetry = document.querySelector('[data-workspace-note-retry]');
   const desktopCommands = [...desktop.querySelectorAll('[data-workspace-command]')];
-  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
+  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !audioView || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
 
   // Frame 01 has a noticeably different body axis and reads as a jump rather
   // than part of this idle sway, so keep the coherent 02–07 loop.
@@ -549,6 +553,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     assistant.classList.toggle('is-open', open);
     if (open) {
       clerkDirectory.hidden = true;
+      audioView.hidden = true;
       directoryView.hidden = false;
       entries[0]?.focus({ preventScroll: true });
     }
@@ -557,14 +562,23 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
 
   function showClerkDirectory() {
     directoryView.hidden = true;
+    audioView.hidden = true;
     clerkDirectory.hidden = false;
     clerkList.querySelector('button')?.focus({ preventScroll: true });
   }
 
   function showAssistantDirectory() {
     clerkDirectory.hidden = true;
+    audioView.hidden = true;
     directoryView.hidden = false;
     entries.find((entry) => entry.dataset.mascotDirectory === 'clerks')?.focus({ preventScroll: true });
+  }
+
+  function showAudioView() {
+    directoryView.hidden = true;
+    clerkDirectory.hidden = true;
+    audioView.hidden = false;
+    audioBack?.focus({ preventScroll: true });
   }
 
   function syncDocumentWindows() {
@@ -913,6 +927,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
 
   directoryView.hidden = false;
   clerkDirectory.hidden = true;
+  audioView.hidden = true;
   documentView.hidden = true;
   startMenu.classList.add('mascot-start-menu');
 
@@ -959,6 +974,10 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
         showClerkDirectory();
         return;
       }
+      if (entry.dataset.mascotDirectory === 'audio') {
+        showAudioView();
+        return;
+      }
       if (entry.dataset.mascotDocument) {
         openDocument(entry.dataset.mascotDocument, entry);
         return;
@@ -967,6 +986,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     });
   });
   clerkBack?.addEventListener('click', showAssistantDirectory);
+  audioBack?.addEventListener('click', showAssistantDirectory);
   clerkList.addEventListener('click', (event) => {
     const entry = event.target.closest('button');
     if (!entry) return;

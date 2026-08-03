@@ -1,4 +1,4 @@
-const DEFAULT_VOLUME = .28;
+export const DEFAULT_UI_SOUND_VOLUME = .5;
 const MAX_ACTIVE_VOICES = 8;
 const STORAGE_KEYS = Object.freeze({
   enabled: 'palis.ui-sounds.enabled',
@@ -88,7 +88,7 @@ export const SOUND_PROFILES = Object.freeze({
   }),
 });
 
-export function clampSoundVolume(value, fallback = DEFAULT_VOLUME) {
+export function clampSoundVolume(value, fallback = DEFAULT_UI_SOUND_VOLUME) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(1, Math.max(0, parsed));
@@ -128,9 +128,9 @@ const audioConstructor = () => globalThis.AudioContext || globalThis.webkitAudio
 export function createUiSoundManager({ storage = globalThis.localStorage } = {}) {
   const savedEnabled = safeRead(storage, STORAGE_KEYS.enabled);
   const savedVolume = safeRead(storage, STORAGE_KEYS.volume);
-  let enabled = savedEnabled === 'true';
+  let enabled = savedEnabled === null ? true : savedEnabled === 'true';
   let suspended = false;
-  let volume = clampSoundVolume(savedVolume, DEFAULT_VOLUME);
+  let volume = clampSoundVolume(savedVolume, DEFAULT_UI_SOUND_VOLUME);
   let context = null;
   let masterGain = null;
   const activeNodes = new Set();
