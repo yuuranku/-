@@ -57,28 +57,29 @@ const installEditorPerformanceStyles = (root) => {
   root.head?.append(style);
 };
 
-const currentArchiveReferenceToken = (value) => {
+const currentArchiveReferenceToken = (value, caret = String(value ?? '').length) => {
   const text = String(value ?? '');
-  const slashOffset = text.lastIndexOf('/');
+  const cursor = Math.max(0, Math.min(text.length, Number(caret) || 0));
+  const slashOffset = text.lastIndexOf('/', Math.max(0, cursor - 1));
   if (slashOffset < 0) return null;
-  const query = text.slice(slashOffset + 1);
+  const query = text.slice(slashOffset + 1, cursor);
   if (query.length > 40 || /[/\r\n]/.test(query)) return null;
   // A slash inside a URL is ordinary prose, not an archive-reference command.
-  if (/(?:https?|ftp):\/\/\S*$/i.test(text)) return null;
-  return { query: query.trim(), slashOffset };
+  if (/(?:https?|ftp):\/\/\S*$/i.test(text.slice(0, cursor))) return null;
+  return { query: query.trim(), slashOffset, caret: cursor };
 };
 
-export const detectArchiveReferenceQuery = (value) => {
-  return currentArchiveReferenceToken(value)?.query ?? null;
+export const detectArchiveReferenceQuery = (value, caret) => {
+  return currentArchiveReferenceToken(value, caret)?.query ?? null;
 };
 
-export const replaceArchiveReferenceQuery = (value, reference) => {
+export const replaceArchiveReferenceQuery = (value, reference, caret) => {
   const text = String(value ?? '');
-  const token = currentArchiveReferenceToken(text);
+  const token = currentArchiveReferenceToken(text, caret);
   if (!token) return text;
   const code = String(reference?.code ?? '').trim();
   const label = String(reference?.label ?? reference?.title ?? '').trim();
-  return `${text.slice(0, token.slashOffset)}〔${[code, label].filter(Boolean).join(' ')}〕`;
+  return `${text.slice(0, token.slashOffset)}〔${[code, label].filter(Boolean).join(' ')}〕${text.slice(token.caret)}`;
 };
 
 const describeTemplateStructure = (root) => {

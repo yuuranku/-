@@ -36,6 +36,7 @@ import { toEditorDocumentFromArchiveBase } from './official-archive-source.js';
 import { ARCHIVE_TEMPLATE_BY_CODE, ARCHIVE_TEMPLATES } from './templates.js';
 import { renderArchiveCabinet } from './archive-cabinet.js';
 import { applyTextareaTabIndent } from './text-indent.js';
+import { PARAGRAPH_INDENT } from './text-indent.js';
 import { applyInlineMark, extractInlineText, renderInlineText } from './inline-text-format.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
@@ -1260,10 +1261,10 @@ export function initializeArchiveWorkspace({
       }
     });
     const inlineFormatToolbar = form.querySelector('[data-inline-format-toolbar]');
-    const inlineSelectionOffsets = (control) => {
+    const inlineSelectionOffsets = (control, { allowCollapsed = false } = {}) => {
       if (!control) return null;
       if (!control.matches?.('[data-native-rich-field]')) {
-        if (control.selectionStart === control.selectionEnd) return null;
+        if (!allowCollapsed && control.selectionStart === control.selectionEnd) return null;
         return { start: control.selectionStart, end: control.selectionEnd };
       }
       const selection = window.getSelection?.();
@@ -1278,7 +1279,7 @@ export function initializeArchiveWorkspace({
       };
       const start = offsetFor(range.startContainer, range.startOffset);
       const end = offsetFor(range.endContainer, range.endOffset);
-      return end > start ? { start, end } : null;
+      return end > start || allowCollapsed ? { start, end } : null;
     };
     const inlineSelectionControl = () => {
       const selection = window.getSelection?.();
@@ -1313,12 +1314,39 @@ export function initializeArchiveWorkspace({
       selection.addRange(range);
       control.focus();
     };
+    const applyRichTextTabIndent = (event) => {
+      const control = event.target?.closest?.('[data-native-rich-field]');
+      if (
+        event.key !== 'Tab'
+        || !control
+        || control.getAttribute('contenteditable') === 'false'
+      ) return false;
+      const selection = window.getSelection?.();
+      if (!selection?.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      if (!control.contains(range.startContainer) || !control.contains(range.endContainer)) return false;
+      event.preventDefault();
+      const indent = document.createTextNode(event.shiftKey ? '' : PARAGRAPH_INDENT);
+      if (event.shiftKey) return true;
+      // Insert into the live DOM instead of repainting the whole field so existing marks keep their ranges.
+      range.collapse(true);
+      range.insertNode(indent);
+      range.setStartAfter(indent);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    };
     let lastInlineSelection = null;
     document.addEventListener('selectionchange', () => {
       const selectionControl = inlineSelectionControl();
       const selectionRange = inlineSelectionOffsets(selectionControl);
       if (selectionControl && selectionRange) {
         lastInlineSelection = { control: selectionControl, ...selectionRange };
+      } else {
+        // Never reuse an old range after the user has moved the caret or selected another field.
+        lastInlineSelection = null;
       }
     });
     inlineFormatToolbar?.addEventListener('mousedown', (event) => {
@@ -1771,10 +1799,12 @@ export function initializeArchiveWorkspace({
       'textarea[data-native-custom-content]',
     ].join(',');
     let activeInlineReferenceControl = null;
+    let activeInlineReferenceCursor = null;
     let inlineReferenceRequestId = 0;
     const hideInlineReferenceMenu = () => {
       inlineReferenceRequestId += 1;
       activeInlineReferenceControl = null;
+      activeInlineReferenceCursor = null;
       inlineReferenceMenu.hidden = true;
       inlineReferenceCopy.textContent = '';
       inlineReferenceResults.replaceChildren();
@@ -1788,12 +1818,15 @@ export function initializeArchiveWorkspace({
       inlineReferenceMenu.style.top = `${Math.min(bounds.bottom + 6, window.innerHeight - 72)}px`;
     };
     const showInlineReferenceMenu = async (control) => {
-      const query = detectArchiveReferenceQuery(control.value);
+      const selection = inlineSelectionOffsets(control, { allowCollapsed: true });
+      const caret = selection?.end ?? String(control.value ?? '').length;
+      const query = detectArchiveReferenceQuery(control.value, caret);
       if (query === null) {
         hideInlineReferenceMenu();
         return;
       }
       activeInlineReferenceControl = control;
+      activeInlineReferenceCursor = caret;
       placeInlineReferenceMenu(control);
       inlineReferenceMenu.hidden = false;
       inlineReferenceResults.replaceChildren();
@@ -1972,18 +2005,21 @@ export function initializeArchiveWorkspace({
           code: inlineReferenceResult.dataset.code,
           title: inlineReferenceResult.dataset.label,
         });
-        const nextValue = replaceArchiveReferenceQuery(control.value, reference);
+        const caret = activeInlineReferenceCursor ?? String(control.value ?? '').length;
+        const priorValue = String(control.value ?? '');
+        const nextValue = replaceArchiveReferenceQuery(priorValue, reference, caret);
         if (nextValue === control.value) return;
         control.value = nextValue;
         if (!references.some((entry) => entry.archiveId === reference.archiveId)) {
           references.push(reference);
         }
         hideInlineReferenceMenu();
+        const nextCaret = nextValue.length - Math.max(0, priorValue.length - caret);
         if (control.matches?.('[data-native-rich-field]')) {
-          restoreInlineSelection(control, nextValue.length, nextValue.length);
+          restoreInlineSelection(control, nextCaret, nextCaret);
         } else {
           control.focus();
-          control.setSelectionRange?.(nextValue.length, nextValue.length);
+          control.setSelectionRange?.(nextCaret, nextCaret);
         }
         control.dispatchEvent(new Event('input', { bubbles: true }));
         return;
@@ -2038,6 +2074,7 @@ export function initializeArchiveWorkspace({
       queueDraftAutosave();
     });
     form.addEventListener('keydown', (event) => {
+      if (applyRichTextTabIndent(event)) return;
       if (event.key === 'Escape' && !inlineReferenceMenu.hidden) hideInlineReferenceMenu();
     });
     form.addEventListener('focusout', () => {

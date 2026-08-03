@@ -226,4 +226,13 @@ test('slash reference helpers find the current query and replace only its token'
     replaceArchiveReferenceQuery('事件涉及/文', { code: 'P32', label: '文森特' }),
     '事件涉及〔P32 文森特〕',
   );
+  const middleCursor = '前段 /冰芯 后段正文'.indexOf(' 后段');
+  assert.equal(
+    detectArchiveReferenceQuery('前段 /冰芯 后段正文', middleCursor),
+    '冰芯',
+  );
+  assert.equal(
+    replaceArchiveReferenceQuery('前段 /冰芯 后段正文', { code: 'P32', label: '文森特' }, middleCursor),
+    '前段 〔P32 文森特〕 后段正文',
+  );
 });

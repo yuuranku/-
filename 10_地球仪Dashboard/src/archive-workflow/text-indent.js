@@ -46,11 +46,11 @@ export function applyTextIndent({ value, selectionStart, selectionEnd, outdent =
   };
 }
 
-export function applyTextareaTabIndent(event) {
+export function applyTextInputTabIndent(event) {
   const target = event?.target;
   if (
     event?.key !== 'Tab'
-    || !target?.matches?.('textarea')
+    || !(target?.matches?.('textarea') || target?.matches?.('input[type="text"]'))
     || target.disabled
     || target.readOnly
   ) return false;
@@ -68,3 +68,6 @@ export function applyTextareaTabIndent(event) {
   target.dispatchEvent?.(new Event('input', { bubbles: true }));
   return true;
 }
+
+// Backward-compatible name for existing workspace integrations.
+export const applyTextareaTabIndent = applyTextInputTabIndent;

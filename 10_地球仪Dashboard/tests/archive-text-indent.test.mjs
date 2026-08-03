@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyTextIndent, applyTextareaTabIndent } from '../src/archive-workflow/text-indent.js';
+import { applyTextIndent, applyTextInputTabIndent, applyTextareaTabIndent } from '../src/archive-workflow/text-indent.js';
 
 test('Tab indents the current paragraph with two full-width spaces', () => {
   assert.deepEqual(
@@ -43,4 +43,15 @@ test('Tab updates an editable textarea and emits the existing input event', () =
   assert.equal(prevented, true);
   assert.equal(dispatched[0]?.type, 'input');
   assert.equal(dispatched[0]?.bubbles, true);
+});
+
+test('Tab also applies the shared indent rule to a single-line text input', () => {
+  const target = {
+    value: '标题', selectionStart: 0, selectionEnd: 0, disabled: false, readOnly: false,
+    matches: (selector) => selector === 'input[type="text"]',
+    setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
+    dispatchEvent: () => {},
+  };
+  assert.equal(applyTextInputTabIndent({ key: 'Tab', shiftKey: false, target, preventDefault() {} }), true);
+  assert.equal(target.value, '　　标题');
 });
