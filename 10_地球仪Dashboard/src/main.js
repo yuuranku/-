@@ -57,6 +57,7 @@ import {
 } from './data.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DEFAULT_PERSON_PORTRAIT = '/assets/archive/person-default.png';
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
 const emitLoadingCue = (name, minInterval) => {
   void emitUiSound(name, { minInterval });
@@ -1379,7 +1380,7 @@ function resetVersionNotice() {
   versionNoticeTaskButton.type = 'button';
   versionNoticeTaskButton.className = 'archive-task-button is-minimized';
   versionNoticeTaskButton.setAttribute('aria-pressed', 'false');
-  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.13</b>白幕回响</span>';
+  versionNoticeTaskButton.innerHTML = '<i></i><span><b>ver0.13</b>白幕初垂</span>';
   versionNoticeTaskButton.addEventListener('click', showVersionNotice);
   versionNoticeTask.append(versionNoticeTaskButton);
   versionNoticeTask.hidden = false;
@@ -2580,9 +2581,7 @@ function entryIconMarkup(archive, isFolder, index, mode) {
     return `<span class="folder-icon"><img src="/assets/folder.svg" alt="" width="56" height="56"><b>${archive.code}</b></span>`;
   }
   if (mode === 'dossier') {
-    const portrait = archive.image
-      ? `<img src="${archive.image}" alt="" loading="lazy">`
-      : '<span class="portrait-missing">PHOTO<br>WITHHELD</span>';
+    const portrait = `<img src="${archive.image || DEFAULT_PERSON_PORTRAIT}" alt="" loading="lazy">`;
     return `<span class="dossier-cover"><span class="dossier-tab">PERSONNEL / ${archive.code}</span><span class="dossier-photo">${portrait}</span><span class="dossier-lines"><i></i><i></i><i></i></span><b>${String(index + 1).padStart(2, '0')}</b></span>`;
   }
   if (mode === 'film') {
@@ -2965,9 +2964,7 @@ function renderPeopleNetwork(animate = true) {
   state.indexButtons.forEach((button, index) => button.classList.toggle('is-selected', index === archiveSelection));
   const archive = state.entries[archiveSelection];
   const portrait = state.workbench.querySelector('[data-person-portrait]');
-  portrait.innerHTML = archive.image
-    ? `<img src="${archive.image}" alt="${escapeRecordText(archive.name)}" loading="eager">`
-    : '<span>PHOTO<br>WITHHELD</span>';
+  portrait.innerHTML = `<img src="${archive.image || DEFAULT_PERSON_PORTRAIT}" alt="${escapeRecordText(archive.name)}" loading="eager">`;
   state.workbench.querySelector('[data-person-code]').textContent = archive.code;
   state.workbench.querySelector('[data-person-name]').textContent = archive.name;
   state.workbench.querySelector('[data-person-system]').textContent = archive.meta.split(' / ')[0];

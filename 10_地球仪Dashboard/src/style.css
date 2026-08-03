@@ -101,8 +101,15 @@ body.version-notice-open { overflow: hidden; }
 .version-notice__ai-disclosure { color: #a23c27; font-weight: 800; }
 .version-notice__feedback { padding: 11px 13px; border-left: 3px solid #a23c27; background: rgba(162, 60, 39, .08); }
 .version-notice__report { margin: 2px 0 20px; padding: 15px 16px 13px; border-top: 2px solid #132d29; border-bottom: 1px solid rgba(17, 18, 15, .42); background: rgba(255, 255, 255, .23); }
+.version-notice__report--lead { position: relative; border-top-color: #a23c27; background: linear-gradient(90deg, rgba(162, 60, 39, .11), rgba(255, 255, 255, .2)); }
+.version-notice__report--lead::before { position: absolute; top: -2px; left: 0; width: 46px; height: 2px; content: ''; background: #e2ad2c; }
 .version-notice__report h3 { margin: 0 0 9px; color: #132d29; font: 800 13px/1.2 var(--font-mono); letter-spacing: .08em; }
 .version-notice__report p { margin-bottom: 10px; font-size: 13px; line-height: 1.65; }
+.version-notice__lead-reference { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; text-align: left !important; }
+.version-notice__lead-reference > span,
+.version-notice__lead-reference em { color: #7d3021; font: 700 10px/1.5 var(--font-mono); font-style: normal; letter-spacing: .06em; }
+.version-notice__lead-reference [data-version-reference] { font-weight: 800; }
+.version-notice__introduction { margin-top: 4px; padding-top: 18px; border-top: 1px solid rgba(17, 18, 15, .3); }
 .version-notice__report dl { display: grid; gap: 8px; margin: 0; }
 .version-notice__report dl div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 9px; }
 .version-notice__report dt { color: #a23c27; font: 800 11px/1.5 var(--font-mono); letter-spacing: .04em; }
