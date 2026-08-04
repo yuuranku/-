@@ -104,6 +104,153 @@ const BOOT_STEPS = [
 ];
 
 const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
+// This sequence is deliberately slow enough to read as a hand-off rather than
+// a flash: the authenticated desktop is already live beneath the mask before
+// the centre begins to open.
+const ACCESS_TRANSITION_MS = 2600;
+
+function initializeAccessBlinkingSquares(canvas, { reducedMotion = false } = {}) {
+  const context = canvas?.getContext?.('2d');
+  if (!canvas || !context) return { play() {}, stop() {} };
+
+  // Match the supplied component's dense pixel-field presentation rather than
+  // its generic preview defaults: small cells, rich cold tones, top-to-bottom
+  // decay, and independently blinking cells.
+  const gridSize = 160;
+  const fillPercent = 70;
+  const twinkleSpeed = 30;
+  const opacity = 1;
+  const fadePercent = 100;
+  const fadeIntensity = 25;
+  const squareColors = [
+    [214, 221, 219], // phosphor-white highlight
+    [151, 164, 162], // cold office grey
+    [89, 102, 103],  // shadow grey
+    [41, 49, 51],    // near-black terminal grey
+  ];
+  let animationFrame = 0;
+  let active = false;
+  let startedAt = 0;
+  let width = 0;
+  let height = 0;
+  let cells = [];
+
+  const layout = () => {
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    width = canvas.clientWidth || window.innerWidth;
+    height = canvas.clientHeight || window.innerHeight;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cellSize = Math.max(width, height) / Math.max(2, Math.floor(gridSize));
+    const cols = Math.max(1, Math.ceil(width / cellSize));
+    const rows = Math.max(1, Math.ceil(height / cellSize));
+    cells = Array.from({ length: cols * rows }, (_, index) => {
+      const random = (seed) => {
+        const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+        return value - Math.floor(value);
+      };
+      return {
+        phase: random(index) * Math.PI * 2,
+        rate: 0.6 + random(index * 7.137 + 33.71) * 0.8,
+        tint: random(index * 3.51 + 5.91),
+        x: index % cols,
+        y: Math.floor(index / cols),
+        cellSize,
+        cols,
+        rows,
+      };
+    });
+  };
+
+  const draw = (time) => {
+    context.clearRect(0, 0, width, height);
+    const elapsed = (time - startedAt) / 1000;
+    const fadeStart = 1 - Math.max(0, Math.min(1, fadePercent / 100));
+    const falloff = 0.2 + Math.max(0, Math.min(100, fadeIntensity)) / 100 * 5.8;
+    const inset = (1 - Math.max(0.1, Math.min(1, fillPercent / 100))) * 0.5;
+    const speed = Math.max(0, twinkleSpeed) * 0.05;
+
+    cells.forEach((cell) => {
+      const u = cell.y / Math.max(1, cell.rows - 1);
+      const envelope = u <= fadeStart ? 1 : Math.pow(1 - u, falloff);
+      const twinkle = 0.5 + 0.5 * Math.sin(elapsed * speed * cell.rate * Math.PI * 2 + cell.phase);
+      // Posterise the brightness into hard steps so the field reads as a
+      // restrained 8-bit display rather than a soft particle effect.
+      const alpha = Math.round(envelope * twinkle * opacity * 5) / 5;
+      if (alpha <= 0.002) return;
+      const size = cell.cellSize * (1 - inset * 2);
+      const color = squareColors[Math.min(squareColors.length - 1, Math.floor(cell.tint * squareColors.length))];
+      context.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha.toFixed(3)})`;
+      context.fillRect(
+        cell.x * cell.cellSize + cell.cellSize * inset,
+        cell.y * cell.cellSize + cell.cellSize * inset,
+        size,
+        size,
+      );
+    });
+  };
+
+  const frame = (time) => {
+    if (!active) return;
+    draw(time);
+    animationFrame = window.requestAnimationFrame(frame);
+  };
+
+  const stop = () => {
+    active = false;
+    window.cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+    context.clearRect(0, 0, width, height);
+  };
+
+  return {
+    play() {
+      stop();
+      layout();
+      startedAt = performance.now();
+      if (reducedMotion) {
+        draw(startedAt);
+        return;
+      }
+      active = true;
+      animationFrame = window.requestAnimationFrame(frame);
+    },
+    stop,
+  };
+}
+
+// Development-only visual replay for the local administrator runtime.  It uses
+// the same canvas/phase as a real access hand-off, but never changes session or
+// access state.
+export async function replayAccessTransition({ reducedMotion = false } = {}) {
+  const gate = document.querySelector('#access-gate');
+  const canvas = document.querySelector('#access-transition-squares');
+  if (!gate || !canvas) return;
+
+  const squares = initializeAccessBlinkingSquares(canvas, { reducedMotion });
+  const wasHidden = gate.hidden;
+  const previousPhase = gate.dataset.phase;
+  const wasOpening = gate.classList.contains('is-tv-opening');
+  const wasLeaving = gate.classList.contains('is-leaving');
+
+  gate.hidden = false;
+  gate.classList.remove('is-leaving');
+  gate.classList.add('is-tv-opening');
+  gate.dataset.phase = 'login';
+  // Force the CSS animation to restart whenever the preview URL is refreshed.
+  void canvas.offsetWidth;
+  gate.dataset.phase = 'tv-open';
+  squares.play();
+  await wait(reducedMotion ? 20 : ACCESS_TRANSITION_MS);
+  squares.stop();
+
+  gate.hidden = wasHidden;
+  gate.classList.toggle('is-tv-opening', wasOpening);
+  gate.classList.toggle('is-leaving', wasLeaving);
+  if (previousPhase) gate.dataset.phase = previousPhase;
+  else delete gate.dataset.phase;
+}
 
 export function initializeAccessGate({ reducedMotion = false } = {}) {
   const gate = document.querySelector('#access-gate');
@@ -114,6 +261,10 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   const bootState = document.querySelector('#access-boot-state');
   const login = document.querySelector('#access-login');
   const granted = document.querySelector('#access-granted');
+  const blinkingSquares = initializeAccessBlinkingSquares(
+    document.querySelector('#access-transition-squares'),
+    { reducedMotion },
+  );
   const grantedUser = document.querySelector('#access-granted-user');
   const footerStatus = document.querySelector('#access-footer-status');
   const form = document.querySelector('#access-form');
@@ -245,9 +396,15 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     granted.hidden = true;
     gate.classList.remove('is-leaving');
     gate.classList.add('is-tv-opening');
-    gate.dataset.phase = 'tv-open';
-    await wait(reducedMotion ? 20 : 760);
+    // Make the real desktop available before the transition begins. The
+    // square field is a temporary foreground mask, so its opening reveals the
+    // already-rendered interface instead of cutting from black to the page.
     setExperienceLocked(false);
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    gate.dataset.phase = 'tv-open';
+    blinkingSquares.play();
+    await wait(reducedMotion ? 20 : ACCESS_TRANSITION_MS);
+    blinkingSquares.stop();
     gate.hidden = true;
     gate.classList.remove('is-tv-opening');
     experience.focus?.({ preventScroll: true });

@@ -2,7 +2,7 @@ import {
   isLoopbackHostname,
   shouldEnableLocalAdmin,
 } from './palis-runtime-policy.js';
-import { initializeAccessGate } from '../auth.js';
+import { initializeAccessGate, replayAccessTransition } from '../auth.js';
 import { createArchiveWorkflowClient } from '../archive-workflow/client.js';
 
 export async function initializePalisRuntime({
@@ -18,7 +18,19 @@ export async function initializePalisRuntime({
     const { createLocalAdminRuntime } = await import(
       '../archive-workflow/local/local-admin-runtime.js'
     );
-    return createLocalAdminRuntime();
+    const localRuntime = await createLocalAdminRuntime();
+    const replayTransition = new URLSearchParams(window.location.search)
+      .has('replay-transition');
+
+    if (replayTransition) {
+      // Deliberately limited to Vite's local administrator path above: this is
+      // a visual preview, not a route that can grant or alter access online.
+      window.requestAnimationFrame(() => {
+        void replayAccessTransition({ reducedMotion });
+      });
+    }
+
+    return localRuntime;
   }
 
   // The public entry point must never depend on a second round of dynamic

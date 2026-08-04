@@ -1,3 +1,9 @@
+@property --access-reveal-radius {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
 body.access-locked {
   height: 100dvh;
   overflow: hidden;
@@ -74,11 +80,14 @@ body.access-locked #archive-desktop {
 }
 
 .access-gate[data-phase='tv-open'] {
-  background: #000;
+  /* Keep the gate itself transparent: only the square field remains opaque,
+     which means the expanding centre reveals the live PALIS desktop below. */
+  background: transparent;
 }
 
 .access-gate[data-phase='tv-open'] .access-shell,
-.access-gate[data-phase='tv-open'] .access-crt {
+.access-gate[data-phase='tv-open'] .access-crt,
+.access-gate[data-phase='tv-open'] .access-void {
   opacity: 0;
 }
 
@@ -89,29 +98,33 @@ body.access-locked #archive-desktop {
   display: block;
   overflow: hidden;
   background: #000;
+  --access-reveal-radius: 0%;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--access-reveal-radius), #000 calc(var(--access-reveal-radius) + 1px));
+  mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--access-reveal-radius), #000 calc(var(--access-reveal-radius) + 1px));
+  animation: access-squares-reveal 2600ms cubic-bezier(.28, .02, .2, 1) both;
 }
 
-.access-gate[data-phase='tv-open'] .access-tv-power::before {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 78vw;
-  height: 2px;
-  content: '';
-  background: #d8f2df;
-  box-shadow: 0 0 10px #a8d7b7, 0 0 28px rgba(168, 215, 183, .72);
-  opacity: 0;
-  transform: translate(-50%, -50%) scaleX(.02) scaleY(1);
-  animation: access-tv-switch-on 720ms cubic-bezier(.65, 0, .35, 1) both;
+.access-tv-power canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  image-rendering: pixelated;
+  filter: grayscale(1) contrast(1.16);
 }
 
-.access-gate[data-phase='tv-open'] .access-tv-power::after {
+.access-tv-power::after {
   position: absolute;
   inset: 0;
   content: '';
-  background: radial-gradient(ellipse at center, rgba(196, 231, 207, .16), transparent 58%);
-  opacity: 0;
-  animation: access-tv-glow 720ms ease-out both;
+  pointer-events: none;
+  opacity: .32;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(225, 231, 229, .065) 0 1px,
+    transparent 1px 4px
+  );
+  mix-blend-mode: screen;
 }
 
 .access-shell {
@@ -701,18 +714,11 @@ body.access-locked #archive-desktop {
   100% { opacity: 0; filter: brightness(.2); transform: scaleY(.02); }
 }
 
-@keyframes access-tv-switch-on {
-  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(.02) scaleY(1); }
-  14% { opacity: 1; transform: translate(-50%, -50%) scaleX(.06) scaleY(1); }
-  42% { opacity: 1; transform: translate(-50%, -50%) scaleX(1) scaleY(1); }
-  72% { opacity: .86; transform: translate(-50%, -50%) scaleX(1.3) scaleY(260); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.35) scaleY(420); }
-}
-
-@keyframes access-tv-glow {
-  0%, 38% { opacity: 0; }
-  68% { opacity: 1; }
-  100% { opacity: 0; }
+/* The source squares stay untouched inside this layer. The PALIS wrapper turns
+   them into a temporary blackout mask that opens from the centre at the end. */
+@keyframes access-squares-reveal {
+  0%, 68% { --access-reveal-radius: 0%; }
+  100% { --access-reveal-radius: 150%; }
 }
 
 @media (max-width: 760px) {
@@ -758,8 +764,7 @@ body.access-locked #archive-desktop {
   .access-granted,
   .access-granted > i span,
   .access-gate.is-leaving,
-  .access-tv-power::before,
-  .access-tv-power::after {
+  .access-tv-power canvas {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
   }
