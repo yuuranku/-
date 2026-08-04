@@ -5781,6 +5781,9 @@ function scrollToChapter(chapter) {
   const fromChapter = nearestChapter(targetProgress);
   const duration = getChapterTransitionDuration(fromChapter, chapter);
 
+  // Chapter-nav clicks bypass the generic button sound so the globe motion
+  // receives its own restrained 8-bit travel cue instead.
+  if (chapter !== fromChapter && !reducedMotion) emitLoadingCue('globe-shift', 420);
   if (chapterScrollFrame) cancelAnimationFrame(chapterScrollFrame);
   if (reducedMotion || Math.abs(targetY - startY) < 1) {
     document.documentElement.classList.remove('is-chapter-transitioning');

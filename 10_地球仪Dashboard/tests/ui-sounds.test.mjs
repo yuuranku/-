@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 
 import {
   DEFAULT_UI_SOUND_VOLUME,
@@ -25,6 +26,12 @@ test('loading sound palette provides each state cue used by the timed loading vi
   assert.ok(SOUND_PROFILES.scan);
   assert.ok(SOUND_PROFILES.telemetry);
   assert.ok(SOUND_PROFILES.verified);
+});
+
+test('globe chapter movement emits a short movement cue when switching sections', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.ok(SOUND_PROFILES['globe-shift']);
+  assert.match(source, /emitLoadingCue\('globe-shift', 420\)/);
 });
 
 test('sound volume is clamped to a safe user-controlled range', () => {

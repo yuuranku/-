@@ -51,6 +51,14 @@ export const SOUND_PROFILES = Object.freeze({
       { kind: 'osc', wave: 'square', frequency: 1120, endFrequency: 940, attack: .001, decay: .024, release: .012, gain: .014 },
     ]),
   }),
+  'globe-shift': Object.freeze({
+    cap: .34,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 260, endFrequency: 1260, attack: .008, decay: .19, release: .075, gain: .038 },
+      { kind: 'osc', wave: 'square', frequency: 520, endFrequency: 1760, start: .026, attack: .004, decay: .16, release: .055, gain: .019 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 1900, attack: .003, decay: .11, release: .04, gain: .012 },
+    ]),
+  }),
   boot: Object.freeze({
     cap: .17,
     layers: Object.freeze([

@@ -46,6 +46,20 @@ export function initializePalisMusicPlayer({ root = document } = {}) {
     updateState('ready');
   };
 
+  const advanceTrack = async ({ autoplay = false } = {}) => {
+    if (!playlist.length) return false;
+    const nextIndex = (activeIndex + 1) % playlist.length;
+    setTrack(playlist[nextIndex], nextIndex);
+    if (!autoplay) return true;
+    try {
+      await audio.play();
+      return true;
+    } catch {
+      updateState('error');
+      return false;
+    }
+  };
+
   const storedVolume = Number(globalThis.localStorage?.getItem('palis.music.volume'));
   audio.volume = Number.isFinite(storedVolume) ? Math.min(1, Math.max(0, storedVolume)) : .65;
   volume.value = String(audio.volume);
@@ -65,13 +79,8 @@ export function initializePalisMusicPlayer({ root = document } = {}) {
     } catch { updateState('error'); }
   });
   next.addEventListener('click', async () => {
-    if (!playlist.length) return;
     const shouldContinue = !audio.paused;
-    const nextIndex = (activeIndex + 1) % playlist.length;
-    setTrack(playlist[nextIndex], nextIndex);
-    if (shouldContinue) {
-      try { await audio.play(); } catch { updateState('error'); }
-    }
+    await advanceTrack({ autoplay: shouldContinue });
   });
   volume.addEventListener('input', () => {
     audio.volume = Number(volume.value);
@@ -79,7 +88,9 @@ export function initializePalisMusicPlayer({ root = document } = {}) {
   });
   audio.addEventListener('play', () => updateState('playing'));
   audio.addEventListener('pause', () => { if (!audio.ended) updateState('paused'); });
-  audio.addEventListener('ended', () => updateState('ready'));
+  // A natural ending always advances and resumes. This intentionally wraps
+  // from the last record to the first so the radio remains continuous.
+  audio.addEventListener('ended', () => { void advanceTrack({ autoplay: true }); });
   audio.addEventListener('error', () => updateState('error'));
 
   fetch('/assets/music/palis-playlist.json')

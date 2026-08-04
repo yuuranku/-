@@ -1888,3 +1888,81 @@
 .mainline-vacancy__portrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.7) contrast(1.05); }
 .mainline-personnel-seat__portrait > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.68) contrast(1.06); }
 .mainline-brief__personnel-submission > span > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; filter: saturate(.72) contrast(1.08); }
+
+/* Station labels behave as image records. Every station opens the same
+   movable, minimizable photo window; only records with supplied imagery
+   resolve from the coarse pixel layer to the archived photograph. */
+.mainline-brief__station { padding: 0; border-left: 0; background: transparent; backdrop-filter: none; }
+.mainline-brief__station > button {
+  width: 100%;
+  display: flex;
+  align-items: start;
+  gap: 9px;
+  padding: 9px 11px;
+  color: inherit;
+  border: 0;
+  border-left: 2px solid var(--atlas-red);
+  background: rgba(2,20,40,.58);
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+  text-align: left;
+}
+.mainline-brief__station > button:hover { background: rgba(8,35,63,.78); }
+.mainline-brief__station > button:focus-visible { outline: 1px dotted #eef2ec; outline-offset: 3px; }
+.mainline-brief__station > button > i { width: 9px; height: 9px; margin-top: 3px; flex: 0 0 auto; border: 2px solid #eef2ec; box-shadow: 0 0 0 2px var(--atlas-red); }
+.mainline-brief__station > button > span { display: grid; gap: 2px; }
+
+.mainline-station-photo-window {
+  width: min(860px, calc(100vw - 44px));
+  height: min(650px, calc(100dvh - 108px));
+  min-width: min(520px, calc(100vw - 28px));
+  min-height: min(380px, calc(100dvh - 84px));
+}
+.mainline-station-photo-window .archive-workflow-titlebar > span { visibility: hidden; }
+.mainline-station-photo {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 28px);
+  overflow: hidden;
+  background: #080a09;
+}
+.mainline-station-photo__filter { position: absolute; width: 0; height: 0; pointer-events: none; }
+.mainline-station-photo__image,
+.mainline-station-photo__pixel-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+}
+.mainline-station-photo__image { opacity: .96; filter: grayscale(1) contrast(1.08) brightness(.92); }
+.mainline-station-photo__pixel-layer {
+  opacity: 1;
+  filter: url('#mainline-station-photo-pixelate') grayscale(1) contrast(1.18) brightness(.88);
+  image-rendering: pixelated;
+  transform: scale(1.028);
+  transform-origin: center;
+}
+.mainline-station-photo.is-resolving .mainline-station-photo__pixel-layer {
+  animation: mainline-station-photo-resolve 1.55s cubic-bezier(.16, 1, .3, 1) forwards;
+}
+.mainline-station-photo.is-empty::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(220,225,218,.025) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, rgba(198,205,196,.06), transparent 58%),
+    #080a09;
+}
+@keyframes mainline-station-photo-resolve {
+  0% { opacity: 1; transform: scale(1.028); }
+  56% { opacity: .74; transform: scale(1.008); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mainline-station-photo__pixel-layer { display: none; }
+}

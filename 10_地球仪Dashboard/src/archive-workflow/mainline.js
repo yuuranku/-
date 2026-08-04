@@ -19,6 +19,9 @@ gsap.registerPlugin(ScrollTrigger);
 const COMPUTER_ROOT = '/assets/mainline/computer';
 const MAINLINE_ICON = '/assets/icons/archive-event.svg';
 const DEFAULT_PERSON_PORTRAIT = '/assets/archive/person-default.png';
+const STATION_PHOTO_ASSETS = Object.freeze({
+  'SU-VOS': '/assets/mainline/vostok-station-archive.png',
+});
 const MAINLINE_SCENE_SLOT = '__PALIS_MAINLINE_ACTIVE_SCENE__';
 
 globalThis[MAINLINE_SCENE_SLOT]?.();
@@ -84,6 +87,29 @@ const resolveMissionStation = (briefing = {}, part = 1) => {
     .some((value) => location.includes(String(value).toLocaleLowerCase('zh-CN'))));
   return matched || RESEARCH_STATIONS.find((station) => station.code === DEFAULT_PART_STATIONS[clampPart(part) - 1]) || RESEARCH_STATIONS[0];
 };
+
+const stationPhotoAsset = (station) => STATION_PHOTO_ASSETS[String(station?.code || '').trim()] || '';
+
+const stationPhotoMarkup = (photoUrl) => `
+  <section class="mainline-station-photo ${photoUrl ? 'has-photo' : 'is-empty'}" data-mainline-station-photo>
+    <svg class="mainline-station-photo__filter" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="mainline-station-photo-pixelate" x="-18%" y="-18%" width="136%" height="136%">
+          <feConvolveMatrix kernelMatrix="1 1 1 1 1 1 1 1 1" result="average" />
+          <feFlood x="1" y="1" width="1" height="1" result="cell" />
+          <feComposite in="cell" in2="SourceGraphic" operator="arithmetic" k1="0" k2="1" k3="0" k4="0" width="18" height="18" result="tile" />
+          <feTile in="tile" result="tiles" />
+          <feComposite in="average" in2="tiles" operator="in" result="pixelated" />
+          <feMorphology in="pixelated" operator="dilate" radius="7" />
+        </filter>
+      </defs>
+    </svg>
+    ${photoUrl ? `
+      <img class="mainline-station-photo__image" src="${escapeHtml(photoUrl)}" alt="" draggable="false" />
+      <img class="mainline-station-photo__pixel-layer" src="${escapeHtml(photoUrl)}" alt="" draggable="false" />
+    ` : ''}
+  </section>
+`;
 
 const stationOptionsMarkup = (selectedCode = '') => RESEARCH_STATIONS.map((station) => `
   <option value="${escapeHtml(station.code)}" ${station.code === selectedCode ? 'selected' : ''}>${escapeHtml(station.code)} · ${escapeHtml(station.name)} / ${escapeHtml(station.english)}</option>
@@ -1818,6 +1844,32 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     return state;
   };
 
+  const openStationPhotoWindow = (station, returnFocus = null) => {
+    const photoUrl = stationPhotoAsset(station);
+    const state = createWindow({
+      key: `mainline-station-photo-${String(station.code).toLowerCase()}`,
+      title: '',
+      code: '',
+      className: 'mainline-station-photo-window',
+      icon: MAINLINE_ICON,
+      body: stationPhotoMarkup(photoUrl),
+      returnFocus,
+    });
+    if (state.mainlineStationPhotoReady) return state;
+    state.mainlineStationPhotoReady = true;
+    const photo = state.windowElement.querySelector('[data-mainline-station-photo]');
+    if (!photoUrl) return state;
+    const reveal = () => photo?.classList.add('is-resolving');
+    const image = photo?.querySelector('.mainline-station-photo__image');
+    let revealTimer = window.setTimeout(reveal, 90);
+    image?.addEventListener('load', () => {
+      clearTimeout(revealTimer);
+      revealTimer = window.setTimeout(reveal, 42);
+    }, { once: true });
+    state.dispose = () => clearTimeout(revealTimer);
+    return state;
+  };
+
   const openBriefingWindow = async (version, returnFocus = null) => {
     const state = createWindow({
       key: `mainline-briefing-${version.code.replaceAll('.', '-')}`,
@@ -1865,7 +1917,7 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       heading.innerHTML = `<b>VER ${escapeHtml(current.code)}《${escapeHtml(current.title)}》</b><span>当前任务：PART ${String(workflow.activePart).padStart(2, '0')} · ${escapeHtml(stageLabel(official.activeStage))}</span>`;
       hero.innerHTML = `<span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span><h1>${escapeHtml(focusTask.title)}</h1><small>PART ${String(selectedPart).padStart(2, '0')} · ${escapeHtml(stageEnglish(focusStage))}</small>`;
       missionGlobe.setStation(missionStation);
-      stationLabel.innerHTML = `<i aria-hidden="true"></i><span><b>${escapeHtml(missionStation.name)}</b><small>${escapeHtml(missionStation.code)} · ${escapeHtml(missionStation.english)}</small><em>${Number(missionStation.lat).toFixed(2)}° / ${Number(missionStation.lng).toFixed(2)}°</em></span>`;
+      stationLabel.innerHTML = `<button type="button" data-mainline-open-station-photo="${escapeHtml(missionStation.code)}" aria-label="打开 ${escapeHtml(missionStation.name)} 站点影像"><i aria-hidden="true"></i><span><b>${escapeHtml(missionStation.name)}</b><small>${escapeHtml(missionStation.code)} · ${escapeHtml(missionStation.english)}</small><em>${Number(missionStation.lat).toFixed(2)}° / ${Number(missionStation.lng).toFixed(2)}°</em></span></button>`;
       stageFocus.dataset.stage = String(focusStage);
       stageFocus.dataset.open = String(focusOpen && !partIsLocked);
       stageFocus.innerHTML = `
@@ -1998,6 +2050,12 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     state.reloadMainline = reload;
 
     root.addEventListener('click', async (event) => {
+      const stationPhotoButton = event.target.closest('[data-mainline-open-station-photo]');
+      if (stationPhotoButton) {
+        const station = RESEARCH_STATIONS.find((item) => item.code === stationPhotoButton.dataset.mainlineOpenStationPhoto);
+        if (station) openStationPhotoWindow(station, stationPhotoButton);
+        return;
+      }
       const partButton = event.target.closest('[data-mainline-select-part]');
       if (partButton) {
         selectedPart = clampPart(partButton.dataset.mainlineSelectPart);
