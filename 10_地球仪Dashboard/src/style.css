@@ -3155,6 +3155,7 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
   min-height: 250px;
   padding: 1px 22px 16px 38px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   color: #242018;
   border: 0;
   outline: 0;

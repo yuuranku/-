@@ -5657,7 +5657,7 @@ function onPageWheel(event) {
     return;
   }
   const overlay = event.target.closest(
-    '.archive-window, .archive-workflow-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
+    '.archive-window, .archive-story-window, .archive-workflow-window, .mascot-document-window, .mascot-assistant, [data-local-window]',
   );
   if (overlay) {
     let scrollTarget = event.target;
