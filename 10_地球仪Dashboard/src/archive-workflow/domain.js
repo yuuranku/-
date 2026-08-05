@@ -133,5 +133,15 @@ export const buildArchiveReference = (target) => ({
   label: requiredText(target?.title ?? target?.label, 'label'),
 });
 
+export const buildArchiveStoryReference = (target) => ({
+  type: 'story-reference',
+  archiveId: requiredText(target?.archiveId ?? target?.archive_id, 'archiveId'),
+  storyPageId: requiredText(target?.id ?? target?.storyPageId, 'storyPageId'),
+  code: `${requiredText(target?.archiveCode ?? target?.code, 'archiveCode')} / 留言`,
+  label: requiredText(target?.title ?? target?.label, 'label'),
+  excerpt: String(target?.body ?? target?.excerpt ?? '').trim().slice(0, 160),
+  authorName: String(target?.author_name ?? target?.authorName ?? '').trim(),
+});
+
 export const registrationLabel = (version = '0.1') =>
   `VER ${requiredText(version, 'version')} / 白幕初垂 / 已录入`;

@@ -400,6 +400,8 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     'archiveStoryPages',
     'mainlineVersions',
     'mainlineStaffSlots',
+    'workflowTasks',
+    'workflowTaskResponses',
   ]);
   assert.deepEqual(state, {
     profiles: [],
@@ -420,6 +422,8 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     archiveStoryPages: [],
     mainlineVersions: [],
     mainlineStaffSlots: [],
+    workflowTasks: [],
+    workflowTaskResponses: [],
   });
 });
 
@@ -1160,6 +1164,30 @@ test('archive reference search can return every public archive when the slash pi
     'archive-1',
     ...Array.from({ length: 51 }, (_, index) => `reference-${index + 28}`),
   ]);
+});
+
+test('slash references can search public archive story pages by their actual message content', async () => {
+  const state = createPublishedReadState();
+  state.archiveStoryPages.push({
+    id: 'story-page-1',
+    archive_id: 'archive-1',
+    author_id: 'clerk-1',
+    author_name: '记录员',
+    title: '夜间观察',
+    body: '冰窗边缘出现了新的蓝色孢子反应。',
+    created_at: '2026-08-05T00:00:00.000Z',
+    updated_at: '2026-08-05T00:00:00.000Z',
+  });
+  const harness = await createLocalWorkflowHarness();
+  await harness.seed(state);
+
+  const results = await harness.repository.searchArchiveStoryPages('蓝色孢子', { limit: 20 });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, 'story-page-1');
+  assert.deepEqual(results[0].archive, {
+    id: 'archive-1', code: 'EV27', title: '公开事件', visibility: 'public',
+  });
 });
 
 test('published archive pagination honors offset without loading document bodies', async () => {

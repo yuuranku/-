@@ -23,10 +23,19 @@ export function mergePublishedArchiveDirectory(directories, archives) {
     baseDirectories.flatMap((directory) => directory.children || [])
       .flatMap(recordIdentifiers),
   );
-  const cloudCodes = new Set();
-  const publishedRecords = archives
+  const projectedRecords = archives
     .filter((archive) => archive?.visibility === 'public')
-    .map(projectPublishedArchive)
+    .map(projectPublishedArchive);
+  const publishedSpeciesEcologyByCode = new Map();
+  projectedRecords
+    .filter((record) => record.category === 'species' && record.ecologyCode)
+    .forEach((record) => {
+      recordIdentifiers(record).forEach((identifier) => {
+        publishedSpeciesEcologyByCode.set(identifier, record.ecologyCode);
+      });
+    });
+  const cloudCodes = new Set();
+  const publishedRecords = projectedRecords
     .filter((record) => {
       const identifiers = recordIdentifiers(record);
       if (identifiers.some((identifier) => builtInCodes.has(identifier) || cloudCodes.has(identifier))) return false;
@@ -38,11 +47,18 @@ export function mergePublishedArchiveDirectory(directories, archives) {
         - (right.sequenceNumber ?? Number.MAX_SAFE_INTEGER)
       || normalizedCode(left.code).localeCompare(normalizedCode(right.code), 'zh-CN'));
 
-  if (!publishedRecords.length) return baseDirectories;
   return baseDirectories.map((directory) => {
+    const baseChildren = directory.id === 'species'
+      ? directory.children.map((record) => {
+        const ecologyCode = recordIdentifiers(record)
+          .map((identifier) => publishedSpeciesEcologyByCode.get(identifier))
+          .find(Boolean);
+        return ecologyCode ? { ...record, ecologyCode } : record;
+      })
+      : directory.children;
     const additions = publishedRecords.filter((record) => categoryDirectoryIds[record.category] === directory.id);
-    if (!additions.length) return directory;
-    const children = [...directory.children, ...additions];
+    if (!additions.length && baseChildren === directory.children) return directory;
+    const children = [...baseChildren, ...additions];
     return { ...directory, children, meta: `${children.length} FILES` };
   });
 }

@@ -10,6 +10,8 @@ import { mediaPolicyForCategory } from '../media.js';
 import { toEditorDocumentFromArchiveBase } from '../official-archive-source.js';
 import { ARCHIVE_TEMPLATES } from '../templates.js';
 import { normalizeMainlineCode, normalizeMainlineVersion } from '../mainline-domain.js';
+import { ACTIVE_TASK_STATUSES, normalizeWorkflowTask, TASK_STATUSES } from '../commission-domain.js';
+import { isValidClerkRegistration, normalizeClerkRegistration } from '../clerk-registration.js';
 
 export class LocalWorkflowError extends Error {
   constructor(message, code, details = null) {
@@ -394,9 +396,27 @@ export const createLocalWorkflowEngine = ({
       }
       const content = draft.content ?? draft.draft_content;
       assertDraftDocument(content);
+      const workflowTaskId = String(content.workflowTaskId ?? '').trim();
+      if (workflowTaskId) {
+        const task = (nextState.workflowTasks || []).find((entry) => entry.id === workflowTaskId);
+        if (task?.kind === 'commission' && task.status !== 'open') {
+          throw workflowError('task_not_open', 'Commission editing is paused or closed');
+        }
+      }
 
       const timestamp = now();
       const ownerId = principal.id;
+      const linkTaskResponse = (saved) => {
+        const taskId = String(content.workflowTaskId ?? content.mainline?.taskId ?? '').trim();
+        if (!taskId) return;
+        nextState.workflowTaskResponses ||= [];
+        const response = nextState.workflowTaskResponses.find((entry) => entry.task_id === taskId && entry.clerk_id === principal.id);
+        if (response) {
+          response.contribution_id = saved.id;
+          response.status = 'drafting';
+          response.updated_at = timestamp;
+        }
+      };
       if (!draft.id) {
         const { archiveId, kind, templateId } =
           resolveDraftClassification(nextState, principal, draft);
@@ -416,6 +436,7 @@ export const createLocalWorkflowEngine = ({
           updated_at: timestamp,
         };
         nextState.contributions.push(saved);
+        linkTaskResponse(saved);
         return { nextState, result: clone(saved) };
       }
 
@@ -441,6 +462,7 @@ export const createLocalWorkflowEngine = ({
       saved.draft_content = clone(content);
       saved.revision += 1;
       saved.updated_at = timestamp;
+      linkTaskResponse(saved);
       return { nextState, result: clone(saved) };
     });
   };
@@ -472,6 +494,11 @@ export const createLocalWorkflowEngine = ({
       contribution.system_theme = '白幕初垂';
       contribution.submitted_at = submittedAt;
       contribution.updated_at = submittedAt;
+      const response = (nextState.workflowTaskResponses || []).find((entry) => entry.contribution_id === contribution.id);
+      if (response) {
+        response.status = 'submitted';
+        response.updated_at = submittedAt;
+      }
       return { nextState, result: clone(contribution) };
     });
   };
@@ -894,6 +921,7 @@ export const createLocalWorkflowEngine = ({
       email,
       display_name: String(input?.displayName ?? input?.display_name ?? '').trim() || email,
       role,
+      clerk_rank: 1,
       enabled: !invited,
       invited,
       created_at: timestamp,
@@ -929,6 +957,15 @@ export const createLocalWorkflowEngine = ({
       return [...state.profiles].sort((left, right) => String(left.email).localeCompare(String(right.email)));
     });
   };
+
+  const listClerkDirectory = () => readSnapshot((state) => state.profiles
+    .filter((profile) => profile.role === 'clerk' && profile.enabled !== false)
+    .map((profile) => ({
+      id: profile.id,
+      display_name: profile.display_name,
+      clerk_rank: normalizeClerkRegistration(profile.clerk_rank),
+    }))
+    .sort((left, right) => String(left.display_name).localeCompare(String(right.display_name), 'zh-CN')));
 
   const createUser = async (input = {}) => {
     const principal = requirePrincipal(getPrincipal);
@@ -1026,6 +1063,25 @@ export const createLocalWorkflowEngine = ({
     });
   };
 
+  const updateUserClerkRank = async (userId, clerkRank) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      if (!isValidClerkRegistration(clerkRank)) {
+        throw workflowError('invalid_clerk_rank', 'Clerk registration must be between 1 and 7');
+      }
+      const profile = nextState.profiles.find((entry) => entry.id === String(userId ?? '').trim());
+      if (!profile) throw workflowError('not_found', 'Profile was not found');
+      if (profile.role !== 'clerk') throw workflowError('invalid_role', 'Only clerk accounts have a registration rank');
+      const timestamp = now();
+      profile.clerk_rank = normalizeClerkRegistration(clerkRank);
+      profile.updated_at = timestamp;
+      appendAudit(nextState, principal, 'update_clerk_rank', 'profile', profile.id, { clerk_rank: profile.clerk_rank }, timestamp);
+      return { nextState, result: clone(profile) };
+    });
+  };
+
   const sendAnnouncement = async (recipientId, { subject, message } = {}) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
@@ -1118,6 +1174,25 @@ export const createLocalWorkflowEngine = ({
       .filter((archive) => archive.visibility === 'public' && matchesArchiveTerm(archive, query))
       .sort((left, right) => String(left.code).localeCompare(String(right.code)))
       .slice(0, boundedLimit(limit, 20, 500)));
+
+  const searchArchiveStoryPages = (query, { limit = 20 } = {}) => readSnapshot((state) => {
+    const term = String(query ?? '').trim().toLocaleLowerCase();
+    return state.archiveStoryPages
+      .map((page) => ({ ...page, archive: state.archives.find((archive) => archive.id === page.archive_id) }))
+      .filter((page) => {
+        if (page.archive?.visibility !== 'public') return false;
+        if (!term) return true;
+        return [page.title, page.body, page.author_name, page.archive.code, page.archive.title]
+          .some((value) => String(value ?? '').toLocaleLowerCase().includes(term));
+      })
+      .sort((left, right) => String(right.updated_at).localeCompare(String(left.updated_at))
+        || String(right.id).localeCompare(String(left.id)))
+      .slice(0, boundedLimit(limit, 20, 500))
+      .map(({ archive, ...page }) => ({
+        ...page,
+        archive: { id: archive.id, code: archive.code, title: archive.title, visibility: archive.visibility },
+      }));
+  });
 
   const directoryCoverUrl = (attachment) => {
     const cached = directoryCoverUrls.get(attachment.id);
@@ -1796,6 +1871,110 @@ export const createLocalWorkflowEngine = ({
     });
   };
 
+  const listWorkflowTasks = ({ includeFinished = false } = {}) => readSnapshot((state) => {
+    const statuses = includeFinished ? [...ACTIVE_TASK_STATUSES, 'settling', 'settled', 'sealed'] : ACTIVE_TASK_STATUSES;
+    return (state.workflowTasks || []).filter((task) => statuses.includes(task.status)).map((task) => {
+      const responses = (state.workflowTaskResponses || []).filter((response) => response.task_id === task.id);
+      return {
+        ...task,
+        response_count: responses.length,
+        submission_count: responses.filter((response) => ['submitted', 'archived', 'settled'].includes(response.status)).length,
+      };
+    }).sort((left, right) => String(right.opened_at || right.updated_at || '').localeCompare(String(left.opened_at || left.updated_at || '')));
+  });
+
+  const saveWorkflowTask = async (input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      requireAdministrator(principal);
+      const nextState = clone(currentState);
+      nextState.workflowTasks ||= [];
+      const normalized = normalizeWorkflowTask({ ...input, id: String(input.id ?? '').trim() || randomUUID() });
+      if (!normalized.code || !normalized.title) throw workflowError('invalid_task', 'Task code and title are required');
+      if (normalized.kind === 'mainline' && !(nextState.mainlineStaffSlots || []).some((slot) => slot.id === normalized.slot_id)) {
+        throw workflowError('not_found', 'Mainline task slot was not found');
+      }
+      const timestamp = now();
+      const index = nextState.workflowTasks.findIndex((task) => task.id === normalized.id);
+      const previous = index >= 0 ? nextState.workflowTasks[index] : null;
+      const saved = {
+        ...(previous || { created_at: timestamp }), ...normalized,
+        created_by: previous?.created_by || principal.id, updated_at: timestamp,
+        opened_at: normalized.status === 'open' ? (previous?.opened_at || timestamp) : (previous?.opened_at || normalized.opened_at),
+      };
+      if (index >= 0) nextState.workflowTasks[index] = saved;
+      else nextState.workflowTasks.push(saved);
+      return { nextState, result: clone(saved) };
+    });
+  };
+
+  const updateWorkflowTaskStatus = async (taskId, status) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      requireAdministrator(principal);
+      if (!TASK_STATUSES.includes(status)) throw workflowError('invalid_task_status', 'Task status is invalid');
+      const nextState = clone(currentState);
+      const task = (nextState.workflowTasks || []).find((entry) => entry.id === String(taskId ?? '').trim());
+      if (!task) throw workflowError('not_found', 'Task was not found');
+      task.status = status;
+      task.updated_at = now();
+      if (status === 'open') task.opened_at ||= task.updated_at;
+      if (status === 'closed') task.closed_at ||= task.updated_at;
+      if (status === 'settled') {
+        task.settled_at ||= task.updated_at;
+        (nextState.workflowTaskResponses || []).forEach((response) => {
+          if (response.task_id === task.id && ['submitted', 'archived'].includes(response.status)) response.status = 'settled';
+        });
+      }
+      return { nextState, result: clone(task) };
+    });
+  };
+
+  const registerWorkflowTaskResponse = async (taskId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      requireWorkspaceMember(principal);
+      const nextState = clone(currentState);
+      const task = (nextState.workflowTasks || []).find((entry) => entry.id === String(taskId ?? '').trim());
+      if (!task) throw workflowError('not_found', 'Task was not found');
+      if (task.status !== 'open') throw workflowError('task_not_open', 'Task is not accepting responses');
+      nextState.workflowTaskResponses ||= [];
+      const existing = nextState.workflowTaskResponses.find((entry) => entry.task_id === task.id && entry.clerk_id === principal.id);
+      if (existing) return { nextState, result: clone(existing) };
+      const timestamp = now();
+      const response = { id: randomUUID(), task_id: task.id, clerk_id: principal.id, contribution_id: null, status: 'registered', registered_at: timestamp, updated_at: timestamp };
+      nextState.workflowTaskResponses.push(response);
+      return { nextState, result: clone(response) };
+    });
+  };
+
+  const listWorkflowTaskResponses = (taskId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return readSnapshot((state) => {
+      const task = (state.workflowTasks || []).find((entry) => entry.id === String(taskId ?? '').trim());
+      if (!task) throw workflowError('not_found', 'Task was not found');
+      return (state.workflowTaskResponses || []).filter((entry) => entry.task_id === task.id && (principal.role === 'admin' || entry.clerk_id === principal.id)).map((entry) => ({
+        ...entry,
+        clerk: clone(state.profiles.find((profile) => profile.id === entry.clerk_id) || null),
+        contribution: clone(state.contributions.find((contribution) => contribution.id === entry.contribution_id) || null),
+      }));
+    });
+  };
+
+  const listClerkDossierEntries = (profileId) => {
+    const principal = requirePrincipal(getPrincipal);
+    const ownerId = requireWorkspaceId(profileId, 'profileId');
+    if (principal.role !== 'admin' && principal.id !== ownerId) throw workflowError('permission_denied', 'Clerks can only read their own dossier');
+    return readSnapshot((state) => (state.contributions || []).filter((entry) => entry.owner_id === ownerId
+      && (entry.submitted_at || entry.versions?.length || ['approved', 'published', 'sealed', 'offline'].includes(entry.status))).map((entry) => {
+      const response = (state.workflowTaskResponses || []).find((item) => item.contribution_id === entry.id);
+      const task = response
+        ? (state.workflowTasks || []).find((item) => item.id === response.task_id)
+        : (state.workflowTasks || []).find((item) => item.id === entry.draft_content?.workflowTaskId && item.kind === 'commission');
+      return { ...entry, task_response: response ? { ...response, task } : task ? { status: entry.status, task } : null };
+    }).sort((left, right) => String(right.updated_at).localeCompare(String(left.updated_at))));
+  };
+
   return {
     getProfile,
     listWorkspaceNotes,
@@ -1818,14 +1997,17 @@ export const createLocalWorkflowEngine = ({
     publishContribution,
     inviteUser,
     listUsers,
+    listClerkDirectory,
     createUser,
     updateUserRole,
+    updateUserClerkRank,
     resetUserPassword,
     deleteUser,
     sendAnnouncement,
     listNotifications,
     markNotificationRead,
     searchArchives,
+    searchArchiveStoryPages,
     listPublishedArchives,
     listEditableArchives,
     listAdminArchives,
@@ -1844,5 +2026,11 @@ export const createLocalWorkflowEngine = ({
     listMainlinePersonnelSubmissions,
     saveMainlineStaffSlot,
     deleteMainlineStaffSlot,
+    listWorkflowTasks,
+    saveWorkflowTask,
+    updateWorkflowTaskStatus,
+    registerWorkflowTaskResponse,
+    listWorkflowTaskResponses,
+    listClerkDossierEntries,
   };
 };

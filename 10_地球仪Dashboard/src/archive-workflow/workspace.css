@@ -19,8 +19,12 @@
 
 .archive-workflow-window {
   position: absolute;
+  display: grid;
+  grid-template-rows: 29px minmax(0, 1fr);
   width: min(1180px, calc(100vw - 32px));
   height: min(800px, calc(100dvh - 76px));
+  box-sizing: border-box;
+  overflow: hidden;
   color: #161817;
   border: 2px outset #fff;
   background: #c0c0c0;
@@ -37,6 +41,14 @@
   z-index: 30;
   display: block;
   touch-action: none;
+}
+
+.archive-workflow-window > :not(.archive-workflow-titlebar):not(.archive-workflow-resize-handle) {
+  grid-row: 2;
+  min-height: 0;
+  height: 100% !important;
+  max-height: 100%;
+  box-sizing: border-box;
 }
 .archive-workflow-resize-handle.is-n,
 .archive-workflow-resize-handle.is-s { left: 8px; right: 8px; height: 7px; }

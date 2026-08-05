@@ -260,7 +260,10 @@ const controlHtml = (name, field, value, marks = []) => {
         `<option value="${escapeHtml(option.value)}"${valueOf(value) === valueOf(option.value) ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
       )),
     ].join('');
-    return `<label${anomalyLabelAttributes}>${label}<select name="${escapedName}" data-native-field="${escapedName}"${constraints}>${options}</select></label>`;
+    const referenceAttribute = field.referenceCategory
+      ? ` data-native-reference-category="${escapeHtml(field.referenceCategory)}"`
+      : '';
+    return `<label${anomalyLabelAttributes}>${label}<select name="${escapedName}" data-native-field="${escapedName}"${referenceAttribute}${constraints}>${options}</select></label>`;
   }
   return `<label${anomalyLabelAttributes}>${label}<input name="${escapedName}" data-native-field="${escapedName}" type="${escapeHtml(field.type)}" value="${escapedValue}"${constraints}></label>`;
 };
@@ -390,7 +393,7 @@ export const validateNativeFormState = (profile, state = {}) => {
       if (field.required) report(field, section, `${field.label}为必填项`);
       return;
     }
-    if (field.options?.length && !field.options.some((option) => option.value === value)) {
+    if (field.options?.length && !field.dynamicOptions && !field.options.some((option) => option.value === value)) {
       report(field, section, `${field.label}必须选择有效选项`);
       return;
     }

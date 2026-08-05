@@ -52,7 +52,7 @@ Deno.serve(async (request) => {
     const [{ data: authUsers, error: authError }, { data: profiles, error: profileError }] =
       await Promise.all([
         adminClient.auth.admin.listUsers({ page: 1, perPage: 200 }),
-        adminClient.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at'),
+        adminClient.from('profiles').select('id,email,display_name,role,clerk_rank,enabled,created_at,updated_at'),
       ]);
     if (authError || profileError) {
       return respond({ error: authError?.message || profileError?.message || 'LIST_FAILED' }, 400);
@@ -87,6 +87,7 @@ Deno.serve(async (request) => {
       email,
       display_name: displayName,
       role,
+      clerk_rank: 1,
       enabled: true,
     });
     if (profileError) {
@@ -99,7 +100,7 @@ Deno.serve(async (request) => {
   if (!userId) return respond({ error: 'USER_REQUIRED' }, 400);
   const { data: target } = await adminClient
     .from('profiles')
-    .select('id,email,role,enabled')
+    .select('id,email,role,clerk_rank,enabled')
     .eq('id', userId)
     .single();
   if (!target) return respond({ error: 'USER_NOT_FOUND' }, 404);
@@ -119,6 +120,19 @@ Deno.serve(async (request) => {
       user_metadata: { role },
     });
     return respond({ userId, status: 'updated', role });
+  }
+
+  if (action === 'update-clerk-rank') {
+    const clerkRank = Number(payload.clerkRank);
+    if (protectedAccount || target.role !== 'clerk' || !Number.isInteger(clerkRank) || clerkRank < 1 || clerkRank > 7) {
+      return respond({ error: 'PROTECTED_OR_INVALID_CLERK_RANK' }, 400);
+    }
+    const { error } = await adminClient
+      .from('profiles')
+      .update({ clerk_rank: clerkRank })
+      .eq('id', userId);
+    if (error) return respond({ error: error.message }, 400);
+    return respond({ userId, status: 'updated', clerk_rank: clerkRank });
   }
 
   if (action === 'reset-password') {

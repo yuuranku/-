@@ -4015,3 +4015,283 @@ set file_size_limit = 1048576
 where id = 'archive-attachments';
 
 commit
+
+-- Source migration: 202608050002_species_ecology_links.sql
+-- Each specimen points to one ecological layer.  The value lives on the
+-- species archive so the ecology console and the archive editor share one
+-- source of truth. Existing curator choices are never overwritten.
+with species_ecology (business_code, ecology_code) as (
+  values
+    ('S01', 'E04'), ('S02', 'E01'), ('S03', 'E02'), ('S04', 'E06'),
+    ('S05', 'E06'), ('S06', 'E03'), ('S07', 'E02'), ('S08', 'E05'),
+    ('S09', 'E03'), ('S10', 'E04'), ('S11', 'E07'), ('S12', 'E05'),
+    ('S13', 'E03'), ('S14', 'E04'), ('S15', 'E01'), ('S16', 'E06'),
+    ('S17', 'E05'), ('S18', 'E07'), ('S19', 'E07'), ('S20', 'E06'),
+    ('S21', 'E04'), ('S22', 'E01')
+)
+update public.archives as archive
+set index_payload = coalesce(archive.index_payload, '{}'::jsonb)
+  || jsonb_build_object('ecologyCode', source.ecology_code)
+from species_ecology as source
+where archive.category = 'species'
+  and coalesce(nullif(archive.business_code, ''), archive.code) = source.business_code
+  and coalesce(nullif(archive.index_payload ->> 'ecologyCode', ''), '') = '';
+
+notify pgrst, 'reload schema'
+
+-- Source migration: 202608050003_workflow_tasks.sql
+create table if not exists public.workflow_tasks (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  kind text not null check (kind in ('mainline', 'commission')),
+  title text not null,
+  objective text not null default '',
+  format text not null default '',
+  status text not null default 'draft' check (status in ('draft', 'open', 'paused', 'closed', 'settling', 'settled', 'sealed', 'cancelled')),
+  version_code text references public.mainline_versions(code),
+  part smallint check (part between 1 and 7),
+  stage smallint check (stage between 1 and 3),
+  slot_id uuid references public.mainline_staff_slots(id),
+  slot_label text not null default '',
+  created_by uuid not null default auth.uid()::uuid references public.profiles(id),
+  opened_at timestamptz,
+  closed_at timestamptz,
+  settled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint workflow_tasks_mainline_coordinates check (
+    (kind = 'commission' and version_code is null and part is null and stage is null and slot_id is null)
+    or
+    (kind = 'mainline' and version_code is not null and part is not null and stage is not null and slot_id is not null)
+  )
+);
+
+create table if not exists public.workflow_task_responses (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.workflow_tasks(id) on delete cascade,
+  clerk_id uuid not null default auth.uid()::uuid references public.profiles(id),
+  contribution_id uuid references public.archive_contributions(id) on delete set null,
+  status text not null default 'registered' check (status in ('registered', 'drafting', 'submitted', 'changes_requested', 'archived', 'settled', 'withdrawn')),
+  registered_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (task_id, clerk_id)
+);
+
+create index if not exists workflow_tasks_status_idx on public.workflow_tasks(status, opened_at desc);
+
+create index if not exists workflow_tasks_mainline_idx on public.workflow_tasks(version_code, part, stage, slot_id) where kind = 'mainline';
+
+create index if not exists workflow_task_responses_clerk_idx on public.workflow_task_responses(clerk_id, updated_at desc);
+
+alter table public.workflow_tasks enable row level security;
+
+alter table public.workflow_task_responses enable row level security;
+
+drop policy if exists workflow_tasks_public_active_read on public.workflow_tasks;
+
+create policy workflow_tasks_public_active_read on public.workflow_tasks for select using (
+  status in ('open', 'paused', 'closed', 'settling', 'settled', 'sealed')
+  or exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+);
+
+drop policy if exists workflow_tasks_admin_write on public.workflow_tasks;
+
+create policy workflow_tasks_admin_write on public.workflow_tasks for all using (
+  exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+) with check (
+  exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+);
+
+drop policy if exists workflow_task_responses_member_read on public.workflow_task_responses;
+
+create policy workflow_task_responses_member_read on public.workflow_task_responses for select using (
+  clerk_id = auth.uid()::uuid
+  or exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+);
+
+drop policy if exists workflow_task_responses_clerk_register on public.workflow_task_responses;
+
+create policy workflow_task_responses_clerk_register on public.workflow_task_responses for insert with check (
+  clerk_id = auth.uid()::uuid
+  and exists (select 1 from public.profiles where id = auth.uid()::uuid and role in ('clerk', 'admin') and enabled)
+  and exists (select 1 from public.workflow_tasks where id = task_id and status = 'open')
+);
+
+drop policy if exists workflow_task_responses_owner_update on public.workflow_task_responses;
+
+create policy workflow_task_responses_owner_update on public.workflow_task_responses for update using (
+  clerk_id = auth.uid()::uuid
+  or exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+) with check (
+  clerk_id = auth.uid()::uuid
+  or exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+);
+
+create or replace function public.touch_workflow_task_updated_at() returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  if new.status = 'open' and old.status is distinct from 'open' then new.opened_at = coalesce(new.opened_at, now()); end if;
+  if new.status = 'closed' and old.status is distinct from 'closed' then new.closed_at = coalesce(new.closed_at, now()); end if;
+  if new.status = 'settled' and old.status is distinct from 'settled' then new.settled_at = coalesce(new.settled_at, now()); end if;
+  return new;
+end $$;
+
+drop trigger if exists workflow_tasks_touch_updated_at on public.workflow_tasks;
+
+create trigger workflow_tasks_touch_updated_at before update on public.workflow_tasks
+for each row execute function public.touch_workflow_task_updated_at();
+
+create or replace function public.list_public_workflow_tasks(include_finished boolean default false)
+returns table (
+  id uuid, code text, kind text, title text, objective text, format text, status text,
+  version_code text, part smallint, stage smallint, slot_id uuid, slot_label text,
+  response_count bigint, submission_count bigint,
+  opened_at timestamptz, closed_at timestamptz, settled_at timestamptz,
+  created_at timestamptz, updated_at timestamptz
+)
+language sql security definer set search_path = public, pg_temp stable as $$
+  select task.id, task.code, task.kind, task.title, task.objective, task.format, task.status,
+    task.version_code, task.part, task.stage, task.slot_id, task.slot_label,
+    count(response.id) as response_count,
+    count(response.id) filter (where response.status in ('submitted', 'archived', 'settled')) as submission_count,
+    task.opened_at, task.closed_at, task.settled_at, task.created_at, task.updated_at
+  from public.workflow_tasks task
+  left join public.workflow_task_responses response on response.task_id = task.id
+  where task.status in ('open', 'paused', 'closed')
+    or (include_finished and task.status in ('settling', 'settled', 'sealed'))
+  group by task.id
+  order by coalesce(task.opened_at, task.updated_at) desc, task.code
+$$;
+
+grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated
+
+-- Source migration: 202608050004_clerk_registration.sql
+alter table public.profiles
+  add column if not exists clerk_rank smallint not null default 1;
+
+alter table public.profiles
+  drop constraint if exists profiles_clerk_rank_range;
+
+alter table public.profiles
+  add constraint profiles_clerk_rank_range check (clerk_rank between 1 and 7);
+
+update public.profiles
+set clerk_rank = 1
+where clerk_rank is null or clerk_rank < 1 or clerk_rank > 7
+
+-- Source migration: 202608050005_public_clerk_directory.sql
+-- The PALIS assistant may expose names and registrations, but never account emails.
+create or replace function public.list_public_clerk_directory()
+returns table (
+  id uuid,
+  display_name text,
+  clerk_rank smallint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id, p.display_name, p.clerk_rank
+  from public.profiles p
+  where p.role = 'clerk'
+    and p.enabled = true
+  order by p.created_at asc, p.display_name asc;
+$$;
+
+revoke all on function public.list_public_clerk_directory() from public;
+
+grant execute on function public.list_public_clerk_directory() to anon, authenticated
+
+-- Source migration: 202608050006_commission_archive_template.sql
+alter table public.workflow_tasks
+  add column if not exists template_id text references public.archive_templates(id);
+
+update public.workflow_tasks
+set template_id = '07'
+where kind = 'commission' and template_id is null;
+
+alter table public.workflow_tasks
+  drop constraint if exists workflow_tasks_commission_template;
+
+alter table public.workflow_tasks
+  add constraint workflow_tasks_commission_template check (
+    kind = 'mainline' or template_id is not null
+  );
+
+drop function if exists public.list_public_workflow_tasks(boolean);
+
+create function public.list_public_workflow_tasks(include_finished boolean default false)
+returns table (
+  id uuid, code text, kind text, title text, objective text, format text, template_id text, status text,
+  version_code text, part smallint, stage smallint, slot_id uuid, slot_label text,
+  response_count bigint, submission_count bigint,
+  opened_at timestamptz, closed_at timestamptz, settled_at timestamptz,
+  created_at timestamptz, updated_at timestamptz
+)
+language sql security definer set search_path = public, pg_temp stable as $$
+  select task.id, task.code, task.kind, task.title, task.objective, task.format, task.template_id, task.status,
+    task.version_code, task.part, task.stage, task.slot_id, task.slot_label,
+    count(response.id) as response_count,
+    count(response.id) filter (where response.status in ('submitted', 'archived', 'settled')) as submission_count,
+    task.opened_at, task.closed_at, task.settled_at, task.created_at, task.updated_at
+  from public.workflow_tasks task
+  left join public.workflow_task_responses response on response.task_id = task.id
+  where task.status in ('open', 'paused', 'closed')
+    or (include_finished and task.status in ('settling', 'settled', 'sealed'))
+  group by task.id
+  order by coalesce(task.opened_at, task.updated_at) desc, task.code
+$$;
+
+grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated
+
+-- Source migration: 202608050007_commission_editing_lock.sql
+-- A paused or closed commission is read-only, including drafts already opened.
+create or replace function public.enforce_commission_editing_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  linked_task_id uuid;
+  linked_task_kind text;
+  linked_task_status text;
+begin
+  begin
+    linked_task_id := nullif(new.draft_content ->> 'workflowTaskId', '')::uuid;
+  exception when invalid_text_representation then
+    linked_task_id := null;
+  end;
+
+  if linked_task_id is not null then
+    select kind, status into linked_task_kind, linked_task_status
+    from public.workflow_tasks
+    where id = linked_task_id;
+
+    if linked_task_kind = 'commission' and linked_task_status <> 'open' then
+      raise exception 'Commission editing is paused or closed' using errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists archive_contributions_commission_editing_lock on public.archive_contributions;
+
+create trigger archive_contributions_commission_editing_lock
+before insert or update of draft_content on public.archive_contributions
+for each row execute function public.enforce_commission_editing_status();
+
+drop policy if exists workflow_task_responses_owner_update on public.workflow_task_responses;
+
+create policy workflow_task_responses_owner_update on public.workflow_task_responses for update using (
+  clerk_id = auth.uid()::uuid
+  or exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+) with check (
+  exists (select 1 from public.profiles where id = auth.uid()::uuid and role = 'admin' and enabled)
+  or (
+    clerk_id = auth.uid()::uuid
+    and exists (select 1 from public.workflow_tasks where id = task_id and status = 'open')
+  )
+)

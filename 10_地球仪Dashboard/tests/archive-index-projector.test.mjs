@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { ARCHIVE_ROOTS } from '../src/archive-data.js';
+import { getArchiveCategoryProfile } from '../src/archive-workflow/category-profiles.js';
 import { mergePublishedArchiveDirectory } from '../src/archive-workflow/directory.js';
 import { projectPublishedArchive } from '../src/archive-workflow/index-projector.js';
+import { getNativeFormProfile, renderNativeArchiveForm } from '../src/archive-workflow/native-form-profiles.js';
 
 const identityCases = [
   ['country', 19, 'N19', '019.REG'],
@@ -182,4 +185,30 @@ test('official ecology records with renumbered server codes do not enter the new
       .find(({ id }) => id === 'ecology').children.map(({ code }) => code),
     ['E01', 'E02', 'E17'],
   );
+});
+
+test('species ecology is one editable reference field and published edits update the ecology link', () => {
+  const ecologyField = getArchiveCategoryProfile('species').indexFields
+    .find((field) => field.key === 'ecologyCode');
+  assert.equal(ecologyField.referenceCategory, 'ecology');
+  assert.equal(ecologyField.dynamicOptions, true);
+
+  const nativeForm = renderNativeArchiveForm(getNativeFormProfile('species'), {
+    indexData: { title: '测试物种', specimenClass: 'FLORA', ecologyCode: 'E04' },
+    values: {},
+  });
+  assert.match(nativeForm, /data-native-reference-category="ecology"/);
+  assert.match(nativeForm, /name="index:ecologyCode"/);
+
+  const merged = mergePublishedArchiveDirectory(ARCHIVE_ROOTS, [{
+    id: 'official-species-s01',
+    business_code: 'S01',
+    category: 'species',
+    title: '更新后的物种关联',
+    visibility: 'public',
+    sequence_number: 1,
+    index_payload: { title: '更新后的物种关联', specimenClass: 'FLORA', ecologyCode: 'E07' },
+  }]);
+  const species = merged.find((directory) => directory.id === 'species').children;
+  assert.equal(species.find((record) => record.code === 'S01').ecologyCode, 'E07');
 });

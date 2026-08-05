@@ -948,6 +948,70 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .archive-heading > p:last-child { margin: 12px 0 0; color: #b8c0ba; }
 .archive-layer.has-directory .archive-heading h2 { font-size: clamp(30px, 3.4vw, 48px); }
 
+.archive-active-task-entry {
+  display: inline-grid;
+  gap: 2px;
+  margin-top: 16px;
+  padding: 7px 12px 8px;
+  color: #d9e3d8;
+  border: 1px solid rgba(165, 190, 170, .68);
+  border-radius: 0;
+  background: rgba(9, 26, 22, .88);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .42);
+  font-family: var(--font-mono);
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.archive-active-task-entry span { color: #98aaa0; font-size: 9px; letter-spacing: .1em; }
+.archive-active-task-entry b { font: 600 14px/1.2 var(--font-body); letter-spacing: .08em; }
+.archive-active-task-entry small { color: #aab9ae; font-size: 9px; letter-spacing: .12em; }
+.archive-active-task-entry:hover,
+.archive-active-task-entry:focus-visible { color: #f2f5ea; border-color: #d1e2ce; background: #1b4439; outline: 0; }
+.archive-active-task-entry:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0, 0, 0, .42); }
+
+[data-commission-alert] {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  place-items: center;
+  color: #fff9e7;
+  border: 1px solid #fff2bf;
+  background: #b12d25;
+  box-shadow: 1px 1px 0 #101010;
+  font: 700 11px/1 var(--font-mono);
+  font-style: normal;
+  vertical-align: 1px;
+  animation: commission-alert-pulse 1.1s steps(2, end) infinite;
+}
+[data-commission-alert][hidden] { display: none !important; }
+@keyframes commission-alert-pulse { 50% { background: #f0c53f; color: #17251e; } }
+
+.commission-assistant {
+  position: fixed;
+  right: clamp(128px, 10vw, 174px);
+  bottom: calc(var(--taskbar-height, 44px) + 25px);
+  z-index: 20990;
+  display: grid;
+  gap: 2px;
+  width: 178px;
+  padding: 9px 11px 10px;
+  color: #dce6d9;
+  border: 1px solid #8da89c;
+  background: #102c24;
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(76, 123, 106, .22);
+  font-family: var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+}
+.commission-assistant > span { color: #9caaa1; font-size: 8px; letter-spacing: .09em; }
+.commission-assistant > b { font: 700 15px/1.2 var(--font-body); letter-spacing: .08em; }
+.commission-assistant > small { color: #a9bbb0; font: 8px/1.2 var(--font-mono); letter-spacing: .1em; }
+.commission-assistant:is(:hover, :focus-visible) { color: #fffef4; border-color: #d1e2ce; background: #1a4437; outline: 1px dotted #fff; outline-offset: 3px; }
+.commission-assistant:active { transform: translate(1px, 1px); box-shadow: 2px 3px 0 rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(76, 123, 106, .22); }
+body.access-locked .commission-assistant { display: none; }
+
 .archive-back {
   position: absolute;
   top: 34px;
@@ -3002,6 +3066,9 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
   animation: window-task-close 240ms cubic-bezier(.55, 0, 1, .45) both;
 }
 .archive-window.is-minimized { display: none; }
+.archive-utility-window { grid-template-rows: auto minmax(0, 1fr); }
+.archive-utility-window__body { min-height: 0; overflow: hidden; background: var(--ledger-paper, #d9d8ce); }
+.archive-utility-window__body > .commission-board { height: 100%; }
 .window-controls { display: flex; gap: 2px; }
 .dialog-titlebar button { cursor: pointer; touch-action: manipulation; }
 .dialog-menu {
@@ -7568,6 +7635,197 @@ a:focus-visible,
   .eco-log-stage { width: 920px; height: auto; }
 }
 
+/* Ecology: an open field atlas. The depth profile is now one view of a growing
+   record system, rather than the entire interface. */
+.eco-atlas-console {
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: #d7ddd7;
+  border: 2px outset #858c90;
+  background: #080b0c;
+  box-shadow: inset 0 0 0 4px #303438;
+  font-family: "Courier New", Courier, var(--font-mono);
+}
+.eco-atlas-header {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 6px 6px 0;
+  padding: 0 12px;
+  color: #111;
+  border-bottom: 1px solid #555;
+  background: var(--win-face);
+  font-size: var(--archive-ui-micro);
+}
+.eco-atlas-header > b { justify-self: end; color: #000080; font: inherit; }
+.eco-atlas-tabs { display: flex; align-self: stretch; gap: 0; border-right: 1px solid #6d7272; border-left: 1px solid #6d7272; }
+.eco-atlas-tabs button {
+  min-width: 58px;
+  padding: 0 10px;
+  color: #303737;
+  border: 0;
+  border-right: 1px solid #8a8f8e;
+  background: transparent;
+  font: inherit;
+}
+.eco-atlas-tabs button:last-child { border-right: 0; }
+.eco-atlas-tabs button:hover,
+.eco-atlas-tabs button:focus-visible { color: #fff; background: #2f5bcb; outline: 1px dotted #fff; outline-offset: -4px; }
+.eco-atlas-tabs button[aria-pressed='true'] { color: #fff; background: #101b46; box-shadow: inset 0 -3px #d34d4d; }
+.eco-atlas-layout {
+  display: grid;
+  grid-template-columns: minmax(194px, .68fr) minmax(420px, 1.55fr) minmax(260px, .92fr);
+  min-height: 0;
+  margin: 0 6px 6px;
+  border: 1px solid #536059;
+  background: #090c0d;
+}
+.eco-atlas-index,
+.eco-atlas-observatory,
+.eco-atlas-inspector { min-width: 0; min-height: 0; }
+.eco-atlas-index { display: grid; grid-template-rows: 36px minmax(0, 1fr) 30px; border-right: 1px solid #536059; background: #101413; }
+.eco-atlas-index > header,
+.eco-atlas-observatory > header,
+.eco-atlas-inspector > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  color: #aeb8b3;
+  border-bottom: 1px solid #536059;
+  font-size: 10px;
+}
+.eco-atlas-index > header b,
+.eco-atlas-observatory > header b,
+.eco-atlas-inspector > header b { color: #7fa4ff; font: inherit; }
+.eco-atlas-index-list { min-height: 0; overflow-y: auto; padding: 6px; }
+.mode-ecology-strata .eco-atlas-index-list .folder-item { position: static; min-height: 0; }
+.mode-ecology-strata .eco-atlas-index-list .folder-button,
+.mode-ecology-strata .eco-atlas-index-list .folder-button:hover,
+.mode-ecology-strata .eco-atlas-index-list .folder-button:focus-visible {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 7px;
+  width: 100%;
+  min-height: 52px;
+  padding: 7px;
+  color: #cbd4cf;
+  border: 1px solid transparent;
+  border-bottom-color: #29312e;
+  background: transparent;
+  text-align: left;
+  text-shadow: none;
+  transform: none;
+}
+.mode-ecology-strata .eco-atlas-index-list .folder-button:hover,
+.mode-ecology-strata .eco-atlas-index-list .folder-button:focus-visible { background: #17233a; outline: 1px dotted #dce5df; outline-offset: -4px; }
+.mode-ecology-strata .eco-atlas-index-list .folder-button.is-selected { color: #fff; border-color: #5d80d4; background: #172d53; box-shadow: inset 2px 0 #d34d4d; }
+.mode-ecology-strata .eco-atlas-index-list .strata-index { grid-row: 1 / 3; display: grid; align-self: stretch; place-items: center; min-width: 34px; color: #aebbd4; border: 1px solid #4667a6; background: #101727; font: 700 11px var(--font-mono); }
+.mode-ecology-strata .eco-atlas-index-list .strata-index b { padding: 0; color: inherit; background: none; }
+.mode-ecology-strata .eco-atlas-index-list .strata-index i { display: none; }
+.mode-ecology-strata .eco-atlas-index-list .folder-name { align-self: end; margin: 0; overflow: hidden; font-size: 12px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.mode-ecology-strata .eco-atlas-index-list .folder-button small { align-self: start; overflow: hidden; color: #8a9891; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.eco-atlas-index > footer { display: flex; align-items: center; padding: 0 9px; color: #7d8881; border-top: 1px solid #536059; font-size: 9px; }
+.eco-atlas-observatory { display: grid; grid-template-rows: 36px minmax(0, 1fr); background: radial-gradient(ellipse at 50% 45%, #111918 0, #080b0c 68%); }
+.eco-atlas-stage { min-height: 0; overflow: hidden; padding: clamp(18px, 2vw, 34px); }
+.eco-atlas-profile { display: grid; grid-template-columns: 74px minmax(150px, .7fr) minmax(180px, 1.1fr); height: 100%; min-height: 310px; border: 1px solid #536059; }
+.eco-atlas-profile__scale { display: grid; grid-template-rows: auto repeat(7, 1fr) auto; gap: 2px; padding: 10px 8px; color: #84918a; border-right: 1px solid #536059; font-size: 9px; text-align: right; }
+.eco-atlas-profile__scale span { color: #d34d4d; font-size: 8px; }
+.eco-atlas-profile__bands { display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); min-height: 0; border-right: 1px solid #536059; }
+.eco-atlas-stratum { display: grid; grid-template-columns: 25px minmax(0, 1fr); align-items: center; gap: 7px; min-height: 0; padding: 4px 8px; color: #d4ddd7; border: 0; border-bottom: 1px solid rgba(170, 187, 179, .22); background: repeating-linear-gradient(45deg, rgba(103, 123, 112, .12) 0 2px, transparent 2px 7px); font: 11px var(--font-mono); text-align: left; }
+.eco-atlas-stratum:nth-child(2n) { background-color: rgba(56, 73, 72, .3); }
+.eco-atlas-stratum:hover,
+.eco-atlas-stratum:focus-visible { color: #fff; background-color: rgba(47, 91, 203, .34); outline: 1px dotted #fff; outline-offset: -3px; }
+.eco-atlas-stratum.is-selected { color: #fff; border-color: #4b6eb9; background: #1d437f; text-shadow: none; }
+.eco-atlas-stratum span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eco-atlas-stratum i { grid-column: 2; color: inherit; font-size: 8px; font-style: normal; opacity: .74; }
+.eco-atlas-profile__telemetry { position: relative; display: grid; grid-template-rows: auto 1fr 1fr auto auto; gap: 12px; padding: 13px 16px; overflow: hidden; color: #9ba7a0; font-size: 9px; }
+.eco-atlas-profile__telemetry::before,
+.eco-atlas-profile__telemetry::after { position: absolute; inset: 64px 16px auto; height: 94px; content: ''; border-right: 1px solid #d34d4d; border-bottom: 1px solid #d34d4d; clip-path: polygon(0 18%, 20% 18%, 20% 58%, 42% 58%, 42% 26%, 63% 26%, 63% 78%, 82% 78%, 82% 42%, 100% 42%, 100% 100%, 0 100%); opacity: .68; }
+.eco-atlas-profile__telemetry::after { inset: 194px 16px auto; border-color: #5278c7; transform: scaleY(.65); }
+.eco-atlas-profile__telemetry b { align-self: end; color: #6f99f6; font-weight: 400; }
+.eco-atlas-profile__telemetry em { align-self: end; padding-top: 8px; color: #e1e9e4; border-top: 1px solid #536059; font-style: normal; }
+.eco-atlas-species-ledger { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); grid-template-rows: 34px minmax(0, 1fr); gap: 0 1px; height: 100%; min-height: 290px; border: 1px solid #536059; background: #101413; }
+.eco-atlas-species-ledger > header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: #9fac9f; border-bottom: 1px solid #536059; font-size: 10px; }
+.eco-atlas-species-ledger > header b { color: #7fa4ff; font: inherit; }
+.eco-atlas-species-ledger__origin { display: grid; align-content: center; gap: 8px; min-width: 0; padding: 18px; color: #dce4df; border-right: 1px solid #536059; background: linear-gradient(180deg, #16263b, #101413 72%); }
+.eco-atlas-species-ledger__origin b { color: #fff; font-size: 24px; }
+.eco-atlas-species-ledger__origin span { font-size: 15px; line-height: 1.25; }
+.eco-atlas-species-ledger__origin small { color: #91a59b; font-size: 10px; }
+.eco-atlas-species-ledger__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 1px; min-width: 0; background: #536059; }
+.eco-atlas-species-card { display: grid; grid-template-rows: auto 1fr auto auto; align-items: start; gap: 7px; min-height: 142px; padding: 14px; color: #18211e; border: 0; background: #e7e4d8; font: inherit; text-align: left; transition: background-color 160ms ease, color 160ms ease; }
+.eco-atlas-species-card:hover,
+.eco-atlas-species-card:focus-visible { color: #fff; outline: 2px solid #d34d4d; outline-offset: -2px; background: #1a335c; }
+.eco-atlas-species-card b { color: #b33131; font-size: 11px; }
+.eco-atlas-species-card:hover b,
+.eco-atlas-species-card:focus-visible b { color: #ff8681; }
+.eco-atlas-species-card span { align-self: center; font-size: 15px; font-weight: 700; line-height: 1.25; }
+.eco-atlas-species-card small { color: #5c655e; font-size: 9px; line-height: 1.35; }
+.eco-atlas-species-card:hover small,
+.eco-atlas-species-card:focus-visible small { color: #c9d7d0; }
+.eco-atlas-species-card i { justify-self: start; color: #1e4f9a; font-size: 10px; font-style: normal; }
+.eco-atlas-species-card:hover i,
+.eco-atlas-species-card:focus-visible i { color: #fff; }
+.eco-atlas-inspector { display: grid; grid-template-rows: 36px minmax(0, 1fr); border-left: 1px solid #536059; background: #e7e4d8; color: #18211e; }
+.eco-atlas-inspector > header { color: #18375d; border-bottom-color: #aba897; }
+.eco-atlas-inspector__body { display: grid; align-content: start; gap: 10px; min-height: 0; overflow-y: auto; padding: 14px; background: repeating-linear-gradient(0deg, transparent 0 28px, rgba(37, 45, 38, .07) 29px); }
+.eco-atlas-inspector__meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; color: #61675c; font-size: 10px; }
+.eco-atlas-inspector__meta em { padding: 3px 5px; color: #fff; background: #c43d3d; font-style: normal; }
+.eco-atlas-inspector h3 { margin: 0; color: #101820; font: 600 clamp(19px, 1.5vw, 28px)/1.1 var(--font-display); }
+.eco-atlas-inspector dl { margin: 0; border-top: 1px solid #a8a38d; }
+.eco-atlas-inspector dl div { display: grid; grid-template-columns: 72px minmax(0, 1fr); border-bottom: 1px solid #c5c0a9; }
+.eco-atlas-inspector dt,
+.eco-atlas-inspector dd { margin: 0; padding: 5px 0; font-size: 10px; line-height: 1.35; }
+.eco-atlas-inspector dt { color: #66695f; }
+.eco-atlas-inspector dd { color: #242d28; }
+.eco-atlas-inspector__body > p:not(.eco-atlas-inspector__meta) { margin: 0; font-size: 11px; line-height: 1.6; }
+.eco-atlas-materials { display: flex; flex-wrap: wrap; gap: 5px; }
+.eco-atlas-materials i { padding: 3px 5px; color: #14221b; border: 1px solid #98927a; background: #e9dfb6; font-size: 9px; font-style: normal; }
+.eco-atlas-inspector .directory-open-button { justify-self: start; margin-top: 2px; }
+
+@media (max-width: 980px) {
+  .eco-atlas-layout { grid-template-columns: 180px minmax(0, 1fr); }
+  .eco-atlas-inspector { grid-column: 1 / 3; grid-template-columns: 180px minmax(0, 1fr); grid-template-rows: 1fr; min-height: 210px; border-top: 1px solid #536059; border-left: 0; }
+  .eco-atlas-inspector > header { border-right: 1px solid #aba897; border-bottom: 0; }
+  .eco-atlas-inspector__body { grid-template-columns: minmax(130px, .7fr) minmax(160px, 1fr) minmax(0, 1.4fr); align-items: start; }
+  .eco-atlas-inspector__meta,
+  .eco-atlas-inspector h3 { grid-column: 1; }
+  .eco-atlas-inspector dl { grid-column: 2; grid-row: 1 / 3; }
+  .eco-atlas-inspector__body > p:not(.eco-atlas-inspector__meta),
+  .eco-atlas-materials { grid-column: 3; }
+  .eco-atlas-inspector .directory-open-button { grid-column: 3; }
+}
+@media (max-width: 760px) {
+  .eco-atlas-console { grid-template-rows: auto auto; overflow: visible; }
+  .eco-atlas-header { grid-template-columns: 1fr; gap: 0; padding: 8px; }
+  .eco-atlas-header > b { justify-self: start; }
+  .eco-atlas-tabs { width: 100%; height: 32px; border: 1px solid #8a8f8e; }
+  .eco-atlas-tabs button { flex: 1; min-width: 0; }
+  .eco-atlas-layout { grid-template-columns: 1fr; }
+  .eco-atlas-index { grid-template-rows: 36px minmax(360px, auto) 30px; border-right: 0; border-bottom: 1px solid #536059; }
+  .eco-atlas-observatory { min-height: 500px; }
+  .eco-atlas-inspector { grid-column: 1; grid-template-columns: 1fr; grid-template-rows: 36px auto; min-height: 0; }
+  .eco-atlas-inspector > header { border-right: 0; border-bottom: 1px solid #aba897; }
+  .eco-atlas-inspector__body { display: grid; grid-template-columns: 1fr; }
+  .eco-atlas-inspector__meta,
+  .eco-atlas-inspector h3,
+  .eco-atlas-inspector dl,
+  .eco-atlas-inspector__body > p:not(.eco-atlas-inspector__meta),
+  .eco-atlas-materials,
+  .eco-atlas-inspector .directory-open-button { grid-column: 1; grid-row: auto; }
+  .eco-atlas-profile { grid-template-columns: 60px minmax(160px, 1fr); }
+  .eco-atlas-profile__telemetry { display: none; }
+  .eco-atlas-species-ledger { grid-template-columns: 1fr; grid-template-rows: 34px auto minmax(0, 1fr); }
+  .eco-atlas-species-ledger__origin { min-height: 116px; border-right: 0; border-bottom: 1px solid #536059; }
+  .eco-atlas-species-ledger__cards { grid-template-columns: 1fr; overflow-y: auto; }
+}
+
 
 /* Events: a scale-independent archive plane instead of a chronological strip. */
 .folder-orbit.mode-event-plane {
@@ -9123,6 +9381,11 @@ body.clerk-desktop-open { overflow: hidden; }
   bottom: 58px;
 }
 
+.clerk-desktop-open .commission-assistant {
+  /* 委托入口属于公共档案界面；书记官工作台内从档案系统窗口进入，避免重复入口。 */
+  display: none;
+}
+
 .clerk-desktop-open .mascot-trigger { width: clamp(90px, 8vw, 128px); }
 .clerk-desktop-open .mascot-trigger > span {
   right: 0;
@@ -9236,11 +9499,20 @@ body.clerk-desktop-open { overflow: hidden; }
     left: auto;
   }
   .clerk-desktop-open .mascot-trigger { width: 72px; min-height: 72px; }
+  .commission-assistant {
+    right: 82px;
+    bottom: calc(58px + env(safe-area-inset-bottom));
+    width: 152px;
+    padding: 7px 8px 8px;
+  }
+  .commission-assistant > b { font-size: 13px; }
+  .commission-assistant > small { font-size: 7px; }
   .clerk-desktop-open .mascot-start-menu { bottom: calc(58px + env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .clerk-desktop { transition: none; }
+  [data-commission-alert] { animation: none; }
 }
 
 /* Clerk workspace refinement

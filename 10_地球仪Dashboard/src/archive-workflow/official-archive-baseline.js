@@ -41,6 +41,7 @@ const indexPayloadFor = (category, record) => {
     return {
       title: shared.title,
       specimenClass: text(record.specimenClass),
+      ecologyCode: text(record.ecologyCode),
       discoveredAt: '',
       location: '白幕生态带',
       specimenStatus: '已收录',

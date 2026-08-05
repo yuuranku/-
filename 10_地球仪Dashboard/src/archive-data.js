@@ -125,7 +125,7 @@ function sealArchiveRecord(category, archive, index) {
     fields = [['通道', archive.code], ['日期', archive.eventDate], ['地点', archive.site], ['事件型', archive.rule]];
     note = `索引卡与处置守则分卷保存。${archive.site}的原始日志、后补报告和人员口述各自封存；偏心轮盘只表达调阅顺序，不替互斥记录判定真伪。`;
   } else if (category === 'species') {
-    fields = [['标本号', archive.code], ['序列轨', specimenClassLabels[archive.specimenClass] || '复合群落'], ['学术名', archive.name], ['鉴定', '暂定分类']];
+    fields = [['标本号', archive.code], ['序列轨', specimenClassLabels[archive.specimenClass] || '复合群落'], ['出现生态层', archive.ecologyCode || '未关联'], ['学术名', archive.name], ['鉴定', '暂定分类']];
     note = `${archive.name}以同期临时分类入卷。现有材料包括采样层记录、可见结构、组织切片、培养与蛋白比较，正式科属栏待复核。`;
   }
 
@@ -487,6 +487,11 @@ const hz6SpeciesImages = {
   S07: '/assets/hz6/photos/hz6-r06-f07.png',
 };
 
+const speciesEcologyCodes = Object.freeze([
+  'E04', 'E01', 'E02', 'E06', 'E06', 'E03', 'E02', 'E05', 'E03', 'E04', 'E07',
+  'E05', 'E03', 'E04', 'E01', 'E06', 'E05', 'E07', 'E07', 'E06', 'E04', 'E01',
+]);
+
 const species = [
   ['黑针木', '野外俗称“黑针木”。暮色针叶层的优势拟植物，依靠根部化能共生体获得主要碳输入。', 'FLORA'],
   ['银皮冷杉', '野外俗称“银皮冷杉”。集中在较亮冰窗和暖湿谷地，是判断地下光照与空气交换的指示生物。', 'FLORA'],
@@ -516,6 +521,7 @@ const species = [
   ...doc(`species-${index + 1}`, code, name, '', name, note,
     [['目录', '物种'], ['分类', '临时'], ['样本', '受限']]),
   specimenClass,
+  ecologyCode: speciesEcologyCodes[index],
   image: hz6SpeciesImages[code],
   webContent: true,
   };

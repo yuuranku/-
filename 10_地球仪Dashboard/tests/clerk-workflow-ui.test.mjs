@@ -319,11 +319,13 @@ test('formal accession leaves archive identifiers and versions to the system', (
   assert.doesNotMatch(workspace, /<input name="code"/);
 });
 
-test('native editor cites archives inline through a slash picker without persistent reference panels', () => {
+test('native editor cites archives and their message pages inline through a slash picker without persistent reference panels', () => {
   assert.match(workspace, /detectArchiveReferenceQuery/);
   assert.match(workspace, /replaceArchiveReferenceQuery/);
   assert.match(workspace, /data-inline-reference-menu/);
   assert.match(workspace, /data-inline-reference-result/);
+  assert.match(workspace, /searchArchiveStoryPages/);
+  assert.match(workspace, /buildArchiveStoryReference/);
   assert.doesNotMatch(workspace, /data-editor-section="references"/);
   assert.doesNotMatch(workspace, /data-reference-search/);
   assert.doesNotMatch(workspace, /data-reference-list/);

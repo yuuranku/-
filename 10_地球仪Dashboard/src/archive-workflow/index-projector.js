@@ -122,6 +122,7 @@ const categoryProjection = (category, indexData, sequenceNumber, title = '') => 
     case 'species':
       return {
         specimenClass: indexData.specimenClass,
+        ecologyCode: indexData.ecologyCode,
         eventDate: indexData.discoveredAt,
         location: indexData.location,
         status: indexData.specimenStatus,

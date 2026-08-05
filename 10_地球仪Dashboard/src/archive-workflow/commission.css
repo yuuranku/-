@@ -1,0 +1,228 @@
+.active-task-board-window { width: min(920px, calc(100vw - 48px)); height: min(720px, calc(100dvh - 72px)); }
+.clerk-dossier-window { width: min(760px, calc(100vw - 48px)); height: min(780px, calc(100dvh - 76px)); }
+.archive-workflow-window.clerk-dossier-window { display: grid; grid-template-rows: auto minmax(0, 1fr); box-sizing: border-box; overflow: hidden; }
+.task-control-window { width: min(980px, calc(100vw - 48px)); height: min(760px, calc(100dvh - 72px)); }
+.mainline-response-window { width: min(560px, calc(100vw - 32px)); height: min(500px, calc(100dvh - 48px)); }
+
+.commission-board,
+.clerk-dossier,
+.task-control {
+  --ledger-ink: #162923;
+  --ledger-muted: #5d675f;
+  --ledger-paper: #e8e2d2;
+  --ledger-paper-deep: #d4cdbb;
+  --ledger-green: #173b36;
+  --ledger-red: #9c2f2f;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  color: var(--ledger-ink);
+  background-color: var(--ledger-paper);
+  background-image: repeating-linear-gradient(0deg, rgba(36, 44, 37, .022) 0 1px, transparent 1px 5px);
+  font: 13px/1.5 var(--font-body, "Noto Sans SC", sans-serif);
+}
+
+.commission-board { grid-template-rows: 70px minmax(0, 1fr) 28px; }
+.commission-board > header,
+.clerk-dossier > header,
+.task-control > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  color: #e9eadf;
+  background: var(--ledger-green);
+  border-bottom: 3px double #8c9688;
+}
+.commission-board > header div,
+.clerk-dossier > header div { display: grid; gap: 1px; }
+.commission-board > header b,
+.clerk-dossier > header b,
+.task-control > header b { font: 700 17px/1.25 var(--font-body, sans-serif); letter-spacing: .06em; }
+.commission-board > header span,
+.clerk-dossier > header span,
+.task-control > header span { font: 11px/1.2 var(--font-mono, monospace); letter-spacing: .1em; }
+.commission-board > header output { font: 700 30px/1 var(--font-mono, monospace); color: #cfd9ca; }
+
+.commission-board__body,
+.task-control__body { min-height: 0; display: grid; grid-template-columns: 39% minmax(0, 1fr); }
+.commission-register,
+.task-control__body > nav { min-height: 0; overflow-y: auto; border-right: 1px solid #777b70; background: var(--ledger-paper-deep); }
+.commission-board__body > main,
+.task-control__body > main { min-width: 0; min-height: 0; overflow-y: auto; padding: 18px; }
+.commission-register__row {
+  position: relative;
+  width: 100%;
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 9px;
+  padding: 13px 48px 13px 15px;
+  text-align: left;
+  color: var(--ledger-ink);
+  border: 0;
+  border-bottom: 1px solid rgba(43, 50, 43, .36);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.commission-register__row:hover,
+.commission-register__row:focus-visible,
+.commission-register__row.is-selected { background: rgba(255, 252, 237, .62); outline: 0; box-shadow: inset 5px 0 0 var(--ledger-green); }
+.commission-register__row:focus-visible { outline: 2px solid #193b70; outline-offset: -3px; }
+.commission-register__kind,
+.commission-register__code { font: 700 11px/1.2 var(--font-mono, monospace); }
+.commission-register__kind { color: var(--ledger-red); }
+.commission-register__code { color: #4c5c52; text-align: right; }
+.commission-register__row b { grid-column: 1 / -1; font-size: 14px; }
+.commission-register__row small { grid-column: 1 / -1; min-width: 0; overflow: hidden; color: var(--ledger-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.commission-register__row em {
+  position: absolute; right: 10px; top: 40px; padding: 2px 4px; color: var(--ledger-red);
+  border: 1px solid currentColor; font: 700 11px/1.1 var(--font-body, sans-serif); font-style: normal; transform: rotate(-3deg);
+}
+.commission-register__empty { margin: 0; padding: 28px 16px; color: var(--ledger-muted); font-size: 12px; }
+
+.commission-sheet { max-width: 560px; margin: 0 auto; padding: 2px 4px 22px; }
+.commission-sheet > header { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 3px double #596057; }
+.commission-sheet > header div { display: grid; gap: 3px; }
+.commission-sheet > header span,
+.commission-sheet > header b { font: 700 11px/1.25 var(--font-mono, monospace); }
+.commission-sheet > header i { padding: 5px 7px; color: var(--ledger-red); border: 2px solid currentColor; font: 700 12px/1 var(--font-body, sans-serif); font-style: normal; transform: rotate(-2deg); }
+.commission-sheet__classification { margin: 24px 0 6px; color: var(--ledger-red); font: 700 11px/1.3 var(--font-mono, monospace); letter-spacing: .15em; }
+.commission-sheet h2 { margin: 0 0 22px; font-size: clamp(22px, 3vw, 34px); line-height: 1.15; letter-spacing: .03em; }
+.commission-sheet__coordinates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid #70746b; border-left: 1px solid #70746b; }
+.commission-sheet__coordinates div { display: grid; grid-template-columns: 64px minmax(0, 1fr); border-right: 1px solid #70746b; border-bottom: 1px solid #70746b; }
+.commission-sheet__coordinates dt,
+.commission-sheet__coordinates dd { margin: 0; padding: 8px; font-size: 12px; }
+.commission-sheet__coordinates dt { color: var(--ledger-muted); border-right: 1px solid #70746b; }
+.commission-sheet > section { margin-top: 18px; padding-top: 10px; border-top: 1px solid #777b70; }
+.commission-sheet > section > span { color: var(--ledger-muted); font: 700 11px var(--font-mono, monospace); }
+.commission-sheet > section p { margin: 5px 0 0; font-size: 14px; line-height: 1.7; }
+.commission-sheet aside { margin: 18px 0 0; padding: 10px 12px; border-left: 3px solid var(--ledger-red); background: rgba(255,255,255,.25); font-size: 12px; }
+.commission-sheet footer { min-height: 52px; display: flex; align-items: end; justify-content: flex-end; gap: 8px; margin-top: 20px; border-top: 3px double #596057; }
+.commission-sheet footer button,
+.task-control button,
+.task-control input,
+.task-control select,
+.task-control textarea { border-radius: 0; }
+.commission-sheet footer button,
+.task-control button { min-height: 36px; padding: 7px 12px; color: #f2f0e7; border: 1px solid #081b17; background: var(--ledger-green); box-shadow: 2px 2px 0 #777b70; font: 700 12px var(--font-body, sans-serif); }
+.commission-board__status,
+.task-control > p { margin: 0; padding: 5px 12px; color: #d7e0d5; background: #102824; border-top: 1px solid #718078; font: 11px/1.4 var(--font-mono, monospace); }
+.commission-empty { min-height: 240px; display: grid; place-content: center; gap: 5px; text-align: center; color: var(--ledger-muted); }
+.commission-empty b { color: var(--ledger-ink); font-size: 15px; }
+
+.clerk-dossier { grid-template-rows: 104px 42px minmax(0, 1fr); }
+.clerk-dossier > header { align-items: end; padding: 18px 22px; }
+.clerk-dossier > header b { font-size: 24px; }
+.clerk-dossier > header i { padding: 5px 7px; color: #c96157; border: 2px solid currentColor; font: 700 11px var(--font-mono, monospace); font-style: normal; transform: rotate(-3deg); }
+.clerk-dossier > nav { display: flex; gap: 0; overflow-x: auto; padding: 0 16px; border-bottom: 1px solid #696e65; background: var(--ledger-paper-deep); }
+.clerk-dossier > nav button { flex: 0 0 auto; min-height: 41px; padding: 0 16px; color: var(--ledger-ink); border: 0; border-right: 1px solid #86897f; border-radius: 0; background: transparent; font-size: 12px; }
+.clerk-dossier > nav button.is-current { color: #f0f0e6; background: var(--ledger-green); }
+.clerk-ledger { min-height: 0; overflow-y: auto; padding: 12px 22px 28px; }
+.clerk-ledger__entry { width: 100%; display: grid; grid-template-columns: 92px auto auto minmax(0, 1fr) auto; align-items: baseline; gap: 6px 9px; padding: 14px 4px; text-align: left; color: var(--ledger-ink); border: 0; border-bottom: 1px solid #777b70; border-radius: 0; background: transparent; }
+.clerk-ledger__entry:hover,
+.clerk-ledger__entry:focus-visible { background: rgba(255,255,255,.27); outline: 2px solid #193b70; outline-offset: -2px; }
+.clerk-ledger__entry time { grid-row: 1 / span 2; font: 11px var(--font-mono, monospace); }
+.clerk-ledger__stamp { padding: 2px 4px; color: var(--ledger-green); border: 1px solid currentColor; font: 700 11px/1.1 var(--font-body, sans-serif); }
+.clerk-ledger__stamp.is-task { color: var(--ledger-red); }
+.clerk-ledger__entry b { min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.clerk-ledger__entry small { grid-column: 2 / 5; color: var(--ledger-muted); font: 11px var(--font-mono, monospace); }
+.clerk-ledger__entry em { grid-column: 5; grid-row: 1 / span 2; color: var(--ledger-green); font: 700 11px var(--font-body, sans-serif); font-style: normal; }
+.clerk-ledger img { object-fit: contain; }
+
+.task-control { grid-template-rows: 62px minmax(0, 1fr) 28px; }
+.task-control__body > nav { padding-top: 0; }
+.task-control__body > nav > [data-admin-new-task] { width: 100%; min-height: 44px; color: #eef0e7; border: 0; border-bottom: 1px solid #747970; background: var(--ledger-green); box-shadow: none; }
+.task-control__actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 14px 4px; border-top: 1px solid #777b70; }
+.task-control__form { max-width: 580px; display: grid; gap: 12px; margin: 0 auto; }
+.task-control__form-note { margin: 0; padding: 9px 10px; color: #425149; border: 1px dashed #788076; background: rgba(23,60,53,.07); font: 12px/1.55 var(--font-body, sans-serif); }
+.task-control__form label { display: grid; gap: 4px; font-size: 12px; }
+.task-control__form input,
+.task-control__form select,
+.task-control__form textarea { min-height: 36px; padding: 7px 8px; color: var(--ledger-ink); border: 1px solid #686e65; background: rgba(255,255,255,.32); font: 13px var(--font-body, sans-serif); }
+.task-control__form textarea { min-height: 100px; resize: vertical; }
+.task-control__form fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px; border: 1px solid #747970; }
+.task-control__form legend { padding: 0 5px; font: 11px var(--font-mono, monospace); }
+
+.mainline-response {
+  height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  padding: 18px; overflow: hidden; color: #14241e; border: 6px solid #d1c9b8;
+  background: #e9e3d3 repeating-linear-gradient(0deg, rgba(25,42,33,.025) 0 1px, transparent 1px 5px);
+  font: 13px/1.55 var(--font-body, sans-serif);
+}
+.mainline-response > header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 3px double #5b635a; }
+.mainline-response > header span { color: #8f2f2d; font: 700 11px var(--font-mono, monospace); }
+.mainline-response > header b { font-size: 21px; }
+.mainline-response > dl { display: grid; grid-template-columns: repeat(2, 1fr); margin: 14px 0 0; border: 1px solid #6e736a; }
+.mainline-response > dl div { padding: 8px 10px; border-right: 1px solid #6e736a; }
+.mainline-response > dl div:last-child { border: 0; }
+.mainline-response dt { color: #61685f; font: 11px var(--font-mono, monospace); }
+.mainline-response dd { margin: 3px 0 0; font-weight: 700; }
+.mainline-response > section { min-height: 0; overflow-y: auto; padding: 16px 2px; }
+.mainline-response > section p { margin: 5px 0 9px; }
+.mainline-response > section ul { margin: 0; padding-left: 19px; }
+.mainline-response > p { margin: 0; padding: 8px 0; border-top: 1px solid #777d73; font: 11px var(--font-mono, monospace); }
+.mainline-response > footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; border-top: 3px double #5b635a; }
+.mainline-response > footer button { min-height: 38px; padding: 7px 12px; border: 1px solid #10241e; border-radius: 0; background: #173b36; color: #f2efe5; box-shadow: 2px 2px 0 #85887e; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .active-task-board-window,
+  .clerk-dossier-window,
+  .task-control-window { width: auto; height: auto; }
+  .mainline-response-window { width: auto; height: auto; }
+  .commission-board,
+  .clerk-dossier,
+  .task-control { font-size: 14px; }
+  .commission-board { grid-template-rows: 64px minmax(0, 1fr) 38px; }
+  .commission-board__body,
+  .task-control__body { display: block; overflow-y: auto; }
+  .commission-register,
+  .task-control__body > nav { overflow: visible; border-right: 0; border-bottom: 3px double #747970; }
+  .commission-board__body > main,
+  .task-control__body > main { overflow: visible; padding: 16px 12px 30px; }
+  .commission-register__row { min-height: 100px; }
+  .commission-register__kind,
+  .commission-register__code,
+  .commission-register__row small,
+  .commission-register__row em,
+  .commission-sheet > header span,
+  .commission-sheet > header b,
+  .commission-sheet__classification,
+  .commission-sheet > section > span,
+  .commission-sheet aside,
+  .commission-board__status,
+  .task-control > p,
+  .clerk-ledger__entry time,
+  .clerk-ledger__stamp,
+  .clerk-ledger__entry small,
+  .clerk-ledger__entry em { font-size: 14px; }
+  .commission-sheet__coordinates { grid-template-columns: 1fr; }
+  .commission-sheet__coordinates dt,
+  .commission-sheet__coordinates dd { font-size: 14px; }
+  .commission-sheet footer button,
+  .task-control button,
+  .clerk-dossier > nav button { min-height: 44px; font-size: 14px; }
+  .clerk-dossier { grid-template-rows: 94px 48px minmax(0, 1fr); }
+  .clerk-ledger { padding: 8px 12px 24px; }
+  .clerk-ledger__entry { grid-template-columns: 1fr auto; padding: 16px 4px; }
+  .clerk-ledger__entry time { grid-row: auto; }
+  .clerk-ledger__entry b,
+  .clerk-ledger__entry small { grid-column: 1 / -1; font-size: 14px; }
+  .clerk-ledger__entry em { grid-column: 1 / -1; grid-row: auto; }
+  .task-control__form fieldset { grid-template-columns: 1fr; }
+  .mainline-response { padding: 14px 12px; font-size: 14px; }
+  .mainline-response > dl { grid-template-columns: 1fr; }
+  .mainline-response > dl div { min-height: 44px; border-right: 0; border-bottom: 1px solid #6e736a; }
+  .mainline-response > dl div:last-child { border-bottom: 0; }
+  .mainline-response > header span,
+  .mainline-response dt,
+  .mainline-response > p { font-size: 14px; }
+  .mainline-response > footer button { min-height: 44px; font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commission-register__row,
+  .clerk-ledger__entry { transition: none; }
+}

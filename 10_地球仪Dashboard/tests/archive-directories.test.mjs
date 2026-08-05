@@ -182,10 +182,10 @@ test('current directory renderers are wired into the live archive page', async (
   assert.match(source, /entranceSheetMarkup/);
   assert.match(source, /function resetEventPlane\(/);
   assert.match(source, /event-plane-world/);
-  assert.match(source, /eco-log-svg/);
-  assert.match(source, /eco-log-additions/);
-  assert.match(source, /const strataEntries = entries\.slice\(0, 7\)/);
-  assert.match(source, /const buttons = strataEntries\.map\(\(archive, index\) =>/);
+  assert.match(source, /eco-atlas-console/);
+  assert.match(source, /eco-atlas-index-list/);
+  assert.match(source, /data-ecology-view/);
+  assert.match(source, /const buttons = entries\.map\(\(archive, index\) =>/);
   assert.doesNotMatch(source, /增补生态记录/);
   assert.doesNotMatch(source, /I \/ 起源卷|II \/ 扩张卷|III \/ 封存卷/);
   assert.doesNotMatch(source, /ecology-specimen-plate/);
@@ -200,7 +200,7 @@ test('new directory layouts include their responsive workbench styling', async (
 
   assert.match(styles, /\.people-network-workbench/);
   assert.match(styles, /\.entrance-sheet-console/);
-  assert.match(styles, /\.eco-log-console/);
+  assert.match(styles, /\.eco-atlas-console/);
   assert.match(styles, /\.event-plane\s*\{/);
   assert.match(styles, /--archive-ui-label:\s*clamp\(12px,/);
   assert.match(styles, /--archive-ui-body:\s*clamp\(15px,/);
@@ -208,9 +208,9 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /\.event-plane-world/);
   assert.match(styles, /\.mode-event-plane \.folder-button\s*\{/);
   assert.match(styles, /\.entrance-sheet-drawer/);
-  assert.match(styles, /\.eco-log-bands/);
-  assert.match(styles, /\.eco-log-additions__list\s*\{[^}]*display:\s*grid/s);
-  assert.match(styles, /\.eco-log-additions \.folder-button\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(styles, /\.eco-atlas-layout\s*\{/);
+  assert.match(styles, /\.eco-atlas-tabs\s*\{/);
+  assert.match(styles, /\.eco-atlas-index-list\s*\{/);
   assert.match(styles, /\.archive-layer\.has-directory \.folder-orbit\.mode-entrance-network/);
   assert.match(styles, /display: block !important/);
   assert.match(styles, /width: calc\(100vw - 24px\) !important/);
@@ -218,13 +218,21 @@ test('new directory layouts include their responsive workbench styling', async (
   assert.match(styles, /\.archive-new-badge/);
 });
 
-test('ecology additions sit below a fully readable field card', async () => {
+test('ecology atlas gives every record an index position and keeps the profile as one switchable view', async () => {
   const [source, styles] = await Promise.all([
     readFile(new URL('../src/main.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/style.css', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(source, /has-ecology-additions[\s\S]*\?\s*34\s*:/);
-  assert.match(styles, /\.eco-log-additions\s*\{[^}]*top:\s*64%;/s);
-  assert.match(styles, /\.eco-log-console\.has-ecology-additions \.eco-log-card\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/s);
+  assert.match(source, /ecologyCabinetState = \{ entries, cabinet, buttons, view: 'profile'/);
+  assert.match(source, /const knownLayer = archiveSelection < 7/);
+  assert.match(source, /data-ecology-view="species"/);
+  assert.doesNotMatch(source, /data-ecology-view="samples"/);
+  assert.doesNotMatch(source, /data-ecology-view="relations"/);
+  assert.match(source, /function openEcologySpeciesArchive\(code, trigger = null\)/);
+  assert.doesNotMatch(source, /await transitionArchiveDirectory\(speciesDirectory\)/);
+  assert.match(source, /data-ecology-species-code/);
+  assert.match(styles, /\.eco-atlas-profile\s*\{/);
+  assert.match(styles, /\.eco-atlas-species-ledger\s*\{/);
+  assert.match(styles, /\.eco-atlas-species-card\s*\{/);
 });

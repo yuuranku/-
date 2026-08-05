@@ -18,6 +18,7 @@ import {
 } from './native-form-profiles.js';
 import {
   buildArchiveReference,
+  buildArchiveStoryReference,
   canEnterWorkspace,
   canReview,
 } from './domain.js';
@@ -38,6 +39,7 @@ import { renderArchiveCabinet } from './archive-cabinet.js';
 import { applyTextareaTabIndent } from './text-indent.js';
 import { PARAGRAPH_INDENT } from './text-indent.js';
 import { applyInlineMark, extractInlineText, renderInlineText } from './inline-text-format.js';
+import { CLERK_REGISTRATIONS, clerkRegistrationLabel, normalizeClerkRegistration } from './clerk-registration.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
   'local-saving': '正在写入本地暂存…',
@@ -422,11 +424,22 @@ const serverDraftToEditorDraft = (record, fallback = {}) => ({
 export const buildAmendmentInitialState = (archive, documentChoice, source) => {
   const archiveBaseDocumentId = `archive:${archive.id}`;
   const officialBase = documentChoice.id === archiveBaseDocumentId;
+  const inheritedReferences = [
+    ...(Array.isArray(source.content?.references) ? source.content.references : []),
+    ...(Array.isArray(source.references) ? source.references : []),
+  ];
+  const referenceKeys = new Set();
+  const references = inheritedReferences.filter((reference) => {
+    const key = reference?.storyPageId
+      ? `story:${reference.storyPageId}`
+      : `archive:${reference?.archiveId || ''}`;
+    if (!reference?.archiveId || referenceKeys.has(key)) return false;
+    referenceKeys.add(key);
+    return true;
+  });
   const content = {
     ...(source.content || {}),
-    references: Array.isArray(source.references)
-      ? source.references
-      : source.content?.references || [],
+    references,
     media: Array.isArray(source.media)
       ? source.media
       : source.content?.media || [],
@@ -1093,6 +1106,8 @@ export function initializeArchiveWorkspace({
     const nativeFieldsMarkup = renderNativeEditorFields(template, nativeProfile, initialEditorDocument);
     const editorKey = initial.id
       ? `editor-${initial.id}`
+      : initial.workflowTaskId
+        ? `commission-${initial.workflowTaskId}`
       : initial.targetContributionId
         ? `amendment-${initial.targetContributionId}`
         : initial.archiveCode
@@ -1146,6 +1161,12 @@ export function initializeArchiveWorkspace({
           ${initial.mainlineBriefing ? `
             <aside class="archive-recovery archive-editor__mainline-briefing">
               <div><b>档案纠错程序 / 行动简报</b><span>${escapeHtml(initial.mainlineBriefing)}</span></div>
+            </aside>
+          ` : ''}
+
+          ${initial.commissionBriefing ? `
+            <aside class="archive-recovery archive-editor__mainline-briefing">
+              <div><b>档案委托 / 编辑说明</b><span>${escapeHtml(initial.commissionBriefing)}</span></div>
             </aside>
           ` : ''}
 
@@ -1280,6 +1301,41 @@ export function initializeArchiveWorkspace({
       });
     };
     installRichValueProperties(nativeFormRoot);
+    const refreshEcologyReferenceOptions = async () => {
+      const ecologySelect = nativeFormRoot.querySelector(
+        'select[data-native-reference-category="ecology"]',
+      );
+      if (!ecologySelect || !client) return;
+
+      const selectedValue = ecologySelect.value;
+      try {
+        const ecologyArchives = await client.listEditableArchives({ category: 'ecology', limit: 100 });
+        if (!Array.isArray(ecologyArchives) || !ecologyArchives.length) return;
+
+        const options = ecologyArchives
+          .map((archive) => ({
+            value: String(archive.code || '').trim().toUpperCase(),
+            label: `${String(archive.code || '').trim().toUpperCase()} / ${archive.title || '未命名生态记录'}`,
+          }))
+          .filter((option) => option.value);
+        if (!options.length) return;
+
+        const currentOption = selectedValue && !options.some((option) => option.value === selectedValue)
+          ? `<option value="${escapeHtml(selectedValue)}">${escapeHtml(selectedValue)} / 当前关联</option>`
+          : '';
+        ecologySelect.innerHTML = [
+          '<option value="">请选择出现生态层</option>',
+          currentOption,
+          ...options.map((option) => (
+            `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`
+          )),
+        ].join('');
+        ecologySelect.value = selectedValue;
+      } catch {
+        // Keep the built-in layer choices available when the archive service is offline.
+      }
+    };
+    void refreshEcologyReferenceOptions();
     const isInlineFormatControl = (control) => control?.matches?.(
       '[data-native-rich-field], input[type="text"][data-native-field], input[data-native-custom-title]',
     );
@@ -1506,6 +1562,7 @@ export function initializeArchiveWorkspace({
       content: initial.content ?? {},
       revision: initial.revision ?? 1,
       key: localKey,
+      workflowTaskId: initial.workflowTaskId ?? initial.content?.workflowTaskId ?? null,
     };
 
     const mediaSlotForRole = (role) =>
@@ -1814,6 +1871,7 @@ export function initializeArchiveWorkspace({
       });
       installRichValueProperties(nativeFormRoot);
       writeNativeArchiveForm(nativeFormRoot, nativeProfile, nextDocument);
+      void refreshEcologyReferenceOptions();
     };
 
     const collectDraft = () => {
@@ -1838,6 +1896,7 @@ export function initializeArchiveWorkspace({
           references,
           attachments: attachmentFiles,
           targetDocumentId: targetDocumentSelect.value,
+          ...(editorDraft.workflowTaskId ? { workflowTaskId: editorDraft.workflowTaskId } : {}),
         },
       };
       return editorDraft;
@@ -1893,21 +1952,40 @@ export function initializeArchiveWorkspace({
         inlineReferenceCopy.textContent = '档案系统未连接，暂时无法检索引用';
         return;
       }
-      inlineReferenceCopy.textContent = query ? '正在检索可引用档案…' : '正在载入全部可引用档案…';
+      inlineReferenceCopy.textContent = query ? '正在检索档案与留言…' : '正在载入可引用档案与留言…';
       try {
-        const matches = await client.searchArchives(query, { limit: 500 });
+        const [archives, storyPages] = await Promise.all([
+          client.searchArchives(query, { limit: 500 }),
+          client.searchArchiveStoryPages(query, { limit: 500 }),
+        ]);
         if (requestId !== inlineReferenceRequestId || activeInlineReferenceControl !== control) return;
+        const matches = [
+          ...archives.map((archive) => ({ type: 'archive', archive })),
+          ...storyPages.map((page) => ({ type: 'story', page })),
+        ];
         inlineReferenceCopy.textContent = matches.length
-          ? '选择一份档案插入当前内容'
-          : '未找到可引用档案';
-        inlineReferenceResults.innerHTML = matches.map((archive) => `
-          <button type="button" data-inline-reference-result
+          ? '选择档案或一条留言，插入当前内容'
+          : '未找到可引用档案或留言';
+        inlineReferenceResults.innerHTML = matches.map(({ type, archive, page }) => {
+          if (type === 'story') {
+            const storyArchive = page.archive;
+            return `<button type="button" data-inline-reference-result data-reference-type="story"
+              data-id="${escapeHtml(page.id)}"
+              data-archive-id="${escapeHtml(storyArchive.id)}"
+              data-code="${escapeHtml(storyArchive.code)}"
+              data-label="${escapeHtml(page.title)}"
+              data-body="${escapeHtml(page.body)}"
+              data-author="${escapeHtml(page.author_name)}">
+              <b>${escapeHtml(storyArchive.code)} / 留言</b><span>${escapeHtml(page.title)}</span><small>${escapeHtml(page.author_name)} · ${escapeHtml(page.body.slice(0, 72))}</small>
+            </button>`;
+          }
+          return `<button type="button" data-inline-reference-result data-reference-type="archive"
             data-id="${escapeHtml(archive.id)}"
             data-code="${escapeHtml(archive.code)}"
             data-label="${escapeHtml(archive.title)}">
             <b>${escapeHtml(archive.code)}</b><span>${escapeHtml(archive.title)}</span>
-          </button>
-        `).join('');
+          </button>`;
+        }).join('');
       } catch {
         if (requestId !== inlineReferenceRequestId || activeInlineReferenceControl !== control) return;
         inlineReferenceCopy.textContent = '检索失败；请稍后重试';
@@ -2058,17 +2136,30 @@ export function initializeArchiveWorkspace({
       if (inlineReferenceResult) {
         const control = activeInlineReferenceControl;
         if (!control) return;
-        const reference = buildArchiveReference({
-          id: inlineReferenceResult.dataset.id,
-          code: inlineReferenceResult.dataset.code,
-          title: inlineReferenceResult.dataset.label,
-        });
+        const reference = inlineReferenceResult.dataset.referenceType === 'story'
+          ? buildArchiveStoryReference({
+            id: inlineReferenceResult.dataset.id,
+            archiveId: inlineReferenceResult.dataset.archiveId,
+            archiveCode: inlineReferenceResult.dataset.code,
+            title: inlineReferenceResult.dataset.label,
+            body: inlineReferenceResult.dataset.body,
+            authorName: inlineReferenceResult.dataset.author,
+          })
+          : buildArchiveReference({
+            id: inlineReferenceResult.dataset.id,
+            code: inlineReferenceResult.dataset.code,
+            title: inlineReferenceResult.dataset.label,
+          });
         const caret = activeInlineReferenceCursor ?? String(control.value ?? '').length;
         const priorValue = String(control.value ?? '');
         const nextValue = replaceArchiveReferenceQuery(priorValue, reference, caret);
         if (nextValue === control.value) return;
         control.value = nextValue;
-        if (!references.some((entry) => entry.archiveId === reference.archiveId)) {
+        if (!references.some((entry) => (
+          reference.storyPageId
+            ? entry.storyPageId === reference.storyPageId
+            : !entry.storyPageId && entry.archiveId === reference.archiveId
+        ))) {
           references.push(reference);
         }
         hideInlineReferenceMenu();
@@ -3103,7 +3194,7 @@ export function initializeArchiveWorkspace({
       if (recipientSelect) {
         const clerks = users.filter((user) => user.role === 'clerk' && user.enabled !== false);
         recipientSelect.innerHTML = clerks.length
-          ? `<option value="">选择书记官</option>${clerks.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.display_name || '书记官')}</option>`).join('')}`
+          ? `<option value="">选择书记官</option>${clerks.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(`${clerkRegistrationLabel(user.clerk_rank)} ${user.display_name || '书记官'}`)}</option>`).join('')}`
           : '<option value="">当前没有可收件的书记官</option>';
       }
       const unread = notifications.filter((notification) => !notification.read_at);
@@ -3219,7 +3310,7 @@ export function initializeArchiveWorkspace({
               <article class="archive-admin-user ${user.protected ? 'is-protected' : ''}" data-managed-user="${escapeHtml(user.id)}">
                 <header>
                   <div>
-                    <b>${escapeHtml(user.display_name || '未设置笔名')}</b>
+                    <b>${escapeHtml(user.role === 'clerk' ? `${clerkRegistrationLabel(user.clerk_rank)} ${user.display_name || '未设置笔名'}` : user.display_name || '未设置笔名')}</b>
                     <span>${escapeHtml(user.email)}</span>
                   </div>
                   <em>${user.enabled ? '可登录' : '已停用'}</em>
@@ -3234,6 +3325,14 @@ export function initializeArchiveWorkspace({
                       </select>
                     </label>
                     <button type="button" data-save-user-role>切换权限</button>
+                    ${user.role === 'clerk' ? `
+                      <label>当前登记
+                        <select data-user-clerk-rank>
+                          ${CLERK_REGISTRATIONS.map((entry) => `<option value="${entry.level}" ${normalizeClerkRegistration(user.clerk_rank) === entry.level ? 'selected' : ''}>${entry.label}</option>`).join('')}
+                        </select>
+                      </label>
+                      <button type="button" data-save-user-clerk-rank>更新登记</button>
+                    ` : ''}
                     <label>新密码
                       <input data-user-password type="password" minlength="8" autocomplete="new-password" placeholder="至少 8 位" />
                     </label>
@@ -3241,6 +3340,7 @@ export function initializeArchiveWorkspace({
                     <button type="button" data-delete-user>删除账号／保留历史署名并停用</button>
                   `}
                 <small>${escapeHtml(user.password_status || '密码已设置（不可查看）')}</small>
+                <small>当前登记：${escapeHtml(user.role === 'clerk' ? clerkRegistrationLabel(user.clerk_rank) : '不适用')}</small>
                 <output data-user-action-message></output>
               </article>
             `).join('')
@@ -3284,6 +3384,12 @@ export function initializeArchiveWorkspace({
         if (action.matches('[data-save-user-role]')) {
           await client.updateUserRole(userId, card.querySelector('[data-user-role]').value);
           output.textContent = '权限已更新。';
+        }
+        if (action.matches('[data-save-user-clerk-rank]')) {
+          await client.updateUserClerkRank(userId, card.querySelector('[data-user-clerk-rank]').value);
+          output.textContent = '书记官当前登记已更新。';
+          window.dispatchEvent(new CustomEvent('palis:clerk-registration-changed'));
+          await loadUsers();
         }
         if (action.matches('[data-reset-user-password]')) {
           const password = card.querySelector('[data-user-password]').value;
@@ -3831,6 +3937,70 @@ export function initializeArchiveWorkspace({
     return state;
   };
 
+  const openTaskAdministration = async () => {
+    const { openTaskAdministrationWindow } = await import('./commission-window.js');
+    return openTaskAdministrationWindow({ createWindow, client, templates: ARCHIVE_TEMPLATES });
+  };
+
+  const openActiveTaskBoard = async () => {
+    const { openActiveTaskBoardWindow } = await import('./commission-window.js');
+    const state = await openActiveTaskBoardWindow({
+      createWindow,
+      client,
+      role: context.role,
+      profile: context.profile,
+      templates: ARCHIVE_TEMPLATES,
+      onOpenMainlineTask: () => {
+        window.dispatchEvent(new CustomEvent('palis:workspace-command', {
+          detail: { command: 'mainline' },
+        }));
+      },
+      onOpenCommissionTask: (task, response = null) => {
+        const template = ARCHIVE_TEMPLATES.find((entry) => entry.id === task.template_id);
+        if (!template) {
+          setWorkspaceMessage('该委托未指定有效的档案类型。');
+          return;
+        }
+        const existing = response?.contribution;
+        void createEditor(template, {
+          ...(existing ? {
+            id: existing.id,
+            archiveId: existing.archive_id ?? null,
+            templateId: existing.template_id ?? template.id,
+            title: existing.title ?? task.title,
+            kind: existing.kind ?? 'new',
+            targetContributionId: existing.target_contribution_id ?? null,
+            baseVersionId: existing.base_version_id ?? null,
+            status: existing.status ?? 'draft',
+            content: existing.draft_content ?? { workflowTaskId: task.id },
+            revision: existing.revision ?? 1,
+          } : {}),
+          title: task.title,
+          workflowTaskId: task.id,
+          commissionBriefing: `${task.code} / ${task.objective || '请按本委托要求完成档案。'}${task.format ? ` / 材料形式：${task.format}` : ''}`,
+          content: existing?.draft_content ?? { workflowTaskId: task.id },
+        });
+      },
+      onManageTask: () => {
+        if (canReview(context.role)) void openTaskAdministration();
+      },
+    });
+    window.dispatchEvent(new CustomEvent('palis:commission-read'));
+    return state;
+  };
+
+  const openCurrentClerkDossier = async () => {
+    const { openClerkDossierWindow } = await import('./commission-window.js');
+    return openClerkDossierWindow({
+      createWindow,
+      client,
+      profile: context.profile,
+      onOpenContribution: (entry) => {
+        setWorkspaceMessage(`履历已定位：${entry.title || '未命名档案'}。`);
+      },
+    });
+  };
+
   window.addEventListener('palis:workspace-command', (event) => {
     if (!ensureWorkspaceAccess()) return;
     const command = event.detail?.command;
@@ -3857,6 +4027,21 @@ export function initializeArchiveWorkspace({
         });
       }).catch(() => {
         setWorkspaceMessage('DOSSIER PROGRAM LOAD FAILED');
+      });
+    }
+    if (command === 'active-tasks') {
+      void runWorkspaceCommand('active-tasks', openActiveTaskBoard).catch(() => {
+      setWorkspaceMessage('ARCHIVE COMMISSION REGISTER LOAD FAILED');
+      });
+    }
+    if (command === 'clerk-dossier') {
+      void runWorkspaceCommand('clerk-dossier', openCurrentClerkDossier).catch(() => {
+        setWorkspaceMessage('CLERK DOSSIER LOAD FAILED');
+      });
+    }
+    if (command === 'task-control' && canReview(context.role)) {
+      void runWorkspaceCommand('task-control', openTaskAdministration).catch(() => {
+        setWorkspaceMessage('TASK CONTROL LOAD FAILED');
       });
     }
     if (command === 'review' && canReview(context.role)) void openReviewPanel();

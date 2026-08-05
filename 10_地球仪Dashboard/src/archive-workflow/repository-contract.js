@@ -18,6 +18,7 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'listNotifications',
   'markNotificationRead',
   'searchArchives',
+  'searchArchiveStoryPages',
   'listPublishedArchives',
   'listEditableArchives',
   'listAdminArchives',
@@ -250,6 +251,12 @@ export const assertArchiveWorkflowResult = (method, result) => {
     case 'listEditableArchives':
     case 'listAdminArchives':
       return assertArchiveList(result, method);
+    case 'searchArchiveStoryPages':
+      for (const [index, page] of requireList(result, method).entries()) {
+        assertArchiveStoryPage(page, `${method}[${index}].`);
+        requireFields(page.archive, ['id', 'code', 'title', 'visibility'], `${method}[${index}].archive.`);
+      }
+      return result;
     case 'deleteArchive':
       return requireFields(result, ['id', 'code', 'title']);
     case 'loadArchiveEditorSource':

@@ -184,6 +184,7 @@ const speciesDraftSeed = (archive, record = null) => {
   return {
     indexData: {
       specimenClass: String(record?.specimenClass ?? archive?.index_payload?.specimenClass ?? '').trim(),
+      ecologyCode: String(record?.ecologyCode ?? archive?.index_payload?.ecologyCode ?? '').trim(),
     },
     values,
   };

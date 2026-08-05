@@ -8,6 +8,7 @@ import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
 import './archive-workflow/mainline.css';
+import './archive-workflow/commission.css';
 import {
   emitUiSound,
   initializeUiSounds,
@@ -16,6 +17,9 @@ import {
 import { initializePalisMusicPlayer } from './palis-music.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
+import { openActiveTaskBoardWindow } from './archive-workflow/commission-window.js';
+import { clerkRegistrationLabel } from './archive-workflow/clerk-registration.js';
+import { ARCHIVE_TEMPLATES } from './archive-workflow/templates.js';
 import { initializePalisRuntime } from './runtime/palis-runtime.js';
 import {
   buildPublishedArchiveModel,
@@ -931,11 +935,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       <section>
         <p class="assistant-clerk-index__lead">当前工作台可调阅六份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
         <ol class="assistant-clerk-index__list">
-          ${Array.from({ length: 10 }, (_, index) => {
-            const number = String(index + 1).padStart(2, '0');
-            const record = clerkRecords[index];
-            return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'disabled'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
-          }).join('')}
+          ${clerkDirectoryRows()}
         </ol>
       </section>
     `;
@@ -1096,18 +1096,44 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   startMenu.classList.add('mascot-start-menu');
 
   const clerkRecords = [
-    { documentId: 'clerk-wei-yi', entry: '助理书记官：魏伊', title: '助理书记官：魏伊', code: 'SC-01 / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-yinnar-light', entry: '助理书记官：主行', title: '助理书记官：主行', code: 'SC-02 / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-jean-moreau', entry: '助理书记官：FourreTout', title: '助理书记官：FourreTout', code: 'SC-03 / ONLINE / 4 PAGES' },
-    { documentId: 'clerk-jing-quan-c', entry: '助理书记官：赭犬C', title: '助理书记官：赭犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-gabriel', entry: '书记官：Gabriel', title: '书记官：Gabriel', code: 'SC-12 / ONLINE / 2 PAGES' },
-    { documentId: 'clerk-march', entry: '书记官：3月', title: '书记官：3月', code: 'SC-35 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-wei-yi', name: '魏伊', code: 'SC-01 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-yinnar-light', name: '主行', code: 'SC-02 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-jean-moreau', name: 'FourreTout', code: 'SC-03 / ONLINE / 4 PAGES' },
+    { documentId: 'clerk-jing-quan-c', name: '赭犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-gabriel', name: 'Gabriel', code: 'SC-12 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-march', name: '3月', code: 'SC-35 / ONLINE / 2 PAGES' },
   ];
-  clerkList.innerHTML = Array.from({ length: 10 }, (_, index) => {
+  let clerkDirectoryProfiles = [];
+  const clerkRecordForDisplay = (record) => {
+    const profile = clerkDirectoryProfiles.find((candidate) => candidate.display_name === record.name);
+    const title = `${clerkRegistrationLabel(profile?.clerk_rank)}：${record.name}`;
+    return { ...record, entry: title, title };
+  };
+  const clerkDirectoryRows = () => Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');
-    const record = clerkRecords[index];
+    const source = clerkRecords[index];
+    const record = source ? clerkRecordForDisplay(source) : null;
     return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'data-clerk-reserved="true"'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
   }).join('');
+  const renderClerkDirectory = () => {
+    clerkList.innerHTML = clerkDirectoryRows();
+    openDocuments.forEach((state) => {
+      const list = state.windowElement.querySelector('.assistant-clerk-index__list');
+      if (list) list.innerHTML = clerkDirectoryRows();
+    });
+  };
+  const refreshClerkDirectory = async () => {
+    if (typeof workspaceNoteClient?.listClerkDirectory !== 'function') return;
+    try {
+      clerkDirectoryProfiles = await workspaceNoteClient.listClerkDirectory();
+      renderClerkDirectory();
+    } catch {
+      // The static directory stays readable when the roster service is unavailable.
+    }
+  };
+  renderClerkDirectory();
+  void refreshClerkDirectory();
+  window.addEventListener('palis:clerk-registration-changed', () => { void refreshClerkDirectory(); });
 
   trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
@@ -2699,6 +2725,116 @@ function installArchiveWindowDrag(windowElement) {
   });
 }
 
+function createArchiveUtilityWindow({ key, title, code, className = '', icon = '', body = '', trigger = null } = {}) {
+  const existing = archiveWindows.get(key);
+  if (existing) {
+    existing.trigger = trigger || existing.trigger;
+    if (existing.minimized) restoreArchiveWindow(existing.windowElement);
+    else bringArchiveWindowToFront(existing.windowElement, true);
+    return existing;
+  }
+
+  const windowElement = document.createElement('section');
+  const taskButton = document.createElement('button');
+  const windowId = `archive-utility-window-${++archiveWindowSequence}`;
+  windowElement.id = windowId;
+  windowElement.dataset.archiveId = key;
+  windowElement.dataset.recordType = 'utility';
+  windowElement.dataset.archiveSurface = 'archive';
+  windowElement.className = `archive-window archive-utility-window ${className}`.trim();
+  windowElement.setAttribute('aria-label', title || code || 'PALIS 窗口');
+  windowElement.innerHTML = `
+    <div class="title-bar dialog-titlebar"><span>${code || 'PALIS.UTILITY'}</span><div class="window-controls"><button class="window-minimize" type="button" aria-label="最小化窗口">_</button><button class="window-close" type="button" aria-label="关闭窗口">×</button></div></div>
+    <div class="archive-utility-window__body">${body}</div>`;
+
+  taskButton.type = 'button';
+  taskButton.className = 'archive-task-button';
+  taskButton.innerHTML = `<i${icon ? ` style="--task-icon: url('${icon}')"` : ''}></i><span><b>${code || 'PALIS'}</b>${title || '窗口'}</span>`;
+  taskButton.setAttribute('aria-controls', windowId);
+  taskButton.setAttribute('aria-label', `切换窗口：${title || code || 'PALIS'}`);
+
+  const state = {
+    archive: { id: key },
+    windowElement,
+    taskButton,
+    trigger,
+    minimized: false,
+    closing: false,
+    surface: 'archive',
+    storyWindows: new Set(),
+  };
+  archiveWindows.set(key, state);
+  archiveTaskList.appendChild(taskButton);
+  archiveDesktop.appendChild(windowElement);
+
+  windowElement.style.visibility = 'hidden';
+  const measuredRect = windowElement.getBoundingClientRect();
+  const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
+  const cascade = (archiveWindowSequence - 1) % 6;
+  const left = THREE.MathUtils.clamp((innerWidth - measuredRect.width) / 2 + cascade * 24, 8, Math.max(8, innerWidth - measuredRect.width - 8));
+  const top = THREE.MathUtils.clamp((innerHeight - taskbarHeight - measuredRect.height) / 2 + cascade * 18, 8, Math.max(8, innerHeight - taskbarHeight - 44));
+  windowElement.style.left = `${left}px`;
+  windowElement.style.top = `${top}px`;
+  windowElement.style.visibility = '';
+
+  windowElement.querySelector('.window-minimize').addEventListener('click', () => minimizeArchiveWindow(windowElement));
+  windowElement.querySelector('.window-close').addEventListener('click', () => closeArchiveWindow(windowElement));
+  windowElement.addEventListener('pointerdown', () => bringArchiveWindowToFront(windowElement));
+  taskButton.addEventListener('click', () => {
+    if (state.minimized) restoreArchiveWindow(windowElement);
+    else if (activeArchiveWindow === windowElement && windowElement.classList.contains('is-active')) minimizeArchiveWindow(windowElement);
+    else bringArchiveWindowToFront(windowElement, true);
+  });
+  installArchiveWindowDrag(windowElement);
+  bringArchiveWindowToFront(windowElement);
+  syncArchiveTaskbar();
+  if (!reducedMotion) {
+    windowElement.classList.add('is-opening');
+    window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
+  }
+  requestAnimationFrame(() => windowElement.querySelector('.window-minimize').focus({ preventScroll: true }));
+  return state;
+}
+
+const archiveActiveTaskEntry = document.querySelector('#archive-active-task-entry');
+const commissionAssistant = document.querySelector('#commission-assistant');
+const commissionAlertNodes = [...document.querySelectorAll('[data-commission-alert]')];
+const COMMISSION_NOTICE_KEY = 'palis.archive-commission.seen-at';
+let latestCommissionTimestamp = 0;
+const setCommissionAlert = (visible) => commissionAlertNodes.forEach((node) => { node.hidden = !visible; });
+const refreshCommissionAlert = async () => {
+  try {
+    const tasks = await archiveWorkflowClient?.listWorkflowTasks?.({ includeFinished: false }) || [];
+    latestCommissionTimestamp = Math.max(0, ...tasks
+      .filter((task) => task.kind === 'commission')
+      .map((task) => Date.parse(task.created_at || task.opened_at || task.updated_at || '') || 0));
+    const seenAt = Number.parseInt(localStorage.getItem(COMMISSION_NOTICE_KEY) || '0', 10) || 0;
+    setCommissionAlert(latestCommissionTimestamp > seenAt);
+  } catch {
+    setCommissionAlert(false);
+  }
+};
+const acknowledgeCommissionAlert = () => {
+  if (latestCommissionTimestamp) localStorage.setItem(COMMISSION_NOTICE_KEY, String(latestCommissionTimestamp));
+  setCommissionAlert(false);
+};
+const openPublicCommissionBoard = (trigger) => {
+  void openActiveTaskBoardWindow({
+    createWindow: (options) => createArchiveUtilityWindow({ ...options, trigger }),
+    client: archiveWorkflowClient,
+    role: 'observer',
+    templates: ARCHIVE_TEMPLATES,
+  });
+  acknowledgeCommissionAlert();
+};
+archiveActiveTaskEntry?.addEventListener('click', () => openPublicCommissionBoard(archiveActiveTaskEntry));
+commissionAssistant?.addEventListener('click', () => openPublicCommissionBoard(commissionAssistant));
+window.addEventListener('palis:commission-published', () => { void refreshCommissionAlert(); });
+window.addEventListener('palis:commission-read', acknowledgeCommissionAlert);
+window.addEventListener('palis:session-change', () => { void refreshCommissionAlert(); });
+void refreshCommissionAlert();
+window.setInterval(() => { void refreshCommissionAlert(); }, 45000);
+
 function buildArchiveOrbit(directory = archiveDirectory) {
   const orbit = document.querySelector('#folder-orbit');
   const sourceEntries = directory ? directory.children : archiveRoots;
@@ -2733,7 +2869,6 @@ function buildArchiveOrbit(directory = archiveDirectory) {
   orbit.dataset.mode = mode;
   orbit.className = `folder-orbit mode-${mode}${entries.length > 12 ? ' is-dense' : ''}`;
   archiveSelection = Math.min(archiveSelection, Math.max(entries.length - 1, 0));
-  if (mode === 'ecology-strata') archiveSelection = Math.min(archiveSelection, 6);
   document.querySelector('#archive-heading').textContent = directory ? directory.name : 'PALIS 09A 总目录';
   document.querySelector('#archive-subtitle').textContent = directory
     ? ARCHIVE_SUBTITLES[directory.id] || `${directory.meta} / PALIS ARCHIVE CHANNEL`
@@ -4276,152 +4411,90 @@ const ECO_BAND_PATTERNS = [
   '<path d="M0 4l6 6M6 4l-6 6M12 2l6 6M18 2l-6 6" stroke="rgba(196,182,160,.28)" stroke-width="1" fill="none"/>',
 ];
 
+function ecologySpeciesLinks(index) {
+  const speciesDirectory = archiveRoots.find((directory) => directory.id === 'species');
+  if (!speciesDirectory) return [];
+  const ecologyCode = String(archiveRoots.find((directory) => directory.id === 'ecology')?.children[index]?.code || '').trim();
+  return speciesDirectory.children.filter((archive) => archive.ecologyCode === ecologyCode);
+}
+
+function openEcologySpeciesArchive(code, trigger = null) {
+  const speciesDirectory = archiveRoots.find((directory) => directory.id === 'species');
+  const targetIndex = speciesDirectory?.children.findIndex((archive) => archive.code === code) ?? -1;
+  if (!speciesDirectory || targetIndex < 0) return;
+  openArchive(
+    speciesDirectory.children[targetIndex],
+    trigger?.getBoundingClientRect ? trigger : document.querySelector('#folder-orbit') || document.body,
+  );
+}
+
 function buildEcologyCabinet(orbit, entries, appendArchiveEntry) {
-  // The recorder represents seven physical strata. Entries created afterwards
-  // are supplemental ecology files and belong in the reading area, not a new
-  // eighth layer in the left-hand depth column.
-  const strataEntries = entries.slice(0, 7);
-  const supplementaryEntries = entries.slice(7);
-  const bands = ecoBands();
-  const tempRanges = strataEntries.map((_, index) => ecoTemperatureRange(index));
-  const oxygenRanges = strataEntries.map((archive) => ecoOxygenRange(archive));
-  const temp = ecoEnvelopePaths(tempRanges, -10, 20);
-  const oxygen = ecoEnvelopePaths(oxygenRanges, 17.5, 22);
-
   const cabinet = document.createElement('section');
-  cabinet.className = 'eco-log-console';
-  const depthTicks = ECO_DEPTH_EDGES.map((depth, index) => {
-    const y = ecoDepthY(depth);
-    const label = index === ECO_DEPTH_EDGES.length - 1 ? '320 m+' : `${depth}`;
-    return `<path class="el-print" d="M${ECO_CHART.colLeft - 14} ${y}h10"/><text class="el-scale-text" x="${ECO_CHART.colLeft - 18}" y="${y + 3}" text-anchor="end">${label}</text>`;
-  }).join('');
-  const bandRects = bands.map(({ index, y0, y1 }) => `
-    <rect class="el-band" x="${ECO_CHART.colLeft}" y="${y0}" width="${ECO_CHART.colRight - ECO_CHART.colLeft}" height="${y1 - y0}" fill="url(#eco-band-${index})"/>
-    <path class="el-print" d="M${ECO_CHART.colLeft} ${y1}H${ECO_CHART.colRight}"/>`).join('');
-  const gridLines = [0.25, 0.5, 0.75].map((t) => {
-    const x = ECO_CHART.traceLeft + t * (ECO_CHART.traceRight - ECO_CHART.traceLeft);
-    return `<path class="el-grid" d="M${x} ${ECO_CHART.top}V${ECO_CHART.bottom}"/>`;
-  }).join('');
-
+  cabinet.className = 'eco-atlas-console';
   cabinet.innerHTML = `
-    <header class="eco-log-header"><span>PALIS / SUBGLACIAL FIELD LOG</span><b>07 STRATA · CONTINUOUS RECORDER</b></header>
-    <div class="eco-log-table">
-      <div class="eco-log-stage">
-        <svg class="eco-log-svg" viewBox="0 0 1160 620" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <defs>
-            ${ECO_BAND_PATTERNS.map((body, index) => `<pattern id="eco-band-${index}" width="24" height="12" patternUnits="userSpaceOnUse">${body}</pattern>`).join('')}
-          </defs>
-          <rect class="el-frame" x="8" y="8" width="1144" height="604"/>
-          <text class="el-print-text" x="26" y="34">PALIS FORM 64-B · FIELD PROFILE / CONTINUOUS RECORD</text>
-          <text class="el-print-text" x="26" y="50">SEVEN STRATA · SAMPLE SCALE ORIGINAL</text>
-          <text class="el-print-text" x="${ECO_CHART.colLeft}" y="${ECO_CHART.top - 10}">ICE CEILING / 000 m</text>
-          <text class="el-print-text el-print-text--warm" x="${ECO_CHART.colLeft}" y="${ECO_CHART.bottom + 18}">GEOTHERMAL FLOOR / 320 m+</text>
-          ${depthTicks}
-          <path class="el-print" d="M${ECO_CHART.colLeft - 4} ${ECO_CHART.top}V${ECO_CHART.bottom}"/>
-          ${bandRects}
-          <rect class="el-select" x="${ECO_CHART.colLeft}" y="${bands[0].y0}" width="${ECO_CHART.colRight - ECO_CHART.colLeft}" height="${bands[0].y1 - bands[0].y0}"/>
-          ${gridLines}
-          <text class="el-axis-text el-axis-text--temp" x="${ECO_CHART.traceLeft}" y="${ECO_CHART.top - 10}">温度 −10——20°C</text>
-          <text class="el-axis-text el-axis-text--oxygen" x="${ECO_CHART.traceRight - 150}" y="${ECO_CHART.top - 26}">O2 17.5——22%</text>
-          <path class="el-trace el-trace--temp" data-trace pathLength="1" d="${temp.minPath}"/>
-          <path class="el-trace el-trace--temp" data-trace pathLength="1" d="${temp.maxPath}"/>
-          <path class="el-trace el-trace--oxygen" data-trace pathLength="1" d="${oxygen.minPath}"/>
-          <path class="el-trace el-trace--oxygen" data-trace pathLength="1" d="${oxygen.maxPath}"/>
-          <path class="el-connector" d=""/>
-          <g class="el-head"><path d="M${ECO_CHART.colLeft - 26} 0H${ECO_CHART.traceRight + 14}"/><path class="el-head-pen" d="M${ECO_CHART.colLeft - 26} 0l-10 -6v12z"/></g>
-        </svg>
-        <nav class="eco-log-bands" role="list" aria-label="七层生态剖面"></nav>
-        <article class="eco-log-card" aria-live="polite">
-          <p class="eco-card-line"><b data-ecology-code>E01</b><span data-ecology-depth-tag></span><em data-ecology-sample-code>EP-01</em></p>
+    <header class="eco-atlas-header">
+      <span>PALIS / ECOLOGICAL FIELD ATLAS</span>
+      <nav class="eco-atlas-tabs" aria-label="生态观察视图">
+        <button type="button" data-ecology-view="profile" aria-pressed="true">剖面</button>
+        <button type="button" data-ecology-view="species" aria-pressed="false">物种</button>
+      </nav>
+      <b><span data-ecology-count>${String(entries.length).padStart(2, '0')}</span> RECORDS · OPEN INDEX</b>
+    </header>
+    <div class="eco-atlas-layout">
+      <aside class="eco-atlas-index">
+        <header><span>生态层级 / 记录索引</span><b>ALL</b></header>
+        <div class="eco-atlas-index-list" role="list" aria-label="生态记录索引"></div>
+        <footer>选择记录以检查 · 再次点击打开档案</footer>
+      </aside>
+      <section class="eco-atlas-observatory" aria-live="polite">
+        <header><span data-ecology-view-label>CONTINUOUS PROFILE</span><b data-ecology-view-meta>0—320 m / 07 KNOWN STRATA</b></header>
+        <div class="eco-atlas-stage" data-ecology-stage></div>
+      </section>
+      <aside class="eco-atlas-inspector">
+        <header><span>当前记录 / 检查器</span><b data-ecology-code>E01</b></header>
+        <div class="eco-atlas-inspector__body">
+          <p class="eco-atlas-inspector__meta"><span data-ecology-depth-tag></span><em data-ecology-sample-code></em></p>
           <h3 data-ecology-name>未选择</h3>
-          <dl data-ecology-fields class="eco-card-fields"></dl>
-          <div class="eco-card-note">
-            <span>连续观测</span>
-            <p data-ecology-summary></p>
-          </div>
-          <p class="eco-card-materials" data-ecology-materials></p>
+          <dl data-ecology-fields></dl>
+          <p data-ecology-summary></p>
+          <div data-ecology-materials class="eco-atlas-materials"></div>
           <button type="button" class="directory-open-button">打开生态记录 →</button>
-        </article>
-        ${supplementaryEntries.length ? `
-          <section class="eco-log-additions" aria-label="新增生态记录">
-            <div class="eco-log-additions__list" role="list"></div>
-          </section>
-        ` : ''}
-      </div>
+        </div>
+      </aside>
     </div>
   `;
   orbit.appendChild(cabinet);
 
-  const bandNav = cabinet.querySelector('.eco-log-bands');
-  const buttons = strataEntries.map((archive, index) => {
-    const result = appendArchiveEntry(archive, index, bandNav);
-    const band = bands[index];
-    result.item.style.setProperty('--band-top', `${(band.y0 / 620) * 100}%`);
-    result.item.style.setProperty('--band-height', `${((band.y1 - band.y0) / 620) * 100}%`);
-    return result.button;
-  });
-  const additionList = cabinet.querySelector('.eco-log-additions__list');
-  supplementaryEntries.forEach((archive) => {
-    if (!additionList) return;
-    const item = document.createElement('div');
-    item.className = 'folder-item';
-    item.setAttribute('role', 'listitem');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `folder-button is-document ${archive.webContent ? 'is-online' : 'is-offline'}`;
-    button.setAttribute('aria-label', `打开 ${archive.name}`);
-    button.innerHTML = `<b>${archive.code}</b><span>${archive.name}</span>${archive.isNew ? '<em>NEW</em>' : ''}`;
-    button.addEventListener('click', () => openArchive(archive, button));
-    item.appendChild(button);
-    additionList.appendChild(item);
-  });
-  cabinet.classList.toggle('has-ecology-additions', supplementaryEntries.length > 0);
-  ecologyCabinetState = { entries: strataEntries, cabinet, buttons, bands, cardAnimation: null };
+  const indexList = cabinet.querySelector('.eco-atlas-index-list');
+  const buttons = entries.map((archive, index) => appendArchiveEntry(archive, index, indexList).button);
+  ecologyCabinetState = { entries, cabinet, buttons, view: 'profile', cardAnimation: null };
   cabinet.querySelector('.directory-open-button').addEventListener('click', () => {
-    openArchive(strataEntries[archiveSelection], buttons[archiveSelection]);
+    openArchive(entries[archiveSelection], buttons[archiveSelection]);
   });
-  if (!reducedMotion) {
-    cabinet.querySelectorAll('[data-trace]').forEach((trace, index) => {
-      trace.style.strokeDasharray = '1';
-      trace.style.strokeDashoffset = '1';
-      trace.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], {
-        duration: 900, delay: 260 + index * 140, easing: 'cubic-bezier(.3, 0, .4, 1)', fill: 'forwards',
-      });
+  cabinet.querySelectorAll('[data-ecology-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+      ecologyCabinetState.view = button.dataset.ecologyView;
+      renderEcologyCabinet(true);
     });
-  }
+  });
   renderEcologyCabinet(false);
 }
 
 function renderEcologyCabinet(animate = true) {
   const state = ecologyCabinetState;
   if (!state || folderOrbit.dataset.mode !== 'ecology-strata') return;
+  const activeView = state.view === 'species' ? 'species' : 'profile';
+  state.view = activeView;
   const archive = state.entries[archiveSelection];
-  const reading = getEcologySpecimenReading(archiveSelection);
-  const band = state.bands[archiveSelection];
-  const center = (band.y0 + band.y1) / 2;
+  const knownLayer = archiveSelection < 7;
+  const reading = knownLayer
+    ? getEcologySpecimenReading(archiveSelection)
+    : { depth: '未定剖面', sample: archive.code, materials: ['待补录采样介质'] };
 
   state.buttons.forEach((button, index) => {
     button.classList.toggle('is-selected', index === archiveSelection);
     button.setAttribute('aria-current', index === archiveSelection ? 'true' : 'false');
   });
-
-  const select = state.cabinet.querySelector('.el-select');
-  select.setAttribute('y', band.y0);
-  select.setAttribute('height', band.y1 - band.y0);
-  const head = state.cabinet.querySelector('.el-head');
-  head.style.transform = `translateY(${center}px)`;
-
-  const card = state.cabinet.querySelector('.eco-log-card');
-  // When new records exist, reserve the lower panel for them and keep the
-  // selected record fully readable above it. Otherwise retain the original
-  // selected-band tracking behaviour.
-  const cardCenter = state.cabinet.classList.contains('has-ecology-additions')
-    ? 34
-    : Math.min(Math.max((center / 620) * 100, 40), 60);
-  card.style.setProperty('--card-top', `${cardCenter}%`);
-  const connector = state.cabinet.querySelector('.el-connector');
-  const cardY = (cardCenter / 100) * 620;
-  connector.setAttribute('d', `M${ECO_CHART.colRight} ${center}H${ECO_CHART.traceRight + 20}L${ECO_CHART.cardLeft - 14} ${cardY}H${ECO_CHART.cardLeft}`);
 
   const codeChip = state.cabinet.querySelector('[data-ecology-code]');
   codeChip.textContent = archive.code;
@@ -4434,20 +4507,41 @@ function renderEcologyCabinet(animate = true) {
   state.cabinet.querySelector('[data-ecology-summary]').textContent = archive.body?.[0] || '该生态记录尚无摘要。';
   state.cabinet.querySelector('[data-ecology-materials]').innerHTML = reading.materials
     .map((material) => `<i>${material}</i>`).join('');
+  state.cabinet.querySelectorAll('[data-ecology-view]').forEach((button) => {
+    const active = button.dataset.ecologyView === activeView;
+    button.setAttribute('aria-pressed', String(active));
+  });
 
+  const stage = state.cabinet.querySelector('[data-ecology-stage]');
+  const viewCopy = {
+    profile: ['CONTINUOUS PROFILE', '0—320 m / 07 KNOWN STRATA'],
+    species: ['SPECIMEN INDEX', `${String(ecologySpeciesLinks(archiveSelection).length).padStart(2, '0')} RELATED ARCHIVES / SELECTED RECORD`],
+  }[activeView];
+  state.cabinet.querySelector('[data-ecology-view-label]').textContent = viewCopy[0];
+  state.cabinet.querySelector('[data-ecology-view-meta]').textContent = viewCopy[1];
+
+  const indexButton = (index, extra = '') => `<button type="button" class="eco-atlas-stratum${index === archiveSelection ? ' is-selected' : ''}" data-ecology-jump="${index}">${String(index + 1).padStart(2, '0')}<span>${escapeRecordText(state.entries[index].name)}</span><i>${extra}</i></button>`;
+  if (activeView === 'profile') {
+    stage.innerHTML = `
+      <div class="eco-atlas-profile">
+        <div class="eco-atlas-profile__scale"><span>ICE CEILING</span><i>000 m</i><i>020 m</i><i>045 m</i><i>090 m</i><i>180 m</i><i>260 m</i><i>320 m+</i><span>GEOTHERMAL FLOOR</span></div>
+        <div class="eco-atlas-profile__bands">${state.entries.slice(0, 7).map((entry, index) => indexButton(index, getEcologySpecimenReading(index).depth)).join('')}</div>
+        <div class="eco-atlas-profile__telemetry"><span>THERMAL ENVELOPE</span><i></i><i></i><i></i><b>O₂ / WATER / PRESSURE</b><em>当前焦点：${knownLayer ? `第 ${String(archiveSelection + 1).padStart(2, '0')} 层` : '未定剖面记录'}</em></div>
+      </div>`;
+  } else {
+    const linkedSpecies = ecologySpeciesLinks(archiveSelection);
+    stage.innerHTML = `<div class="eco-atlas-species-ledger"><header><span>采样记录 / ${escapeRecordText(reading.sample)}</span><b>${escapeRecordText(reading.depth)}</b></header><div class="eco-atlas-species-ledger__origin"><b>${escapeRecordText(archive.code)}</b><span>${escapeRecordText(archive.name)}</span><small>当前生态记录</small></div><div class="eco-atlas-species-ledger__cards">${linkedSpecies.map((species, index) => `<button type="button" class="eco-atlas-species-card" data-ecology-species-code="${escapeRecordText(species.code)}"><b>${escapeRecordText(species.code)}</b><span>${escapeRecordText(species.name)}</span><small>${escapeRecordText(reading.materials[index % reading.materials.length])}</small><i>打开物种档案 →</i></button>`).join('')}</div></div>`;
+  }
+  stage.querySelectorAll('[data-ecology-jump]').forEach((button) => {
+    button.addEventListener('click', () => updateArchiveSelection(Number(button.dataset.ecologyJump), true));
+  });
+  stage.querySelectorAll('[data-ecology-species-code]').forEach((button) => {
+    button.addEventListener('click', () => {
+      openEcologySpeciesArchive(button.dataset.ecologySpeciesCode, button);
+    });
+  });
   if (animate && !reducedMotion) {
-    state.cardAnimation?.forEach((animation) => animation.cancel());
-    state.cardAnimation = [
-      card.animate([
-        { opacity: 0, transform: 'translateY(calc(-50% + 14px)) rotate(.3deg)' },
-        { opacity: 1, transform: 'translateY(-50%) rotate(.3deg)' },
-      ], { duration: 340, easing: 'cubic-bezier(.22, 1, .36, 1)' }),
-      codeChip.animate([
-        { opacity: 0, transform: 'scale(1.6) rotate(-6deg)' },
-        { opacity: 1, transform: 'scale(1) rotate(0deg)' },
-      ], { duration: 220, delay: 90, easing: 'steps(3, end)', fill: 'backwards' }),
-      connector.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 160, easing: 'steps(2, end)', fill: 'backwards' }),
-    ];
+    stage.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 180, easing: 'cubic-bezier(.22, 1, .36, 1)' });
   }
 }
 

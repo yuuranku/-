@@ -72,6 +72,18 @@ const workspaceNoteLayout = {
   updated_at: '2026-07-29T00:06:00.000Z',
 };
 
+const archiveStoryPage = {
+  id: 'story-page-1',
+  archive_id: archive.id,
+  author_id: profile.id,
+  author_name: profile.display_name,
+  title: '夜间观察',
+  body: '采样者在冰窗边缘记录到新的反应。',
+  created_at: '2026-08-05T00:00:00.000Z',
+  updated_at: '2026-08-05T00:00:00.000Z',
+  archive: { id: archive.id, code: archive.code, title: archive.title, visibility: archive.visibility },
+};
+
 test('result contract accepts the reduced relation shapes returned by Supabase joins and public RPCs', () => {
   const publicPerson = { id: 'operator-1', display_name: 'Archive Clerk' };
   const publicVersion = {
@@ -133,6 +145,7 @@ test('result contract accepts the minimum UI-facing return shapes', () => {
     ['listNotifications', [{ id: 'notification-1', subject: 'Draft reviewed', created_at: '2026-07-28T00:00:00.000Z', message: 'Please revise', kind: 'changes_requested', read_at: null, contribution: { title: draft.title } }]],
     ['markNotificationRead', { id: 'notification-1', read_at: '2026-07-28T00:00:00.000Z' }],
     ['searchArchives', [archive]],
+    ['searchArchiveStoryPages', [archiveStoryPage]],
     ['listPublishedArchives', [archive]],
     ['listEditableArchives', [archive]],
     ['listAdminArchives', [archive]],

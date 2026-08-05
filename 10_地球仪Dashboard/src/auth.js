@@ -319,7 +319,7 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     if (!supabase || !userId) return null;
     const { data, error } = await supabase
       .from('profiles')
-      .select('id,email,display_name,role,enabled')
+      .select('id,email,display_name,role,clerk_rank,enabled')
       .eq('id', userId)
       .single();
     if (error || !data?.enabled) return null;

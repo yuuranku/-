@@ -17,6 +17,8 @@ export const createEmptyLocalState = () => ({
   archiveStoryPages: [],
   mainlineVersions: [],
   mainlineStaffSlots: [],
+  workflowTasks: [],
+  workflowTaskResponses: [],
 });
 
 export const normalizeLocalState = (state) => {
@@ -27,10 +29,18 @@ export const normalizeLocalState = (state) => {
   }));
   return {
     ...state,
+    profiles: (state.profiles ?? []).map((profile) => ({
+      ...profile,
+      clerk_rank: Number.isInteger(Number(profile?.clerk_rank)) && Number(profile.clerk_rank) >= 1 && Number(profile.clerk_rank) <= 7
+        ? Number(profile.clerk_rank)
+        : 1,
+    })),
     ...(Object.hasOwn(state, 'workspaceNotes') ? {} : { workspaceNotes: [] }),
     ...(Object.hasOwn(state, 'workspaceNoteLayouts') ? {} : { workspaceNoteLayouts: [] }),
     archiveStoryPages,
     ...(Object.hasOwn(state, 'mainlineVersions') ? {} : { mainlineVersions: [] }),
     ...(Object.hasOwn(state, 'mainlineStaffSlots') ? {} : { mainlineStaffSlots: [] }),
+    ...(Object.hasOwn(state, 'workflowTasks') ? {} : { workflowTasks: [] }),
+    ...(Object.hasOwn(state, 'workflowTaskResponses') ? {} : { workflowTaskResponses: [] }),
   };
 };

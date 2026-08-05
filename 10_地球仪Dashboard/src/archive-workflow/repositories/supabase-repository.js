@@ -89,7 +89,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const getProfile = async (userId) => {
     const id = requireId(userId, 'userId');
     return unwrap(
-      supabase.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at')
+      supabase.from('profiles').select('id,email,display_name,role,clerk_rank,enabled,created_at,updated_at')
         .eq('id', id).single(),
       'Unable to load operator profile',
     );
@@ -135,6 +135,16 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (!content || content.schemaVersion !== 2) {
       throw new ArchiveWorkflowError('Archive documents must use schema version 2', { code: 'invalid_document' });
     }
+    const taskId = String(content.workflowTaskId ?? content.mainline?.taskId ?? '').trim();
+    if (taskId) {
+      const task = await unwrap(
+        supabase.from('workflow_tasks').select('kind,status').eq('id', taskId).maybeSingle(),
+        'Unable to check commission status',
+      );
+      if (task?.kind === 'commission' && task.status !== 'open') {
+        throw new ArchiveWorkflowError('Commission editing is paused or closed', { code: 'task_not_open' });
+      }
+    }
     const payload = {
       archive_id: draft.archiveId ?? draft.archive_id ?? null,
       template_id: draft.templateId ?? draft.template_id ?? null,
@@ -146,10 +156,22 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       status: draft.status ?? 'draft',
       draft_content: { ...content, archiveCode: String(draft.archiveCode ?? draft.archive_code ?? '').trim() },
     };
-    if (!draft.id) return unwrap(
-      supabase.from('archive_contributions').insert(payload).select('*').single(),
-      'Unable to create draft',
-    );
+    const linkTaskResponse = async (saved) => {
+      if (!taskId || !saved?.id) return saved;
+      await unwrap(
+        supabase.from('workflow_task_responses').update({ contribution_id: saved.id, status: 'drafting' })
+          .eq('task_id', taskId).eq('clerk_id', ownerId),
+        'Unable to link task response to draft',
+      );
+      return saved;
+    };
+    if (!draft.id) {
+      const created = await unwrap(
+        supabase.from('archive_contributions').insert(payload).select('*').single(),
+        'Unable to create draft',
+      );
+      return linkTaskResponse(created);
+    }
     const data = await unwrap(
       supabase.from('archive_contributions').update({ ...payload, revision: revision + 1 })
         .eq('id', requireId(draft.id, 'draftId')).eq('owner_id', ownerId).eq('revision', revision)
@@ -163,15 +185,22 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       );
       return { status: 'conflict', conflict: true, cloud };
     }
-    return data;
+    return linkTaskResponse(data);
   };
 
-  const submitDraft = (draftId, ownerId) => unwrap(
-    supabase.from('archive_contributions').update({ status: 'submitted', submitted_at: new Date().toISOString() })
+  const submitDraft = async (draftId, ownerId) => {
+    const contribution = await unwrap(
+      supabase.from('archive_contributions').update({ status: 'submitted', submitted_at: new Date().toISOString() })
       .eq('id', requireId(draftId, 'draftId')).eq('owner_id', requireId(ownerId, 'ownerId'))
       .in('status', ['draft', 'changes_requested']).select('*').single(),
-    'Unable to submit draft',
-  );
+      'Unable to submit draft',
+    );
+    await unwrap(
+      supabase.from('workflow_task_responses').update({ status: 'submitted' }).eq('contribution_id', contribution.id),
+      'Unable to update task response',
+    );
+    return contribution;
+  };
 
   const listReviewQueue = () => unwrap(
     supabase.from('archive_contributions')
@@ -248,6 +277,11 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   );
 
   const listUsers = async () => (await manageUser('list'))?.users || [];
+
+  const listClerkDirectory = () => unwrap(
+    supabase.rpc('list_public_clerk_directory'),
+    'Unable to load clerk directory',
+  );
   const createUser = ({ email, displayName, role, password }) => {
     if (!['clerk', 'observer'].includes(role)) {
       throw new ArchiveWorkflowError('Only clerk or observer accounts can be created', { code: 'invalid_role' });
@@ -264,6 +298,13 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       throw new ArchiveWorkflowError('Only clerk or observer roles can be assigned', { code: 'invalid_role' });
     }
     return manageUser('update-role', { userId: requireId(userId, 'userId'), role });
+  };
+  const updateUserClerkRank = (userId, clerkRank) => {
+    const rank = Number.parseInt(clerkRank, 10);
+    if (!Number.isInteger(rank) || rank < 1 || rank > 7) {
+      throw new ArchiveWorkflowError('Clerk registration must be between 1 and 7', { code: 'invalid_clerk_rank' });
+    }
+    return manageUser('update-clerk-rank', { userId: requireId(userId, 'userId'), clerkRank: rank });
   };
   const resetUserPassword = (userId, password) => {
     if (String(password ?? '').length < 8) {
@@ -305,6 +346,23 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       .order('code', { ascending: true }).limit(Math.min(Math.max(Number(limit) || 20, 1), 500));
     if (term) request = request.or(`code.ilike.%${term}%,business_code.ilike.%${term}%,title.ilike.%${term}%`);
     return unwrap(request, 'Unable to search archives');
+  };
+  const searchArchiveStoryPages = async (query, { limit = 20 } = {}) => {
+    const term = String(query ?? '').trim().toLocaleLowerCase();
+    const ceiling = Math.min(Math.max(Number(limit) || 20, 1), 500);
+    const pages = await unwrap(
+      supabase.from('archive_story_pages')
+        .select('id,archive_id,author_id,author_name,title,body,created_at,updated_at,archive:archives!archive_story_pages_archive_id_fkey(id,code,title,visibility)')
+        .order('updated_at', { ascending: false })
+        .limit(500),
+      'Unable to search archive story pages',
+    );
+    return pages.filter((page) => {
+      if (page.archive?.visibility !== 'public') return false;
+      if (!term) return true;
+      return [page.title, page.body, page.author_name, page.archive?.code, page.archive?.title]
+        .some((value) => String(value ?? '').toLocaleLowerCase().includes(term));
+    }).slice(0, ceiling);
   };
   const addPublishedArchiveCovers = async (archives) => {
     const eligible = (archives || []).filter((archive) =>
@@ -658,6 +716,76 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     return { id: deleted.id };
   };
 
+  const listWorkflowTasks = async ({ includeFinished = false } = {}) => unwrap(
+    supabase.rpc('list_public_workflow_tasks', { include_finished: includeFinished === true }),
+    '无法读取档案委托',
+  );
+
+  const saveWorkflowTask = (input = {}) => {
+    const kind = input.kind === 'mainline' ? 'mainline' : 'commission';
+    const payload = {
+      ...(String(input.id ?? '').trim() ? { id: String(input.id).trim() } : {}),
+      code: String(input.code ?? '').trim(),
+      kind,
+      title: String(input.title ?? '').trim(),
+      objective: String(input.objective ?? '').trim(),
+      format: String(input.format ?? '').trim(),
+      template_id: kind === 'commission' ? String(input.template_id ?? input.templateId ?? '').trim() : null,
+      status: String(input.status ?? 'draft').trim(),
+      version_code: kind === 'mainline' ? String(input.version_code ?? input.versionCode ?? '').replace(/^ver\s*/i, '').trim() : null,
+      part: kind === 'mainline' ? Number(input.part) : null,
+      stage: kind === 'mainline' ? Number(input.stage) : null,
+      slot_id: kind === 'mainline' ? String(input.slot_id ?? input.slotId ?? '').trim() : null,
+      slot_label: kind === 'mainline' ? String(input.slot_label ?? input.slotLabel ?? '').trim() : '',
+      ...(String(input.status ?? '') === 'open' ? { opened_at: new Date().toISOString() } : {}),
+    };
+    return unwrap(
+      supabase.from('workflow_tasks').upsert(payload, { onConflict: 'id' }).select('*').single(),
+      '无法保存任务卷宗',
+    );
+  };
+
+  const updateWorkflowTaskStatus = (taskId, status) => unwrap(
+    supabase.from('workflow_tasks').update({ status: String(status ?? '').trim() })
+      .eq('id', requireId(taskId, 'taskId')).select('*').single(),
+    '无法更新任务状态',
+  );
+
+  const registerWorkflowTaskResponse = (taskId) => unwrap(
+    supabase.from('workflow_task_responses').upsert({ task_id: requireId(taskId, 'taskId') }, { onConflict: 'task_id,clerk_id' })
+      .select('id,task_id,clerk_id,contribution_id,status,registered_at,updated_at').single(),
+    '无法登记任务响应',
+  );
+
+  const listWorkflowTaskResponses = (taskId) => unwrap(
+    supabase.from('workflow_task_responses')
+      .select('id,task_id,clerk_id,contribution_id,status,registered_at,updated_at,clerk:profiles!workflow_task_responses_clerk_id_fkey(id,display_name),contribution:archive_contributions(id,archive_id,template_id,title,kind,target_contribution_id,base_version_id,status,draft_content,revision,submitted_at,updated_at)')
+      .eq('task_id', requireId(taskId, 'taskId')).order('registered_at', { ascending: true }),
+    '无法读取任务响应记录',
+  );
+
+  const listClerkDossierEntries = async (profileId) => {
+    const ownerId = requireId(profileId, 'profileId');
+    const [contributions, responses, tasks] = await Promise.all([
+      unwrap(supabase.from('archive_contributions')
+        .select('id,archive_id,owner_id,template_id,title,kind,status,draft_content,submitted_at,created_at,updated_at,archive:archives(id,code,title,category,visibility),versions:archive_versions(id,version_label,status,approved_at,created_at)')
+        .eq('owner_id', ownerId).order('updated_at', { ascending: false }), '无法读取书记官履历'),
+      unwrap(supabase.from('workflow_task_responses')
+        .select('id,task_id,contribution_id,status,registered_at,updated_at,task:workflow_tasks(id,code,kind,title,status,template_id,version_code,part,stage,slot_id,slot_label)')
+        .eq('clerk_id', ownerId), '无法读取书记官任务记录'),
+      listWorkflowTasks({ includeFinished: true }),
+    ]);
+    const responseByContribution = new Map(responses.filter((entry) => entry.contribution_id).map((entry) => [entry.contribution_id, entry]));
+    return contributions
+      .filter((entry) => entry.submitted_at || entry.versions?.length || ['approved', 'published', 'sealed', 'offline'].includes(entry.status))
+      .map((entry) => {
+        const linked = responseByContribution.get(entry.id) || null;
+        const annotatedTaskId = entry.draft_content?.workflowTaskId;
+        const task = linked?.task || tasks.find((candidate) => candidate.id === annotatedTaskId && candidate.kind === 'commission');
+        return { ...entry, task_response: linked || (task ? { status: entry.status, task } : null) };
+      });
+  };
+
   const mainlineVersionPayload = (input = {}) => ({
     code: String(input.code ?? '').replace(/^ver\s*/i, '').trim(),
     title: String(input.title ?? '').trim(),
@@ -769,8 +897,8 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
 
   return assertArchiveWorkflowRepository({
     getProfile, listTemplates, listMyDrafts, deleteDraft, saveDraft, submitDraft, listReviewQueue, reviewSubmission,
-    publishContribution, inviteUser, listUsers, createUser, updateUserRole, resetUserPassword, deleteUser,
-    sendAnnouncement, listNotifications, markNotificationRead, searchArchives, listPublishedArchives, listEditableArchives,
+    publishContribution, inviteUser, listUsers, listClerkDirectory, createUser, updateUserRole, updateUserClerkRank, resetUserPassword, deleteUser,
+    sendAnnouncement, listNotifications, markNotificationRead, searchArchives, searchArchiveStoryPages, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
     listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
     listWorkspaceNotes, createWorkspaceNote, updateWorkspaceNote, deleteWorkspaceNote,
@@ -778,5 +906,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     listArchiveStoryPages, createArchiveStoryPage, updateArchiveStoryPage, deleteArchiveStoryPage,
     listMainlineVersions, saveMainlineVersion, listMainlineStaffSlots, listMainlinePersonnelSubmissions, saveMainlineStaffSlot,
     deleteMainlineStaffSlot, uploadMainlineCover, subscribeMainlineChanges,
+    listWorkflowTasks, saveWorkflowTask, updateWorkflowTaskStatus, registerWorkflowTaskResponse,
+    listWorkflowTaskResponses, listClerkDossierEntries,
   });
 };

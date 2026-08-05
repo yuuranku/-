@@ -21,7 +21,7 @@ const normalizeFieldValue = (field, input) => {
 
 const isMissingOrInvalid = (field, value) => {
   if (value === '' || value === null || value === undefined) return field.required;
-  if (field.options && !field.options.some((option) => option.value === value)) return true;
+  if (field.options && !field.dynamicOptions && !field.options.some((option) => option.value === value)) return true;
   if (field.type === 'number') {
     if (!Number.isFinite(value)) return true;
     if (field.min !== undefined && value < field.min) return true;

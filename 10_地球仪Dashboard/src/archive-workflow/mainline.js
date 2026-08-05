@@ -1693,12 +1693,13 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
     return state;
   };
 
-  const openPersonnel = (current, slot, part) => {
+  const openPersonnel = (current, slot, part, task = null) => {
     const fields = partBriefing(current, part);
     return openTemplate('06', {
     title: '',
     mainlineBriefing: briefingText(fields),
-    content: annotateMainlineDocument({
+    content: {
+      ...annotateMainlineDocument({
       values: {
         role: slot.position || '',
         roleRelation: slot.duties || '',
@@ -1707,7 +1708,63 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       versionCode: current.code, part,
       stage: 1, slotId: slot.id, kind: 'personnel',
     }),
+      ...(task?.id ? { workflowTaskId: task.id } : {}),
+    },
   });
+  };
+
+  const findOpenPersonnelTask = async (current, slot, part) => {
+    if (typeof client?.listWorkflowTasks !== 'function') return null;
+    const tasks = await client.listWorkflowTasks({ includeFinished: false });
+    return tasks.find((task) => task.kind === 'mainline'
+      && task.status === 'open'
+      && String(task.version_code) === String(current.code)
+      && Number(task.part) === Number(part)
+      && Number(task.stage) === 1
+      && String(task.slot_id) === String(slot.id)) || null;
+  };
+
+  const openPersonnelResponse = (current, slot, part, task, returnFocus = null) => {
+    if (!task) return openPersonnel(current, slot, part);
+    const state = createWindow({
+      key: `mainline-response-${task.id}`,
+      title: `卷宗响应登记 / VER ${current.code}`,
+      code: 'RESPONSE.REG',
+      className: 'mainline-response-window',
+      icon: MAINLINE_ICON,
+      returnFocus,
+      body: `<section class="mainline-response" data-mainline-response>
+        <header><span>VER ${escapeHtml(current.code)} / PART ${String(part).padStart(2, '0')} / STAGE 01</span><b>人员档案复原</b></header>
+        <dl><div><dt>待复原岗位</dt><dd>${escapeHtml(slot.position || task.slot_label)}</dd></div><div><dt>任务编号</dt><dd>${escapeHtml(task.code)}</dd></div></dl>
+        <section><b>本次响应说明</b><p>${escapeHtml(task.objective || slot.objective || '提交一份独立人员档案，并保留既有时间与站点锚点。')}</p><ul><li>登记不会锁定岗位。</li><li>其他书记官仍可并列提交独立档案。</li><li>确认后将打开现有人员档案表单。</li></ul></section>
+        <p data-mainline-response-status>已提交 ${Number(task.submission_count) || 0} 份档案 · 已登记 ${Number(task.response_count) || 0} 位书记官</p>
+        <footer><button type="button" data-mainline-response-cancel>取消</button><button type="button" data-mainline-response-confirm>登记响应并开始撰写</button></footer>
+      </section>`,
+    });
+    if (state.mainlineResponseReady) return state;
+    state.mainlineResponseReady = true;
+    const root = state.windowElement.querySelector('[data-mainline-response]');
+    root.addEventListener('click', async (event) => {
+      if (event.target.closest('[data-mainline-response-cancel]')) {
+        state.windowElement.querySelector('[data-workflow-close]')?.click();
+        return;
+      }
+      const confirm = event.target.closest('[data-mainline-response-confirm]');
+      if (!confirm) return;
+      confirm.disabled = true;
+      const output = root.querySelector('[data-mainline-response-status]');
+      output.textContent = '正在写入响应登记……';
+      try {
+        await client.registerWorkflowTaskResponse(task.id);
+        output.textContent = '响应已登记，正在打开人员档案表单。';
+        openPersonnel(current, slot, part, task);
+        state.windowElement.querySelector('[data-workflow-close]')?.click();
+      } catch (error) {
+        output.textContent = error.message || '响应登记失败。';
+        confirm.disabled = false;
+      }
+    });
+    return state;
   };
 
   const openExperience = (current, slot, part) => {
@@ -1836,7 +1893,10 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       const action = event.target.closest('[data-mainline-action]')?.dataset.mainlineAction;
       const slotId = event.target.closest('[data-mainline-slot]')?.dataset.mainlineSlot;
       const slot = slots.find(({ id }) => id === slotId);
-      if (action === 'personnel' && slot) openPersonnel(current, slot, selectedPart);
+      if (action === 'personnel' && slot) {
+        const task = await findOpenPersonnelTask(current, slot, selectedPart);
+        openPersonnelResponse(current, slot, selectedPart, task, event.target.closest('[data-mainline-action]'));
+      }
       if (action === 'experience' && slot) openExperience(current, slot, selectedPart);
       if (action === 'formal-event' && role === 'admin') await compileFormalEvent(current, selectedPart, setStatus);
     });
@@ -2120,7 +2180,10 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       if (!personnelButton || personnelButton.disabled) return;
       const slotId = personnelButton.closest('[data-mainline-slot]')?.dataset.mainlineSlot;
       const slot = slots.find((item) => item.id === slotId);
-      if (slot) openPersonnel(current, slot, selectedPart);
+      if (slot) {
+        const task = await findOpenPersonnelTask(current, slot, selectedPart);
+        openPersonnelResponse(current, slot, selectedPart, task, personnelButton);
+      }
     });
 
     root.addEventListener('submit', async (event) => {

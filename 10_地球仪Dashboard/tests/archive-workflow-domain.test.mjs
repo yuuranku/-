@@ -5,6 +5,7 @@ import {
   ARCHIVE_MARKS,
   WORKFLOW_STATUSES,
   buildArchiveReference,
+  buildArchiveStoryReference,
   canEnterWorkspace,
   canReview,
   canSubmit,
@@ -106,6 +107,25 @@ test('archive references serialize into stable clickable tokens', () => {
       archiveId: 'species-09',
       code: 'S-09',
       label: '白幕样本',
+    },
+  );
+  assert.deepEqual(
+    buildArchiveStoryReference({
+      id: 'story-09',
+      archiveId: 'species-09',
+      archiveCode: 'S-09',
+      title: '夜间观察',
+      body: '采样者在冰窗边缘记录到新的反应。',
+      authorName: '记录员',
+    }),
+    {
+      type: 'story-reference',
+      archiveId: 'species-09',
+      storyPageId: 'story-09',
+      code: 'S-09 / 留言',
+      label: '夜间观察',
+      excerpt: '采样者在冰窗边缘记录到新的反应。',
+      authorName: '记录员',
     },
   );
 });

@@ -171,6 +171,9 @@
           <p class="system-kicker">C:\WHITE_ABYSS\</p>
           <h2 id="archive-heading">PALIS 09A 总目录</h2>
           <p id="archive-subtitle">MASTER INDEX / NINE RECORD FAMILIES / SOURCE CONFLICTS PRESERVED</p>
+          <button class="archive-active-task-entry" id="archive-active-task-entry" type="button" aria-haspopup="dialog">
+            <span>收发室 / 公开调阅</span><b>档案委托 <i data-commission-alert hidden>!</i></b><small>ARCHIVE COMMISSION REGISTER</small>
+          </button>
         </header>
         <button class="archive-back retro-button" id="archive-back" type="button" hidden>← PALIS 09A</button>
         <div class="archive-category-visual" id="archive-category-visual" aria-hidden="true"></div>
@@ -293,6 +296,9 @@
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:08"><i class="clerk-desktop__icon clerk-desktop__icon--anomaly" data-category-code="08" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-anomaly.svg')"></span></i><span>异常附卷</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:09"><i class="clerk-desktop__icon clerk-desktop__icon--species" data-category-code="09" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-species.svg')"></span></i><span>物种与标本</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="mainline"><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-event.svg')"></span></i><span>档案纠错程序</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="active-tasks"><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-event.svg')"></span><b data-commission-alert hidden>!</b></i><span>档案委托</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="clerk-dossier"><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-person.svg')"></span></i><span>我的档案袋</span></button>
+        <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="task-control" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-management.svg')"></span></i><span>委托控制台</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="review" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-review.svg')"></span></i><span>审核与录入</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archives" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-management.svg')"></span></i><span>档案管理</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="users" data-admin-only hidden><i class="clerk-desktop__icon" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-users.svg')"></span></i><span>账号管理</span></button>
@@ -315,8 +321,8 @@
         <button type="button" data-workspace-note-retry hidden style="pointer-events: auto;">重新读取便签</button>
       </section>
       <nav class="clerk-desktop__start-menu" id="clerk-desktop-start-menu" aria-label="开始菜单" hidden><b class="clerk-desktop__start-brand" aria-hidden="true">PALIS 09A</b><div class="clerk-desktop__start-items">
-        <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
-        <button type="button" data-workspace-command="mainline">档案纠错程序</button><button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
+        <div data-admin-only hidden><p>管理工具</p><button type="button" data-workspace-command="task-control">委托控制台</button><button type="button" data-workspace-command="review">审核与录入</button><button type="button" data-workspace-command="archives">档案管理</button><button type="button" data-workspace-command="users">账号管理</button></div>
+        <button type="button" data-workspace-command="mainline">档案纠错程序</button><button type="button" data-workspace-command="active-tasks">档案委托 <i data-commission-alert hidden>!</i></button><button type="button" data-workspace-command="clerk-dossier">我的档案袋</button><button type="button" data-workspace-command="about">关于此工作台</button><hr /><button type="button" data-workspace-command="exit">返回档案系统</button>
       </div></nav>
 
       <div class="clerk-desktop__window-layer" id="assistant-window-layer" aria-live="polite">
@@ -353,21 +359,26 @@
       <div class="version-notice__veil" data-version-notice-action="close"></div>
       <article class="version-notice__panel">
         <header class="version-notice__titlebar">
-          <span>PALIS / VERSION BRIEFING / VER0.11 白幕初垂</span>
+          <span>PALIS / VERSION BRIEFING / VER0.14 白幕初垂</span>
           <div class="window-controls">
             <button type="button" data-version-notice-action="minimize" aria-label="最小化版本介绍窗口">_</button>
             <button type="button" data-version-notice-action="close" aria-label="关闭版本介绍窗口">×</button>
           </div>
         </header>
         <div class="version-notice__content">
-          <figure class="version-notice__cover"><img src="/assets/ver-0-1-cover.jpg" alt="白幕之下 ver0.13 白幕初垂" width="1712" height="1284" /></figure>
+          <figure class="version-notice__cover"><img src="/assets/ver-0-1-cover.jpg" alt="白幕之下 ver0.14 白幕初垂" width="1712" height="1284" /></figure>
           <div class="version-notice__copy">
             <p class="version-notice__kicker">WHITE VEIL / INTERNAL TEST</p>
-            <h2 id="version-notice-title">ver0.13 白幕初垂</h2>
+            <h2 id="version-notice-title">ver0.14 白幕初垂</h2>
             <section class="version-notice__report version-notice__report--lead" aria-label="主线线索人物更新">
               <h3>主线线索 / 新增入卷</h3>
               <p class="version-notice__lead-reference"><span>主线线索人物</span><button type="button" data-version-reference="德米特里·阿列克谢耶维奇·沃尔科夫">德米特里·阿列克谢耶维奇·沃尔科夫</button><em>引用档案 · 点击打开</em></p>
               <p>人物卷已加入主线检索链路，作为后续事件、相关机构与档案交叉引用的入口。</p>
+            </section>
+            <section class="version-notice__report" aria-label="书记官工作台更新">
+              <h3>系统更新 / 书记官工作台</h3>
+              <p>档案委托与我的档案袋已接入工作台。书记官可响应公开卷宗、登记个人档案并提交独立记录；任务开放状态与审核进度将由档案管理处维护。</p>
+              <p>主线美工已完成：主线卷宗界面、任务视图与档案调阅风格均已完成本轮整理。</p>
             </section>
             <section class="version-notice__report" aria-label="极地之声电台更新">
               <h3>系统更新 / 极地之声电台</h3>
@@ -403,7 +414,7 @@
             </section>
             <p class="version-notice__feedback">第一次做企划，有很多不懂和考虑不周的地方，请大家多多指教。<span class="version-notice__qq">QQ群：1023560229</span></p>
             <div class="version-notice__introduction">
-              <p id="version-notice-copy">欢迎来到《白幕之下》ver0.13 白幕初垂内测版本。此次企划作为 ver1.0 版本《海燕归巢》的先行版本，为 1.0 版本补充必要的基础资料与档案；也同时作为内测版本，为我设想的企划模式进行铺垫。</p>
+              <p id="version-notice-copy">欢迎来到《白幕之下》ver0.14 白幕初垂内测版本。本次更新完善了书记官参与与档案委托流程，并完成主线卷宗的视觉整理。</p>
               <p>以主线事件推动为主与开放档案两种形式进行创作。此次企划补完 1952 年中苏联合科考队科考行动至中苏决裂、昆仑工程启动的档案。</p>
               <p class="version-notice__ai-disclosure">本企划美术素材含有部分AI生成素材，由ChatGPT生成（非描图，非盗图，非喂图），如在意请止步。谢谢理解。</p>
             </div>
@@ -704,6 +715,10 @@
         <span>PALIS 助手</span>
       </button>
     </aside>
+
+    <button type="button" class="commission-assistant" id="commission-assistant" aria-label="打开档案委托">
+      <span>收发室 / 公开调阅</span><b>档案委托 <i data-commission-alert hidden>!</i></b><small>ARCHIVE COMMISSION REGISTER</small>
+    </button>
 
     <template id="archive-window-template">
       <section class="archive-window retro-window" role="dialog" aria-modal="false">

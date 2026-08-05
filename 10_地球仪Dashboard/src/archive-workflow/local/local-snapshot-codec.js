@@ -1,5 +1,7 @@
 import { normalizeLocalState } from './local-state.js';
 
+// Keep decoding snapshots through normalizeLocalState so a local update never
+// leaves the boot sequence stuck behind a previously saved browser store.
 export const LOCAL_SNAPSHOT_SCHEMA_VERSION = 2;
 export const LOCAL_SNAPSHOT_DATABASE_NAME = 'palis-local-verification-v1';
 
@@ -20,6 +22,8 @@ const ARRAY_STORES = Object.freeze([
   'archiveStoryPages',
   'mainlineVersions',
   'mainlineStaffSlots',
+  'workflowTasks',
+  'workflowTaskResponses',
 ]);
 const MAP_STORES = Object.freeze([
   'numberCounters',
@@ -309,9 +313,10 @@ export const decodeLocalSnapshot = async (
   if (await checksumPayload(snapshot.payload) !== snapshot.checksum) {
     throw snapshotError('invalid_snapshot_checksum', 'Snapshot checksum does not match payload');
   }
-  const state = snapshot.schemaVersion === 1
-    ? normalizeLocalState(await decodeValue(snapshot.payload))
-    : await decodeValue(snapshot.payload);
+  // New stores may be added after a snapshot has been exported.  The payload
+  // is checksummed before this normalization, so compatibility does not relax
+  // integrity checking; it only supplies empty stores introduced later.
+  const state = normalizeLocalState(await decodeValue(snapshot.payload));
   assertLocalStateShape(state);
   return state;
 };

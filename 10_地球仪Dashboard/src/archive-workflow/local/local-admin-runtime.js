@@ -7,6 +7,7 @@ const LOCAL_ADMIN = Object.freeze({
   email: 'local-admin@palis.local',
   display_name: '本地管理员',
   role: 'admin',
+  clerk_rank: 1,
   enabled: true,
 });
 
