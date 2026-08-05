@@ -10433,3 +10433,50 @@ body.clerk-desktop-open { overflow: hidden; }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-editor { margin-top: 2px; }
   #clerk-desktop #workspace-note-region .workspace-sticky-note:has(.workspace-sticky-note-error) { overflow-y: auto; }
 }
+
+/* The clerk desktop owns the system strip while it is open.  Keep the public
+   archive strip out of the stacking context, then use flex instead of the
+   legacy grid so adding a document task can never create an implicit second
+   row. */
+@media (min-width: 761px) {
+  body.clerk-desktop-open .taskbar {
+    display: none;
+  }
+
+  #assistant-taskbar.clerk-desktop__taskbar {
+    box-sizing: border-box;
+    display: flex;
+    align-items: stretch;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    overflow: hidden;
+  }
+
+  #assistant-taskbar .clerk-desktop__start,
+  #assistant-taskbar .clerk-desktop__arrange,
+  #assistant-taskbar .clerk-desktop__tray {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  #assistant-taskbar .clerk-desktop__task-list {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-self: stretch;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #assistant-taskbar .clerk-desktop__task-list .archive-task-button {
+    box-sizing: border-box;
+    min-height: 0;
+    height: 100%;
+    flex: 0 1 190px;
+  }
+}
