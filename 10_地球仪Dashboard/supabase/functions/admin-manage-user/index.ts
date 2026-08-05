@@ -52,7 +52,9 @@ Deno.serve(async (request) => {
     const [{ data: authUsers, error: authError }, { data: profiles, error: profileError }] =
       await Promise.all([
         adminClient.auth.admin.listUsers({ page: 1, perPage: 200 }),
-        adminClient.from('profiles').select('id,email,display_name,role,clerk_rank,enabled,created_at,updated_at'),
+        // clerk_rank belongs to the optional workflow migration.  The original
+        // account manager must keep working before that migration is applied.
+        adminClient.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at'),
       ]);
     if (authError || profileError) {
       return respond({ error: authError?.message || profileError?.message || 'LIST_FAILED' }, 400);
@@ -87,7 +89,6 @@ Deno.serve(async (request) => {
       email,
       display_name: displayName,
       role,
-      clerk_rank: 1,
       enabled: true,
     });
     if (profileError) {
@@ -100,7 +101,7 @@ Deno.serve(async (request) => {
   if (!userId) return respond({ error: 'USER_REQUIRED' }, 400);
   const { data: target } = await adminClient
     .from('profiles')
-    .select('id,email,role,clerk_rank,enabled')
+    .select('id,email,role,enabled')
     .eq('id', userId)
     .single();
   if (!target) return respond({ error: 'USER_NOT_FOUND' }, 404);

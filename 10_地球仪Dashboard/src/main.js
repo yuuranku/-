@@ -2796,7 +2796,6 @@ function createArchiveUtilityWindow({ key, title, code, className = '', icon = '
   return state;
 }
 
-const archiveActiveTaskEntry = document.querySelector('#archive-active-task-entry');
 const commissionAssistant = document.querySelector('#commission-assistant');
 const commissionAlertNodes = [...document.querySelectorAll('[data-commission-alert]')];
 const COMMISSION_NOTICE_KEY = 'palis.archive-commission.seen-at';
@@ -2827,7 +2826,6 @@ const openPublicCommissionBoard = (trigger) => {
   });
   acknowledgeCommissionAlert();
 };
-archiveActiveTaskEntry?.addEventListener('click', () => openPublicCommissionBoard(archiveActiveTaskEntry));
 commissionAssistant?.addEventListener('click', () => openPublicCommissionBoard(commissionAssistant));
 window.addEventListener('palis:commission-published', () => { void refreshCommissionAlert(); });
 window.addEventListener('palis:commission-read', acknowledgeCommissionAlert);

@@ -77,7 +77,9 @@ export const openActiveTaskBoardWindow = async ({
   if (typeof createWindow !== 'function') throw new TypeError('createWindow is required');
   const state = createWindow({
     key: 'active-task-board', title: '档案委托 / 收发室', code: 'ACTIVE.DSK',
-    className: 'active-task-board-window', icon: TASK_ICON,
+    // This board rerenders after its initial data read.  Suppress the generic
+    // unfold animation here so that rerendering never looks like a second fold.
+    className: 'active-task-board-window no-open-animation', icon: TASK_ICON,
     body: `<section class="commission-board" data-active-task-board>
       <header><div><b>档案委托</b><span>ARCHIVE COMMISSION REGISTER</span></div><output data-task-board-count>00</output></header>
       <div class="commission-board__body"><nav class="commission-register" data-task-board-list aria-label="任务登记簿"></nav><main data-task-board-detail></main></div>

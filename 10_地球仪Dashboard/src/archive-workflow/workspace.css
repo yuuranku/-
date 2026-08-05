@@ -73,6 +73,7 @@
   will-change: transform, opacity;
   animation: window-unfold 480ms cubic-bezier(.16, 1, .3, 1) both;
 }
+.archive-workflow-window.no-open-animation.is-opening { animation: none; }
 .archive-workflow-window.is-minimizing {
   pointer-events: none;
   animation: window-minimize 260ms cubic-bezier(.55, 0, 1, .45) both;

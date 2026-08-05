@@ -3053,6 +3053,11 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
 .archive-window.is-opening .document-sheet {
   animation: dialog-content-arrive 270ms cubic-bezier(.16, 1, .3, 1) 250ms both;
 }
+.archive-window.no-open-animation.is-opening,
+.archive-window.no-open-animation.is-opening .dialog-menu,
+.archive-window.no-open-animation.is-opening .document-sheet {
+  animation: none;
+}
 .archive-window.is-minimizing {
   pointer-events: none;
   animation: window-minimize 260ms cubic-bezier(.55, 0, 1, .45) both;

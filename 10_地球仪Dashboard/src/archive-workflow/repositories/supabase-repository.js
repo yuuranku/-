@@ -25,6 +25,19 @@ const unwrap = async (request, context) => {
   return data;
 };
 
+// Workflow commissions were introduced after the original archive schema.  A
+// deployed site can therefore legitimately be connected to a database that has
+// not received those migrations yet.  Treat only that specific absence as an
+// empty commission register; every other database failure must still surface.
+const isWorkflowSchemaUnavailable = (error) => {
+  const code = String(error?.code ?? '');
+  const message = String(error?.message ?? '');
+  return code === 'PGRST202'
+    || code === 'PGRST205'
+    || (/\b(?:list_public_workflow_tasks|workflow_tasks|workflow_task_responses)\b/i.test(message)
+      && /(?:does not exist|could not find|schema cache)/i.test(message));
+};
+
 const requireId = (value, label) => {
   const id = String(value ?? '').trim();
   if (!id) throw new ArchiveWorkflowError(`${label} is required`, { code: 'invalid_input' });
@@ -89,7 +102,9 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const getProfile = async (userId) => {
     const id = requireId(userId, 'userId');
     return unwrap(
-      supabase.from('profiles').select('id,email,display_name,role,clerk_rank,enabled,created_at,updated_at')
+      // clerk_rank is optional until the matching database migration has run.
+      // Loading the base profile must remain enough to establish admin access.
+      supabase.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at')
         .eq('id', id).single(),
       'Unable to load operator profile',
     );
@@ -716,10 +731,14 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     return { id: deleted.id };
   };
 
-  const listWorkflowTasks = async ({ includeFinished = false } = {}) => unwrap(
-    supabase.rpc('list_public_workflow_tasks', { include_finished: includeFinished === true }),
-    '无法读取档案委托',
-  );
+  const listWorkflowTasks = async ({ includeFinished = false } = {}) => {
+    const { data, error } = await supabase.rpc('list_public_workflow_tasks', {
+      include_finished: includeFinished === true,
+    });
+    if (error && isWorkflowSchemaUnavailable(error)) return [];
+    if (error) throw normalizeError(error, '无法读取档案委托');
+    return data || [];
+  };
 
   const saveWorkflowTask = (input = {}) => {
     const kind = input.kind === 'mainline' ? 'mainline' : 'commission';
