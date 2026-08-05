@@ -2145,6 +2145,13 @@
    remains visible rather than turning the spare seats into a navy panel. */
 .mainline-brief__center { background: transparent; }
 
+/* Keep the primary dossier sheet on the same clean white stock as the rest
+   of the briefing window; its red archive spine remains the identity cue. */
+.mainline-brief__mission {
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(0, 10, 24, .2);
+}
+
 /* Every dossier card uses the same three-row instrument layout.  The action
    sits on a shared baseline, regardless of role-name or duty length. */
 .mainline-brief__vacancy-grid .mainline-vacancy {

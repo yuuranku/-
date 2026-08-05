@@ -28,6 +28,7 @@ test('the reconstruction briefing uses the supplied artwork with a lightweight t
   assert.match(styles, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(styles, /grid-template-rows: repeat\(2, 111px\)/);
   assert.match(styles, /mainline-brief__center \{ background: transparent; \}/);
+  assert.match(styles, /mainline-brief__mission \{\s*background: #fff;/);
   assert.match(styles, /grid-template-rows: auto minmax\(0, 1fr\) 20px/);
   assert.match(styles, /position: absolute;\s*\n\s*top: var\(--mainline-hero-height\)/);
   assert.match(styles, /mask-image:\s*linear-gradient\(90deg, #000 0 70%/);

@@ -1340,6 +1340,8 @@ const pointer = new THREE.Vector2();
 const routeLines = [];
 const polarDiagnosticState = { stations: 0, entrances: 0, supplyRoutes: 0, routes: 0, weather: 0, storm: 0 };
 let selectedMapItem = null;
+let selectedMapCode = '';
+let selectedMapAt = 0;
 let polarDiagnosticStarted = false;
 let polarDiagnosticComplete = false;
 let polarDiagnosticMode = '';
@@ -2029,7 +2031,7 @@ async function runPolarDiagnostic() {
   setDiagnosticRow('storm', 'pending', '等待');
   setDiagnosticProgress(0, allChecks, '正在建立南极网络会话', 'CHANNEL 00', 'OPEN POLAR CONTROL BUS');
   taskStatus.textContent = '南极网络自检 / 建立通信';
-  document.querySelector('.map-instructions').textContent = `POLAR DATUM / ${RESEARCH_STATIONS.length + MAPPED_ABYSS_POINTS.length} ACTIVE RECORDS`;
+  document.querySelector('.map-instructions').textContent = `POLAR DATUM / ${RESEARCH_STATIONS.length + MAPPED_ABYSS_POINTS.length} ACTIVE RECORDS / 单击选中 · 双击打开`;
   document.querySelector('[data-layer="stations"] small').textContent = '20 座公开站点／2 个行动节点';
 
   if (isPreviewAccess()) {
@@ -2240,7 +2242,7 @@ async function runRestrictedPolarDiagnostic(totals) {
   polarLayer.classList.add('is-network-offline');
   document.querySelector('#map-detail')?.removeAttribute('aria-busy');
   selectMapItem(RESEARCH_STATIONS[0], { transient: true });
-  document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 20 STATIONS OFFLINE / ROUTES UNKNOWN';
+  document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 20 STATIONS OFFLINE / 单击选中 · 双击打开';
   document.querySelector('[data-layer="stations"] small').textContent = '20 座站点离线／补给路线未知';
   taskStatus.textContent = '南极网络离线 / 补给路线未知';
   await diagnosticWait(reducedMotion ? 20 : 1250);
@@ -2315,7 +2317,18 @@ renderer.domElement.addEventListener('pointerup', (event) => {
   renderer.domElement.style.cursor = currentChapter === 3 ? 'grab' : '';
   if (currentChapter !== 3 || wasDragging) return;
   const hit = findMapHit(event);
-  if (hit) openMapArchive(hit.object.userData.item);
+  if (!hit) return;
+  const item = hit.object.userData.item;
+  const now = Date.now();
+  const isDoubleSelection = selectedMapCode === item.code && now - selectedMapAt < 380;
+  selectMapItem(item);
+  selectedMapCode = item.code;
+  selectedMapAt = now;
+  if (isDoubleSelection) {
+    selectedMapCode = '';
+    selectedMapAt = 0;
+    openMapArchive(item);
+  }
 });
 renderer.domElement.addEventListener('pointercancel', () => {
   pointerDown = false;
@@ -6685,8 +6698,10 @@ function rebuildMarkers() {
   while (mapGroups.markers.children.length) {
     const child = mapGroups.markers.children[0];
     mapGroups.markers.remove(child);
-    child.material?.dispose?.();
-    child.geometry?.dispose?.();
+    child.traverse((part) => {
+      part.material?.dispose?.();
+      part.geometry?.dispose?.();
+    });
   }
   interactiveMeshes.length = 0;
   markerMaterials.length = 0;
@@ -6713,6 +6728,7 @@ function rebuildMarkers() {
       opacity: 0,
       depthWrite: false,
     });
+    material.userData.baseColor = item.color;
     material.userData.baseOpacity = isCommandHub ? 1 : item.datum ? 1 : isStation ? 0.92 : 0.96;
     material.userData.bootType = isStation ? 'stations' : 'entrances';
     material.userData.bootIndex = isStation ? stationBootIndex++ : entranceBootIndex++;
@@ -6720,6 +6736,23 @@ function rebuildMarkers() {
     const marker = new THREE.Mesh(geometry, material);
     marker.position.copy(toVector(item.lat, item.lng, isCommandHub ? 0.009 : item.datum ? 0.006 : 0.005));
     marker.userData.item = item;
+    const highlight = new THREE.Group();
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(isCommandHub ? 2.16 : item.datum ? 1.96 : 1.56, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffa800, transparent: true, opacity: 0.48, depthWrite: false }),
+    );
+    const outline = new THREE.Mesh(
+      new THREE.OctahedronGeometry(isCommandHub ? 1.62 : item.datum ? 1.48 : 1.16, 0),
+      new THREE.MeshBasicMaterial({ color: 0x071b31, depthWrite: false }),
+    );
+    const core = new THREE.Mesh(
+      new THREE.OctahedronGeometry(isCommandHub ? 1.32 : item.datum ? 1.2 : .94, 0),
+      new THREE.MeshBasicMaterial({ color: 0xffd21f, depthWrite: false }),
+    );
+    highlight.add(glow, outline, core);
+    highlight.visible = false;
+    marker.add(highlight);
+    marker.userData.selectionHighlight = highlight;
     markerMaterials.push(material);
     interactiveMeshes.push(marker);
     mapGroups.markers.add(marker);
@@ -6803,6 +6836,12 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
     selectedMapItem = item;
     document.querySelector('#point-picker').value = item.code;
   }
+  interactiveMeshes.forEach((marker) => {
+    const isSelected = polarDiagnosticComplete && marker.userData.item?.code === item.code;
+    marker.userData.selectionHighlight.visible = isSelected;
+    marker.scale.setScalar(isSelected ? 1.16 : 1);
+    marker.material.color.set(isSelected ? 0xfff5b2 : marker.material.userData.baseColor);
+  });
   if (diagnosticStatus) {
     flashDiagnosticMapDetail();
   }
