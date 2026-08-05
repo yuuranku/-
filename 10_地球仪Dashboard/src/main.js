@@ -2494,6 +2494,8 @@ let activeArchiveWindow = null;
 
 function syncArchiveTaskbar() {
   archiveTaskList.hidden = archiveTaskList.children.length === 0;
+  const desktopTaskList = document.querySelector('#assistant-task-list');
+  if (desktopTaskList) desktopTaskList.hidden = desktopTaskList.children.length === 0;
   archiveWindows.forEach(({ windowElement, taskButton, minimized }) => {
     const isActive = windowElement === activeArchiveWindow && !minimized;
     windowElement.classList.toggle('is-active', isActive);
@@ -2503,11 +2505,45 @@ function syncArchiveTaskbar() {
   });
 }
 
+function archiveWindowSurfaceElements(surface = 'archive') {
+  if (surface === 'workspace') {
+    return {
+      taskList: document.querySelector('#assistant-task-list'),
+      windowLayer: document.querySelector('#assistant-window-layer'),
+    };
+  }
+
+  return {
+    taskList: archiveTaskList,
+    windowLayer: archiveDesktop,
+  };
+}
+
+function moveMinimizedArchiveWindowsToSurface(surface) {
+  const target = archiveWindowSurfaceElements(surface);
+  if (!target.taskList || !target.windowLayer) return;
+
+  archiveWindows.forEach((state) => {
+    if (!state.minimized || state.closing || state.surface === surface) return;
+    target.taskList.appendChild(state.taskButton);
+    target.windowLayer.appendChild(state.windowElement);
+    state.surface = surface;
+    state.windowElement.dataset.archiveSurface = surface;
+  });
+
+  syncArchiveTaskbar();
+}
+
+window.addEventListener('palis:workspace-desktop-lifecycle', (event) => {
+  moveMinimizedArchiveWindowsToSurface(event.detail?.open ? 'workspace' : 'archive');
+});
+
 function bringArchiveWindowToFront(windowElement, focusControl = false) {
   const state = archiveWindows.get(windowElement.dataset.archiveId);
   if (!state || state.minimized) return;
   document.querySelectorAll('.mascot-document-window.is-active').forEach((candidate) => candidate.classList.remove('is-active'));
-  archiveTaskList.querySelectorAll('.mascot-document-task-button').forEach((button) => {
+  const { taskList } = archiveWindowSurfaceElements(state.surface);
+  taskList?.querySelectorAll('.mascot-document-task-button').forEach((button) => {
     button.classList.remove('is-active');
     button.setAttribute('aria-pressed', 'false');
   });
@@ -2626,7 +2662,11 @@ function installArchiveWindowDrag(windowElement) {
   };
   const moveDrag = (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
-    const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
+    const state = archiveWindows.get(windowElement.dataset.archiveId);
+    const taskbar = state?.surface === 'workspace'
+      ? document.querySelector('#assistant-taskbar')
+      : document.querySelector('.taskbar');
+    const taskbarHeight = taskbar?.getBoundingClientRect().height || 44;
     const nextLeft = THREE.MathUtils.clamp(dragState.left + event.clientX - dragState.startX, -dragState.width + 28, innerWidth - 28);
     const nextTop = THREE.MathUtils.clamp(dragState.top + event.clientY - dragState.startY, -dragState.height + 64, innerHeight - taskbarHeight - 24);
     windowElement.style.left = `${nextLeft}px`;
@@ -5577,6 +5617,7 @@ function openArchiveAttachmentWindow(parentState, attachment) {
     trigger: parentState.windowElement,
     minimized: false,
     closing: false,
+    surface: 'archive',
   };
   archiveWindows.set(key, state);
   archiveTaskList.appendChild(taskButton);
@@ -5623,7 +5664,11 @@ function installArchiveStoryWindowDrag(windowElement) {
   });
   titlebar.addEventListener('pointermove', (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
-    const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
+    const state = archiveWindows.get(key);
+    const taskbar = state?.surface === 'workspace'
+      ? document.querySelector('#assistant-taskbar')
+      : document.querySelector('.taskbar');
+    const taskbarHeight = taskbar?.getBoundingClientRect().height || 44;
     const nextLeft = THREE.MathUtils.clamp(
       dragState.left + event.clientX - dragState.startX,
       -dragState.width + 40,
@@ -5967,6 +6012,7 @@ function openArchive(archive, trigger) {
     trigger,
     minimized: false,
     closing: false,
+    surface: 'archive',
     disposePublishedMedia: null,
     storyArchiveId: archive.cloudRecord?.id || null,
     storyArchivePromise: null,
@@ -6765,6 +6811,7 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
 function openMapArchive(item) {
   if (!item) return;
   selectMapItem(item);
+  emitLoadingCue('window', 180);
   void openArchiveReference(item.code, renderer.domElement);
 }
 
