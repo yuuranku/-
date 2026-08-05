@@ -68,6 +68,7 @@ const MEDIA_SYNC_FAILURES = new Set([
 ]);
 
 const clerkNewRestrictedTemplateCodes = new Set(['03', '04']);
+const SUPPLEMENT_ATTACHMENT_MAX_BYTES = 1024 * 1024;
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -632,6 +633,35 @@ export function initializeArchiveWorkspace({
     if (workspaceStatus) workspaceStatus.textContent = message;
   };
 
+  // Opening the mainline program includes a lazy module import followed by
+  // several archive reads.  Keep the desktop honest during that wait: its
+  // launch controls become unavailable and the system cursor communicates
+  // that the request is still being processed instead of inviting repeated
+  // clicks that would queue duplicate work.
+  const pendingWorkspaceCommands = new Set();
+  const setWorkspaceCommandLoading = (command, loading) => {
+    const controls = [...root.querySelectorAll(`[data-workspace-command="${command}"]`)];
+    controls.forEach((control) => {
+      control.classList.toggle('is-command-loading', loading);
+      control.toggleAttribute('aria-busy', loading);
+      if (control instanceof HTMLButtonElement) control.disabled = loading;
+    });
+    root.classList.toggle('is-command-loading', pendingWorkspaceCommands.size > 0);
+    if (pendingWorkspaceCommands.size > 0) root.dataset.workspaceLoading = command;
+    else delete root.dataset.workspaceLoading;
+  };
+  const runWorkspaceCommand = async (command, work) => {
+    if (pendingWorkspaceCommands.has(command)) return null;
+    pendingWorkspaceCommands.add(command);
+    setWorkspaceCommandLoading(command, true);
+    try {
+      return await work();
+    } finally {
+      pendingWorkspaceCommands.delete(command);
+      setWorkspaceCommandLoading(command, false);
+    }
+  };
+
   const denyWorkspace = () => {
     setWorkspaceMessage('观察员无权进入书记官工作台');
     workspaceEntry.dataset.accessDenied = 'observer';
@@ -1167,8 +1197,8 @@ export function initializeArchiveWorkspace({
             ` : ''}
             <section class="archive-editor__section" data-editor-section="attachments">
               <label class="archive-editor-field">
-                <span>补充附件（不进入档案图片版面，单个文件不超过 5MB）</span>
-                <input name="attachments" type="file" multiple accept=".html,.doc,.docx,.pdf,.txt,image/*" />
+                <span>补充附件（不进入档案图片版面，单个文件不超过 1MB）</span>
+                <input name="attachments" type="file" multiple accept=".doc,.docx,.pdf,.txt,image/*" />
               </label>
             </section>
 
@@ -2181,9 +2211,9 @@ export function initializeArchiveWorkspace({
       }
       const selectedFiles = [...form.elements.attachments.files];
       const invalidAttachment = selectedFiles.find((file) =>
-        file.size <= 0 || file.size > 5 * 1024 * 1024);
+        file.size <= 0 || file.size > SUPPLEMENT_ATTACHMENT_MAX_BYTES);
       if (invalidAttachment) {
-        message.textContent = `附件“${invalidAttachment.name}”为空或超过 5MB，请重新选择。`;
+        message.textContent = `附件“${invalidAttachment.name}”为空或超过 1MB，请重新选择。`;
         return;
       }
       setSubmissionState('saving');
@@ -2196,7 +2226,9 @@ export function initializeArchiveWorkspace({
           const attachmentKey = `${file.name}:${file.size}:${file.lastModified}`;
           if (uploadedAttachmentKeys.has(attachmentKey)) continue;
           message.textContent = `正在上传补充附件：${file.name}`;
-          await client.uploadAttachment(draftId, context.profile.id, file);
+          await client.uploadAttachment(draftId, context.profile.id, file, {
+            role: 'supplement',
+          });
           uploadedAttachmentKeys.add(attachmentKey);
         }
       };
@@ -3812,15 +3844,20 @@ export function initializeArchiveWorkspace({
       void openMailboxPanel();
     }
     if (command === 'mainline') {
-      void import('./mainline.js').then(({ openMainlineWindow }) => openMainlineWindow({
-        createWindow,
-        role: context.role,
-        client,
-        openTemplate: (code, initial) => {
-          const template = ARCHIVE_TEMPLATE_BY_CODE[code];
-          return template ? createEditor(template, initial) : null;
-        },
-      }));
+      void runWorkspaceCommand('mainline', async () => {
+        const { openMainlineWindow } = await import('./mainline.js');
+        return openMainlineWindow({
+          createWindow,
+          role: context.role,
+          client,
+          openTemplate: (code, initial) => {
+            const template = ARCHIVE_TEMPLATE_BY_CODE[code];
+            return template ? createEditor(template, initial) : null;
+          },
+        });
+      }).catch(() => {
+        setWorkspaceMessage('DOSSIER PROGRAM LOAD FAILED');
+      });
     }
     if (command === 'review' && canReview(context.role)) void openReviewPanel();
     if (command === 'users' && canReview(context.role)) void openUserManagementPanel();

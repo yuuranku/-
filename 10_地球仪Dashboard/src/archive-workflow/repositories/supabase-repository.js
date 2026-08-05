@@ -454,8 +454,13 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     return mediaRows.map((row, index) => ({
       id: row.id,
       role: row.role ?? null,
+      contributionId: row.contribution_id ?? '',
       storagePath: row.storage_path,
       publicUrl: signedRows?.[index]?.signedUrl ?? signedRows?.[index]?.signed_url ?? '',
+      fileName: row.file_name ?? '',
+      mimeType: row.mime_type ?? 'application/octet-stream',
+      byteSize: Number(row.byte_size ?? 0),
+      createdAt: row.created_at ?? '',
       altText: row.alt_text ?? '',
       caption: row.caption ?? '',
       sortOrder: Number(row.sort_order ?? 0),
@@ -467,7 +472,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     }
     const rows = await unwrap(
       supabase.from('archive_attachments')
-        .select('id,role,storage_path,alt_text,caption,sort_order')
+        .select('id,contribution_id,role,storage_path,file_name,mime_type,byte_size,created_at,alt_text,caption,sort_order')
         .eq('contribution_id', requireId(contributionId, 'contributionId'))
         .order('sort_order', { ascending: true }),
       'Unable to load contribution media',
@@ -481,7 +486,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     const contribution = requireId(contributionId, 'contributionId');
     const rows = await unwrap(
       supabase.from('archive_attachments')
-        .select('id,role,storage_path,alt_text,caption,sort_order,contribution:archive_contributions!inner(status)')
+        .select('id,contribution_id,role,storage_path,file_name,mime_type,byte_size,created_at,alt_text,caption,sort_order,contribution:archive_contributions!inner(status)')
         .eq('contribution_id', contribution)
         .eq('contribution.status', 'published')
         .order('sort_order', { ascending: true }),
@@ -500,11 +505,17 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const uploadAttachment = async (contributionId, ownerId, file, metadata = {}) => {
     const contribution = requireId(contributionId, 'contributionId');
     const owner = requireId(ownerId, 'ownerId');
-    if (!file?.name || !Number.isFinite(file?.size) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
-      throw new ArchiveWorkflowError('Attachment must be between 1 byte and 5MB', { code: 'invalid_attachment' });
+    const role = String(metadata.role ?? '').trim() || 'supplement';
+    const maximumBytes = role === 'supplement' ? 1024 * 1024 : 5 * 1024 * 1024;
+    if (!file?.name || !Number.isFinite(file?.size) || file.size <= 0 || file.size > maximumBytes) {
+      throw new ArchiveWorkflowError(
+        role === 'supplement'
+          ? 'Supplement attachment must be between 1 byte and 1MB'
+          : 'Attachment must be between 1 byte and 5MB',
+        { code: 'invalid_attachment' },
+      );
     }
-    const role = String(metadata.role ?? '').trim();
-    if (role && (String(file.type).toLowerCase() !== 'image/webp' || file.size > 800 * 1024)) {
+    if (role !== 'supplement' && (String(file.type).toLowerCase() !== 'image/webp' || file.size > 800 * 1024)) {
       throw new ArchiveWorkflowError('Archive media must be WebP and no larger than 800KB', {
         code: 'invalid_media_file',
       });
@@ -523,7 +534,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       return await unwrap(supabase.from('archive_attachments').insert({
         contribution_id: contribution, owner_id: owner, storage_path: uploadedPath,
         file_name: String(file.name), mime_type: file.type || 'application/octet-stream', byte_size: file.size,
-        role: role || null,
+        role,
         caption: String(metadata.caption ?? '').trim(),
         alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
         sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,

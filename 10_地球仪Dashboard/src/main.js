@@ -52,13 +52,14 @@ import { ARCHIVE_VISUALS } from './archive-visuals.js';
 import {
   ABYSS_POINTS,
   COLORS,
-  LOGISTICS_ROUTES,
+  MAP_ROUTES,
   NETWORKS,
   RESEARCH_STATIONS,
 } from './data.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEFAULT_PERSON_PORTRAIT = '/assets/archive/person-default.png';
+const DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX = 'palis.workspace.shortcut-layout';
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
 const emitLoadingCue = (name, minInterval) => {
   void emitUiSound(name, { minInterval });
@@ -187,6 +188,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const desktopTaskList = document.querySelector('#assistant-task-list');
   const desktopEntry = document.querySelector('#clerk-workspace-entry');
   const desktopStart = document.querySelector('#clerk-desktop-start');
+  const desktopShortcutArrange = document.querySelector('#desktop-shortcut-arrange');
   const desktopTime = document.querySelector('#clerk-desktop-time');
   const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
   const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
@@ -202,7 +204,9 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const workspaceNoteStatus = document.querySelector('[data-workspace-note-status]');
   const workspaceNoteRetry = document.querySelector('[data-workspace-note-retry]');
   const desktopCommands = [...desktop.querySelectorAll('[data-workspace-command]')];
-  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !audioView || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopStartMenu) return;
+  const desktopShortcuts = [...desktop.querySelectorAll('[data-workspace-shortcut]')];
+  const desktopShortcutRail = desktop.querySelector('[data-archive-category-rail]');
+  if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !audioView || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopShortcutArrange || !desktopStartMenu) return;
 
   // Frame 01 has a noticeably different body axis and reads as a jump rather
   // than part of this idle sway, so keep the coherent 02–07 loop.
@@ -429,6 +433,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       requestAnimationFrame(() => {
         syncWorkspaceNoteBounds();
         desktop.classList.add('is-open');
+        applyDesktopShortcutLayout();
         desktop.focus({ preventScroll: true });
       });
       return;
@@ -572,6 +577,165 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     audioView.hidden = true;
     directoryView.hidden = false;
     entries.find((entry) => entry.dataset.mascotDirectory === 'clerks')?.focus({ preventScroll: true });
+  }
+
+  const desktopShortcutLayoutKey = () => {
+    const profile = activeArchiveStorySession?.profile ?? null;
+    const principal = profile?.id
+      ?? activeArchiveStorySession?.profileId
+      ?? activeArchiveStorySession?.session?.user?.id
+      ?? 'local';
+    const role = desktop.dataset.workspaceRole || document.body.dataset.operatorRole || 'clerk';
+    return `${DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX}.${principal}.${role}`;
+  };
+
+  const readDesktopShortcutLayout = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(desktopShortcutLayoutKey()) || '{}');
+      return saved && typeof saved === 'object' ? saved : {};
+    } catch {
+      return {};
+    }
+  };
+
+  function writeDesktopShortcutLayout(layout) {
+    try {
+      localStorage.setItem(desktopShortcutLayoutKey(), JSON.stringify(layout));
+    } catch {
+      // Private browsing or a full storage quota should not block desktop use.
+    }
+  }
+
+  const desktopShortcutLayoutEnabled = () => window.matchMedia('(min-width: 761px)').matches;
+
+  function selectDesktopShortcut(entry) {
+    desktopShortcuts.forEach((button) => button.classList.toggle('is-selected', button === entry));
+    selectedDesktopShortcut = entry;
+  }
+
+  function clampDesktopShortcutPosition(entry, left, top) {
+    const railWidth = desktopShortcutRail?.clientWidth || desktop.clientWidth;
+    const railHeight = desktopShortcutRail?.clientHeight || Math.max(0, desktop.clientHeight - desktopTaskbar.offsetHeight);
+    const maxLeft = Math.max(8, railWidth - entry.offsetWidth - 8);
+    const maxTop = Math.max(8, railHeight - entry.offsetHeight - 8);
+    return {
+      left: Math.round(Math.min(Math.max(8, Number(left) || 8), maxLeft)),
+      top: Math.round(Math.min(Math.max(8, Number(top) || 8), maxTop)),
+    };
+  }
+
+  function defaultDesktopShortcutPosition(entry, index) {
+    const columnGap = 14;
+    const rowGap = 14;
+    const usableHeight = desktopShortcutRail?.clientHeight || Math.max(0, desktop.clientHeight - desktopTaskbar.offsetHeight);
+    const rows = Math.max(1, Math.floor((usableHeight - 16) / Math.max(entry.offsetHeight + rowGap, 1)));
+    const column = Math.floor(index / rows);
+    const row = index % rows;
+    return clampDesktopShortcutPosition(
+      entry,
+      10 + column * (entry.offsetWidth + columnGap),
+      10 + row * (entry.offsetHeight + rowGap),
+    );
+  }
+
+  function applyDesktopShortcutLayout({ persist = false } = {}) {
+    if (!desktopShortcutRail) return;
+    if (!desktopShortcutLayoutEnabled()) {
+      desktopShortcutArrange.hidden = true;
+      desktopShortcuts.forEach((entry) => {
+        entry.style.removeProperty('--desktop-shortcut-x');
+        entry.style.removeProperty('--desktop-shortcut-y');
+      });
+      return;
+    }
+    desktopShortcutArrange.hidden = false;
+    const layout = readDesktopShortcutLayout();
+    const visibleShortcuts = desktopShortcuts.filter((entry) => !entry.hidden);
+    let changed = false;
+    visibleShortcuts.forEach((entry, index) => {
+      const command = entry.dataset.workspaceCommand;
+      const saved = layout[command];
+      const position = saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)
+        ? clampDesktopShortcutPosition(entry, saved.left, saved.top)
+        : defaultDesktopShortcutPosition(entry, index);
+      entry.style.setProperty('--desktop-shortcut-x', `${position.left}px`);
+      entry.style.setProperty('--desktop-shortcut-y', `${position.top}px`);
+      if (!saved || saved.left !== position.left || saved.top !== position.top) {
+        layout[command] = position;
+        changed = true;
+      }
+    });
+    if (persist && changed) writeDesktopShortcutLayout(layout);
+  }
+
+  function arrangeDesktopShortcuts() {
+    if (!desktopShortcutLayoutEnabled()) return;
+    const layout = readDesktopShortcutLayout();
+    desktopShortcuts.filter((entry) => !entry.hidden).forEach((entry, index) => {
+      const position = defaultDesktopShortcutPosition(entry, index);
+      layout[entry.dataset.workspaceCommand] = position;
+      entry.style.setProperty('--desktop-shortcut-x', `${position.left}px`);
+      entry.style.setProperty('--desktop-shortcut-y', `${position.top}px`);
+    });
+    writeDesktopShortcutLayout(layout);
+  }
+
+  function installDesktopShortcutDrag(entry) {
+    let drag = null;
+    let suppressClick = false;
+    const finishDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (entry.hasPointerCapture(event.pointerId)) entry.releasePointerCapture(event.pointerId);
+      entry.classList.remove('is-dragging');
+      if (drag.moved) {
+        const layout = readDesktopShortcutLayout();
+        layout[entry.dataset.workspaceCommand] = clampDesktopShortcutPosition(entry, drag.left, drag.top);
+        writeDesktopShortcutLayout(layout);
+        suppressClick = true;
+        window.setTimeout(() => { suppressClick = false; }, 0);
+      }
+      drag = null;
+    };
+
+    entry.addEventListener('pointerdown', (event) => {
+      if (!desktopShortcutLayoutEnabled() || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      const railBounds = desktopShortcutRail?.getBoundingClientRect();
+      const shortcutBounds = entry.getBoundingClientRect();
+      if (!railBounds) return;
+      selectDesktopShortcut(entry);
+      drag = {
+        pointerId: event.pointerId,
+        originX: event.clientX,
+        originY: event.clientY,
+        left: shortcutBounds.left - railBounds.left,
+        top: shortcutBounds.top - railBounds.top,
+        moved: false,
+      };
+      entry.setPointerCapture(event.pointerId);
+    });
+    entry.addEventListener('pointermove', (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const deltaX = event.clientX - drag.originX;
+      const deltaY = event.clientY - drag.originY;
+      drag.moved ||= Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4;
+      if (!drag.moved) return;
+      const position = clampDesktopShortcutPosition(entry, drag.left + deltaX, drag.top + deltaY);
+      drag.left = position.left;
+      drag.top = position.top;
+      drag.originX = event.clientX;
+      drag.originY = event.clientY;
+      entry.style.setProperty('--desktop-shortcut-x', `${position.left}px`);
+      entry.style.setProperty('--desktop-shortcut-y', `${position.top}px`);
+      entry.classList.add('is-dragging');
+      event.preventDefault();
+    });
+    entry.addEventListener('pointerup', finishDrag);
+    entry.addEventListener('pointercancel', finishDrag);
+    entry.addEventListener('click', (event) => {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+    });
   }
 
   function showAudioView() {
@@ -948,6 +1112,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
   desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
+  desktopShortcutArrange.addEventListener('click', arrangeDesktopShortcuts);
   desktop.addEventListener('pointerdown', (event) => {
     if (desktopStartMenu.hidden) return;
     if (event.target.closest(
@@ -957,14 +1122,19 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   });
   desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
   desktopCommands.filter((entry) => entry.closest('#clerk-desktop-start-menu')).forEach((entry) => entry.addEventListener('click', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry)));
-  desktop.querySelectorAll('[data-workspace-shortcut]').forEach((entry) => {
+  desktopShortcuts.forEach((entry) => {
     entry.addEventListener('click', () => {
-      desktop.querySelectorAll('[data-workspace-shortcut]').forEach((button) => button.classList.toggle('is-selected', button === entry));
-      selectedDesktopShortcut = entry;
+      selectDesktopShortcut(entry);
     });
     entry.addEventListener('dblclick', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry));
     entry.addEventListener('pointerup', (event) => { if (event.pointerType !== 'mouse') dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); });
     entry.addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); } });
+    entry.title = '单击选择，双击打开；按住拖动以移动';
+    installDesktopShortcutDrag(entry);
+  });
+  window.addEventListener('resize', () => applyDesktopShortcutLayout({ persist: true }));
+  window.addEventListener('palis:session-change', () => {
+    if (!desktop.hidden) requestAnimationFrame(() => applyDesktopShortcutLayout());
   });
   closeButton?.addEventListener('click', () => setMenuOpen(false));
   entries.forEach((entry) => {
@@ -1153,7 +1323,13 @@ const mapGroups = {
 Object.values(mapGroups).forEach((group) => globe.add(group));
 
 const mapState = {
-  layers: { abyss: true, stations: true, footprint: true },
+  layers: {
+    abyss: true,
+    stations: true,
+    supplyRoutes: true,
+    inlandRoutes: true,
+    footprint: true,
+  },
   network: 'all',
 };
 const MAPPED_ABYSS_POINTS = ABYSS_POINTS.filter((point) => !point.datum);
@@ -1162,7 +1338,7 @@ const interactiveMeshes = [];
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const routeLines = [];
-const polarDiagnosticState = { stations: 0, entrances: 0, routes: 0, weather: 0, storm: 0 };
+const polarDiagnosticState = { stations: 0, entrances: 0, supplyRoutes: 0, routes: 0, weather: 0, storm: 0 };
 let selectedMapItem = null;
 let polarDiagnosticStarted = false;
 let polarDiagnosticComplete = false;
@@ -1830,9 +2006,10 @@ async function runPolarDiagnostic() {
   const totals = {
     stations: RESEARCH_STATIONS.length,
     entrances: MAPPED_ABYSS_POINTS.length,
-    routes: routeLines.length,
+    supplyRoutes: routeLines.filter((line) => line.userData.bootType === 'supplyRoutes').length,
+    routes: routeLines.filter((line) => line.userData.bootType === 'routes').length,
   };
-  const allChecks = totals.stations + totals.entrances + totals.routes + 2;
+  const allChecks = totals.stations + totals.entrances + totals.supplyRoutes + totals.routes + 2;
   let completed = 0;
 
   polarDiagnostic.hidden = false;
@@ -1846,13 +2023,14 @@ async function runPolarDiagnostic() {
   diagnosticRows.forEach((row) => row.classList.remove('is-active', 'is-complete', 'is-failed'));
   setDiagnosticRow('stations', 'pending', `00 / ${String(totals.stations).padStart(2, '0')}`);
   setDiagnosticRow('entrances', 'pending', `00 / ${String(totals.entrances).padStart(2, '0')}`);
+  setDiagnosticRow('supplyRoutes', 'pending', `00 / ${String(totals.supplyRoutes).padStart(2, '0')}`);
   setDiagnosticRow('routes', 'pending', `00 / ${String(totals.routes).padStart(2, '0')}`);
   setDiagnosticRow('weather', 'pending', '等待');
   setDiagnosticRow('storm', 'pending', '等待');
   setDiagnosticProgress(0, allChecks, '正在建立南极网络会话', 'CHANNEL 00', 'OPEN POLAR CONTROL BUS');
   taskStatus.textContent = '南极网络自检 / 建立通信';
-  document.querySelector('.map-instructions').textContent = 'POLAR DATUM / 38 ACTIVE RECORDS';
-  document.querySelector('[data-layer="stations"] small').textContent = '20 座公开站点与运输线';
+  document.querySelector('.map-instructions').textContent = `POLAR DATUM / ${RESEARCH_STATIONS.length + MAPPED_ABYSS_POINTS.length} ACTIVE RECORDS`;
+  document.querySelector('[data-layer="stations"] small').textContent = '20 座公开站点／2 个行动节点';
 
   if (isPreviewAccess()) {
     await runRestrictedPolarDiagnostic(totals);
@@ -1862,12 +2040,14 @@ async function runPolarDiagnostic() {
   if (reducedMotion) {
     polarDiagnosticState.stations = totals.stations;
     polarDiagnosticState.entrances = totals.entrances;
+    polarDiagnosticState.supplyRoutes = totals.supplyRoutes;
     polarDiagnosticState.routes = totals.routes;
     polarDiagnosticState.weather = 1;
     polarDiagnosticState.storm = 1;
     diagnosticRows.forEach((row) => row.classList.add('is-complete'));
     setDiagnosticRow('stations', 'complete', `${totals.stations} / ${totals.stations}`);
     setDiagnosticRow('entrances', 'complete', `${totals.entrances} / ${totals.entrances}`);
+    setDiagnosticRow('supplyRoutes', 'complete', `${totals.supplyRoutes} / ${totals.supplyRoutes}`);
     setDiagnosticRow('routes', 'complete', `${totals.routes} / ${totals.routes}`);
     setDiagnosticRow('weather', 'complete', '正常');
     setDiagnosticRow('storm', 'complete', '正常');
@@ -1879,7 +2059,8 @@ async function runPolarDiagnostic() {
   const phases = [
     { key: 'stations', total: totals.stations, delay: 160, title: '正在轮询科研站通信', channel: 'CHANNEL 01', log: 'PING SURFACE STATION' },
     { key: 'entrances', total: totals.entrances, delay: 145, title: '正在校验入口信标', channel: 'CHANNEL 02', log: 'QUERY DESCENT BEACON' },
-    { key: 'routes', total: totals.routes, delay: 210, title: '正在检查补给路线', channel: 'CHANNEL 03', log: 'TRACE LOGISTICS ROUTE' },
+    { key: 'supplyRoutes', total: totals.supplyRoutes, delay: 230, title: '正在加载南极物资保障航线', channel: 'CHANNEL 03', log: 'UPLINK INTERNATIONAL SUPPLY ROUTE' },
+    { key: 'routes', total: totals.routes, delay: 190, title: '正在加载主要南极航线', channel: 'CHANNEL 04', log: 'TRACE INLAND TRANSFER ROUTE' },
   ];
 
   for (const phase of phases) {
@@ -1895,7 +2076,9 @@ async function runPolarDiagnostic() {
           ? `通信校验 ${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`
           : phase.key === 'entrances'
             ? `信标响应 ${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`
-            : `路线端点 ${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`;
+            : phase.key === 'supplyRoutes'
+              ? `物资航线接入 ${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`
+              : `内陆航线接入 ${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`;
         selectMapItem(diagnosticItem, { transient: true, diagnosticStatus });
       }
       setDiagnosticRow(phase.key, 'active', `${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
@@ -1956,7 +2139,7 @@ async function runRestrictedPolarDiagnostic(totals) {
   const stationWait = reducedMotion ? 10 : 150;
   const entranceWait = reducedMotion ? 10 : 130;
   const routeWait = reducedMotion ? 10 : 170;
-  const allChecks = totals.stations + totals.entrances + totals.routes + 2;
+  const allChecks = totals.stations + totals.entrances + totals.supplyRoutes + totals.routes + 2;
   let completed = 0;
   setDiagnosticProgress(0, allChecks, '正在读取站点资料', 'DATA OFFLINE', 'POLAR SOURCE FILE NOT FOUND');
   taskStatus.textContent = '南极网络 / 资料未收录';
@@ -2009,31 +2192,36 @@ async function runRestrictedPolarDiagnostic(totals) {
   setDiagnosticProgress(completed, allChecks, '所有入口信标检索失败', 'CHANNEL 02', 'DESCENT BEACON LOOKUP FAILED');
 
   await diagnosticWait(shortWait * 2);
-  polarDiagnostic.dataset.phase = 'routes';
-  setDiagnosticRow('routes', 'active', `00 / ${String(totals.routes).padStart(2, '0')}`);
-  for (let index = 0; index < totals.routes; index += 1) {
-    const route = LOGISTICS_ROUTES[index];
-    const mapItem = getDiagnosticMapItem('routes', index);
-    polarDiagnosticState.routes = index + 1;
-    completed += 1;
-    setDiagnosticRow('routes', 'active', `${String(index + 1).padStart(2, '0')} / ${String(totals.routes).padStart(2, '0')}`);
-    if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线检索中' });
-    setDiagnosticProgress(
-      completed,
-      allChecks,
-      `正在追踪补给路线 ${String(index + 1).padStart(2, '0')}`,
-      `ROUTE ${String(index + 1).padStart(2, '0')}`,
-      `TRACE ${route?.nodes?.join(' > ') || 'UNKNOWN'} / ROUTE LOST`,
-    );
-    emitLoadingCue('telemetry', 88);
-    taskStatus.textContent = `补给路线检索 / ${index + 1} OF ${totals.routes}`;
-    await diagnosticWait(routeWait);
-    if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线未知' });
+  for (const phase of [
+    { key: 'supplyRoutes', total: totals.supplyRoutes, title: '正在检索南极物资保障航线', label: '国际补给航线' },
+    { key: 'routes', total: totals.routes, title: '正在检索主要南极航线', label: '内陆转运航线' },
+  ]) {
+    polarDiagnostic.dataset.phase = phase.key;
+    setDiagnosticRow(phase.key, 'active', `00 / ${String(phase.total).padStart(2, '0')}`);
+    for (let index = 0; index < phase.total; index += 1) {
+      const route = getDiagnosticRoute(phase.key, index);
+      const mapItem = getDiagnosticMapItem(phase.key, index);
+      polarDiagnosticState[phase.key] = index + 1;
+      completed += 1;
+      setDiagnosticRow(phase.key, 'active', `${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
+      if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线检索中' });
+      setDiagnosticProgress(
+        completed,
+        allChecks,
+        `${phase.title} ${String(index + 1).padStart(2, '0')}`,
+        `ROUTE ${String(index + 1).padStart(2, '0')}`,
+        `TRACE ${route?.nodes?.join(' > ') || route?.label || 'UNKNOWN'} / ROUTE LOST`,
+      );
+      emitLoadingCue('telemetry', 88);
+      taskStatus.textContent = `${phase.label}检索 / ${index + 1} OF ${phase.total}`;
+      await diagnosticWait(routeWait);
+      if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线未知' });
+    }
+    setDiagnosticRow(phase.key, 'failed', `${phase.total} 未知`);
+    await diagnosticWait(shortWait * 2);
   }
-  setDiagnosticRow('routes', 'failed', `${totals.routes} 未知`);
-  setDiagnosticProgress(completed, allChecks, '所有补给路线均未知', 'CHANNEL 03', 'LOGISTICS ROUTE STATUS UNKNOWN');
+  setDiagnosticProgress(completed, allChecks, '所有航线均未知', 'CHANNEL 04', 'ROUTE STATUS UNKNOWN');
 
-  await diagnosticWait(shortWait * 2);
   polarDiagnostic.dataset.phase = 'weather';
   setDiagnosticRow('weather', 'failed', '未收录');
   completed += 1;
@@ -2127,7 +2315,7 @@ renderer.domElement.addEventListener('pointerup', (event) => {
   renderer.domElement.style.cursor = currentChapter === 3 ? 'grab' : '';
   if (currentChapter !== 3 || wasDragging) return;
   const hit = findMapHit(event);
-  if (hit) selectMapItem(hit.object.userData.item);
+  if (hit) openMapArchive(hit.object.userData.item);
 });
 renderer.domElement.addEventListener('pointercancel', () => {
   pointerDown = false;
@@ -5113,7 +5301,7 @@ function openAmendmentHistoryModal(sheet, trigger) {
   backdrop.querySelector('[data-close-amendment-history]')?.focus();
 }
 
-async function hydratePublishedContributions(archive, sheet) {
+async function hydratePublishedContributions(archive, sheet, state = null) {
   if (!archiveWorkflowClient) return;
   try {
     const officialMarkup = archive.cloudRecord ? '' : sheet.innerHTML;
@@ -5123,6 +5311,10 @@ async function hydratePublishedContributions(archive, sheet) {
       archiveWorkflowClient.listArchiveContributions(publishedArchive.id),
       archiveWorkflowClient.listArchiveReferences?.(publishedArchive.id) ?? Promise.resolve([]),
     ]);
+    if (state) {
+      state.storyArchiveId = publishedArchive.id;
+      state.publishedContributions = contributions || [];
+    }
     const model = buildPublishedArchiveModel({
       archive: publishedArchive,
       contributions,
@@ -5242,6 +5434,171 @@ function renderArchiveStoryMenuState(state) {
     canCreate: Boolean(state.storyArchiveId)
       && canCreateArchiveStoryPage(getArchiveStorySession()),
   });
+}
+
+function formatArchiveAttachmentSize(value) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${bytes} B`;
+}
+
+function isArchiveImageAttachment(attachment) {
+  return /^image\//i.test(String(attachment?.mimeType || ''));
+}
+
+function attachmentWindowKey(attachment) {
+  return `attachment:${String(attachment?.id || '')}`;
+}
+
+function renderArchiveAttachmentMenuState(state, message = '') {
+  const menu = state.windowElement.querySelector('[data-archive-attachment-menu]');
+  if (!menu) return;
+  const attachments = state.archiveAttachments || [];
+  if (!attachments.length) {
+    menu.innerHTML = `<span class="dialog-menu__empty">${escapeRecordText(message || '暂无已入库附件')}</span>`;
+    return;
+  }
+  menu.innerHTML = attachments.map((attachment) => `
+    <button type="button" role="menuitem" data-archive-attachment-open="${escapeRecordText(attachment.id)}">
+      ${escapeRecordText(attachment.fileName || '附件')}
+    </button>
+  `).join('');
+}
+
+function renderArchiveAttachmentPage(state, message = '') {
+  const attachments = state.archiveAttachments || [];
+  const rows = attachments.length
+    ? attachments.map((attachment) => `
+      <button type="button" class="archive-attachment-page__item" data-archive-attachment-open="${escapeRecordText(attachment.id)}">
+        <span>${escapeRecordText(attachment.fileName || '附件')}</span>
+        <small>${escapeRecordText(formatArchiveAttachmentSize(attachment.byteSize))}</small>
+      </button>
+    `).join('')
+    : `<p class="archive-attachment-page__empty">${escapeRecordText(message || '暂无已入库附件')}</p>`;
+  return `
+    <section class="archive-attachment-page" data-archive-attachment-page>
+      <header>
+        <strong>附件页</strong>
+        <span>ATTACHMENTS</span>
+      </header>
+      <div class="archive-attachment-page__list">${rows}</div>
+    </section>`;
+}
+
+function mountArchiveAttachmentPage(state, message = '') {
+  const sheet = state.windowElement.querySelector('.document-sheet');
+  if (!sheet?.isConnected) return;
+  sheet.querySelector('[data-archive-attachment-page]')?.remove();
+  sheet.insertAdjacentHTML('beforeend', renderArchiveAttachmentPage(state, message));
+}
+
+async function refreshArchiveAttachmentMenu(state) {
+  const menu = state.windowElement.querySelector('[data-archive-attachment-menu]');
+  if (!menu) return;
+  if (!archiveWorkflowClient?.listPublishedMedia) {
+    state.archiveAttachments = [];
+    renderArchiveAttachmentMenuState(state, '附件暂不可用');
+    mountArchiveAttachmentPage(state, '附件暂不可用');
+    return;
+  }
+  menu.innerHTML = '<span class="dialog-menu__empty">正在读取附件…</span>';
+  const archiveId = await resolveArchiveStoryArchiveId(state);
+  if (!archiveId) {
+    state.archiveAttachments = [];
+    renderArchiveAttachmentMenuState(state, '该档案尚未入库');
+    mountArchiveAttachmentPage(state, '该档案尚未入库');
+    return;
+  }
+  try {
+    const contributions = state.publishedContributions
+      || await archiveWorkflowClient.listArchiveContributions?.(archiveId)
+      || [];
+    state.publishedContributions = contributions;
+    const media = await Promise.all(contributions.map(async (contribution) => {
+      const rows = await archiveWorkflowClient.listPublishedMedia(contribution.id);
+      return (rows || [])
+        .filter((attachment) => attachment.role === 'supplement')
+        .map((attachment) => ({ ...attachment, contributionId: attachment.contributionId || contribution.id }));
+    }));
+    state.archiveAttachments = media.flat()
+      .sort((left, right) => String(left.createdAt || '').localeCompare(String(right.createdAt || '')));
+    renderArchiveAttachmentMenuState(state);
+    mountArchiveAttachmentPage(state);
+  } catch {
+    state.archiveAttachments = [];
+    renderArchiveAttachmentMenuState(state, '暂时无法读取附件');
+    mountArchiveAttachmentPage(state, '暂时无法读取附件');
+  }
+}
+
+function openArchiveAttachmentWindow(parentState, attachment) {
+  if (!attachment?.id || !attachment.publicUrl) return;
+  const key = attachmentWindowKey(attachment);
+  const existing = archiveWindows.get(key);
+  if (existing) {
+    if (existing.minimized) restoreArchiveWindow(existing.windowElement);
+    else bringArchiveWindowToFront(existing.windowElement, true);
+    return;
+  }
+  const windowElement = document.createElement('section');
+  const taskButton = document.createElement('button');
+  const windowId = `archive-attachment-window-${++archiveWindowSequence}`;
+  const fileName = attachment.fileName || '附件';
+  const isImage = isArchiveImageAttachment(attachment);
+  windowElement.className = 'archive-window archive-attachment-window retro-window is-opening';
+  windowElement.id = windowId;
+  windowElement.dataset.archiveId = key;
+  windowElement.setAttribute('role', 'dialog');
+  windowElement.setAttribute('aria-modal', 'false');
+  windowElement.setAttribute('aria-label', fileName);
+  windowElement.innerHTML = `
+    <div class="title-bar dialog-titlebar">
+      <span class="window-file">${escapeRecordText(fileName)}</span>
+      <div class="window-controls">
+        <button class="window-minimize" type="button" aria-label="最小化附件窗口">_</button>
+        <button class="window-close" type="button" aria-label="关闭附件窗口">×</button>
+      </div>
+    </div>
+    <div class="archive-attachment-content">
+      ${isImage
+        ? `<img src="${escapeRecordText(attachment.publicUrl)}" alt="" />`
+        : `<iframe src="${escapeRecordText(attachment.publicUrl)}" title=""></iframe>`}
+    </div>`;
+  taskButton.type = 'button';
+  taskButton.className = 'archive-task-button archive-attachment-task-button';
+  taskButton.innerHTML = `<i></i><span><b>附件</b>${escapeRecordText(fileName)}</span>`;
+  taskButton.setAttribute('aria-controls', windowId);
+  taskButton.setAttribute('aria-label', `切换附件窗口：${fileName}`);
+  const state = {
+    archive: parentState.archive,
+    windowElement,
+    taskButton,
+    trigger: parentState.windowElement,
+    minimized: false,
+    closing: false,
+  };
+  archiveWindows.set(key, state);
+  archiveTaskList.appendChild(taskButton);
+  archiveDesktop.appendChild(windowElement);
+  const taskbarHeight = document.querySelector('.taskbar').getBoundingClientRect().height;
+  const width = Math.min(isImage ? 840 : 920, innerWidth - 28);
+  const height = Math.min(isImage ? 680 : 720, innerHeight - taskbarHeight - 28);
+  const cascade = archiveWindowSequence % 5;
+  windowElement.style.left = `${Math.max(12, (innerWidth - width) / 2 + cascade * 18)}px`;
+  windowElement.style.top = `${Math.max(12, (innerHeight - taskbarHeight - height) / 2 + cascade * 15)}px`;
+  installArchiveWindowDrag(windowElement);
+  windowElement.addEventListener('pointerdown', () => bringArchiveWindowToFront(windowElement));
+  windowElement.querySelector('.window-minimize')?.addEventListener('click', () => minimizeArchiveWindow(windowElement));
+  windowElement.querySelector('.window-close')?.addEventListener('click', () => closeArchiveWindow(windowElement));
+  taskButton.addEventListener('click', () => {
+    const current = archiveWindows.get(key);
+    if (!current) return;
+    if (current.minimized) restoreArchiveWindow(windowElement);
+    else if (activeArchiveWindow === windowElement) minimizeArchiveWindow(windowElement);
+    else bringArchiveWindowToFront(windowElement, true);
+  });
+  bringArchiveWindowToFront(windowElement, true);
 }
 
 function installArchiveStoryWindowDrag(windowElement) {
@@ -5434,16 +5791,18 @@ function initializeArchiveFileMenu(state) {
   const fileTrigger = windowElement.querySelector('[data-archive-menu-trigger="file"]');
   const editTrigger = windowElement.querySelector('[data-archive-menu-trigger="edit"]');
   const viewTrigger = windowElement.querySelector('[data-archive-menu-trigger="view"]');
+  const attachmentTrigger = windowElement.querySelector('[data-archive-menu-trigger="attachments"]');
   const fileMenu = windowElement.querySelector('[data-archive-file-menu]');
   const editMenu = windowElement.querySelector('[data-archive-edit-menu]');
   const viewMenu = windowElement.querySelector('[data-archive-view-menu]');
-  if (!fileTrigger || !editTrigger || !viewTrigger || !fileMenu || !editMenu || !viewMenu) return;
+  const attachmentMenu = windowElement.querySelector('[data-archive-attachment-menu]');
+  if (!fileTrigger || !editTrigger || !viewTrigger || !attachmentTrigger || !fileMenu || !editMenu || !viewMenu || !attachmentMenu) return;
   const amendAction = editMenu.querySelector('[data-archive-edit-action="amend"]');
   amendAction.disabled = !archive.webContent;
   amendAction.textContent = archive.webContent ? '提交修改申请' : '正文离线，不能修改';
 
   const setMenuOpen = (activeMenu = null) => {
-    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger], [viewMenu, viewTrigger]]) {
+    for (const [menu, trigger] of [[fileMenu, fileTrigger], [editMenu, editTrigger], [viewMenu, viewTrigger], [attachmentMenu, attachmentTrigger]]) {
       const open = menu === activeMenu;
       menu.hidden = !open;
       trigger.setAttribute('aria-expanded', String(open));
@@ -5451,6 +5810,7 @@ function initializeArchiveFileMenu(state) {
     windowElement.classList.toggle('is-file-menu-open', activeMenu === fileMenu);
     windowElement.classList.toggle('is-edit-menu-open', activeMenu === editMenu);
     windowElement.classList.toggle('is-view-menu-open', activeMenu === viewMenu);
+    windowElement.classList.toggle('is-attachment-menu-open', activeMenu === attachmentMenu);
   };
 
   const toggleMenu = (menu) => (event) => {
@@ -5463,13 +5823,23 @@ function initializeArchiveFileMenu(state) {
     toggleMenu(viewMenu)(event);
     if (!viewMenu.hidden) void refreshArchiveStoryMenu(state);
   });
+  attachmentTrigger.addEventListener('click', (event) => {
+    toggleMenu(attachmentMenu)(event);
+    if (!attachmentMenu.hidden) void refreshArchiveAttachmentMenu(state);
+  });
   windowElement.addEventListener('pointerdown', (event) => {
     if (!event.target.closest('.dialog-menu__group')) setMenuOpen();
   });
   windowElement.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden || !viewMenu.hidden)) {
+    if (event.key === 'Escape' && (!fileMenu.hidden || !editMenu.hidden || !viewMenu.hidden || !attachmentMenu.hidden)) {
       event.preventDefault();
-      const activeTrigger = !fileMenu.hidden ? fileTrigger : !editMenu.hidden ? editTrigger : viewTrigger;
+      const activeTrigger = !fileMenu.hidden
+        ? fileTrigger
+        : !editMenu.hidden
+          ? editTrigger
+          : !viewMenu.hidden
+            ? viewTrigger
+            : attachmentTrigger;
       setMenuOpen();
       activeTrigger.focus();
     }
@@ -5498,6 +5868,13 @@ function initializeArchiveFileMenu(state) {
     if (storyAction === 'create') {
       setMenuOpen();
       openArchiveStoryWindow(state);
+      return;
+    }
+    const attachmentId = event.target.closest('[data-archive-attachment-open]')?.dataset.archiveAttachmentOpen;
+    if (attachmentId) {
+      const attachment = state.archiveAttachments?.find((entry) => entry.id === attachmentId);
+      setMenuOpen();
+      if (attachment) openArchiveAttachmentWindow(state, attachment);
       return;
     }
     const action = event.target.closest('[data-archive-edit-action]')?.dataset.archiveEditAction;
@@ -5595,13 +5972,16 @@ function openArchive(archive, trigger) {
     storyArchivePromise: null,
     storyPages: [],
     storyWindows: new Set(),
+    publishedContributions: null,
+    archiveAttachments: [],
   };
   archiveWindows.set(archive.id, state);
   archiveTaskList.appendChild(taskButton);
   archiveDesktop.appendChild(windowElement);
   initializeArchiveFileMenu(state);
-  void hydratePublishedContributions(archive, sheet).then((disposePublishedMedia) => {
+  void hydratePublishedContributions(archive, sheet, state).then((disposePublishedMedia) => {
     populateArchiveRecordMenu(windowElement);
+    void refreshArchiveAttachmentMenu(state);
     if (typeof disposePublishedMedia === 'function') {
       if (state.closing) disposePublishedMedia();
       else state.disposePublishedMedia = disposePublishedMedia;
@@ -5917,11 +6297,13 @@ function animate(now) {
     if (polarDiagnostic?.dataset.phase === 'storm' && 'dashOffset' in line.material) line.material.dashOffset -= delta * 1.35;
   });
   routeLines.forEach((line) => {
-    const checked = polarDiagnosticComplete || line.userData.bootIndex < polarDiagnosticState.routes;
-    const target = isPreviewAccess() ? 0.025 : checked ? 1 : 0.025;
+    const checked = polarDiagnosticComplete || line.userData.bootIndex < polarDiagnosticState[line.userData.bootType];
+    const target = isPreviewAccess()
+      ? (polarLayer.classList.contains('is-network-offline') ? 0.55 : 0)
+      : checked ? 1 : 0;
     line.material.userData.bootOpacity = THREE.MathUtils.damp(line.material.userData.bootOpacity || 0, target, checked ? 7 : 4, delta);
-    line.material.opacity = 0.48 * mapReveal * line.material.userData.bootOpacity;
-    if (polarDiagnostic?.dataset.phase === 'routes') line.material.dashOffset -= delta * 1.1;
+    line.material.opacity = (line.userData.baseOpacity || 0.88) * mapReveal * line.material.userData.bootOpacity;
+    if (currentChapter === 3 && 'dashOffset' in line.material) line.material.dashOffset -= delta * 0.34;
   });
 
   const chapter = scrollProgress < 0.17 ? 0 : scrollProgress < 0.5 ? 1 : scrollProgress < 0.9 ? 2 : 3;
@@ -5987,7 +6369,7 @@ function setChapter(chapter) {
       polarDiagnosticComplete = false;
     }
     if (isPreviewAccess() && polarDiagnosticStarted) taskStatus.textContent = '南极网络离线 / 补给路线未知';
-    else if (polarDiagnosticComplete) taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
+    else if (polarDiagnosticComplete) taskStatus.textContent = `南极网络已就绪 / ${RESEARCH_STATIONS.length + MAPPED_ABYSS_POINTS.length} 个坐标在线`;
     else runPolarDiagnostic();
   }
   if (chapter === 0 && capsuleBootComplete) {
@@ -6188,7 +6570,7 @@ function buildPolarGrid() {
 
 function buildFootprint() {
   const points = WHITE_ABYSS_FOOTPRINT.features[0].geometry.coordinates[0]
-    .map(([lng, lat]) => toVector(lat, lng, 0.027));
+    .map(([lng, lat]) => toVector(lat, lng, 0.004));
   const material = new THREE.LineDashedMaterial({
     color: COLORS.abyss,
     transparent: true,
@@ -6204,38 +6586,50 @@ function buildFootprint() {
 
 function buildRoutes() {
   const nodes = new Map([...RESEARCH_STATIONS, ...ABYSS_POINTS].map((item) => [item.code, item]));
-  LOGISTICS_ROUTES.forEach((route) => {
+  let supplyRouteBootIndex = 0;
+  let inlandRouteBootIndex = 0;
+  MAP_ROUTES.forEach((route) => {
+    const routeNodes = route.points || route.nodes.map((code) => nodes.get(code)).filter(Boolean);
     const routePoints = [];
-    route.nodes.forEach((code, nodeIndex) => {
-      const from = nodes.get(code);
-      const to = nodes.get(route.nodes[nodeIndex + 1]);
+    routeNodes.forEach((from, nodeIndex) => {
+      const to = routeNodes[nodeIndex + 1];
       if (!from || !to) return;
-      for (let step = 0; step < 24; step += 1) {
-        const amount = step / 24;
+      const steps = route.kind === 'international-access' ? 36 : 24;
+      for (let step = 0; step < steps; step += 1) {
+        const amount = step / steps;
         routePoints.push(
           toVector(
             THREE.MathUtils.lerp(from.lat, to.lat, amount),
             interpolateLongitude(from.lng, to.lng, amount),
-            0.014,
+            route.kind === 'international-access' ? 0.0045 : 0.003,
           ),
         );
       }
-      if (nodeIndex === route.nodes.length - 2) routePoints.push(toVector(to.lat, to.lng, 0.014));
+      if (nodeIndex === routeNodes.length - 2) {
+        routePoints.push(toVector(to.lat, to.lng, route.kind === 'international-access' ? 0.0045 : 0.003));
+      }
     });
     const color = NETWORKS[route.network]?.color || COLORS.china;
+    const isInternationalAccess = route.kind === 'international-access';
     const material = new THREE.LineDashedMaterial({
       color,
       transparent: true,
       opacity: 0,
-      dashSize: 0.8,
-      gapSize: 0.55,
+      dashSize: isInternationalAccess ? 0.4 : 0.62,
+      gapSize: isInternationalAccess ? 0.12 : 0.24,
       depthWrite: false,
     });
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(routePoints), material);
     line.computeLineDistances();
     line.userData.network = route.network;
-    line.userData.bootIndex = routeLines.length;
+    line.userData.kind = route.kind || 'intra-antarctic';
+    line.userData.layer = isInternationalAccess ? 'supplyRoutes' : 'inlandRoutes';
+    line.userData.route = route;
+    line.userData.baseOpacity = isInternationalAccess ? 1 : 0.88;
+    line.userData.bootType = isInternationalAccess ? 'supplyRoutes' : 'routes';
+    line.userData.bootIndex = isInternationalAccess ? supplyRouteBootIndex++ : inlandRouteBootIndex++;
     material.userData.bootOpacity = polarDiagnosticComplete ? 1 : 0;
+    line.renderOrder = isInternationalAccess ? 3 : 2;
     routeLines.push(line);
     mapGroups.routes.add(line);
   });
@@ -6261,7 +6655,10 @@ function rebuildMarkers() {
   let entranceBootIndex = 0;
   items.forEach((item) => {
     const isStation = RESEARCH_STATIONS.includes(item);
-    const geometry = isStation
+    const isCommandHub = item.markerType === 'command-hub';
+    const geometry = isCommandHub
+      ? new THREE.TetrahedronGeometry(1.28, 0)
+      : isStation
       ? new THREE.OctahedronGeometry(0.65, 0)
       : new THREE.SphereGeometry(item.datum ? 1.3 : 0.92, 10, 10);
     const material = new THREE.MeshBasicMaterial({
@@ -6270,12 +6667,12 @@ function rebuildMarkers() {
       opacity: 0,
       depthWrite: false,
     });
-    material.userData.baseOpacity = item.datum ? 1 : isStation ? 0.92 : 0.96;
+    material.userData.baseOpacity = isCommandHub ? 1 : item.datum ? 1 : isStation ? 0.92 : 0.96;
     material.userData.bootType = isStation ? 'stations' : 'entrances';
     material.userData.bootIndex = isStation ? stationBootIndex++ : entranceBootIndex++;
     material.userData.bootOpacity = polarDiagnosticComplete ? 1 : 0;
     const marker = new THREE.Mesh(geometry, material);
-    marker.position.copy(toVector(item.lat, item.lng, item.datum ? 0.035 : 0.024));
+    marker.position.copy(toVector(item.lat, item.lng, isCommandHub ? 0.009 : item.datum ? 0.006 : 0.005));
     marker.userData.item = item;
     markerMaterials.push(material);
     interactiveMeshes.push(marker);
@@ -6289,8 +6686,7 @@ function updateMapVisibility() {
   mapGroups.footprint.visible = mapState.layers.footprint;
   routeLines.forEach((line) => {
     line.visible =
-      mapState.layers.abyss &&
-      mapState.layers.stations &&
+      mapState.layers[line.userData.layer] &&
       (mapState.network === 'all' || line.userData.network === mapState.network);
   });
 }
@@ -6327,18 +6723,24 @@ function populatePointPicker() {
 function getDiagnosticMapItem(phase, index) {
   if (phase === 'stations') return RESEARCH_STATIONS[index] || null;
   if (phase === 'entrances') return MAPPED_ABYSS_POINTS[index] || null;
-  if (phase === 'routes') {
-    const route = LOGISTICS_ROUTES[index];
-    const code = route?.nodes?.[0];
+  if (phase === 'supplyRoutes' || phase === 'routes') {
+    const route = getDiagnosticRoute(phase, index);
+    const code = route?.archiveCode || route?.nodes?.[0];
     return [...RESEARCH_STATIONS, ...MAPPED_ABYSS_POINTS].find((point) => point.code === code) || null;
   }
   return null;
 }
 
+function getDiagnosticRoute(phase, index) {
+  const kind = phase === 'supplyRoutes' ? 'international-access' : 'intra-antarctic';
+  return MAP_ROUTES.filter((route) => (route.kind || 'intra-antarctic') === kind)[index] || null;
+}
+
 function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) {
   const isStation = RESEARCH_STATIONS.includes(item);
+  const isCommandHub = item.markerType === 'command-hub';
   const previewStatus = isPreviewAccess() ? (isStation ? '离线' : '资料未收录') : '';
-  document.querySelector('#detail-kind').textContent = isStation ? 'SURFACE STATION' : item.datum ? 'REGIONAL DATUM' : 'DESCENT NODE';
+  document.querySelector('#detail-kind').textContent = isCommandHub ? 'COMMAND HUB' : isStation ? 'SURFACE STATION' : item.datum ? 'REGIONAL DATUM' : 'DESCENT NODE';
   document.querySelector('#detail-index').textContent = item.code;
   document.querySelector('#detail-name').textContent = item.name;
   document.querySelector('#detail-english').textContent = item.english || item.code;
@@ -6358,6 +6760,12 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
   if (diagnosticStatus) {
     flashDiagnosticMapDetail();
   }
+}
+
+function openMapArchive(item) {
+  if (!item) return;
+  selectMapItem(item);
+  void openArchiveReference(item.code, renderer.domElement);
 }
 
 function flashDiagnosticMapDetail() {

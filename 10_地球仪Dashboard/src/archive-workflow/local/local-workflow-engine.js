@@ -1618,10 +1618,15 @@ export const createLocalWorkflowEngine = ({
       .map((attachment) => ({
         id: attachment.id,
         role: attachment.role ?? null,
+        contributionId: attachment.contribution_id ?? '',
         storagePath: attachment.storage_path,
         publicUrl: attachment.blob instanceof Blob && typeof URL?.createObjectURL === 'function'
           ? URL.createObjectURL(attachment.blob)
           : `data:${attachment.mime_type || 'application/octet-stream'},`,
+        fileName: attachment.file_name ?? '',
+        mimeType: attachment.mime_type ?? 'application/octet-stream',
+        byteSize: Number(attachment.byte_size ?? 0),
+        createdAt: attachment.created_at ?? '',
         altText: attachment.alt_text ?? '',
         caption: attachment.caption ?? '',
         sortOrder: Number(attachment.sort_order ?? 0),
@@ -1726,20 +1731,25 @@ export const createLocalWorkflowEngine = ({
       ) {
         throw workflowError('attachment_locked', 'Submitted archive attachments are locked');
       }
+      const role = String(metadata.role ?? '').trim() || 'supplement';
       const size = Number(file?.size);
       const blob = file instanceof Blob ? file : file?.blob;
       if (
         !file?.name
         || !Number.isFinite(size)
         || size <= 0
-        || size > 5 * 1024 * 1024
+        || size > (role === 'supplement' ? 1024 * 1024 : 5 * 1024 * 1024)
         || !(blob instanceof Blob)
         || blob.size !== size
       ) {
-        throw workflowError('invalid_attachment', 'Attachment must be between 1 byte and 5MB');
+        throw workflowError(
+          'invalid_attachment',
+          role === 'supplement'
+            ? 'Supplement attachment must be between 1 byte and 1MB'
+            : 'Attachment must be between 1 byte and 5MB',
+        );
       }
-      const role = String(metadata.role ?? '').trim();
-      if (role) {
+      if (role !== 'supplement') {
         const template = nextState.templates.find((entry) => entry.id === contribution.template_id);
         const archive = nextState.archives.find((entry) => entry.id === contribution.archive_id);
         const category = normalizeCategory(
@@ -1774,7 +1784,7 @@ export const createLocalWorkflowEngine = ({
         file_name: String(file.name),
         mime_type: String(file.type || blob.type || 'application/octet-stream'),
         byte_size: size,
-        role: role || null,
+        role,
         caption: String(metadata.caption ?? '').trim(),
         alt_text: String(metadata.altText ?? metadata.alt_text ?? '').trim(),
         sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,

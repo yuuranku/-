@@ -2786,6 +2786,10 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 .map-symbol.station::before { top: 0; left: 9px; width: 2px; height: 20px; }
 .map-symbol.station::after { top: 9px; left: 0; width: 20px; height: 2px; }
 .map-symbol.boundary { border: 2px dashed var(--cold-red); border-radius: 50%; }
+.map-symbol.route::before,
+.map-symbol.route::after { content: ''; position: absolute; left: 1px; width: 18px; height: 2px; background: var(--cold-red); transform-origin: center; }
+.map-symbol.route::before { top: 6px; transform: rotate(-24deg); }
+.map-symbol.route::after { top: 13px; transform: rotate(24deg); }
 
 .map-layers label { display: block; margin: 10px 0 4px; font-size: 12px; font-weight: 700; }
 .map-layers select {
@@ -3075,6 +3079,82 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
 }
 
 .dialog-view-menu { width: 190px; }
+.dialog-attachment-menu { width: 260px; }
+
+.archive-attachment-page {
+  margin: 26px 0 10px;
+  border: 1px solid #676b67;
+  background: #e7e1cc;
+  color: #171713;
+}
+
+.archive-attachment-page header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #8f8c7e;
+  background: #d8d1b6;
+}
+
+.archive-attachment-page header strong { font: 700 16px/1.2 var(--font-serif); }
+.archive-attachment-page header span { color: #56564f; font: 10px/1.2 var(--font-mono); letter-spacing: .08em; }
+.archive-attachment-page__list { padding: 8px; }
+.archive-attachment-page__item {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+  padding: 7px 9px;
+  color: #171713;
+  border: 0;
+  border-bottom: 1px dotted #8f8c7e;
+  background: transparent;
+  font: 13px/1.25 var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+.archive-attachment-page__item:last-child { border-bottom: 0; }
+.archive-attachment-page__item:hover,
+.archive-attachment-page__item:focus-visible { color: #fff; outline: 0; background: var(--win-blue); }
+.archive-attachment-page__item small { flex: 0 0 auto; color: currentColor; font: 10px/1 var(--font-mono); }
+.archive-attachment-page__empty { margin: 0; padding: 10px 9px; color: #5a574e; font: 12px/1.35 var(--font-sans); }
+
+.archive-attachment-window {
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(920px, calc(100vw - 28px));
+  height: min(720px, calc(100dvh - 80px));
+  min-width: min(420px, calc(100vw - 12px));
+  min-height: 280px;
+  background: #9b9b9b;
+}
+.archive-attachment-window .dialog-titlebar { cursor: grab; touch-action: none; user-select: none; }
+.archive-attachment-window.is-dragging .dialog-titlebar { cursor: grabbing; }
+.archive-attachment-content {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  background: #0b0d0d;
+}
+.archive-attachment-content img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+.archive-attachment-content iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
 
 .archive-story-window {
   position: absolute;
@@ -9385,7 +9465,13 @@ body.clerk-desktop-open { overflow: hidden; }
   --win-inactive: #7f7f7f;
   --desktop-teal: #0b5555;
   color: #fff;
-  background: var(--desktop-teal);
+  background-color: var(--desktop-teal);
+  background-image:
+    linear-gradient(rgba(0, 0, 128, .08), rgba(0, 0, 128, .08)),
+    url('/assets/workspace/palis-workspace-sky.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .clerk-desktop__accessible-title {
@@ -9478,7 +9564,7 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 .clerk-desktop__taskbar {
   min-height: 38px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   gap: 3px;
   padding: 3px;
   border-top: 2px outset var(--win-light);
@@ -9487,6 +9573,16 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 .clerk-desktop__start { min-height: 28px; padding: 0 8px; }
 .clerk-desktop__start i { width: 16px; height: 16px; margin-right: 4px; border: 1px solid #000; background: #000080; box-shadow: none; }
+.clerk-desktop__arrange {
+  min-height: 28px;
+  padding: 0 8px;
+  color: #111;
+  border: 2px outset var(--win-light);
+  background: var(--win-face);
+  font: 700 10px/1 var(--font-body);
+}
+.clerk-desktop__arrange:active { border-style: inset; background: #b5b5b5; }
+.clerk-desktop__arrange:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
 .clerk-desktop__task-list .archive-task-button { min-width: 110px; }
 .clerk-desktop__window-layer { inset: 0 0 38px; }
 
@@ -9682,6 +9778,40 @@ body.clerk-desktop-open { overflow: hidden; }
   background: var(--category-accent, var(--clerk-cyan));
   -webkit-mask: var(--pixel-icon) center / contain no-repeat;
   mask: var(--pixel-icon) center / contain no-repeat;
+}
+
+/* On desktop, shortcuts behave like a Windows desktop rather than a fixed
+   application rail. Their coordinates are written by the pointer controller;
+   the compact grid remains the touch-friendly fallback below. */
+@media (min-width: 761px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    inset: 0 0 38px;
+    display: block;
+    width: auto;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+    transform: none;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    position: absolute;
+    top: var(--desktop-shortcut-y, 10px);
+    left: var(--desktop-shortcut-x, 10px);
+    display: grid;
+    width: calc(var(--archive-icon-size) + 28px);
+    height: calc(var(--archive-icon-size) + 46px);
+    min-height: 0;
+    cursor: var(--cursor-retro-grab);
+    touch-action: none;
+    user-select: none;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button.is-dragging {
+    z-index: 12;
+    cursor: var(--cursor-retro-grabbing);
+    opacity: .9;
+  }
 }
 
 #clerk-desktop .clerk-desktop__icon--country { --category-accent: #245aac; }

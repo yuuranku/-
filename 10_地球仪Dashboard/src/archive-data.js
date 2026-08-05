@@ -89,6 +89,7 @@ function sealArchiveRecord(category, archive, index) {
   const longform = NEW_SETTING_WEB_LONGFORMS[category]?.[archive.code]
     || HZ6_WEB_LONGFORMS[category]?.[archive.code]
     || ARCHIVE_LONGFORM[category]?.[archive.code]
+    || archive.longform
     || (category === 'events' ? buildEventLongform(archive, index) : undefined);
   const body = longform?.summary ? [longform.summary] : [...archive.body];
   let fields = [];
@@ -243,6 +244,49 @@ const organizations = [
   },
 ];
 
+const stationLongformOverrides = {
+  'NZ-CHC': {
+    code: 'NZ-CHC',
+    title: '基督城行动基地',
+    summary: '南极公约监管办公室（ATOO）行动部管理的跨国后方节点。基地把南下航班、人员集结、医疗物资、转运签收与气象放行置于同一行动链中，但不拥有南极现场的独立指挥权或下降点权限。',
+    facts: [
+      ['坐标', '43.53°S / 172.64°E'],
+      ['所在地', '新西兰·基督城'],
+      ['管理部门', 'ATOO 行动部'],
+      ['行动性质', '跨国后方调度／南下前集结'],
+      ['主要职责', '航班窗口、名单复核、物资交接、医疗与气象放行'],
+    ],
+    blocks: [
+      { type: 'heading', text: '节点性质', section: 'station-overview' },
+      { type: 'paragraph', text: '基督城行动基地由ATOO行动部管理，服务于经批准的跨国行动、借调人员与南下前集结。它不拥有独立下降点，也不替代斯科特基地、麦克默多站或其他地表站的现场权限；基地的作用是把不同国家的航班、床位、医疗包、密封邮袋与人员名单置于同一行动时间轴上。', section: 'station-overview' },
+      { type: 'heading', text: '行动部交接链', section: 'station-overview' },
+      { type: 'paragraph', text: '行动部审查行动计划、登记借调人员并给出跨国协作的后方安排。值班记录包括起降时刻、货单、天气放行、行李签收、临时住宿和离场确认；行动结束后，计划、日志、名册、样本与处置文件须转交档案部登记、来源核验、PALIS同步及封存归档。', section: 'station-overview' },
+      { type: 'heading', text: '证据边界', section: 'station-overview' },
+      { type: 'paragraph', text: '本基地只能证明某人、某批物资或某份文件何时进入南下链路，不能证明其已经进入白幕或抵达特定下降点。书记官调阅地表转运记录时，应先核对本基地签名，再与对应地表站的车辆、厨房和无线电记录交叉比对；下降记录仍由相应入口控制方封存。', section: 'station-overview' },
+    ],
+  },
+  'UN-GVA': {
+    code: 'UN-GVA',
+    title: '日内瓦总部',
+    summary: '南极公约监管办公室（ATOO）的日内瓦业务总部。它在联合国南极管理局（UNAA）的预算、任命、法律口径与政治协调之下，办理跨国行动和档案案件；PALIS 是其受规则约束的系统，而非独立总部。',
+    facts: [
+      ['坐标', '46.20°N / 6.14°E'],
+      ['所在地', '瑞士·日内瓦'],
+      ['上级机关', '联合国南极管理局（UNAA）'],
+      ['常设部门', '档案部、行动部、宣传部'],
+      ['案件权限', '跨国档案、行动批复、检查、事故与来源链'],
+    ],
+    blocks: [
+      { type: 'heading', text: '两级机关关系', section: 'station-overview' },
+      { type: 'paragraph', text: 'UNAA负责预算、官员任命、政策、法律、外交、成员国协调以及联合行动的政治授权，不直接办理普通案件，也不保管现场原件。日内瓦总部是ATOO的业务节点：在上述授权框架内，受理具体行动、检查、事故、人员、来源链与归档案件。', section: 'station-overview' },
+      { type: 'heading', text: '三个常设部门', section: 'station-overview' },
+      { type: 'paragraph', text: '档案部由书记官与档案人员构成，负责接收、登记、编目、权限控制、来源核验、版本并列、调阅与封存；行动部审查并批复各国行动计划，管理基督城行动基地、借调人员和跨国联合行动；宣传部负责培训、内部通知以及PALIS账户、终端、材料和技术运行，但无权修改档案内容、权限决定或行动结论。', section: 'station-overview' },
+      { type: 'heading', text: '案件流转与证据边界', section: 'station-overview' },
+      { type: 'paragraph', text: '标准链路为：计划提交、行动批复、档案部预先建档、行动执行、材料回交、档案核验、PALIS同步、封存归档。总部可以要求补正来源并保留冲突版本，但不得将未经核验的现场推断改写为正式结论；日内瓦坐标仅代表监管与归档位置，不代表南极入口或地表站的现场证据。', section: 'station-overview' },
+    ],
+  },
+};
+
 const stations = RESEARCH_STATIONS.map((station) => ({
   ...doc(
     `station-${station.code}`,
@@ -258,6 +302,7 @@ const stations = RESEARCH_STATIONS.map((station) => ({
   network: station.network,
   operator: station.operator,
   type: station.type,
+  longform: stationLongformOverrides[station.code],
   webContent: true,
 }));
 

@@ -6,6 +6,7 @@ export const COLORS = {
   france: '#315bcf',
   australia: '#d14949',
   southAmerica: '#315bcf',
+  palis: '#e7bd55',
   abyss: '#d14949',
   datum: '#f4fff1',
 };
@@ -18,6 +19,7 @@ export const NETWORKS = {
   france: { label: '法国极地项目', color: COLORS.france },
   australia: { label: '澳新运输协作网', color: COLORS.australia },
   southAmerica: { label: '南美条约观察网', color: COLORS.southAmerica },
+  palis: { label: 'PALIS 国际协调节点', color: COLORS.palis },
 };
 
 export const RESEARCH_STATIONS = [
@@ -37,6 +39,8 @@ export const RESEARCH_STATIONS = [
   ['AU-DAV', '戴维斯站', 'Davis Station', 'australia', -68.5759, 77.9695, '海岸—高原接口'],
   ['AU-WIL', '威尔克斯站', 'Wilkes Station', 'australia', -66.2533, 110.5317, '东部海岸站'],
   ['NZ-SCO', '斯科特基地', 'Scott Base', 'australia', -77.8494, 166.7673, '罗斯海中转站'],
+  ['NZ-CHC', '基督城行动基地', 'Christchurch Operations Base', 'palis', -43.5321, 172.6362, 'ATOO 行动部／跨国行动后方节点'],
+  ['UN-GVA', '日内瓦总部', 'Geneva Headquarters', 'palis', 46.2044, 6.1432, 'ATOO 业务总部／跨国案件监管节点'],
   ['AR-ORC', '奥卡达斯站', 'Orcadas Base', 'southAmerica', -60.7376, -44.7374, '长期气象站'],
   ['AR-ESP', '埃斯佩兰萨站', 'Esperanza Base', 'southAmerica', -63.397, -56.9981, '半岛前沿站'],
   ['CL-PRT', '阿图罗·普拉特站', 'Arturo Prat Base', 'southAmerica', -62.4787, -59.6636, '海军气象站'],
@@ -53,6 +57,7 @@ export const RESEARCH_STATIONS = [
   type,
   status: '同期档案有效',
   role: `${type}；承担白幕行动的公开后勤、监听或档案掩护。`,
+  markerType: network === 'palis' ? 'command-hub' : 'station',
 }));
 
 export const ABYSS_POINTS = [
@@ -99,6 +104,129 @@ export const LOGISTICS_ROUTES = [
   { network: 'france', nodes: ['FR-DDU', 'FR-CHA', 'FR-C1', 'FR-O2'] },
   { network: 'australia', nodes: ['AU-DAV', 'AU-W1'] },
 ];
+
+// Real-world gateway approaches are deliberately separate from the in-continent
+// station / descent routes above.  They describe the major national approaches
+// across the Southern Ocean, not fictional links between PALIS facilities.
+// Christchurch remains an independent operational marker: there is no line from
+// it to Antarctica because the archive map treats it as a standalone base.
+export const ANTARCTIC_ACCESS_ROUTES = [
+  {
+    id: 'NZ-CHC-MCM',
+    label: '基督城—麦克默多站空中补给航线',
+    network: 'palis',
+    kind: 'international-access',
+    mode: 'air',
+    archiveCode: 'US-MCM',
+    points: [
+      { lat: -43.5321, lng: 172.6362 },
+      { lat: -57.6, lng: 175.0 },
+      { lat: -67.8, lng: 174.0 },
+      { lat: -77.85, lng: 166.6667 },
+    ],
+  },
+  {
+    id: 'AU-HOB-CASEY',
+    label: '霍巴特—凯西站补给航线',
+    network: 'australia',
+    kind: 'international-access',
+    mode: 'sea',
+    archiveCode: 'AU-WIL',
+    points: [
+      { lat: -42.8821, lng: 147.3272 },
+      { lat: -54.8, lng: 148.5 },
+      { lat: -62.4, lng: 138.8 },
+      { lat: -66.2533, lng: 110.5317 },
+    ],
+  },
+  {
+    id: 'AU-HOB-DAVIS-MAWSON',
+    label: '霍巴特—戴维斯—莫森站补给航线',
+    network: 'australia',
+    kind: 'international-access',
+    mode: 'sea',
+    archiveCode: 'AU-MAW',
+    points: [
+      { lat: -42.8821, lng: 147.3272 },
+      { lat: -54.8, lng: 124.0 },
+      { lat: -63.0, lng: 89.0 },
+      { lat: -68.5759, lng: 77.9695 },
+      { lat: -67.6026, lng: 62.873 },
+    ],
+  },
+  {
+    id: 'FR-HOB-DDU',
+    label: '霍巴特—迪蒙·迪维尔站航线',
+    network: 'france',
+    kind: 'international-access',
+    mode: 'sea',
+    archiveCode: 'FR-DDU',
+    points: [
+      { lat: -42.8821, lng: 147.3272 },
+      { lat: -55.5, lng: 151.0 },
+      { lat: -63.8, lng: 145.0 },
+      { lat: -66.6628, lng: 140.0013 },
+    ],
+  },
+  {
+    id: 'CL-PAS-PENINSULA',
+    label: '蓬塔阿雷纳斯—南极半岛航线',
+    network: 'southAmerica',
+    kind: 'international-access',
+    mode: 'sea-air',
+    archiveCode: 'CL-PRT',
+    points: [
+      { lat: -53.1638, lng: -70.9171 },
+      { lat: -58.4, lng: -66.6 },
+      { lat: -61.2, lng: -62.8 },
+      { lat: -62.4787, lng: -59.6636 },
+    ],
+  },
+  {
+    id: 'AR-USH-PENINSULA',
+    label: '乌斯怀亚—南极半岛航线',
+    network: 'southAmerica',
+    kind: 'international-access',
+    mode: 'sea',
+    archiveCode: 'AR-ESP',
+    points: [
+      { lat: -54.8019, lng: -68.303 },
+      { lat: -58.2, lng: -61.8 },
+      { lat: -61.0, lng: -58.6 },
+      { lat: -63.397, lng: -56.9981 },
+    ],
+  },
+  {
+    id: 'ZA-CPT-NOV',
+    label: '开普敦—诺沃拉扎列夫斯卡娅航线',
+    network: 'north',
+    kind: 'international-access',
+    mode: 'sea-air',
+    archiveCode: 'SU-NOV',
+    points: [
+      { lat: -33.9249, lng: 18.4241 },
+      { lat: -49.5, lng: 15.2 },
+      { lat: -61.5, lng: 13.0 },
+      { lat: -70.7758, lng: 11.8322 },
+    ],
+  },
+  {
+    id: 'UK-STN-HALLEY',
+    label: '斯坦利—哈雷湾航线',
+    network: 'north',
+    kind: 'international-access',
+    mode: 'sea-air',
+    archiveCode: 'UK-HAL',
+    points: [
+      { lat: -51.6977, lng: -57.8517 },
+      { lat: -58.5, lng: -47.2 },
+      { lat: -67.0, lng: -35.0 },
+      { lat: -75.5167, lng: -26.65 },
+    ],
+  },
+];
+
+export const MAP_ROUTES = [...ANTARCTIC_ACCESS_ROUTES, ...LOGISTICS_ROUTES];
 
 export const ARCHIVES = [
   {

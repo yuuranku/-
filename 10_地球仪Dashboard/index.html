@@ -201,7 +201,8 @@
             <ol>
               <li data-diagnostic="stations"><i></i><span><b>科研站通信</b><small>SURFACE STATION UPLINK</small></span><output>00 / 20</output></li>
               <li data-diagnostic="entrances"><i></i><span><b>入口信标</b><small>DESCENT BEACON RESPONSE</small></span><output>00 / 18</output></li>
-              <li data-diagnostic="routes"><i></i><span><b>补给路线</b><small>LOGISTICS ROUTE INTEGRITY</small></span><output>00 / 00</output></li>
+              <li data-diagnostic="supplyRoutes"><i></i><span><b>南极物资保障航线</b><small>INTERNATIONAL ACCESS &amp; SUPPLY UPLINK</small></span><output>00 / 08</output></li>
+              <li data-diagnostic="routes"><i></i><span><b>主要南极航线</b><small>INLAND TRANSFER ROUTE INTEGRITY</small></span><output>00 / 08</output></li>
               <li data-diagnostic="weather"><i></i><span><b>天气遥测</b><small>WEATHER TELEMETRY</small></span><output>等待</output></li>
               <li data-diagnostic="storm"><i></i><span><b>风暴监控</b><small>STORM WATCH ARRAY</small></span><output>等待</output></li>
             </ol>
@@ -215,7 +216,9 @@
           <div class="window-body">
             <p class="window-label">MAP LAYERS / ARCHIVE COMPOSITE</p>
             <button class="layer-button active" type="button" data-layer="abyss" aria-pressed="true"><span class="map-symbol entrance"></span><span><b>入口节点</b><small>17处下降点／1处地表支援</small></span><em>18</em></button>
-            <button class="layer-button active" type="button" data-layer="stations" aria-pressed="true"><span class="map-symbol station"></span><span><b>科考站网络</b><small>20 座公开站点与运输线</small></span><em>20</em></button>
+            <button class="layer-button active" type="button" data-layer="stations" aria-pressed="true"><span class="map-symbol station"></span><span><b>科考站网络</b><small>20 座科考站／2 个行动节点</small></span><em>22</em></button>
+            <button class="layer-button active" type="button" data-layer="supplyRoutes" aria-pressed="true"><span class="map-symbol route"></span><span><b>南极物资保障航线</b><small>国际门户／海空补给／前线投送</small></span><em>08</em></button>
+            <button class="layer-button active" type="button" data-layer="inlandRoutes" aria-pressed="true"><span class="map-symbol route"></span><span><b>主要南极航线</b><small>海岸补给／内陆转运／下降通道</small></span><em>08</em></button>
             <label for="network-filter">行动网络</label>
             <select id="network-filter"><option value="all">全部网络</option></select>
             <label for="point-picker">坐标快速定位</label>
@@ -240,7 +243,7 @@
         </aside>
 
         <div class="local-window-dock" data-local-window-dock aria-label="南极页面窗口栏" hidden></div>
-        <p class="map-instructions">POLAR DATUM / 38 ACTIVE RECORDS</p>
+        <p class="map-instructions">POLAR DATUM / 点击坐标点打开对应档案</p>
       </section>
 
       <nav class="chapter-nav" aria-label="章节导航">
@@ -339,7 +342,7 @@
         </article>
       </div>
 
-      <footer class="clerk-desktop__taskbar" id="assistant-taskbar"><button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-start-menu" aria-expanded="false"><i aria-hidden="true"></i><b>开始</b></button><div class="clerk-desktop__task-list" id="assistant-task-list" hidden></div><div class="clerk-desktop__tray" aria-label="系统托盘"><button type="button" data-workspace-tray="sync" aria-label="查看本地与云端保存状态"><i></i></button><span data-workspace-tray-role aria-label="当前身份">书记官</span><span data-workspace-connection aria-label="保存连接状态">LOCAL</span><time id="clerk-desktop-time">13:13</time></div></footer>
+      <footer class="clerk-desktop__taskbar" id="assistant-taskbar"><button class="clerk-desktop__start" id="clerk-desktop-start" type="button" aria-controls="clerk-desktop-start-menu" aria-expanded="false"><i aria-hidden="true"></i><b>开始</b></button><button class="clerk-desktop__arrange" id="desktop-shortcut-arrange" type="button" title="自动按列整理桌面图标">整理图标</button><div class="clerk-desktop__task-list" id="assistant-task-list" hidden></div><div class="clerk-desktop__tray" aria-label="系统托盘"><button type="button" data-workspace-tray="sync" aria-label="查看本地与云端保存状态"><i></i></button><span data-workspace-tray-role aria-label="当前身份">书记官</span><span data-workspace-connection aria-label="保存连接状态">LOCAL</span><time id="clerk-desktop-time">13:13</time></div></footer>
       <dialog class="workspace-exit-dialog" id="workspace-exit-dialog" aria-labelledby="workspace-exit-title"><form method="dialog"><h2 id="workspace-exit-title">仍有未同步的档案内容</h2><p data-workspace-exit-message>请选择如何处理当前工作。</p><div><button type="button" value="cancel" data-workspace-exit-action="cancel">继续编辑</button><button type="button" value="save" data-workspace-exit-action="save">保存到本地后返回</button><button type="button" value="discard" data-workspace-exit-action="discard">放弃未同步修改</button></div></form></dialog>
       <dialog class="workspace-sync-dialog" id="workspace-sync-dialog" aria-labelledby="workspace-sync-title"><form method="dialog"><h2 id="workspace-sync-title">PALIS 保存状态</h2><p data-workspace-sync-summary>当前没有打开的档案编辑器。</p><button value="close">确定</button></form></dialog>
     </section>
@@ -732,6 +735,12 @@
             <button type="button" data-archive-menu-trigger="view" aria-haspopup="menu" aria-expanded="false">查看(V)</button>
             <div class="dialog-file-menu dialog-view-menu" data-archive-view-menu role="menu" hidden>
               <span class="dialog-menu__empty">正在读取留言…</span>
+            </div>
+          </div>
+          <div class="dialog-menu__group">
+            <button type="button" data-archive-menu-trigger="attachments" aria-haspopup="menu" aria-expanded="false">附件(A)</button>
+            <div class="dialog-file-menu dialog-attachment-menu" data-archive-attachment-menu role="menu" hidden>
+              <span class="dialog-menu__empty">正在读取附件…</span>
             </div>
           </div>
           <span>帮助(H)</span>

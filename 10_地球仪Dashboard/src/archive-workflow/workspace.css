@@ -233,6 +233,29 @@
   text-shadow: 1px 1px #eee;
 }
 
+/* A command that is waiting on a lazy module or archive response must read as
+   busy at the desktop level.  Keep the rule scoped to the PALIS workspace so
+   browser chrome and unrelated public pages retain their normal cursors. */
+#clerk-desktop.is-command-loading,
+#clerk-desktop.is-command-loading * { cursor: progress !important; }
+#clerk-desktop [data-workspace-command].is-command-loading {
+  filter: grayscale(.35) brightness(.84);
+  opacity: .76;
+}
+#clerk-desktop [data-workspace-command].is-command-loading::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 5px;
+  border: 1px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: archive-command-wait .72s steps(8) infinite;
+  vertical-align: -1px;
+}
+@keyframes archive-command-wait { to { transform: rotate(1turn); } }
+
 .archive-editor__scroll {
   grid-area: content;
   min-height: 0;

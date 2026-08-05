@@ -108,7 +108,13 @@ test('the second reserved clerk seat carries the March dossier with its two sour
 
 test('workspace shell renders the Win95 desktop and icon grid from its CSS rules', () => {
   assert.equal(declaration('.clerk-desktop', '--desktop-teal'), '#0b5555');
-  assert.equal(declaration('.clerk-desktop', 'background'), 'var(--desktop-teal)');
+  assert.equal(declaration('.clerk-desktop', 'background-color'), 'var(--desktop-teal)');
+  assert.match(
+    declaration('.clerk-desktop', 'background-image'),
+    /\/assets\/workspace\/palis-workspace-sky\.png/,
+  );
+  assert.equal(declaration('.clerk-desktop', 'background-size'), 'cover');
+  assert.equal(declaration('.clerk-desktop', 'background-position'), 'center');
   assert.equal(
     declaration('#clerk-desktop .clerk-desktop__icons[data-archive-category-rail]', 'grid-template-columns'),
     'repeat(2, minmax(0, 1fr))',
@@ -136,6 +142,21 @@ test('workspace shell renders the Win95 desktop and icon grid from its CSS rules
   assert.equal(ruleFor('.clerk-desktop__status'), undefined);
   assert.equal(ruleFor('.clerk-desktop__channel'), undefined);
   assert.equal(ruleFor('.clerk-desktop__exit'), undefined);
+});
+
+test('workspace shortcuts use Windows-style selection, double-click opening, and persisted drag positions', () => {
+  assert.match(script, /DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX = 'palis\.workspace\.shortcut-layout'/);
+  assert.match(script, /function installDesktopShortcutDrag\(entry\)/);
+  assert.match(script, /entry\.addEventListener\('dblclick', \(\) => dispatchWorkspaceCommand/);
+  assert.match(script, /entry\.setPointerCapture\(event\.pointerId\)/);
+  assert.match(script, /writeDesktopShortcutLayout\(/);
+  assert.match(styles, /@media \(min-width: 761px\)[\s\S]*?--desktop-shortcut-x/s);
+});
+
+test('workspace taskbar offers a one-click shortcut arrangement control', () => {
+  assert.match(html, /id="desktop-shortcut-arrange"[^>]*>整理图标<\/button>/);
+  assert.match(script, /desktopShortcutArrange\.addEventListener\('click', arrangeDesktopShortcuts\)/);
+  assert.match(script, /function arrangeDesktopShortcuts\(\)/);
 });
 
 test('native editor declares a movable vertical working geometry', () => {
