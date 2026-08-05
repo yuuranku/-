@@ -128,6 +128,7 @@ test('task windows expose independent public, clerk dossier, and administrator e
   const source = await readFile(new URL('../src/archive-workflow/commission-window.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../src/archive-workflow/commission.css', import.meta.url), 'utf8');
   const workspaceStyles = await readFile(new URL('../src/archive-workflow/workspace.css', import.meta.url), 'utf8');
+  const pageStyles = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   const archiveShell = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const archiveRuntime = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
   assert.match(source, /openActiveTaskBoardWindow/);
@@ -157,5 +158,8 @@ test('task windows expose independent public, clerk dossier, and administrator e
     'The public commission board must retain a taskbar-safe mobile window shell');
   assert.match(styles, /width: calc\(100vw - 8px\) !important/);
   assert.match(styles, /height: calc\(var\(--stage-height\) - 8px\) !important/);
+  assert.match(archiveRuntime, /commission-assistant/);
+  assert.match(pageStyles, /Keep the four chapter controls clear in the centre of a phone screen/);
+  assert.match(pageStyles, /right: max\(8px, env\(safe-area-inset-right\)\)/);
   assert.doesNotMatch(styles, /border-radius:\s*(?:[1-9]|0\.)/);
 });
