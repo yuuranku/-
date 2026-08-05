@@ -9589,6 +9589,30 @@ body.clerk-desktop-open { overflow: hidden; }
 /* The Win95 taskbar is a single fixed system strip.  A task button must not
    enlarge the grid's implicit row when a desktop window is opened. */
 @media (min-width: 761px) {
+  .taskbar {
+    height: var(--taskbar-height);
+    min-height: var(--taskbar-height);
+    max-height: var(--taskbar-height);
+    grid-auto-rows: minmax(0, 1fr);
+    align-content: stretch;
+    overflow: hidden;
+  }
+
+  .taskbar > * { min-height: 0; }
+
+  .archive-task-list {
+    min-height: 0;
+    flex-wrap: nowrap;
+    align-self: stretch;
+    overflow-y: hidden;
+  }
+
+  .archive-task-button {
+    min-height: 0;
+    height: 100%;
+    flex: 0 1 190px;
+  }
+
   .clerk-desktop__taskbar {
     height: 38px;
     min-height: 38px;
