@@ -52,9 +52,7 @@ Deno.serve(async (request) => {
     const [{ data: authUsers, error: authError }, { data: profiles, error: profileError }] =
       await Promise.all([
         adminClient.auth.admin.listUsers({ page: 1, perPage: 200 }),
-        // clerk_rank belongs to the optional workflow migration.  The original
-        // account manager must keep working before that migration is applied.
-        adminClient.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at'),
+        adminClient.from('profiles').select('id,email,display_name,role,enabled,clerk_rank,created_at,updated_at'),
       ]);
     if (authError || profileError) {
       return respond({ error: authError?.message || profileError?.message || 'LIST_FAILED' }, 400);

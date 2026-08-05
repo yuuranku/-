@@ -319,10 +319,9 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     if (!supabase || !userId) return null;
     const { data, error } = await supabase
       .from('profiles')
-      // Keep authentication compatible with the currently deployed database.
-      // clerk_rank is an optional workflow enhancement and must not prevent an
-      // administrator profile from loading before its migration is applied.
-      .select('id,email,display_name,role,enabled')
+      // The account migration is now active in production, so load the
+      // clerk registration together with the existing access role.
+      .select('id,email,display_name,role,enabled,clerk_rank')
       .eq('id', userId)
       .single();
     if (error || !data?.enabled) return null;

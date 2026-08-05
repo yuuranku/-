@@ -102,9 +102,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   const getProfile = async (userId) => {
     const id = requireId(userId, 'userId');
     return unwrap(
-      // clerk_rank is optional until the matching database migration has run.
-      // Loading the base profile must remain enough to establish admin access.
-      supabase.from('profiles').select('id,email,display_name,role,enabled,created_at,updated_at')
+      supabase.from('profiles').select('id,email,display_name,role,enabled,clerk_rank,created_at,updated_at')
         .eq('id', id).single(),
       'Unable to load operator profile',
     );
