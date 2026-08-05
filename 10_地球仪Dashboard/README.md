@@ -85,6 +85,8 @@ npm run build
 
 ## Supabase 工作流配置
 
+在改动登录、角色、工作台或档案委托前，先阅读 [PALIS 部署与权限交接表](./docs/PALIS_部署与权限交接表.md)。该表是生产 Supabase 项目、角色权限、迁移与 Edge Function 的唯一交接基线；不得用本地预览模式或前端代码替代其中的权限约束。
+
 网站仍可部署为免费的 Cloudflare 静态站；登录、档案工作流、私有附件和审核记录使用 Supabase 免费层。当前实现不启用 Realtime，也不做高频轮询。
 
 1. 创建 Supabase 项目，在 Authentication 中关闭公开注册。

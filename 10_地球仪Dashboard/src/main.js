@@ -590,7 +590,12 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       ?? activeArchiveStorySession?.session?.user?.id
       ?? 'local';
     const role = desktop.dataset.workspaceRole || document.body.dataset.operatorRole || 'clerk';
-    return `${DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX}.${principal}.${role}`;
+    // Clerk shortcuts previously used a five-row rail and their saved points
+    // were clipped to that height.  Version their layout once so they are
+    // arranged again across the complete desktop above the taskbar, while an
+    // administrator's existing arrangement remains untouched.
+    const layoutVersion = role === 'clerk' ? 'v2-full-desktop' : 'v1';
+    return `${DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX}.${principal}.${role}.${layoutVersion}`;
   };
 
   const readDesktopShortcutLayout = () => {

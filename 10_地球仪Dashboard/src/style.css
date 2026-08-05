@@ -10123,6 +10123,17 @@ body.clerk-desktop-open { overflow: hidden; }
     transform: none;
   }
 
+  /* Clerk mode used to retain the compact five-row rail height above.  On a
+     desktop that left the lower half of the wallpaper outside the drag area.
+     Both clerk and admin shortcuts instead own every pixel above the taskbar. */
+  #clerk-desktop[data-workspace-role="clerk"] .clerk-desktop__icons[data-archive-category-rail] {
+    inset: 0 0 38px;
+    width: auto;
+    height: auto;
+    max-height: none;
+    grid-template-rows: none;
+  }
+
   #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
     position: absolute;
     top: var(--desktop-shortcut-y, 10px);
@@ -10737,6 +10748,12 @@ body.clerk-desktop-open { overflow: hidden; }
   #assistant-taskbar .clerk-desktop__tray {
     flex: 0 0 auto;
     min-height: 0;
+  }
+
+  #assistant-taskbar .clerk-desktop__tray {
+    /* Keep account, connection and time at the physical end of the strip even
+       while the middle document list is hidden or still measuring. */
+    margin-left: auto;
   }
 
   #assistant-taskbar .clerk-desktop__task-list {

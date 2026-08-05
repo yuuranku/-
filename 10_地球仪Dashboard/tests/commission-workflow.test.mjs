@@ -132,6 +132,8 @@ test('task windows expose independent public, clerk dossier, and administrator e
   const archiveRuntime = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
   assert.match(source, /openActiveTaskBoardWindow/);
   assert.match(source, /key: 'active-task-board'/);
+  assert.doesNotMatch(source, /active-task-board-window no-open-animation/,
+    'The public commission board must use the shared window open lifecycle');
   assert.match(source, /openClerkDossierWindow/);
   assert.match(source, /openTaskAdministrationWindow/);
   assert.match(source, /registerWorkflowTaskResponse/);
@@ -143,12 +145,17 @@ test('task windows expose independent public, clerk dossier, and administrator e
   assert.doesNotMatch(source, /<option value="mainline">/);
   assert.match(source, /filter\(\(task\) => task\.kind === 'commission'\)/);
   assert.match(source, /当前登记/);
-  assert.match(archiveShell, /id="archive-active-task-entry"/);
+  assert.doesNotMatch(archiveShell, /id="archive-active-task-entry"/,
+    'The retired top-level commission entry should not duplicate the assistant entry');
   assert.match(archiveShell, /id="commission-assistant"/);
   assert.match(archiveRuntime, /createArchiveUtilityWindow/);
   assert.match(archiveRuntime, /role: 'observer'/);
   assert.match(styles, /grid-template-columns: 39% minmax\(0, 1fr\)/);
   assert.match(workspaceStyles, /grid-template-rows: 29px minmax\(0, 1fr\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*display: block/);
+  assert.match(styles, /archive-window\.archive-utility-window\.active-task-board-window/,
+    'The public commission board must retain a taskbar-safe mobile window shell');
+  assert.match(styles, /width: calc\(100vw - 8px\) !important/);
+  assert.match(styles, /height: calc\(var\(--stage-height\) - 8px\) !important/);
   assert.doesNotMatch(styles, /border-radius:\s*(?:[1-9]|0\.)/);
 });

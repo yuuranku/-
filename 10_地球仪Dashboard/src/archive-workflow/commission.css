@@ -168,7 +168,37 @@
 .mainline-response > footer button { min-height: 38px; padding: 7px 12px; border: 1px solid #10241e; border-radius: 0; background: #173b36; color: #f2efe5; box-shadow: 2px 2px 0 #85887e; font-weight: 700; }
 
 @media (max-width: 760px) {
-  .active-task-board-window,
+  /* The archive utility shell appears after the generic archive CSS.  Keep
+     the commission board pinned to the same complete, taskbar-safe work area
+     as PALIS assistant windows instead of allowing its contents to size it. */
+  .archive-window.archive-utility-window.active-task-board-window {
+    top: 4px !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 4px !important;
+    width: calc(100vw - 8px) !important;
+    height: calc(var(--stage-height) - 8px) !important;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    resize: none;
+  }
+  .archive-window.archive-utility-window.active-task-board-window .dialog-titlebar {
+    min-height: 40px;
+  }
+  .archive-window.archive-utility-window.active-task-board-window .window-controls button {
+    min-width: 40px;
+    min-height: 34px;
+  }
+  .archive-window.archive-utility-window.active-task-board-window .archive-utility-window__body,
+  .archive-window.archive-utility-window.active-task-board-window .commission-board {
+    min-height: 0;
+  }
+  .archive-window.archive-utility-window.active-task-board-window .commission-board__body {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .clerk-dossier-window,
   .task-control-window { width: auto; height: auto; }
   .mainline-response-window { width: auto; height: auto; }

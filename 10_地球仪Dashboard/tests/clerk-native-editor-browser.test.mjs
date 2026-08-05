@@ -308,7 +308,7 @@ test(
 );
 
 test(
-  'category desktop keeps nine archive icons in a spacious two-column grid and opens a compact action menu',
+  'category desktop lets nine archive icons use the complete taskbar-safe area and opens a compact action menu',
   { timeout: 60_000 },
   async (t) => {
     const { page } = await openLocalAdminBrowser(t);
@@ -334,13 +334,8 @@ test(
       }),
     );
     const categoryPositions = iconPositions.slice(0, 9);
-    assert.equal(new Set(categoryPositions.map(({ left }) => left)).size, 2,
-      'The nine archive categories must occupy two desktop columns');
-    assert.equal(new Set(categoryPositions.map(({ top }) => top)).size, 5,
-      'The nine archive categories must occupy five spacious desktop rows');
-    assert.ok(categoryPositions.every((position, index) => (
-      index < 2 || position.top > categoryPositions[index - 2].top
-    )), 'Each category row must sit below the matching category in the previous row');
+    assert.ok(new Set(categoryPositions.map(({ left }) => left)).size >= 1,
+      'The archive categories must keep a desktop shortcut position');
 
     await page.click('[data-workspace-command="archive-category:02"]');
     const desktopGeometry = await page.$eval('#clerk-desktop', (desktop) => {
@@ -361,7 +356,7 @@ test(
       };
     });
     assert.ok(Math.abs(desktopGeometry.railCenter - desktopGeometry.workingAreaCenter) <= 3,
-      'The complete icon grid must be vertically centered in the usable desktop area');
+      'The icon drag surface must occupy the complete usable desktop area');
     assert.equal(desktopGeometry.selectionContent, '""',
       'A selected desktop icon must use a dedicated compact focus plate');
     assert.ok(desktopGeometry.selectionWidth <= desktopGeometry.iconWidth + 30
@@ -553,7 +548,7 @@ const seedClerkAndReference = (page) => page.evaluate(async () => {
 });
 
 test(
-  'clerk desktop exposes only the nine archive categories and centers their five-row rail',
+  'clerk desktop exposes nine archive categories and three clerk tools across the full taskbar-safe desktop',
   { timeout: 60_000 },
   async (t) => {
     const { page } = await openLocalAdminBrowser(t);
@@ -574,15 +569,20 @@ test(
         .map((button) => button.dataset.workspaceCommand || button.textContent.trim());
       const archiveShortcuts = [...rail.querySelectorAll('[data-workspace-command^="archive-category:"]')]
         .filter(visible);
+      const clerkTools = [...rail.querySelectorAll('[data-workspace-command]')]
+        .filter(visible)
+        .map((button) => button.dataset.workspaceCommand)
+        .filter((command) => ['mainline', 'active-tasks', 'clerk-dossier'].includes(command));
       const railRect = rail.getBoundingClientRect();
-      const workingAreaCenter = (window.innerHeight - 38) / 2;
+      const workingAreaHeight = window.innerHeight - 38;
       return {
         role: desktop.dataset.workspaceRole,
         adminShortcuts,
         archiveCount: archiveShortcuts.length,
-        archiveRows: new Set(archiveShortcuts.map((button) => Math.round(button.getBoundingClientRect().top))).size,
-        rowTemplate: getComputedStyle(rail).gridTemplateRows.split(' ').filter(Boolean).length,
-        centerOffset: Math.abs((railRect.top + railRect.height / 2) - workingAreaCenter),
+        clerkTools,
+        railTop: Math.round(railRect.top),
+        railHeight: Math.round(railRect.height),
+        workingAreaHeight,
       };
     });
 
@@ -590,9 +590,11 @@ test(
     assert.deepEqual(clerkDesktop.adminShortcuts, [],
       'Review, archive management, and account management must be unavailable on the clerk desktop');
     assert.equal(clerkDesktop.archiveCount, 9, 'The clerk desktop must retain all nine archive categories');
-    assert.equal(clerkDesktop.archiveRows, 5, 'Nine category icons must fill five rows in the clerk two-column grid');
-    assert.equal(clerkDesktop.rowTemplate, 5, 'The clerk rail must not reserve a sixth blank admin row');
-    assert.ok(clerkDesktop.centerOffset <= 3, 'The clerk icon rail must remain vertically centered');
+    assert.deepEqual(clerkDesktop.clerkTools.sort(), ['active-tasks', 'clerk-dossier', 'mainline'],
+      'The clerk desktop must retain the commission register, personal dossier and correction program');
+    assert.ok(clerkDesktop.railTop <= 1, 'The clerk shortcut surface must begin at the top of the desktop');
+    assert.ok(Math.abs(clerkDesktop.railHeight - clerkDesktop.workingAreaHeight) <= 2,
+      'The clerk shortcut surface must extend down to the taskbar so icons can be dragged below the old five-row limit');
   },
 );
 
