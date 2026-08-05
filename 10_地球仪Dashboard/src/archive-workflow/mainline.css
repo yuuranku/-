@@ -374,7 +374,7 @@
   min-width: 0;
   padding: 0;
   border: 0;
-  background: transparent;
+  background: #fff;
   color: #202019;
   cursor: pointer;
   perspective: 800px;
@@ -948,13 +948,13 @@
 
 /* PALIS mission atlas ---------------------------------------------------- */
 .mainline-brief-window {
-  width: min(1510px, calc(100vw - 20px));
-  height: min(910px, calc(100dvh - 58px));
+  width: min(1560px, calc(100vw - 28px));
+  height: min(960px, calc(100dvh - 24px));
 }
-.mainline-brief-window .archive-workflow-window__body { background: #e7e3d8; }
+.mainline-brief-window .archive-workflow-window__body { background: #fff; }
 .mainline-brief {
-  --atlas-paper: #e9e6dc;
-  --atlas-paper-deep: #d8d4c8;
+  --atlas-paper: #fff;
+  --atlas-paper-deep: #f1f3f2;
   --atlas-ink: #092a4b;
   --atlas-blue: #124b80;
   --atlas-night: #031e3b;
@@ -980,14 +980,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
   mix-blend-mode: multiply;
 }
-.mainline-brief__mast {
-  min-height: 40px;
-  box-sizing: border-box;
-  padding: 8px 16px;
-  color: #d8e6ee;
-  border-bottom: 1px solid rgba(232,238,239,.22);
-  background: #061d36;
-}
+.mainline-brief__mast { display: none; }
 .mainline-brief__mast div { display: flex; }
 .mainline-brief__mast b { color: #f0efe8; font: 600 12px/1.2 var(--font-mono); letter-spacing: .04em; }
 .mainline-brief__mast span,
@@ -997,7 +990,7 @@
   display: grid;
   grid-template-columns: 220px minmax(630px, 1fr) 286px;
   grid-template-rows: minmax(0, 1fr) auto;
-  height: calc(100% - 40px);
+  height: 100%;
   overflow: auto;
 }
 .mainline-brief__rail {
@@ -1008,7 +1001,7 @@
   flex-direction: column;
   padding: 32px 22px 20px;
   border-right: 1px solid var(--atlas-rule);
-  background: rgba(235,232,222,.94);
+  background: rgba(255,255,255,.96);
 }
 .mainline-brief__rail footer { margin-top: auto; padding-top: 22px; color: #263d51; font: 8px/1.8 var(--font-mono); letter-spacing: .08em; }
 .mainline-brief__rail footer span::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--atlas-red); }
@@ -1151,7 +1144,7 @@
 .mainline-brief__vacancy-grid .mainline-vacancy dl { margin: 0; }
 .mainline-brief__vacancy-grid .mainline-vacancy dt { display: none; }
 .mainline-brief__vacancy-grid .mainline-vacancy dd { margin: 0; overflow: hidden; color: #5d676c; font: 7px/1.3 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
-.mainline-brief__inspector { position: relative; z-index: 4; min-height: 760px; padding: 28px 20px 20px; border-left: 1px solid var(--atlas-rule); background: rgba(234,231,221,.97); }
+.mainline-brief__inspector { position: relative; z-index: 4; min-height: 760px; padding: 28px 20px 20px; border-left: 1px solid var(--atlas-rule); background: rgba(255,255,255,.98); }
 .mainline-brief__focus { display: block; min-height: 0; padding: 0; color: var(--atlas-ink); border: 1px solid rgba(9,42,75,.23); border-radius: 4px; background: rgba(249,247,240,.62); box-shadow: 0 4px 12px rgba(5,25,43,.08); }
 .mainline-brief__focus > header { display: flex; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid rgba(9,42,75,.18); }
 .mainline-brief__focus > header b { color: var(--atlas-blue); font: 700 11px/1.2 var(--font-body); }
@@ -1845,9 +1838,9 @@
 /* Lift and enlarge the atlas viewport so Antarctica sits on the visual
    centreline instead of being cut by the personnel band. */
 .mainline-brief__atlas > canvas {
-  inset: -12px -3% -8px 18%;
-  width: 88%;
-  height: calc(100% + 20px);
+  inset: -132px -4% -132px 15%;
+  width: 92%;
+  height: calc(100% + 264px);
 }
 
 @media (max-width: 620px) {
@@ -1965,4 +1958,241 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mainline-station-photo__pixel-layer { display: none; }
+}
+
+/* "寻回其名" is an archival plate rather than a second live heading. The
+   light chart field carries the stage context; the isolated title mesh is
+   the one tactile detail and remains a plain transparent image as fallback. */
+.mainline-brief__hero {
+  height: var(--mainline-hero-height);
+  min-height: 0;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+  color: #061f3a;
+  background: transparent;
+}
+.mainline-brief__hero-art {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  background: url('/assets/mainline/reclaim-name-hero.png') 50% 50% / 100% 100% no-repeat;
+  /* Let the supplied chart physically dissolve into the archive field on the
+     right, rather than covering it with an opaque pale wash. */
+  mask-image: linear-gradient(90deg, #000 0 70%, rgba(0,0,0,.88) 82%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0 70%, rgba(0,0,0,.88) 82%, transparent 100%);
+}
+.mainline-brief__hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(3,29,55,.035) 0 1px, transparent 1px 4px);
+  mix-blend-mode: multiply;
+}
+.mainline-brief__hero-title-drift {
+  position: absolute;
+  z-index: 1;
+  /* Both supplied images retain their source canvases. These percentages map
+     the 1345 × 472 title back onto the 4105 × 1000 title plate exactly. */
+  top: 18.8%;
+  left: 2.4%;
+  width: 32.765%;
+  aspect-ratio: 1345 / 472;
+  overflow: hidden;
+  cursor: var(--cursor-retro-hand) !important;
+  touch-action: none;
+  transition: transform 160ms cubic-bezier(.16, 1, .3, 1);
+}
+.mainline-brief__hero-title-drift:hover { transform: translateY(-6px); }
+.mainline-brief__hero-title-drift > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mainline-brief__hero-title-drift > img {
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.mainline-brief__hero-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .mainline-brief__hero-title-drift { top: 18.8%; left: 2.4%; width: 32.765%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mainline-brief__hero-title-drift { transition: none; }
+  .mainline-brief__hero-title-drift:hover { transform: none; }
+}
+
+/* The supplied title plate is deliberately shallow.  Make the briefing a
+   strict three-part instrument panel: title plate / globe / personnel strip.
+   This keeps the atlas as the centre of gravity and prevents the records from
+   ever cutting into the globe or one another. */
+.mainline-brief__center {
+  container-type: inline-size;
+  --mainline-hero-height: calc(100cqw / 4.6384);
+  --mainline-personnel-band: 276px;
+  overflow: hidden;
+}
+.mainline-brief__atlas {
+  position: absolute;
+  top: var(--mainline-hero-height);
+  right: 0;
+  bottom: var(--mainline-personnel-band);
+  left: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.mainline-brief__atlas::before {
+  z-index: 3;
+  background: linear-gradient(90deg, transparent 58%, rgba(7,31,55,.18) 76%, rgba(232,229,219,.88) 100%);
+}
+.mainline-brief__atlas > canvas {
+  inset: -132px -4% -132px 15%;
+  width: 92%;
+  height: calc(100% + 264px);
+}
+.mainline-brief__station { top: 16px; }
+.mainline-brief__mission {
+  top: 0;
+  margin: 24px 0 0 28px;
+  min-height: 0;
+  max-height: calc(100% - 40px);
+  overflow: auto;
+}
+.mainline-brief__vacancies {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 12;
+  min-height: 0;
+  height: var(--mainline-personnel-band);
+  box-sizing: border-box;
+  padding: 9px 22px 10px;
+  overflow: hidden;
+  border-top: 1px solid rgba(222,232,236,.22);
+  background: transparent;
+}
+.mainline-brief__vacancies > header {
+  min-height: 24px;
+  box-sizing: border-box;
+  padding-bottom: 6px;
+}
+.mainline-brief__vacancy-grid {
+  height: 230px;
+  box-sizing: border-box;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 111px);
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 0;
+  scroll-padding-inline: 0;
+  scroll-snap-type: none;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy {
+  height: 111px;
+  min-height: 111px;
+  max-height: 111px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  overflow: hidden;
+  scroll-snap-align: none;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy > .mainline-vacancy__portrait {
+  bottom: 8px;
+  height: 70px !important;
+  min-height: 70px !important;
+}
+.mainline-brief__rail,
+.mainline-brief__inspector,
+.mainline-brief__progress li,
+.mainline-brief__mission,
+.mainline-brief__vacancy-grid .mainline-vacancy,
+.mainline-brief__focus,
+.mainline-brief__stages {
+  border-radius: 0;
+}
+.mainline-brief__progress li,
+.mainline-brief__focus,
+.mainline-brief__stages {
+  border-color: rgba(9,42,75,.34);
+  box-shadow: none;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy {
+  border-color: #d4dce0;
+  background: #f7f8f6;
+  box-shadow: 2px 2px 0 rgba(0,20,43,.28);
+}
+
+/* The roster is deliberately a transparent overlay: the paper window below
+   remains visible rather than turning the spare seats into a navy panel. */
+.mainline-brief__center { background: transparent; }
+
+/* Every dossier card uses the same three-row instrument layout.  The action
+   sits on a shared baseline, regardless of role-name or duty length. */
+.mainline-brief__vacancy-grid .mainline-vacancy {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 20px;
+  gap: 3px;
+  padding: 9px 11px 8px 64px;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy > header {
+  align-self: start;
+  gap: 2px;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy > header span {
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 1.1;
+  letter-spacing: .07em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy > header b {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy dl {
+  align-self: start;
+  margin: 0;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy dl div:nth-child(n + 2) { display: none; }
+.mainline-brief__vacancy-grid .mainline-vacancy dd {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy footer {
+  align-self: end;
+  margin: 0;
+}
+.mainline-brief__vacancy-grid .mainline-vacancy button {
+  min-height: 20px;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1;
+}
+@media (max-width: 620px) {
+  .mainline-brief__center { --mainline-personnel-band: 276px; }
+  .mainline-brief__vacancies { padding-inline: 14px; }
+  .mainline-brief__vacancy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

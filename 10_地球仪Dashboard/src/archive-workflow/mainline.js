@@ -1370,7 +1370,7 @@ const vacancyCards = (slots, {
       <header><span>UNRESOLVED PERSONNEL RECORD</span><b>${escapeHtml(slot.position || '未命名岗位')}</b></header>
       <dl>
         <div><dt>职能</dt><dd>${escapeHtml(slot.duties || '待配置')}</dd></div>
-        <div><dt>档案状态</dt><dd>待复原</dd></div>
+        <div><dt>档案状态</dt><dd>修复档案</dd></div>
         ${compact ? '' : `
         <div><dt>目标</dt><dd>${escapeHtml(slot.objective || '待配置')}</dd></div>
         <div><dt>所属区域</dt><dd>${escapeHtml(slot.location || '未配置')}</dd></div>
@@ -1446,7 +1446,7 @@ const briefingPersonnelCards = (slots, submissions = [], enabled = true, expande
       ${vacancyCards([slot], {
     compact: true,
     action: 'personnel',
-    actionLabel: '调阅待复原记录',
+    actionLabel: '修复档案',
     enabled,
   })}
       <button type="button" class="mainline-brief__personnel-toggle" data-mainline-toggle-slot-submissions="${escapeHtml(slot.id)}" aria-expanded="${expanded}" aria-label="${expanded ? '收起' : '展开'}${escapeHtml(slot.position || '该岗位')}已提交人物档案"></button>
@@ -1915,7 +1915,16 @@ export const openMainlineWindow = async ({ createWindow, role, client, openTempl
       const partIsLocked = fields.status === 'locked';
       const missionStation = resolveMissionStation(fields, selectedPart);
       heading.innerHTML = `<b>VER ${escapeHtml(current.code)}《${escapeHtml(current.title)}》</b><span>当前任务：PART ${String(workflow.activePart).padStart(2, '0')} · ${escapeHtml(stageLabel(official.activeStage))}</span>`;
-      hero.innerHTML = `<span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span><h1>${escapeHtml(focusTask.title)}</h1><small>PART ${String(selectedPart).padStart(2, '0')} · ${escapeHtml(stageEnglish(focusStage))}</small>`;
+      hero.innerHTML = `
+        <div class="mainline-brief__hero-art" aria-hidden="true"></div>
+        <div class="mainline-brief__hero-title-drift" data-mainline-reclaim-title aria-label="寻回其名；移动鼠标可轻微悬浮标题">
+          <img src="/assets/mainline/reclaim-name-title.png" alt="" />
+        </div>
+        <div class="mainline-brief__hero-accessible">
+          <span>${escapeHtml(stageLabel(focusStage).split('/')[0].trim())}</span>
+          <h1>${escapeHtml(focusTask.title)}</h1>
+          <small>PART ${String(selectedPart).padStart(2, '0')} · ${escapeHtml(stageEnglish(focusStage))}</small>
+        </div>`;
       missionGlobe.setStation(missionStation);
       stationLabel.innerHTML = `<button type="button" data-mainline-open-station-photo="${escapeHtml(missionStation.code)}" aria-label="打开 ${escapeHtml(missionStation.name)} 站点影像"><i aria-hidden="true"></i><span><b>${escapeHtml(missionStation.name)}</b><small>${escapeHtml(missionStation.code)} · ${escapeHtml(missionStation.english)}</small><em>${Number(missionStation.lat).toFixed(2)}° / ${Number(missionStation.lng).toFixed(2)}°</em></span></button>`;
       stageFocus.dataset.stage = String(focusStage);
