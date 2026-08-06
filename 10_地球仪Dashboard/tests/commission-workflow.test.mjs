@@ -149,6 +149,8 @@ test('task windows expose independent public, clerk dossier, and administrator e
   assert.match(repository, /versions:archive_versions!archive_versions_contribution_id_fkey/,
     'Clerk dossier history must explicitly embed versions through archive_versions.contribution_id');
   assert.match(source, /当前登记/);
+  assert.doesNotMatch(repository, /versions:archive_versions!archive_versions_contribution_id_fkey\([^)]*\bstatus\b/,
+    'Clerk dossier history must not require archive_versions.status on older production schemas');
   assert.doesNotMatch(archiveShell, /id="archive-active-task-entry"/,
     'The retired top-level commission entry should not duplicate the assistant entry');
   assert.match(archiveShell, /id="commission-assistant"/);
