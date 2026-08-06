@@ -10896,7 +10896,9 @@ body.clerk-desktop-open { overflow: hidden; }
   top: 0;
   right: auto !important;
   bottom: auto !important;
-  contain: layout paint;
+  /* The speech bubble intentionally extends above the pet; paint containment
+     would crop it to the sprite's box and leave only a thin strip visible. */
+  contain: layout;
   pointer-events: none;
   transform: translate3d(var(--pet-x, 0px), var(--pet-y, 0px), 0);
   will-change: transform;
@@ -10960,6 +10962,13 @@ body.clerk-desktop-open { overflow: hidden; }
   font: 700 11px/1.45 var(--font-body);
   letter-spacing: .01em;
   pointer-events: none;
+}
+
+/* Keep the copy visible even when the pet image is changing frames. */
+.mascot-pet-dialogue:not([hidden]) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .mascot-pet-dialogue::after {

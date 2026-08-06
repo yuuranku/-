@@ -321,11 +321,11 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     parent: assistant.parentElement,
   };
   const petDialogue = assistant.querySelector('.mascot-pet-dialogue') || document.createElement('p');
+  petDialogue.classList.add('mascot-pet-dialogue');
+  petDialogue.setAttribute('role', 'status');
+  petDialogue.setAttribute('aria-live', 'polite');
   if (!petDialogue.parentElement) {
-    petDialogue.className = 'mascot-pet-dialogue';
     petDialogue.hidden = true;
-    petDialogue.setAttribute('role', 'status');
-    petDialogue.setAttribute('aria-live', 'polite');
     assistant.appendChild(petDialogue);
   }
   const desktopPet = {
@@ -539,6 +539,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     window.clearTimeout(desktopPet.dialogueTimer);
     desktopPet.dialogueTimer = 0;
     petDialogue.hidden = true;
+    petDialogue.setAttribute('aria-hidden', 'true');
     assistant.classList.remove('is-pet-speaking');
     if (
       !assistant.classList.contains('is-pet-dragging')
@@ -577,9 +578,21 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     const line = choosePetLine(kind);
     if (!line) return;
     clearPetDialogue();
-    petDialogue.textContent = line;
-    petDialogue.hidden = false;
+    // The dialogue element stays mounted while the pet swaps sprite frames.
+    // Replacing its node contents before revealing it avoids a frame swap
+    // briefly clearing the visible speech bubble on deployed builds.
+    petDialogue.replaceChildren(document.createTextNode(line));
+    petDialogue.removeAttribute('hidden');
+    petDialogue.setAttribute('aria-hidden', 'false');
+    petDialogue.style.removeProperty('display');
+    petDialogue.style.removeProperty('visibility');
+    petDialogue.style.removeProperty('opacity');
     assistant.classList.add('is-pet-speaking');
+    window.requestAnimationFrame(() => {
+      if (!petDialogue.hidden && !petDialogue.textContent.trim()) {
+        petDialogue.replaceChildren(document.createTextNode(line));
+      }
+    });
     if (kind !== 'lift' && kind !== 'landing' && kind !== 'shake') playPetFrames('talk', { interval: 210, loop: true });
     desktopPet.dialogueTimer = window.setTimeout(clearPetDialogue, 4_200);
     schedulePetIdle();
@@ -1674,7 +1687,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   }
 
   function openMascotEasterEggWindow(surface = desktopPet.active ? 'workspace' : 'assistant') {
-    const documentKey = 'easter-egg:clip-88';
+    const documentKey = 'easter-egg:clip-30';
     const existing = openDocuments.get(documentKey);
     if (existing) {
       if (existing.minimized) restoreDocumentWindow(existing.windowElement);
@@ -1707,7 +1720,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     const taskButton = document.createElement('button');
     taskButton.type = 'button';
     taskButton.className = 'archive-task-button mascot-document-task-button mascot-easter-egg-window__task';
-    taskButton.innerHTML = '<i></i><span aria-hidden="true"><b>88</b></span>';
+    taskButton.innerHTML = '<i></i><span aria-hidden="true"><b>30</b></span>';
     taskButton.setAttribute('aria-controls', windowId);
     taskButton.setAttribute('aria-label', '切换夹子彩蛋窗口');
 
@@ -1807,7 +1820,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       ? mascotEasterEgg.clicks + 1
       : 1;
     mascotEasterEgg.lastClickAt = now;
-    if (mascotEasterEgg.clicks < 88) return false;
+    if (mascotEasterEgg.clicks < 30) return false;
     mascotEasterEgg.clicks = 0;
     openMascotEasterEggWindow();
     return true;
