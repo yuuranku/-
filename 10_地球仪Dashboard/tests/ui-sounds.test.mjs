@@ -28,6 +28,11 @@ test('loading sound palette provides each state cue used by the timed loading vi
   assert.ok(SOUND_PROFILES.verified);
 });
 
+test('desk pet heavy landing has a muted impact cue', () => {
+  assert.ok(SOUND_PROFILES['pet-impact']);
+  assert.ok(SOUND_PROFILES['pet-impact'].layers.some((layer) => layer.frequency < 160));
+});
+
 test('globe chapter movement emits a short movement cue when switching sections', async () => {
   const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
   assert.ok(SOUND_PROFILES['globe-shift']);

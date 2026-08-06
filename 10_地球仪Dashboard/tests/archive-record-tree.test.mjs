@@ -73,8 +73,34 @@ test('approved amendments overlay the current record and retain only changed fie
   assert.equal(timeline.currentVersion.content.values.hero, 'amendment-1');
   assert.deepEqual(
     timeline.history[0].changes.filter(({ key }) => key === 'value:hero'),
-    [{ key: 'value:hero', label: 'hero', before: 'record-1', after: 'amendment-1' }],
+    [{ key: 'value:hero', label: '档案标题', before: 'record-1', after: 'amendment-1' }],
   );
+});
+
+test('amendment history keeps dossier text and hides formatting internals', () => {
+  const base = version('record-1');
+  base.content.values = {
+    hero: '原始标题',
+    'custom:item:entry-1:title': '访谈记录',
+    'custom:item:entry-1:content': '原始内容',
+  };
+  base.content.inlineMarks = { 'custom:item:entry-1:content': [{ start: 0, end: 2, type: 'bold' }] };
+
+  const amendmentVersion = version('amendment-1', '2026-07-30T00:00:00Z');
+  amendmentVersion.content.values = {
+    hero: '修订标题',
+    'custom:item:entry-1:title': '访谈记录',
+    'custom:item:entry-1:content': '修订内容',
+  };
+  amendmentVersion.content.inlineMarks = { 'custom:item:entry-1:content': [{ start: 0, end: 4, type: 'redacted' }] };
+  amendmentVersion.content.references = [{ code: 'A-01', label: '辅助资料' }];
+  amendmentVersion.content.media = [{ publicUrl: 'https://example.test/record.png' }];
+
+  const timeline = buildAmendmentTimeline(base, [{ ...amendment, latestVersion: amendmentVersion }]);
+  const changes = timeline.history[0].changes;
+
+  assert.deepEqual(changes.map(({ label }) => label), ['档案标题', '访谈记录']);
+  assert.equal(changes.some(({ key }) => key === 'inlineMarks'), false);
 });
 
 test('published ledger puts an amendment in clickable version history instead of inline content', () => {

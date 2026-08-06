@@ -1,4 +1,5 @@
 import {
+  archiveFieldLabel,
   renderFormalArchiveAmendment,
   renderFormalArchiveDocument,
 } from './public-renderer.js';
@@ -29,13 +30,23 @@ const text = (value) => String(value ?? '').trim();
 
 const sameValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-const inlineMarkSummary = (marks = {}) => Object.entries(marks || {})
-  .filter(([, ranges]) => Array.isArray(ranges) && ranges.length)
-  .map(([key, ranges]) => `${key} (${ranges.length})`)
-  .join(', ');
+const customItemKey = /^custom:item:([^:]+):(title|content)$/;
 
-const documentChangeLabel = (key, previous = {}, next = {}) =>
-  text(next.fieldLabels?.[key] || previous.fieldLabels?.[key] || key);
+const documentChangeLabel = (key, previous = {}, next = {}) => {
+  const custom = customItemKey.exec(key);
+  if (custom) {
+    const [, itemId, property] = custom;
+    const titleKey = `custom:item:${itemId}:title`;
+    const itemTitle = text(next.values?.[titleKey] || previous.values?.[titleKey]);
+    if (itemTitle) return property === 'title' ? `${itemTitle}（标题）` : itemTitle;
+    return property === 'title' ? '自定义条目标题' : '自定义条目内容';
+  }
+  return archiveFieldLabel({
+    ...previous,
+    ...next,
+    fieldLabels: { ...(previous.fieldLabels || {}), ...(next.fieldLabels || {}) },
+  }, key);
+};
 
 const documentValueChanges = (previous = {}, next = {}) => {
   const changes = [];
@@ -56,30 +67,6 @@ const documentValueChanges = (previous = {}, next = {}) => {
         });
       }
     }
-  }
-  if (!sameValue(previous.references || [], next.references || [])) {
-    changes.push({
-      key: 'references',
-      label: '引用档案',
-      before: (previous.references || []).map((entry) => text(entry.code || entry.label)).filter(Boolean).join('；'),
-      after: (next.references || []).map((entry) => text(entry.code || entry.label)).filter(Boolean).join('；'),
-    });
-  }
-  if (!sameValue(previous.media || [], next.media || [])) {
-    changes.push({
-      key: 'media',
-      label: '档案图片',
-      before: `${(previous.media || []).length} 张`,
-      after: `${(next.media || []).length} 张`,
-    });
-  }
-  if (!sameValue(previous.inlineMarks || {}, next.inlineMarks || {})) {
-    changes.push({
-      key: 'inlineMarks',
-      label: '正文格式',
-      before: inlineMarkSummary(previous.inlineMarks) || '无',
-      after: inlineMarkSummary(next.inlineMarks) || '无',
-    });
   }
   return changes;
 };
@@ -338,10 +325,11 @@ const versionDate = (version) => (
 );
 
 const renderAmendmentHistory = (history = []) => {
-  if (!history.length) return '<p class="archive-contribution-empty">本记录暂无修改历史。</p>';
+  const contentHistory = history.filter(({ changes = [] }) => changes.length);
+  if (!contentHistory.length) return '<p class="archive-contribution-empty">本记录暂无可公开的正文修改。</p>';
   return `
     <ol class="archive-version-history archive-version-history--amendments">
-      ${history.map(({ amendment, version }) => `
+      ${contentHistory.map(({ amendment, version }) => `
         <li>
           <button type="button" data-open-amendment-history="${escapeHtml(amendment.id)}" aria-haspopup="dialog">
             <b>VER ${escapeHtml(version.version_label || '0.1')}</b>
@@ -351,7 +339,7 @@ const renderAmendmentHistory = (history = []) => {
         </li>
       `).join('')}
     </ol>
-    ${history.map(({ amendment, version, changes }) => `
+    ${contentHistory.map(({ amendment, version, changes }) => `
       <section hidden data-amendment-history-detail="${escapeHtml(amendment.id)}">
         <header>
           <p>PALIS / AMENDMENT HISTORY</p>

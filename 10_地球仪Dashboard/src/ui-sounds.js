@@ -45,6 +45,13 @@ export const SOUND_PROFILES = Object.freeze({
       { kind: 'osc', wave: 'triangle', frequency: 280, endFrequency: 180, attack: .006, decay: .15, release: .03, gain: .045 },
     ]),
   }),
+  'pet-impact': Object.freeze({
+    cap: .34,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 118, endFrequency: 82, attack: .003, decay: .15, release: .05, gain: .038 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 1180, attack: .002, decay: .055, release: .018, gain: .012 },
+    ]),
+  }),
   scroll: Object.freeze({
     cap: .09,
     layers: Object.freeze([

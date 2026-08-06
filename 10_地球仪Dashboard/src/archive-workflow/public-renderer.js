@@ -243,15 +243,18 @@ const PUBLIC_LAYOUT_CLASS = Object.freeze({
   species: 'record-specimen-plate',
 });
 
-const fieldLabel = (document, key) => {
+export const archiveFieldLabel = (document, key) => {
   const label = visibleValue(document.fieldLabels?.[key]);
   if (label) return label;
   if (nativeFieldLabelAliases[key]) return nativeFieldLabelAliases[key];
+  if (key === 'hero' || key === 'title') return '档案标题';
   if (key === 'amendment:title') return '补充标题';
   if (key === 'amendment:body') return '补充正文';
   if (key.startsWith('legacy:')) return key.slice('legacy:'.length);
   return decodeLegacyFieldKey(key);
 };
+
+const fieldLabel = archiveFieldLabel;
 
 const documentFieldValue = (document, key) => visibleValue(
   document.values?.[key] ?? document.indexData?.[key],

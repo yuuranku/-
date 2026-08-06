@@ -10851,3 +10851,120 @@ body.clerk-desktop-open { overflow: hidden; }
     flex: 0 1 190px;
   }
 }
+
+/* PALIS becomes a proper desk pet inside the clerk desktop. Keeping the pet
+   below the document layer and taskbar means it belongs to the wallpaper, not
+   to the modal/window stack. */
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'] {
+  position: absolute;
+  z-index: 10;
+  display: block;
+  width: max-content;
+  right: auto !important;
+  bottom: auto !important;
+  pointer-events: none;
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger {
+  touch-action: none;
+  cursor: var(--cursor-retro-grab) !important;
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-dragging .mascot-trigger {
+  cursor: var(--cursor-retro-grabbing) !important;
+  filter:
+    drop-shadow(1px 0 0 rgba(239, 242, 235, .9))
+    drop-shadow(-1px 0 0 rgba(239, 242, 235, .9))
+    drop-shadow(0 1px 0 rgba(239, 242, 235, .9))
+    drop-shadow(0 -1px 0 rgba(239, 242, 235, .9))
+    drop-shadow(8px 11px 0 rgba(0, 0, 0, .46));
+  transform: rotate(-3deg) translateY(-4px) scale(1.035);
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-falling .mascot-trigger {
+  transform: rotate(2deg) scale(.985);
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-landing .mascot-trigger {
+  animation: none;
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-speaking .mascot-trigger {
+  animation: mascot-pet-speaking 520ms steps(2, end) infinite;
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-walking .mascot-trigger {
+  cursor: var(--cursor-retro-grab) !important;
+}
+
+.clerk-desktop > .mascot-assistant[data-desktop-pet='true'][data-pet-facing='right'] .mascot-trigger img {
+  transform: scaleX(-1);
+}
+
+/* The character itself is the desktop affordance; the old floating nameplate
+   competed with the desk-pet silhouette on both the public page and desktop. */
+.mascot-trigger > span { display: none !important; }
+
+.clerk-desktop.is-pet-heavy-impact {
+  animation: mascot-desk-impact 420ms steps(2, end) both;
+}
+
+.mascot-pet-dialogue {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% - 3px);
+  width: min(238px, calc(100vw - 20px));
+  margin: 0;
+  padding: 8px 10px 9px;
+  color: #0c1718;
+  border: 2px outset #f2f2f2;
+  background: #e8e8e1;
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, .45);
+  font: 700 11px/1.45 var(--font-body);
+  letter-spacing: .01em;
+  pointer-events: none;
+}
+
+.mascot-pet-dialogue::after {
+  position: absolute;
+  bottom: -9px;
+  width: 13px;
+  height: 13px;
+  border-right: 2px solid #111;
+  border-bottom: 2px solid #111;
+  background: #e8e8e1;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.mascot-assistant[data-pet-dialogue-side='left'] .mascot-pet-dialogue { left: 0; }
+.mascot-assistant[data-pet-dialogue-side='left'] .mascot-pet-dialogue::after { left: 24px; }
+.mascot-assistant[data-pet-dialogue-side='right'] .mascot-pet-dialogue { right: 0; }
+.mascot-assistant[data-pet-dialogue-side='right'] .mascot-pet-dialogue::after { right: 24px; }
+
+@keyframes mascot-pet-speaking {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-2px) rotate(-1deg); }
+}
+
+@keyframes mascot-pet-landing {
+  0% { transform: translateY(-4px) scale(1.03, .96); }
+  55% { transform: translateY(2px) scale(.95, 1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes mascot-desk-impact {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  12% { transform: translate3d(-5px, 2px, 0); }
+  28% { transform: translate3d(5px, -2px, 0); }
+  44% { transform: translate3d(-3px, 1px, 0); }
+  62% { transform: translate3d(3px, -1px, 0); }
+  80% { transform: translate3d(-1px, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger { transition: none; }
+  .clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-landing .mascot-trigger,
+  .clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-speaking .mascot-trigger,
+  .clerk-desktop.is-pet-heavy-impact { animation: none; }
+}

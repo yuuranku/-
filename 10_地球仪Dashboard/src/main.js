@@ -249,6 +249,500 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   });
   narrowDocumentQuery.addEventListener('change', syncDocumentViewport);
 
+  // PALIS lives on the clerk desktop as a self-contained desk pet. Its copy is
+  // intentionally local: the pet never reacts to archive data or workflow
+  // actions, so it remains a companion rather than another system control.
+  const desktopPetLines = Object.freeze({
+    click: [
+      '我在呢，你说。',
+      '又见面了，老兄。',
+      '别只点我呀，档案也看看。',
+      '有什么问题？问，别客气。',
+      '我可是联网的！大概吧。',
+      '书记官，今天也要认真上班哦。',
+      '你点这一下，有记录的。',
+      '怎么，你也觉得我长得很可靠？',
+      '需要帮助吗？不需要也可以聊两句。',
+      '我来咯——然后呢？',
+    ],
+    rapid: [
+      '哎，点一下就够了，我听得见。',
+      '两下了。你是不是在测试按钮？',
+      '老兄，我不是订书机，别一直按。',
+      '再点下去，我可要生成事故报告了。',
+      '你这样会让我以为自己卡住了。',
+      '好了好了，知道你喜欢我了。',
+      '这是骚扰办公用品，你知道吗？',
+      '第几下了？算了，我没数。',
+    ],
+    idle: [
+      '你还在吗？我都快进入待机模式了。',
+      '要不先存个档？我看着有点慌。',
+      '今天办公室挺安静的。',
+      '你发呆的时候，我也只能陪着发呆。',
+      '下班时间到了吗？我替你问问。',
+      '南极那边很冷，办公室倒是挺闷。',
+      '别睡，屏幕还亮着呢。',
+      '所以说，A4纸到底有多大呢？',
+    ],
+    lift: [
+      '哎？等等，先说去哪儿。',
+      '书记官调动也没这么突然吧。',
+      '轻一点，我里面还有文件呢。',
+      '你至少先填个调拨单啊。',
+      '怎么又是我？',
+      '行行行，我配合。',
+      '这是临时借调，还是永久迁移？',
+      '别抓夹子，那个真的会疼。',
+    ],
+    landing: [
+      '呼，平安落地。',
+      '这里就是新工位？',
+      '好吧，位置变更，我记一下。',
+      '下次提前通知，谢谢。',
+      '夹子还在，问题不大。',
+      '我需要重新整理一下自己。',
+      '没人看见吧？',
+      '这次我就不写事故报告了。',
+    ],
+    shake: [
+      '哎哎哎，别晃！',
+      '内容正在重新排序——开玩笑的！',
+      '你再晃，附件真要掉了。',
+      '这是审讯吗？',
+      '我承认，我承认我没保存草稿。',
+      '书记官也是会晕的！',
+      '停一下，我夹子都要松了。',
+      '这是人为制造的异常事件吧？',
+    ],
+  });
+  const assistantHome = {
+    nextSibling: assistant.nextSibling,
+    parent: assistant.parentElement,
+  };
+  const petDialogue = assistant.querySelector('.mascot-pet-dialogue') || document.createElement('p');
+  if (!petDialogue.parentElement) {
+    petDialogue.className = 'mascot-pet-dialogue';
+    petDialogue.hidden = true;
+    petDialogue.setAttribute('role', 'status');
+    petDialogue.setAttribute('aria-live', 'polite');
+    assistant.appendChild(petDialogue);
+  }
+  const desktopPet = {
+    active: false,
+    clickCount: 0,
+    dialogueTimer: 0,
+    fallFrame: 0,
+    idleTimer: 0,
+    ignoreNextClick: false,
+    lastClickAt: 0,
+    lastLine: new Map(),
+    lastShakeAt: 0,
+    sleepTimer: 0,
+    walkFrame: 0,
+    walkTimer: 0,
+    x: 0,
+    y: 0,
+  };
+  const desktopPetFrames = Object.freeze({
+    fall: ['/assets/mascot/actions/fall-01.png'],
+    land: ['/assets/mascot/actions/land-01.png', '/assets/mascot/actions/land-02.png'],
+    lift: ['/assets/mascot/actions/lift-01.png', '/assets/mascot/actions/lift-02.png'],
+    shake: ['/assets/mascot/actions/shake-01.png', '/assets/mascot/actions/shake-02.png', '/assets/mascot/actions/shake-03.png'],
+    sleep: ['/assets/mascot/actions/sleep-01.png', '/assets/mascot/actions/sleep-02.png'],
+    talk: ['/assets/mascot/actions/talk-01.png', '/assets/mascot/actions/talk-02.png'],
+    walk: [
+      '/assets/mascot/actions/walk-01.png', '/assets/mascot/actions/walk-02.png', '/assets/mascot/actions/walk-03.png',
+      '/assets/mascot/actions/walk-04.png', '/assets/mascot/actions/walk-05.png', '/assets/mascot/actions/walk-06.png',
+    ],
+  });
+  let petFrameTimer = 0;
+  let petFrameClearTimer = 0;
+
+  const clampPetValue = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
+  const petBounds = () => {
+    const desktopBounds = desktop.getBoundingClientRect();
+    const triggerBounds = trigger.getBoundingClientRect();
+    const taskbarHeight = desktopTaskbar.getBoundingClientRect().height || 38;
+    return {
+      height: desktopBounds.height,
+      petHeight: triggerBounds.height,
+      petWidth: triggerBounds.width,
+      taskbarHeight,
+      width: desktopBounds.width,
+    };
+  };
+  const petFloor = () => {
+    const bounds = petBounds();
+    return Math.max(4, bounds.height - bounds.taskbarHeight - bounds.petHeight - 6);
+  };
+  const updatePetPosition = (x, y = desktopPet.y) => {
+    if (!desktopPet.active) return;
+    const bounds = petBounds();
+    desktopPet.x = clampPetValue(x, 4, Math.max(4, bounds.width - bounds.petWidth - 4));
+    desktopPet.y = clampPetValue(y, 4, petFloor());
+    assistant.style.left = `${desktopPet.x}px`;
+    assistant.style.top = `${desktopPet.y}px`;
+    assistant.style.right = 'auto';
+    assistant.style.bottom = 'auto';
+    assistant.dataset.petDialogueSide = desktopPet.x + bounds.petWidth / 2 < bounds.width / 2 ? 'left' : 'right';
+  };
+  const clearPetFrameAnimation = ({ resumeIdle = true } = {}) => {
+    window.clearInterval(petFrameTimer);
+    window.clearTimeout(petFrameClearTimer);
+    petFrameTimer = 0;
+    petFrameClearTimer = 0;
+    delete assistant.dataset.petAction;
+    if (!resumeIdle) return;
+    // A short reaction (such as the shake) can finish while the pet is still
+    // being carried. Never let that timer replace an active state with idle.
+    if (assistant.classList.contains('is-pet-dragging')) {
+      playPetFrames('lift', { interval: 180, loop: true });
+      return;
+    }
+    if (assistant.classList.contains('is-pet-walking')) {
+      playPetFrames('walk', { interval: 125, loop: true });
+      return;
+    }
+    if (assistant.classList.contains('is-pet-falling')) {
+      playPetFrames('fall', { loop: true });
+      return;
+    }
+    frameIndex = 0;
+    frame.src = frames[frameIndex];
+    frame.dataset.mascotFrame = '02';
+    startIdleAnimation();
+  };
+  const playPetFrames = (action, {
+    interval = 190, loop = false, duration = 0, once = false,
+  } = {}) => {
+    const sources = desktopPetFrames[action];
+    if (!sources?.length) return;
+    stopIdleAnimation();
+    clearPetFrameAnimation({ resumeIdle: false });
+    let index = 0;
+    assistant.dataset.petAction = action;
+    frame.src = sources[index];
+    frame.dataset.mascotFrame = action;
+    if (sources.length > 1) {
+      petFrameTimer = window.setInterval(() => {
+        if (once && index === sources.length - 1) {
+          window.clearInterval(petFrameTimer);
+          petFrameTimer = 0;
+          return;
+        }
+        index = once ? Math.min(index + 1, sources.length - 1) : (index + 1) % sources.length;
+        frame.src = sources[index];
+      }, interval);
+    }
+    if (!loop) {
+      petFrameClearTimer = window.setTimeout(() => clearPetFrameAnimation(), duration || Math.max(interval * sources.length, 260));
+    }
+  };
+  const stopPetSleep = () => {
+    window.clearTimeout(desktopPet.sleepTimer);
+    desktopPet.sleepTimer = 0;
+    if (assistant.dataset.petAction === 'sleep') clearPetFrameAnimation();
+  };
+  const schedulePetSleep = () => {
+    stopPetSleep();
+    if (!desktopPet.active) return;
+    desktopPet.sleepTimer = window.setTimeout(() => {
+      if (
+        !desktopPet.active
+        || document.visibilityState !== 'visible'
+        || assistant.classList.contains('is-pet-dragging')
+        || assistant.classList.contains('is-pet-falling')
+        || assistant.classList.contains('is-pet-walking')
+      ) {
+        schedulePetSleep();
+        return;
+      }
+      playPetFrames('sleep', { interval: 800, loop: true });
+    }, 84_000 + Math.floor(Math.random() * 20_000));
+  };
+  const clearPetDialogue = () => {
+    window.clearTimeout(desktopPet.dialogueTimer);
+    desktopPet.dialogueTimer = 0;
+    petDialogue.hidden = true;
+    assistant.classList.remove('is-pet-speaking');
+    if (
+      !assistant.classList.contains('is-pet-dragging')
+      && !assistant.classList.contains('is-pet-falling')
+      && !assistant.classList.contains('is-pet-walking')
+    ) clearPetFrameAnimation();
+  };
+  const choosePetLine = (kind) => {
+    const lines = desktopPetLines[kind] || [];
+    if (!lines.length) return '';
+    const previous = desktopPet.lastLine.get(kind) ?? -1;
+    const offset = lines.length > 1 ? 1 + Math.floor(Math.random() * (lines.length - 1)) : 0;
+    const next = previous < 0 ? Math.floor(Math.random() * lines.length) : (previous + offset) % lines.length;
+    desktopPet.lastLine.set(kind, next);
+    return lines[next];
+  };
+  const schedulePetIdle = () => {
+    window.clearTimeout(desktopPet.idleTimer);
+    desktopPet.idleTimer = 0;
+    if (!desktopPet.active) return;
+    desktopPet.idleTimer = window.setTimeout(() => {
+      if (
+        !desktopPet.active
+        || document.visibilityState !== 'visible'
+        || assistant.classList.contains('is-pet-dragging')
+        || assistant.classList.contains('is-pet-walking')
+      ) {
+        schedulePetIdle();
+        return;
+      }
+      speakAsDesktopPet('idle');
+    }, 46_000 + Math.floor(Math.random() * 14_000));
+  };
+  const speakAsDesktopPet = (kind) => {
+    if (!desktopPet.active) return;
+    const line = choosePetLine(kind);
+    if (!line) return;
+    clearPetDialogue();
+    petDialogue.textContent = line;
+    petDialogue.hidden = false;
+    assistant.classList.add('is-pet-speaking');
+    if (kind !== 'lift' && kind !== 'landing' && kind !== 'shake') playPetFrames('talk', { interval: 210, loop: true });
+    desktopPet.dialogueTimer = window.setTimeout(clearPetDialogue, 4_200);
+    schedulePetIdle();
+    schedulePetSleep();
+  };
+  const stopPetFall = () => {
+    if (desktopPet.fallFrame) cancelAnimationFrame(desktopPet.fallFrame);
+    desktopPet.fallFrame = 0;
+    assistant.classList.remove('is-pet-falling');
+  };
+  const stopPetWalk = () => {
+    window.clearTimeout(desktopPet.walkTimer);
+    desktopPet.walkTimer = 0;
+    if (desktopPet.walkFrame) cancelAnimationFrame(desktopPet.walkFrame);
+    desktopPet.walkFrame = 0;
+    assistant.classList.remove('is-pet-walking');
+  };
+  const schedulePetWalk = () => {
+    stopPetWalk();
+    if (!desktopPet.active || reducedMotion) return;
+    desktopPet.walkTimer = window.setTimeout(startDesktopPetWalk, 11_000 + Math.floor(Math.random() * 11_000));
+  };
+  const startDesktopPetWalk = () => {
+    if (
+      !desktopPet.active
+      || document.visibilityState !== 'visible'
+      || assistant.classList.contains('is-pet-dragging')
+      || assistant.classList.contains('is-pet-falling')
+    ) {
+      schedulePetWalk();
+      return;
+    }
+    stopPetSleep();
+    const bounds = petBounds();
+    const minX = 10;
+    const maxX = Math.max(minX, bounds.width - bounds.petWidth - 10);
+    let direction = Math.random() > .5 ? 1 : -1;
+    let targetX = clampPetValue(desktopPet.x + direction * (100 + Math.random() * 210), minX, maxX);
+    if (Math.abs(targetX - desktopPet.x) < 42) {
+      direction *= -1;
+      targetX = clampPetValue(desktopPet.x + direction * (100 + Math.random() * 210), minX, maxX);
+    }
+    const startX = desktopPet.x;
+    const distance = Math.abs(targetX - startX);
+    const duration = Math.max(1_100, (distance / 54) * 1_000);
+    const startedAt = performance.now();
+    assistant.dataset.petFacing = direction < 0 ? 'left' : 'right';
+    assistant.classList.add('is-pet-walking');
+    playPetFrames('walk', { interval: 125, loop: true });
+    const step = (now) => {
+      if (!desktopPet.active || !assistant.classList.contains('is-pet-walking')) return;
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = progress < .5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
+      updatePetPosition(startX + (targetX - startX) * eased, petFloor());
+      if (progress < 1) {
+        desktopPet.walkFrame = requestAnimationFrame(step);
+        return;
+      }
+      stopPetWalk();
+      clearPetFrameAnimation();
+      schedulePetWalk();
+      schedulePetSleep();
+    };
+    desktopPet.walkFrame = requestAnimationFrame(step);
+  };
+  const triggerHeavyPetImpact = () => {
+    if (reducedMotion) return;
+    desktop.classList.remove('is-pet-heavy-impact');
+    requestAnimationFrame(() => desktop.classList.add('is-pet-heavy-impact'));
+    window.setTimeout(() => desktop.classList.remove('is-pet-heavy-impact'), 420);
+    void emitUiSound('pet-impact', { minInterval: 900 });
+  };
+  const settleDesktopPet = ({ heavy = false } = {}) => {
+    stopPetFall();
+    updatePetPosition(desktopPet.x, petFloor());
+    assistant.classList.add('is-pet-landing');
+    window.setTimeout(() => assistant.classList.remove('is-pet-landing'), reducedMotion ? 0 : 260);
+    if (heavy) triggerHeavyPetImpact();
+    speakAsDesktopPet('landing');
+    // Use the squashed landing frame once, then its recovery frame. The old
+    // looping interval reached the squashed frame a second time before reset.
+    playPetFrames('land', { interval: 150, duration: 360, once: true });
+    schedulePetWalk();
+    schedulePetSleep();
+  };
+  const dropDesktopPet = (initialVelocity = 0) => {
+    if (!desktopPet.active) return;
+    stopPetWalk();
+    stopPetSleep();
+    stopPetFall();
+    const dropDistance = Math.max(0, petFloor() - desktopPet.y);
+    if (reducedMotion) {
+      settleDesktopPet();
+      return;
+    }
+    let velocity = Math.max(-280, Math.min(520, initialVelocity));
+    let previousTime = performance.now();
+    assistant.classList.add('is-pet-falling');
+    // A fall can last longer than a cosmetic timeout. Keep its pose locked
+    // until the physics loop actually reaches the taskbar floor.
+    playPetFrames('fall', { loop: true });
+    const step = (now) => {
+      if (!desktopPet.active) return;
+      const seconds = Math.min(.035, (now - previousTime) / 1000);
+      previousTime = now;
+      velocity += 2_200 * seconds;
+      const nextY = desktopPet.y + velocity * seconds;
+      if (nextY >= petFloor()) {
+        settleDesktopPet({ heavy: dropDistance >= Math.max(150, petBounds().height * .22) });
+        return;
+      }
+      updatePetPosition(desktopPet.x, nextY);
+      desktopPet.fallFrame = requestAnimationFrame(step);
+    };
+    desktopPet.fallFrame = requestAnimationFrame(step);
+  };
+  const activateDesktopPet = () => {
+    if (desktopPet.active) return;
+    desktopPet.active = true;
+    assistant.removeAttribute('inert');
+    desktop.appendChild(assistant);
+    assistant.dataset.desktopPet = 'true';
+    trigger.setAttribute('aria-label', 'PALIS 桌宠；点击互动，按住可拎起');
+    requestAnimationFrame(() => {
+      const bounds = petBounds();
+      updatePetPosition(bounds.width - bounds.petWidth - 18, petFloor());
+      schedulePetIdle();
+      schedulePetWalk();
+      schedulePetSleep();
+    });
+  };
+  const deactivateDesktopPet = () => {
+    if (!desktopPet.active) return;
+    desktopPet.active = false;
+    stopPetFall();
+    stopPetWalk();
+    stopPetSleep();
+    clearPetDialogue();
+    window.clearTimeout(desktopPet.idleTimer);
+    desktopPet.idleTimer = 0;
+    clearPetFrameAnimation();
+    assistant.classList.remove('is-pet-dragging', 'is-pet-landing', 'is-pet-lifted', 'is-pet-walking');
+    delete assistant.dataset.desktopPet;
+    delete assistant.dataset.petDialogueSide;
+    delete assistant.dataset.petFacing;
+    assistant.style.removeProperty('left');
+    assistant.style.removeProperty('top');
+    assistant.style.removeProperty('right');
+    assistant.style.removeProperty('bottom');
+    trigger.setAttribute('aria-label', '打开 PALIS 助手');
+    if (assistantHome.parent?.isConnected) {
+      assistantHome.parent.insertBefore(assistant, assistantHome.nextSibling?.isConnected ? assistantHome.nextSibling : null);
+    }
+  };
+  const registerDesktopPetClick = () => {
+    stopPetSleep();
+    const now = performance.now();
+    desktopPet.clickCount = now - desktopPet.lastClickAt < 950 ? desktopPet.clickCount + 1 : 1;
+    desktopPet.lastClickAt = now;
+    speakAsDesktopPet(desktopPet.clickCount > 1 ? 'rapid' : 'click');
+  };
+
+  let petDrag = null;
+  trigger.addEventListener('pointerdown', (event) => {
+    if (!desktopPet.active || event.button !== 0) return;
+    stopPetWalk();
+    stopPetSleep();
+    stopPetFall();
+    clearPetFrameAnimation();
+    const bounds = trigger.getBoundingClientRect();
+    petDrag = {
+      lastDirection: 0,
+      lastTime: performance.now(),
+      lastX: event.clientX,
+      lastY: event.clientY,
+      moved: false,
+      pointerId: event.pointerId,
+      shakeTurns: [],
+      startX: event.clientX,
+      startY: event.clientY,
+      velocityY: 0,
+      width: bounds.width,
+      // The visible grab point is the upper paper-clip loop, not the face.
+      // Keeping this anchor fixed prevents the character from looking as if
+      // it is being dragged by its face after the lift sprite takes over.
+      gripX: bounds.width * .58,
+      gripY: bounds.height * .17,
+    };
+    trigger.setPointerCapture?.(event.pointerId);
+  });
+  trigger.addEventListener('pointermove', (event) => {
+    if (!petDrag || event.pointerId !== petDrag.pointerId) return;
+    const distance = Math.hypot(event.clientX - petDrag.startX, event.clientY - petDrag.startY);
+    if (!petDrag.moved && distance < 6) return;
+    const now = performance.now();
+    const elapsed = Math.max(1, now - petDrag.lastTime);
+    const velocityX = ((event.clientX - petDrag.lastX) / elapsed) * 1000;
+    petDrag.velocityY = ((event.clientY - petDrag.lastY) / elapsed) * 1000;
+    if (!petDrag.moved) {
+      petDrag.moved = true;
+      assistant.classList.add('is-pet-dragging', 'is-pet-lifted');
+      speakAsDesktopPet('lift');
+      playPetFrames('lift', { interval: 180, loop: true });
+    }
+    if (Math.abs(velocityX) > 420) {
+      const direction = Math.sign(velocityX);
+      if (petDrag.lastDirection && direction !== petDrag.lastDirection) {
+        petDrag.shakeTurns.push(now);
+        petDrag.shakeTurns = petDrag.shakeTurns.filter((turn) => now - turn < 760);
+        if (petDrag.shakeTurns.length >= 2 && now - desktopPet.lastShakeAt > 2_800) {
+          desktopPet.lastShakeAt = now;
+          petDrag.shakeTurns.length = 0;
+          speakAsDesktopPet('shake');
+          playPetFrames('shake', { interval: 125, duration: 420 });
+        }
+      }
+      petDrag.lastDirection = direction;
+    }
+    petDrag.lastX = event.clientX;
+    petDrag.lastY = event.clientY;
+    petDrag.lastTime = now;
+    updatePetPosition(event.clientX - petDrag.gripX, event.clientY - petDrag.gripY);
+    event.preventDefault();
+  });
+  const finishPetDrag = (event) => {
+    if (!petDrag || event.pointerId !== petDrag.pointerId) return;
+    trigger.releasePointerCapture?.(event.pointerId);
+    const drag = petDrag;
+    petDrag = null;
+    if (!drag.moved) return;
+    desktopPet.ignoreNextClick = true;
+    assistant.classList.remove('is-pet-dragging', 'is-pet-lifted');
+    dropDesktopPet(drag.velocityY);
+  };
+  trigger.addEventListener('pointerup', finishPetDrag);
+  trigger.addEventListener('pointercancel', finishPetDrag);
+
   const createWorkspaceNoteSession = (candidate = {}, {
     desktopOpen = document.body.classList.contains('clerk-desktop-open'),
     fallback = null,
@@ -428,9 +922,10 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     document.body.classList.toggle('clerk-desktop-open', open);
     experienceRoot.toggleAttribute('inert', open);
     archiveWindowLayer.toggleAttribute('inert', open);
-    assistant.toggleAttribute('inert', open);
+    assistant.removeAttribute('inert');
     if (open) {
       desktop.hidden = false;
+      activateDesktopPet();
       updateDesktopClock();
       setWorkspaceNotesDesktopOpen(true);
       dispatchDesktopLifecycle(true);
@@ -442,6 +937,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       });
       return;
     }
+    deactivateDesktopPet();
     setWorkspaceNotesDesktopOpen(false);
     dispatchDesktopLifecycle(false);
     desktop.classList.remove('is-open');
@@ -1140,14 +1636,24 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   void refreshClerkDirectory();
   window.addEventListener('palis:clerk-registration-changed', () => { void refreshClerkDirectory(); });
 
-  trigger.addEventListener('click', () => setMenuOpen(startMenu.hidden));
+  trigger.addEventListener('click', () => {
+    if (desktopPet.active) {
+      if (desktopPet.ignoreNextClick) {
+        desktopPet.ignoreNextClick = false;
+        return;
+      }
+      registerDesktopPetClick();
+      return;
+    }
+    setMenuOpen(startMenu.hidden);
+  });
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
   desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
   desktopShortcutArrange.addEventListener('click', arrangeDesktopShortcuts);
   desktop.addEventListener('pointerdown', (event) => {
     if (desktopStartMenu.hidden) return;
     if (event.target.closest(
-      '#clerk-desktop-start-menu, #clerk-desktop-start, #workspace-note-region, [data-workspace-note-controls], .archive-workflow-window, .mascot-document-window, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
+      '#clerk-desktop-start-menu, #clerk-desktop-start, #workspace-note-region, [data-workspace-note-controls], .archive-workflow-window, .mascot-document-window, .mascot-assistant, .clerk-desktop__welcome, [data-workspace-shortcut], #assistant-taskbar, dialog',
     )) return;
     setDesktopStartMenuOpen(false);
   });
