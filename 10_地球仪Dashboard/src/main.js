@@ -6346,6 +6346,9 @@ function renderArchiveAttachmentPage(state, message = '') {
 function mountArchiveAttachmentPage(state, message = '') {
   const sheet = state.windowElement.querySelector('.document-sheet');
   if (!sheet?.isConnected) return;
+  // Formal records now carry their own bottom attachment rail. Keep the menu
+  // and raw-file viewer, but do not duplicate that rail in legacy sheets.
+  if (sheet.querySelector('[data-formal-attachments]')) return;
   sheet.querySelector('[data-archive-attachment-page]')?.remove();
   sheet.insertAdjacentHTML('beforeend', renderArchiveAttachmentPage(state, message));
 }

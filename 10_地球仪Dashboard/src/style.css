@@ -9629,6 +9629,189 @@ body.clerk-desktop-open { overflow: hidden; }
   [data-commission-alert] { animation: none; }
 }
 
+/* Public transmission: the shareable PALIS front door lives on #promo and
+   deliberately stays separate from the authenticated archive interface. */
+.palis-promo {
+  display: none;
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  color: #2e382d;
+  background: #dee4e0;
+  font-family: var(--font-body, "Noto Sans SC", sans-serif);
+}
+
+.promo-open .palis-promo { display: block; }
+.promo-open .access-gate,
+.promo-open #experience,
+.promo-open .mascot-assistant { display: none !important; }
+
+.palis-promo::before,
+.palis-promo::after,
+.palis-promo__signal {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.palis-promo::before {
+  z-index: 1;
+  opacity: .34;
+  background: repeating-linear-gradient(to bottom, transparent 0 3px, #2e382d 3px 4px);
+  mix-blend-mode: multiply;
+}
+
+.palis-promo::after {
+  z-index: 0;
+  background:
+    linear-gradient(90deg, #2e382d 0 1px, transparent 1px) 0 0 / 54px 54px,
+    linear-gradient(#2e382d 0 1px, transparent 1px) 0 0 / 54px 54px;
+  opacity: .07;
+}
+
+.palis-promo__signal {
+  z-index: 0;
+  inset: auto -10vw 13%;
+  height: 36vw;
+  border: 1px solid #2e382d;
+  border-radius: 50%;
+  opacity: .16;
+  transform: rotate(-8deg);
+}
+
+.palis-promo__mast,
+.palis-promo__hero,
+.palis-promo__index,
+.palis-promo__footer {
+  position: relative;
+  z-index: 2;
+  width: min(1420px, calc(100% - 44px));
+  margin-inline: auto;
+}
+
+.palis-promo__mast {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 68px;
+  border-bottom: 2px solid #2e382d;
+  font: 700 10px/1 var(--font-mono, monospace);
+  letter-spacing: .11em;
+}
+
+.palis-promo__wordmark {
+  color: inherit;
+  font: 800 20px/.9 var(--font-mono, monospace);
+  letter-spacing: -.06em;
+  text-decoration: none;
+}
+
+.palis-promo__mast p,
+.palis-promo__mast span { margin: 0; }
+.palis-promo__mast p { text-align: center; }
+.palis-promo__mast span { text-align: right; opacity: .72; }
+
+.palis-promo__hero {
+  display: grid;
+  grid-template-columns: minmax(240px, .75fr) minmax(0, 1.75fr);
+  gap: clamp(28px, 5vw, 90px);
+  align-items: center;
+  min-height: min(780px, calc(100svh - 68px));
+  padding: 42px 0 60px;
+}
+
+.palis-promo__brief { max-width: 440px; }
+.palis-promo__eyebrow,
+.palis-promo__section-label,
+.palis-promo__visual figcaption {
+  margin: 0;
+  font: 700 10px/1.35 var(--font-mono, monospace);
+  letter-spacing: .14em;
+}
+
+.palis-promo__eyebrow { padding-bottom: 18px; border-bottom: 1px solid #2e382d; }
+
+.palis-promo__brief h1 {
+  margin: 24px 0 24px;
+  font: 800 clamp(44px, 6.1vw, 96px)/.95 var(--font-body, "Noto Sans SC", sans-serif);
+  letter-spacing: -.09em;
+}
+
+.palis-promo__lede {
+  max-width: 31em;
+  margin: 0;
+  font-size: clamp(14px, 1.35vw, 17px);
+  line-height: 1.9;
+}
+
+.palis-promo__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 22px; margin-top: 34px; }
+.palis-promo__enter {
+  display: inline-flex;
+  gap: 24px;
+  align-items: center;
+  padding: 13px 15px 12px;
+  color: #dee4e0;
+  background: #2e382d;
+  font: 700 13px/1 var(--font-mono, monospace);
+  text-decoration: none;
+  box-shadow: 5px 5px 0 #2e382d;
+}
+.palis-promo__enter:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 #2e382d; }
+.palis-promo__anchor { color: inherit; font: 700 12px/1.3 var(--font-mono, monospace); text-underline-offset: 5px; }
+
+.palis-promo__visual { position: relative; margin: 0; }
+.palis-promo__visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 2px solid #2e382d;
+  box-shadow: 12px 12px 0 #2e382d;
+  image-rendering: pixelated;
+}
+.palis-promo__visual figcaption { display: flex; justify-content: space-between; margin-top: 14px; }
+
+.palis-promo__index {
+  display: grid;
+  grid-template-columns: minmax(180px, .58fr) minmax(0, 2fr);
+  gap: 32px;
+  padding: 30px 0;
+  border-top: 2px solid #2e382d;
+  border-bottom: 2px solid #2e382d;
+}
+
+.palis-promo__index ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0; padding: 0; list-style: none; }
+.palis-promo__index li { min-height: 126px; padding: 3px 25px 8px; border-left: 1px solid #2e382d; }
+.palis-promo__index b { display: block; margin-bottom: 17px; font: 800 clamp(22px, 2.2vw, 31px)/1 var(--font-body, sans-serif); letter-spacing: -.05em; }
+.palis-promo__index span { display: block; max-width: 14em; font-size: 13px; line-height: 1.7; }
+
+.palis-promo__footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px 0 28px; font: 700 10px/1.2 var(--font-mono, monospace); letter-spacing: .12em; }
+.palis-promo__footer a { color: inherit; }
+
+@media (max-width: 860px) {
+  .palis-promo__mast { grid-template-columns: 1fr auto; min-height: 58px; }
+  .palis-promo__mast p { display: none; }
+  .palis-promo__hero { grid-template-columns: 1fr; gap: 34px; min-height: auto; padding-top: 52px; }
+  .palis-promo__brief { max-width: 590px; }
+  .palis-promo__visual { width: min(760px, 100%); }
+  .palis-promo__index { grid-template-columns: 1fr; gap: 20px; }
+}
+
+@media (max-width: 620px) {
+  .palis-promo__mast,
+  .palis-promo__hero,
+  .palis-promo__index,
+  .palis-promo__footer { width: min(100% - 28px, 1420px); }
+  .palis-promo__mast span { font-size: 8px; }
+  .palis-promo__hero { padding: 35px 0 44px; }
+  .palis-promo__brief h1 { font-size: clamp(42px, 15vw, 64px); }
+  .palis-promo__visual img { box-shadow: 7px 7px 0 #2e382d; }
+  .palis-promo__index ol { grid-template-columns: 1fr; }
+  .palis-promo__index li { min-height: 0; padding: 18px 0; border-top: 1px solid #2e382d; border-left: 0; }
+  .palis-promo__index b { margin-bottom: 8px; }
+  .palis-promo__footer { flex-wrap: wrap; }
+}
+
 /* Clerk workspace refinement
    The 0.1 red/yellow/blue language is kept as registration marks and file
    labels. It is intentionally not used as wallpaper or a full-width graphic. */
@@ -10080,6 +10263,53 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 .archive-formal-document__metadata--legacy { display: none; }
 .archive-formal-document__metadata--footer { margin-top: 34px; }
+
+.archive-formal-attachments {
+  margin-top: 28px;
+  padding: 12px;
+  border-top: 2px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  background: rgba(12, 23, 21, .2);
+}
+.archive-formal-attachments > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: inherit;
+  font: 700 10px/1.35 var(--font-mono);
+}
+.archive-formal-attachments > header span { opacity: .68; }
+.archive-formal-attachments > p { margin: 12px 0 2px; opacity: .68; font: 10px/1.5 var(--font-mono); }
+.archive-formal-attachments__list { display: grid; gap: 6px; margin-top: 12px; }
+.archive-formal-attachments__list a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 9px;
+  border: 1px solid currentColor;
+  color: inherit;
+  text-decoration: none;
+  font: 700 10px/1.35 var(--font-mono);
+}
+.archive-formal-attachments__list a:hover,
+.archive-formal-attachments__list a:focus-visible { outline: 2px solid #d14949; outline-offset: 2px; background: rgba(209, 73, 73, .12); }
+.archive-formal-attachments__list small { opacity: .68; font: inherit; }
+.archive-formal-attachments__list b { color: #d14949; font: inherit; }
+.archive-editor__review-note { border-color: #bb9b58; }
+.archive-editor__review-note p { margin: 9px 0 0; color: #bdac81; font: 10px/1.45 var(--font-mono); }
+.archive-review-amendment-note {
+  padding: 11px 12px;
+  border: 1px solid #b89246;
+  background: rgba(184, 146, 70, .11);
+}
+.archive-review-amendment-note b { display: block; color: #b89246; font: 700 10px/1.35 var(--font-mono); }
+.archive-review-amendment-note p { margin: 8px 0 0; white-space: pre-wrap; font: 12px/1.6 var(--font-mono); }
+
+@media (max-width: 620px) {
+  .archive-formal-attachments__list a { grid-template-columns: 1fr auto; }
+  .archive-formal-attachments__list small { grid-column: 1 / -1; grid-row: 2; }
+}
 
 /* The archive categories are the clerk's primary desktop surface.  Their
    compact, beveled program tiles deliberately read as a vertical Win95 rail

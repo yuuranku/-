@@ -481,8 +481,20 @@ const primaryMediaRoleByCategory = Object.freeze({
   species: 'species-cover',
 });
 
-const primaryMediaFor = (document, role) => normalizeArchiveMedia(document.media)
-  .find((entry) => entry.role === role && visibleValue(entry.publicUrl || entry.dataUrl));
+const primaryMediaFor = (document, role) => {
+  const media = normalizeArchiveMedia(document.media)
+    .filter((entry) => visibleValue(entry.publicUrl || entry.dataUrl));
+  const direct = media.find((entry) => entry.role === role);
+  if (direct) return direct;
+  // Portraits uploaded before primary media roles were introduced were stored
+  // as the generic photo field (and in a few early records as role "photo").
+  // Keep those published records visible without converting unrelated
+  // supplementary attachments into a portrait.
+  if (role === 'portrait') {
+    return media.find((entry) => entry.role === 'photo' || entry.field === 'photo' || !entry.role) || null;
+  }
+  return null;
+};
 
 const renderCountryFlag = (document, title) => {
   const flag = primaryMediaFor(document, 'country-flag');
@@ -888,6 +900,39 @@ const renderEvidenceGallery = (document) => {
   `;
 };
 
+const attachmentSize = (value) => {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (!bytes) return '';
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${bytes} B`;
+};
+
+const renderFormalAttachments = (document) => {
+  const attachments = normalizeArchiveMedia(document.media)
+    .filter((entry) => entry.role === 'supplement')
+    .filter((entry) => visibleValue(entry.publicUrl || entry.dataUrl));
+  return `
+    <section class="archive-formal-attachments" data-formal-attachments>
+      <header><b>附件栏</b><span>ATTACHMENTS / ${String(attachments.length).padStart(2, '0')}</span></header>
+      ${attachments.length ? `
+        <div class="archive-formal-attachments__list">
+          ${attachments.map((entry, index) => {
+            const source = visibleValue(entry.publicUrl || entry.dataUrl);
+            const label = visibleValue(entry.fileName) || `附件 ${String(index + 1).padStart(2, '0')}`;
+            const details = [visibleValue(entry.mimeType), attachmentSize(entry.byteSize)].filter(Boolean).join(' / ');
+            return `<a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">
+              <span>${escapeHtml(label)}</span>
+              <small>${escapeHtml(details || '已入库附件')}</small>
+              <b>打开</b>
+            </a>`;
+          }).join('')}
+        </div>
+      ` : '<p>本卷暂未收录补充附件。</p>'}
+    </section>
+  `;
+};
+
 const modifierNames = (contribution, version) => {
   const names = [
     ...(contribution?.versions || []).map((entry) => entry?.modifier),
@@ -993,6 +1038,7 @@ export const renderFormalArchiveDocument = ({
       `}
       ${renderEvidenceGallery(document)}
       ${metadata}
+      ${renderFormalAttachments(document)}
     </article>
   `;
 };
@@ -1037,6 +1083,7 @@ export const renderFormalArchiveAmendment = ({
         ${renderFormalReferences(document)}
       </div>
       ${renderEvidenceGallery(document)}
+      ${renderFormalAttachments(document)}
     </article>
   `;
 };

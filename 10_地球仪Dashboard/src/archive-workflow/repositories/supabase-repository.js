@@ -236,9 +236,24 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
 
   const publishContribution = async (submissionId, registration = {}) => {
     try {
+      // A clerk's amendment note is an internal reviewer hand-off, never a
+      // public archive field. Remove it from the draft immediately before the
+      // database creates the immutable public version.
+      const contributionId = requireId(submissionId, 'submissionId');
+      const contribution = await unwrap(
+        supabase.from('archive_contributions').select('draft_content').eq('id', contributionId).single(),
+        'Unable to prepare contribution for formal registration',
+      );
+      if (contribution?.draft_content?.reviewNote) {
+        const { reviewNote, ...publicContent } = contribution.draft_content;
+        await unwrap(
+          supabase.from('archive_contributions').update({ draft_content: publicContent }).eq('id', contributionId),
+          'Unable to remove internal amendment note before formal registration',
+        );
+      }
       const result = await unwrap(
         supabase.rpc('publish_archive_contribution', {
-          p_contribution_id: requireId(submissionId, 'submissionId'),
+          p_contribution_id: contributionId,
           p_archive_id: registration.archiveId || null,
           p_code: null,
           p_category: requireId(registration.category, 'category'),
@@ -385,7 +400,6 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       const rows = await unwrap(
         supabase.from('archive_attachments')
           .select('id,role,storage_path,sort_order,contribution:archive_contributions!inner(archive_id,status,created_at,updated_at)')
-          .in('role', ['portrait', 'event-cover'])
           .in('contribution.archive_id', eligible.map(({ id }) => id))
           .eq('contribution.status', 'published')
           .order('sort_order', { ascending: true }),
@@ -406,7 +420,8 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
         const archiveId = row.contribution?.archive_id;
         if (
           archiveId
-          && row.role === expectedRole.get(archiveId)
+          && (row.role === expectedRole.get(archiveId)
+            || (expectedRole.get(archiveId) === 'portrait' && ['photo', '', null].includes(row.role)))
           && !selected.has(archiveId)
         ) selected.set(archiveId, row);
       }

@@ -72,6 +72,14 @@ const MEDIA_SYNC_FAILURES = new Set([
 const clerkNewRestrictedTemplateCodes = new Set(['03', '04']);
 const SUPPLEMENT_ATTACHMENT_MAX_BYTES = 1024 * 1024;
 
+const submissionFailureMessage = (error) => {
+  const detail = String(error?.message || '').trim();
+  if (/unknown archive media role/i.test(detail)) {
+    return '数据库附件规则尚未更新：请部署 202608060001 后重新提交。文字内容已保存在本地。';
+  }
+  return detail || '提交失败，文字内容已保存在本地。';
+};
+
 const escapeHtml = (value) =>
   String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -1216,6 +1224,13 @@ export function initializeArchiveWorkspace({
                 ${mediaEditorMarkup}
               </section>
             ` : ''}
+            <section class="archive-editor__section archive-editor__review-note" data-editor-section="amendment-review-note" hidden>
+              <label class="archive-editor-field">
+                <span>修改说明（仅管理员审核可见）</span>
+                <textarea name="reviewNote" rows="4" maxlength="2000" placeholder="说明这次修改了哪些内容、依据是什么；此说明不会公开显示。">${escapeHtml(initial.content?.reviewNote || '')}</textarea>
+              </label>
+              <p>这不是档案正文，不会进入公开版本、版本历史或档案袋。</p>
+            </section>
             <section class="archive-editor__section" data-editor-section="attachments">
               <label class="archive-editor-field">
                 <span>补充附件（不进入档案图片版面，单个文件不超过 1MB）</span>
@@ -1264,6 +1279,7 @@ export function initializeArchiveWorkspace({
     const targetDocumentStatus = form.querySelector('[data-target-document-status]');
     const formalNumberOutput = form.querySelector('[data-formal-number]');
     const mediaPanel = form.querySelector('[data-archive-media-editor]');
+    const reviewNoteSection = form.querySelector('[data-editor-section="amendment-review-note"]');
     const mediaMessage = mediaPanel?.querySelector('[data-archive-media-message]');
     const mediaPolicy = mediaPolicyForCategory(template.category);
     const pendingMediaSelections = new Map();
@@ -1823,6 +1839,7 @@ export function initializeArchiveWorkspace({
       editableArchivePicker.hidden = !existingArchive;
       targetDocumentPicker.hidden = !amendment || !editorDraft.archiveId;
       modifierRow.hidden = !amendment;
+      reviewNoteSection.hidden = !amendment;
       if (!existingArchive) {
         editableArchiveSelect.value = '';
         editorDraft.archiveId = null;
@@ -1896,6 +1913,9 @@ export function initializeArchiveWorkspace({
           references,
           attachments: attachmentFiles,
           targetDocumentId: targetDocumentSelect.value,
+          ...(kindSelect.value === 'amendment' && form.elements.reviewNote.value.trim()
+            ? { reviewNote: form.elements.reviewNote.value.trim() }
+            : {}),
           ...(editorDraft.workflowTaskId ? { workflowTaskId: editorDraft.workflowTaskId } : {}),
         },
       };
@@ -2406,7 +2426,7 @@ export function initializeArchiveWorkspace({
         reportDirtyState();
         void refreshMailboxAlert();
       } catch (error) {
-        message.textContent = error.message;
+        message.textContent = submissionFailureMessage(error);
         setAutosaveState('offline-saved');
         setSubmissionState('editing');
       }
@@ -3755,6 +3775,12 @@ export function initializeArchiveWorkspace({
         <section class="archive-formal-review-preview" data-formal-review-preview>
           ${formalReviewPreview(submission)}
         </section>
+        ${submission.kind === 'amendment' && submission.draft_content?.reviewNote ? `
+          <aside class="archive-review-amendment-note">
+            <b>书记官修改说明 / INTERNAL REVIEW NOTE</b>
+            <p>${escapeHtml(submission.draft_content.reviewNote)}</p>
+          </aside>
+        ` : ''}
         ${mediaError ? `
           <aside class="archive-review-media-warning">
             正文已载入，但待审图片读取失败：${escapeHtml(mediaError.message || '请稍后重试')}

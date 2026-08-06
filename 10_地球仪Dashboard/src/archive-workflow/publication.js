@@ -56,6 +56,7 @@ const documentValueChanges = (previous = {}, next = {}) => {
     ['field', 'fields', new Set([...Object.keys(previous.fields || {}), ...Object.keys(next.fields || {})])],
   ]) {
     for (const key of collection) {
+      if (key === 'amendment:review-note') continue;
       const before = previous[property]?.[key] ?? '';
       const after = next[property]?.[key] ?? '';
       if (!sameValue(before, after)) {

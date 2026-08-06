@@ -107,7 +107,7 @@ const fieldForRole = (role, fallback) => {
   if (fallback) return fallback;
   if ([
     'country-flag', 'organization-cover', 'station-cover', 'entrance-cover', 'ecology-cover',
-    'portrait', 'event-cover', 'anomaly-cover', 'species-cover',
+    'portrait', 'photo', 'event-cover', 'anomaly-cover', 'species-cover',
   ].includes(role)) return 'photo';
   if (['event-evidence', 'anomaly-image', 'species-image'].includes(role)) return 'evidence';
   return '';
@@ -126,6 +126,9 @@ export const normalizeArchiveMedia = (media) => (
     const field = fieldForRole(role, text(entry.field, 40));
     if (!attachmentId && !storagePath && !publicUrl && !dataUrl) return null;
     const sortOrder = Number(entry.sortOrder ?? entry.sort_order ?? 0);
+    const fileName = text(entry.fileName ?? entry.file_name, 240);
+    const mimeType = text(entry.mimeType ?? entry.mime_type, 120);
+    const byteSize = Math.max(0, Number(entry.byteSize ?? entry.byte_size) || 0);
     return {
       attachmentId,
       field,
@@ -133,6 +136,9 @@ export const normalizeArchiveMedia = (media) => (
       storagePath,
       publicUrl,
       dataUrl,
+      ...(fileName ? { fileName } : {}),
+      ...(mimeType ? { mimeType } : {}),
+      ...(byteSize ? { byteSize } : {}),
       altText: text(entry.altText ?? entry.alt_text, 500),
       caption: text(entry.caption, 1000),
       sortOrder: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,

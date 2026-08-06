@@ -43,6 +43,14 @@ test('review pane requires a written reply before approval or return', () => {
   assert.match(repository, /Review reply is required/);
 });
 
+test('amendment review notes are collected for administrators and stripped before publication', () => {
+  assert.match(workspace, /name="reviewNote"/);
+  assert.match(workspace, /书记官修改说明/);
+  assert.match(workspace, /archive-review-amendment-note/);
+  assert.match(repository, /remove internal amendment note before formal registration/i);
+  assert.match(repository, /draft_content: publicContent/);
+});
+
 test('approved submissions can be formally registered with archive marks', () => {
   assert.match(workspace, /data-registration-form/);
   assert.match(workspace, /name="mother"/);

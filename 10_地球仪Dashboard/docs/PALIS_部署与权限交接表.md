@@ -98,8 +98,9 @@ order by role, enabled;
 | `202608050005_public_clerk_directory.sql` | PALIS 助手书记官目录 RPC | 助手内书记官登记无法读取 |
 | `202608050006_commission_archive_template.sql` | 委托对应九类档案模板 | 编辑委托无法打开正确档案编辑器 |
 | `202608050007_commission_editing_lock.sql` | 暂停/停止接收后锁定编辑 | 已认领委托仍可能被继续编辑 |
+| `202608060001_repair_supplement_attachment_role.sql` | 补充附件（`supplement`）上传规则修复 | 上传普通附件时报 `unknown archive media role` |
 
-部署新版本前的最低数据库状态：必须已执行至 `202608050007_commission_editing_lock.sql`。
+部署新版本前的最低数据库状态：必须已执行至 `202608060001_repair_supplement_attachment_role.sql`。
 
 ## 5. 正确部署顺序
 
@@ -127,7 +128,7 @@ order by role, enabled;
 1. 查看线上构建时的 `VITE_SUPABASE_URL` 是否仍是项目 `hpzdccfrouhljqlzczuv`，而不是空值、旧项目或预览项目。
 2. 确认登录用户的 `auth.users.id` 与 `public.profiles.id` 相同，且 `profiles.enabled=true`。
 3. 确认该行的 `role` 是 `admin` / `clerk` / `observer` 之一；管理员必须是 `admin`。
-4. 确认迁移已顺序执行至 `202608050007`，两支 Edge Function 已重新部署并有服务端 secrets。
+4. 确认迁移已顺序执行至 `202608060001`，两支 Edge Function 已重新部署并有服务端 secrets。
 5. 只要上述任一项不满足，先修复部署一致性；不要用浏览器代码硬加管理员界面或临时关闭 RLS。
 
 ## 8. 交付验收

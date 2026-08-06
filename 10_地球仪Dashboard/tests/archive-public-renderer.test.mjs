@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { renderFormalArchiveDocument } from '../src/archive-workflow/public-renderer.js';
+import {
+  renderFormalArchiveAmendment,
+  renderFormalArchiveDocument,
+} from '../src/archive-workflow/public-renderer.js';
 
 const personDocument = {
   schemaVersion: 2,
@@ -60,6 +63,48 @@ test('formal rendering keeps the public archive shell while following dossier se
   assert.ok(html.indexOf('身份资料 / IDENTITY') < html.indexOf('人物履历 / CAREER'));
   assert.match(html, /职务[\s\S]*助理见习书记官/);
   assert.doesNotMatch(html, /空字段/);
+});
+
+test('legacy person photos remain visible and supplements render only in the bottom attachment rail', () => {
+  const html = renderFormalArchiveDocument({
+    archive: { code: 'P49', category: 'person', sequence_number: 49, abbreviation: 'PER' },
+    contribution: { kind: 'new', owner: { display_name: 'Clerk' }, versions: [] },
+    version: {
+      version_label: '0.2',
+      content: {
+        ...personDocument,
+        reviewNote: '这段内部说明绝不能公开。',
+        media: [
+          { id: 'legacy-avatar', publicUrl: 'https://example.test/legacy-avatar.webp' },
+          {
+            id: 'supplement-1', role: 'supplement', publicUrl: 'https://example.test/field-note.pdf',
+            fileName: '现场笔录.pdf', mimeType: 'application/pdf', byteSize: 2048,
+          },
+        ],
+      },
+      submitter: { display_name: 'Clerk' },
+    },
+  });
+
+  assert.match(html, /legacy-avatar\.webp/);
+  assert.match(html, /archive-formal-attachments/);
+  assert.match(html, /现场笔录\.pdf/);
+  assert.doesNotMatch(html, /这段内部说明绝不能公开/);
+
+  const amendment = renderFormalArchiveAmendment({
+    contribution: { id: 'amendment-1', owner: { display_name: 'Clerk' } },
+    targetId: 'record-1',
+    version: {
+      version_label: '0.3',
+      content: {
+        ...personDocument,
+        values: { 'amendment:title': '修订', 'amendment:body': '正文' },
+        media: [{ id: 'supplement-2', role: 'supplement', publicUrl: 'https://example.test/map.pdf', fileName: '位置图.pdf' }],
+      },
+    },
+  });
+  assert.match(amendment, /archive-formal-attachments/);
+  assert.match(amendment, /位置图\.pdf/);
 });
 
 test('formal rendering applies inline bold and redaction marks without exposing raw markup', () => {
