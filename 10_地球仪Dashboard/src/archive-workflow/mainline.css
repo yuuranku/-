@@ -2152,6 +2152,19 @@
   box-shadow: 0 10px 22px rgba(0, 10, 24, .2);
 }
 
+/* These framed panels keep their existing wheel/touch behaviour, but the
+   browser scrollbar would read as a second control inside the period UI. */
+.mainline-brief__mission,
+.mainline-dossier__scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.mainline-brief__mission::-webkit-scrollbar,
+.mainline-dossier__scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Every dossier card uses the same three-row instrument layout.  The action
    sits on a shared baseline, regardless of role-name or duty length. */
 .mainline-brief__vacancy-grid .mainline-vacancy {

@@ -962,6 +962,11 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   });
 
   function advanceIdleFrame() {
+    // The desktop companion owns the sprite while an explicit action (walk,
+    // lift, fall, talk, etc.) is running.  Focus/visibility recovery can
+    // restart the shared idle timer, so never let that timer replace an
+    // action frame midway through movement.
+    if (desktopPet.active && assistant.dataset.petAction) return;
     frameIndex = (frameIndex + 1) % frames.length;
     setMascotFrame(frames[frameIndex], String(frameIndex + 2).padStart(2, '0'));
   }
@@ -972,14 +977,18 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   }
 
   function startIdleAnimation() {
-    if (idleFrameTimer || document.visibilityState !== 'visible') return;
+    if (
+      idleFrameTimer
+      || document.visibilityState !== 'visible'
+      || (desktopPet.active && assistant.dataset.petAction)
+    ) return;
     // Recursive timeouts cannot accumulate after a busy tab is throttled. A
     // single pending tick is easier to restart reliably after a long visit.
     const scheduleNextIdleFrame = () => {
       idleFrameTimer = window.setTimeout(() => {
         idleFrameTimer = 0;
         if (document.visibilityState !== 'visible') return;
-        advanceIdleFrame();
+        if (!(desktopPet.active && assistant.dataset.petAction)) advanceIdleFrame();
         scheduleNextIdleFrame();
       }, 260);
     };
