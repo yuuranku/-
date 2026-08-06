@@ -115,6 +115,9 @@
 }
 
 .archive-workflow-titlebar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   min-height: 29px;
   color: #f4f1e8;
   background: #000080;
@@ -126,7 +129,19 @@
 .archive-workflow-pixel-icon { display: inline-block; background: currentColor; -webkit-mask: var(--pixel-icon) center / contain no-repeat; mask: var(--pixel-icon) center / contain no-repeat; }
 .archive-workflow-titlebar__icon { width: 16px; height: 16px; margin-right: 5px; vertical-align: middle; }
 .archive-workflow-task-icon { width: 18px; height: 18px; flex: 0 0 18px; }
-.archive-workflow-titlebar > span { overflow: hidden; font: 700 10px/1 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.archive-workflow-titlebar > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font: 700 10px/1 var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archive-workflow-titlebar > .window-controls {
+  min-width: max-content;
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
 .archive-workflow-titlebar button { width: 24px; min-width: 24px; height: 22px; padding: 0; }
 
 .archive-editor {
@@ -1060,14 +1075,16 @@
 }
 
 .archive-workflow-window.archive-category-actions-window {
-  width: min(336px, calc(100vw - 30px));
-  height: min(296px, calc(100dvh - 80px));
+  width: min(420px, calc(100vw - 30px));
+  height: min(318px, calc(100dvh - 80px));
 }
 .archive-category-actions {
   display: grid;
+  min-width: 0;
   align-content: start;
   gap: 10px;
-  height: calc(100% - 29px);
+  height: 100%;
+  box-sizing: border-box;
   padding: 16px;
   overflow: auto;
   border: 2px inset #eee;

@@ -785,7 +785,10 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     const ownerId = requireId(profileId, 'profileId');
     const [contributions, responses, tasks] = await Promise.all([
       unwrap(supabase.from('archive_contributions')
-        .select('id,archive_id,owner_id,template_id,title,kind,status,draft_content,submitted_at,created_at,updated_at,archive:archives(id,code,title,category,visibility),versions:archive_versions(id,version_label,status,approved_at,created_at)')
+        // archive_contributions also has base/mother version references. Name
+        // the contribution_id relationship explicitly so PostgREST does not
+        // have to guess which archive_versions relation belongs in this list.
+        .select('id,archive_id,owner_id,template_id,title,kind,status,draft_content,submitted_at,created_at,updated_at,archive:archives(id,code,title,category,visibility),versions:archive_versions!archive_versions_contribution_id_fkey(id,version_label,status,approved_at,created_at)')
         .eq('owner_id', ownerId).order('updated_at', { ascending: false }), '无法读取书记官履历'),
       unwrap(supabase.from('workflow_task_responses')
         .select('id,task_id,contribution_id,status,registered_at,updated_at,task:workflow_tasks(id,code,kind,title,status,template_id,version_code,part,stage,slot_id,slot_label)')

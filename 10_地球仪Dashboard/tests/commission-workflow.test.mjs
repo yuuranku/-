@@ -126,6 +126,7 @@ test('mainline work enters the dossier from the correction program without becom
 
 test('task windows expose independent public, clerk dossier, and administrator entry points', async () => {
   const source = await readFile(new URL('../src/archive-workflow/commission-window.js', import.meta.url), 'utf8');
+  const repository = await readFile(new URL('../src/archive-workflow/repositories/supabase-repository.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../src/archive-workflow/commission.css', import.meta.url), 'utf8');
   const workspaceStyles = await readFile(new URL('../src/archive-workflow/workspace.css', import.meta.url), 'utf8');
   const pageStyles = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
@@ -145,6 +146,8 @@ test('task windows expose independent public, clerk dossier, and administrator e
   assert.match(source, /kind: 'commission'/);
   assert.doesNotMatch(source, /<option value="mainline">/);
   assert.match(source, /filter\(\(task\) => task\.kind === 'commission'\)/);
+  assert.match(repository, /versions:archive_versions!archive_versions_contribution_id_fkey/,
+    'Clerk dossier history must explicitly embed versions through archive_versions.contribution_id');
   assert.match(source, /当前登记/);
   assert.doesNotMatch(archiveShell, /id="archive-active-task-entry"/,
     'The retired top-level commission entry should not duplicate the assistant entry');
