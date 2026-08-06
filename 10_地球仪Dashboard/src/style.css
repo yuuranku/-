@@ -121,6 +121,12 @@ html {
 }
 
 html.is-chapter-transitioning { scroll-snap-type: none; }
+/* The clerk workspace is a complete fixed desktop.  It must never leave the
+   public page's document scrollbar exposed alongside its taskbar. */
+html.clerk-desktop-open {
+  overflow: hidden;
+  scroll-snap-type: none;
+}
 
 body {
   min-width: 320px;

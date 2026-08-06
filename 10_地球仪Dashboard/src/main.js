@@ -1025,6 +1025,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     if (!open && desktopWelcome) desktopWelcome.hidden = true;
     desktopEntry.setAttribute('aria-expanded', String(open));
     document.body.classList.toggle('clerk-desktop-open', open);
+    document.documentElement.classList.toggle('clerk-desktop-open', open);
     experienceRoot.toggleAttribute('inert', open);
     archiveWindowLayer.toggleAttribute('inert', open);
     assistant.removeAttribute('inert');
