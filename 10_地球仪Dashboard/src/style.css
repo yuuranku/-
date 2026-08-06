@@ -118,7 +118,12 @@ html {
   background: var(--space);
   scroll-behavior: auto;
   scroll-snap-type: y mandatory;
+  /* The public archive moves by wheel/trackpad, but the browser's own rail
+     competes with PALIS's right-side period controls and desk ornaments. */
+  scrollbar-width: none;
 }
+
+html::-webkit-scrollbar { display: none; }
 
 html.is-chapter-transitioning { scroll-snap-type: none; }
 /* The clerk workspace is a complete fixed desktop.  It must never leave the
