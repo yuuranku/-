@@ -28,10 +28,10 @@ test('workflow panels retain wheel scrolling inside their visible lists', () => 
   assert.match(workflowStyles, /\[data-review-queue\]\s*\{[^}]*min-height:\s*0/s);
 });
 
-test('scrollable workspace panes keep scrolling without reserving a visible scrollbar track', () => {
-  assert.match(styles, /\*\s*\{[^}]*scrollbar-width:\s*none[^}]*-ms-overflow-style:\s*none/s);
-  assert.match(styles, /\*::\-webkit-scrollbar\s*\{[^}]*display:\s*none/s);
-  assert.doesNotMatch(workflowStyles, /scrollbar-gutter:\s*stable/);
+test('scrollable panes expose the retro scrollbar treatment', () => {
+  assert.match(styles, /\*\s*\{[^}]*scrollbar-width:\s*auto[^}]*scrollbar-color:\s*#7f8784 #1a1d1b/s);
+  assert.match(styles, /\*::\-webkit-scrollbar\s*\{[^}]*width:\s*15px[^}]*height:\s*15px/s);
+  assert.match(styles, /\*::\-webkit-scrollbar-thumb\s*\{[^}]*linear-gradient\(#aab0aa,\s*#5d6862\)/s);
 });
 
 test('authenticated operators see a personal workspace greeting', () => {

@@ -39,14 +39,78 @@
 
 * {
   box-sizing: border-box;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: auto;
+  scrollbar-color: #7f8784 #1a1d1b;
 }
 
 *::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 15px;
+  height: 15px;
+  background: #111412;
+}
+
+*::-webkit-scrollbar-track {
+  border: 1px solid #050706;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #171b18 0 2px,
+      #20251f 2px 4px
+    );
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, .18),
+    inset -1px -1px 0 rgba(0, 0, 0, .8);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 2px solid #0a0d0b;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .38) 0 1px, transparent 1px),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, .18) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(#aab0aa, #5d6862);
+  box-shadow:
+    inset 1px 1px 0 #dde1da,
+    inset -1px -1px 0 #242926;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .48) 0 1px, transparent 1px),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, .22) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(#c1c7c0, #69766e);
+}
+
+*::-webkit-scrollbar-corner {
+  border: 1px solid #050706;
+  background: #111412;
+}
+
+*::-webkit-scrollbar-button:single-button {
+  display: block;
+  width: 15px;
+  height: 15px;
+  border: 1px solid #050706;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .42) 0 1px, transparent 1px),
+    linear-gradient(#b7beb7, #5f6a63);
+  box-shadow:
+    inset 1px 1px 0 #e9ede7,
+    inset -1px -1px 0 #1c211e;
+}
+
+*::-webkit-scrollbar-button:single-button:active {
+  background:
+    linear-gradient(135deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px),
+    linear-gradient(#5f6a63, #b7beb7);
 }
 
 html {
@@ -1911,8 +1975,7 @@ body.access-locked .commission-assistant { display: none; }
 .entrance-class-lane > header strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .entrance-class-lane > header small,
 .entrance-class-lane > header em { color: #80898e; font: normal 7px var(--font-mono); }
-.entrance-class-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 48px; align-content: start; min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.entrance-class-list::-webkit-scrollbar { display: none; }
+.entrance-class-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 48px; align-content: start; min-height: 0; overflow-y: auto; scrollbar-width: auto; scrollbar-color: #7f8784 #1a1d1b; }
 .mode-entrance-network .folder-item { position: static; min-width: 0; border-right: 1px solid #2e3438; border-bottom: 1px solid #2e3438; }
 .mode-entrance-network .folder-button {
   display: grid;
@@ -2318,9 +2381,9 @@ body.access-locked .commission-assistant { display: none; }
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: none;
+  scrollbar-width: auto;
+  scrollbar-color: #7f8784 #1a1d1b;
 }
-.species-helix-scroll::-webkit-scrollbar { width: 0; height: 0; }
 .species-helix-track {
   position: relative;
   width: 100%;
@@ -4149,9 +4212,10 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
 .archive-version-history--amendments li { padding: 0; }
 .archive-version-history--amendments button {
   display: grid;
-  grid-template-columns: 100px minmax(0, 1fr) auto;
+  grid-template-columns: 94px minmax(0, 1fr) max-content;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   padding: 8px 10px;
   color: inherit;
   border: 0;
@@ -4161,6 +4225,13 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
   text-align: left;
   cursor: pointer;
 }
+.archive-version-history--amendments button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archive-version-history--amendments button > time { white-space: nowrap; }
 .archive-version-history--amendments button:hover,
 .archive-version-history--amendments button:focus-visible {
   color: #d9e7e2;
