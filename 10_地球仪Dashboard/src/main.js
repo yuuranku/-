@@ -1673,6 +1673,87 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     setMenuOpen(false);
   }
 
+  function openMascotEasterEggWindow(surface = desktopPet.active ? 'workspace' : 'assistant') {
+    const documentKey = 'easter-egg:clip-88';
+    const existing = openDocuments.get(documentKey);
+    if (existing) {
+      if (existing.minimized) restoreDocumentWindow(existing.windowElement);
+      else focusDocumentWindow(existing.windowElement, true);
+      setMenuOpen(false);
+      return;
+    }
+
+    const windowId = `mascot-easter-egg-window-${++documentWindowSequence}`;
+    const windowElement = document.createElement('section');
+    windowElement.id = windowId;
+    windowElement.className = 'mascot-document-window mascot-easter-egg-window retro-window';
+    windowElement.dataset.mascotDocumentWindow = documentKey;
+    windowElement.dataset.mascotSurface = surface;
+    windowElement.setAttribute('role', 'dialog');
+    windowElement.setAttribute('aria-label', '夹子彩蛋图像');
+    windowElement.innerHTML = `
+      <div class="title-bar mascot-document-titlebar">
+        <span aria-hidden="true"></span>
+        <div class="window-controls">
+          <button type="button" class="mascot-document-minimize" aria-label="最小化彩蛋窗口">_</button>
+          <button type="button" class="mascot-document-close" aria-label="关闭彩蛋窗口">×</button>
+        </div>
+      </div>
+      <figure class="mascot-easter-egg-window__image">
+        <img src="/assets/easter-eggs/clip-88.png" alt="" decoding="async">
+      </figure>
+    `;
+
+    const taskButton = document.createElement('button');
+    taskButton.type = 'button';
+    taskButton.className = 'archive-task-button mascot-document-task-button mascot-easter-egg-window__task';
+    taskButton.innerHTML = '<i></i><span aria-hidden="true"><b>88</b></span>';
+    taskButton.setAttribute('aria-controls', windowId);
+    taskButton.setAttribute('aria-label', '切换夹子彩蛋窗口');
+
+    const targetTaskList = surface === 'workspace' ? desktopTaskList : archiveTaskList;
+    const targetWindowLayer = surface === 'workspace' ? desktopWindowLayer : archiveWindowLayer;
+    const targetTaskbar = surface === 'workspace' ? desktopTaskbar : archiveTaskbar;
+    targetTaskList.appendChild(taskButton);
+    targetWindowLayer.appendChild(windowElement);
+
+    windowElement.style.visibility = 'hidden';
+    const rect = windowElement.getBoundingClientRect();
+    const taskbarHeight = targetTaskbar.getBoundingClientRect().height || 52;
+    windowElement.style.left = `${THREE.MathUtils.clamp((innerWidth - rect.width) / 2, 8, Math.max(8, innerWidth - rect.width - 8))}px`;
+    windowElement.style.top = `${THREE.MathUtils.clamp((innerHeight - taskbarHeight - rect.height) / 2, 8, Math.max(8, innerHeight - taskbarHeight - rect.height - 8))}px`;
+    windowElement.style.visibility = '';
+
+    const state = {
+      windowElement,
+      taskButton,
+      minimized: false,
+      closing: false,
+      surface,
+      maximized: false,
+      restoredBounds: null,
+      returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+    };
+    openDocuments.set(documentKey, state);
+    syncDocumentViewport();
+    installDocumentWindowDrag(windowElement);
+    windowElement.addEventListener('pointerdown', () => focusDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-minimize').addEventListener('click', () => minimizeDocumentWindow(windowElement));
+    windowElement.querySelector('.mascot-document-close').addEventListener('click', () => closeDocumentWindow(windowElement));
+    taskButton.addEventListener('click', () => {
+      if (state.minimized) restoreDocumentWindow(windowElement);
+      else if (activeDocumentWindow === windowElement && windowElement.classList.contains('is-active')) minimizeDocumentWindow(windowElement);
+      else focusDocumentWindow(windowElement, true);
+    });
+    focusDocumentWindow(windowElement);
+    syncDocumentWindows();
+    if (!reducedMotion) {
+      windowElement.classList.add('is-opening');
+      window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
+    }
+    setMenuOpen(false);
+  }
+
   directoryView.hidden = false;
   clerkDirectory.hidden = true;
   audioView.hidden = true;
@@ -1719,15 +1800,30 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   void refreshClerkDirectory();
   window.addEventListener('palis:clerk-registration-changed', () => { void refreshClerkDirectory(); });
 
+  const mascotEasterEgg = { clicks: 0, lastClickAt: 0 };
+  const registerMascotEasterEggClick = () => {
+    const now = performance.now();
+    mascotEasterEgg.clicks = now - mascotEasterEgg.lastClickAt <= 2_000
+      ? mascotEasterEgg.clicks + 1
+      : 1;
+    mascotEasterEgg.lastClickAt = now;
+    if (mascotEasterEgg.clicks < 88) return false;
+    mascotEasterEgg.clicks = 0;
+    openMascotEasterEggWindow();
+    return true;
+  };
+
   trigger.addEventListener('click', () => {
     if (desktopPet.active) {
       if (desktopPet.ignoreNextClick) {
         desktopPet.ignoreNextClick = false;
         return;
       }
+      if (registerMascotEasterEggClick()) return;
       registerDesktopPetClick();
       return;
     }
+    if (registerMascotEasterEggClick()) return;
     setMenuOpen(startMenu.hidden);
   });
   desktopEntry.addEventListener('click', () => setDesktopOpen(true));
