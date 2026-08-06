@@ -10860,9 +10860,14 @@ body.clerk-desktop-open { overflow: hidden; }
   z-index: 10;
   display: block;
   width: max-content;
+  left: 0;
+  top: 0;
   right: auto !important;
   bottom: auto !important;
+  contain: layout paint;
   pointer-events: none;
+  transform: translate3d(var(--pet-x, 0px), var(--pet-y, 0px), 0);
+  will-change: transform;
 }
 
 .clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger {

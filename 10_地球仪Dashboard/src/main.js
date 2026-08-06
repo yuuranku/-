@@ -356,6 +356,75 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       '/assets/mascot/actions/walk-04.png', '/assets/mascot/actions/walk-05.png', '/assets/mascot/actions/walk-06.png',
     ],
   });
+  // Keep the small sprite set ready before it is displayed.  The browser's
+  // normal HTTP cache already helps, but Cache Storage also keeps these frames
+  // available after a full revisit.  We retain decoded Image objects in memory
+  // while this page is open so changing a frame never waits for a decode.
+  const mascotFrameAssets = new Map();
+  const mascotFrameJobs = new Map();
+  const mascotFrameCacheName = 'palis-mascot-frame-cache-v1';
+  const resolveMascotFrame = (source) => mascotFrameAssets.get(source)?.url || source;
+  const setMascotFrame = (source, frameName) => {
+    const resolvedSource = resolveMascotFrame(source);
+    if (frame.dataset.mascotSource !== source) {
+      frame.src = resolvedSource;
+      frame.dataset.mascotSource = source;
+    }
+    frame.dataset.mascotFrame = frameName;
+  };
+  const prepareMascotFrame = (source) => {
+    if (mascotFrameAssets.has(source)) return Promise.resolve(mascotFrameAssets.get(source));
+    if (mascotFrameJobs.has(source)) return mascotFrameJobs.get(source);
+    const job = (async () => {
+      let url = source;
+      try {
+        if ('caches' in window && window.isSecureContext) {
+          const cache = await window.caches.open(mascotFrameCacheName);
+          let response = await cache.match(source);
+          if (!response) {
+            const networkResponse = await fetch(source, { cache: 'force-cache' });
+            if (networkResponse.ok) {
+              await cache.put(source, networkResponse.clone());
+              response = networkResponse;
+            }
+          }
+          if (response) url = URL.createObjectURL(await response.blob());
+        }
+      } catch {
+        // Cache Storage is an optimisation only. The regular image URL remains
+        // a reliable fallback on older browsers and private browsing modes.
+      }
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = url;
+      try {
+        if (typeof image.decode === 'function') await image.decode();
+        else await new Promise((resolve) => {
+          image.addEventListener('load', resolve, { once: true });
+          image.addEventListener('error', resolve, { once: true });
+        });
+      } catch {
+        // A failed pre-decode must never prevent the visible fallback frame.
+      }
+      const asset = { image, url };
+      mascotFrameAssets.set(source, asset);
+      return asset;
+    })().finally(() => mascotFrameJobs.delete(source));
+    mascotFrameJobs.set(source, job);
+    return job;
+  };
+  const warmMascotFrames = (sources) => {
+    const queue = [...new Set(sources)].filter((source) => !mascotFrameAssets.has(source));
+    const workers = Math.min(2, queue.length);
+    const next = async () => {
+      while (queue.length) {
+        const source = queue.shift();
+        await prepareMascotFrame(source);
+      }
+    };
+    return Promise.allSettled(Array.from({ length: workers }, next));
+  };
+  const allDesktopPetFrameSources = Object.values(desktopPetFrames).flat();
   let petFrameTimer = 0;
   let petFrameClearTimer = 0;
 
@@ -376,22 +445,25 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     const bounds = petBounds();
     return Math.max(4, bounds.height - bounds.taskbarHeight - bounds.petHeight - 6);
   };
-  const updatePetPosition = (x, y = desktopPet.y) => {
+  const updatePetPosition = (x, y = desktopPet.y, suppliedBounds = null) => {
     if (!desktopPet.active) return;
-    const bounds = petBounds();
+    const bounds = suppliedBounds || petBounds();
     desktopPet.x = clampPetValue(x, 4, Math.max(4, bounds.width - bounds.petWidth - 4));
-    desktopPet.y = clampPetValue(y, 4, petFloor());
-    assistant.style.left = `${desktopPet.x}px`;
-    assistant.style.top = `${desktopPet.y}px`;
-    assistant.style.right = 'auto';
-    assistant.style.bottom = 'auto';
-    assistant.dataset.petDialogueSide = desktopPet.x + bounds.petWidth / 2 < bounds.width / 2 ? 'left' : 'right';
+    const maximumY = Math.max(4, bounds.height - bounds.taskbarHeight - bounds.petHeight - 6);
+    desktopPet.y = clampPetValue(y, 4, maximumY);
+    // Custom properties feed a translate3d() on the desktop pet. This keeps
+    // walking and falling in the compositor instead of relaying out the desk.
+    assistant.style.setProperty('--pet-x', `${desktopPet.x}px`);
+    assistant.style.setProperty('--pet-y', `${desktopPet.y}px`);
+    const dialogueSide = desktopPet.x + bounds.petWidth / 2 < bounds.width / 2 ? 'left' : 'right';
+    if (assistant.dataset.petDialogueSide !== dialogueSide) assistant.dataset.petDialogueSide = dialogueSide;
   };
   const clearPetFrameAnimation = ({ resumeIdle = true } = {}) => {
-    window.clearInterval(petFrameTimer);
+    window.clearTimeout(petFrameTimer);
     window.clearTimeout(petFrameClearTimer);
     petFrameTimer = 0;
     petFrameClearTimer = 0;
+    delete assistant.dataset.petFrameToken;
     delete assistant.dataset.petAction;
     if (!resumeIdle) return;
     // A short reaction (such as the shake) can finish while the pet is still
@@ -409,8 +481,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       return;
     }
     frameIndex = 0;
-    frame.src = frames[frameIndex];
-    frame.dataset.mascotFrame = '02';
+    setMascotFrame(frames[frameIndex], '02');
     startIdleAnimation();
   };
   const playPetFrames = (action, {
@@ -422,18 +493,21 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     clearPetFrameAnimation({ resumeIdle: false });
     let index = 0;
     assistant.dataset.petAction = action;
-    frame.src = sources[index];
-    frame.dataset.mascotFrame = action;
+    setMascotFrame(sources[index], action);
     if (sources.length > 1) {
-      petFrameTimer = window.setInterval(() => {
+      const token = `${action}:${performance.now()}`;
+      assistant.dataset.petFrameToken = token;
+      const advance = () => {
+        if (assistant.dataset.petFrameToken !== token) return;
         if (once && index === sources.length - 1) {
-          window.clearInterval(petFrameTimer);
           petFrameTimer = 0;
           return;
         }
         index = once ? Math.min(index + 1, sources.length - 1) : (index + 1) % sources.length;
-        frame.src = sources[index];
-      }, interval);
+        setMascotFrame(sources[index], action);
+        petFrameTimer = window.setTimeout(advance, interval);
+      };
+      petFrameTimer = window.setTimeout(advance, interval);
     }
     if (!loop) {
       petFrameClearTimer = window.setTimeout(() => clearPetFrameAnimation(), duration || Math.max(interval * sources.length, 260));
@@ -551,6 +625,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     const startX = desktopPet.x;
     const distance = Math.abs(targetX - startX);
     const duration = Math.max(1_100, (distance / 54) * 1_000);
+    const floor = Math.max(4, bounds.height - bounds.taskbarHeight - bounds.petHeight - 6);
     const startedAt = performance.now();
     assistant.dataset.petFacing = direction < 0 ? 'left' : 'right';
     assistant.classList.add('is-pet-walking');
@@ -559,7 +634,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       if (!desktopPet.active || !assistant.classList.contains('is-pet-walking')) return;
       const progress = Math.min(1, (now - startedAt) / duration);
       const eased = progress < .5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
-      updatePetPosition(startX + (targetX - startX) * eased, petFloor());
+      updatePetPosition(startX + (targetX - startX) * eased, floor, bounds);
       if (progress < 1) {
         desktopPet.walkFrame = requestAnimationFrame(step);
         return;
@@ -596,7 +671,9 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     stopPetWalk();
     stopPetSleep();
     stopPetFall();
-    const dropDistance = Math.max(0, petFloor() - desktopPet.y);
+    const bounds = petBounds();
+    const floor = Math.max(4, bounds.height - bounds.taskbarHeight - bounds.petHeight - 6);
+    const dropDistance = Math.max(0, floor - desktopPet.y);
     if (reducedMotion) {
       settleDesktopPet();
       return;
@@ -613,11 +690,11 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       previousTime = now;
       velocity += 2_200 * seconds;
       const nextY = desktopPet.y + velocity * seconds;
-      if (nextY >= petFloor()) {
+      if (nextY >= floor) {
         settleDesktopPet({ heavy: dropDistance >= Math.max(150, petBounds().height * .22) });
         return;
       }
-      updatePetPosition(desktopPet.x, nextY);
+      updatePetPosition(desktopPet.x, nextY, bounds);
       desktopPet.fallFrame = requestAnimationFrame(step);
     };
     desktopPet.fallFrame = requestAnimationFrame(step);
@@ -636,6 +713,10 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       schedulePetWalk();
       schedulePetSleep();
     });
+    // Action frames are warmed after the desktop opens, not during the main
+    // landing page boot. This avoids delaying the site while guaranteeing that
+    // the first walk/idle cycle is already decoded when it starts.
+    void warmMascotFrames(allDesktopPetFrameSources);
   };
   const deactivateDesktopPet = () => {
     if (!desktopPet.active) return;
@@ -651,8 +732,8 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     delete assistant.dataset.desktopPet;
     delete assistant.dataset.petDialogueSide;
     delete assistant.dataset.petFacing;
-    assistant.style.removeProperty('left');
-    assistant.style.removeProperty('top');
+    assistant.style.removeProperty('--pet-x');
+    assistant.style.removeProperty('--pet-y');
     assistant.style.removeProperty('right');
     assistant.style.removeProperty('bottom');
     trigger.setAttribute('aria-label', '打开 PALIS 助手');
@@ -867,27 +948,29 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     void workspaceNotes?.reload();
   });
 
-  const preloadedFrames = frames.map((source) => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = source;
-    return image;
-  });
-
   function advanceIdleFrame() {
     frameIndex = (frameIndex + 1) % frames.length;
-    frame.src = frames[frameIndex];
-    frame.dataset.mascotFrame = String(frameIndex + 2).padStart(2, '0');
+    setMascotFrame(frames[frameIndex], String(frameIndex + 2).padStart(2, '0'));
   }
 
   function stopIdleAnimation() {
-    window.clearInterval(idleFrameTimer);
+    window.clearTimeout(idleFrameTimer);
     idleFrameTimer = 0;
   }
 
   function startIdleAnimation() {
     if (idleFrameTimer || document.visibilityState !== 'visible') return;
-    idleFrameTimer = window.setInterval(advanceIdleFrame, 260);
+    // Recursive timeouts cannot accumulate after a busy tab is throttled. A
+    // single pending tick is easier to restart reliably after a long visit.
+    const scheduleNextIdleFrame = () => {
+      idleFrameTimer = window.setTimeout(() => {
+        idleFrameTimer = 0;
+        if (document.visibilityState !== 'visible') return;
+        advanceIdleFrame();
+        scheduleNextIdleFrame();
+      }, 260);
+    };
+    scheduleNextIdleFrame();
   }
 
   function restartIdleAnimation() {
@@ -1714,7 +1797,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   updateDesktopClock();
   window.setInterval(updateDesktopClock, 30_000);
   startIdleAnimation();
-  Promise.allSettled(preloadedFrames.map((image) => image.decode()))
+  void warmMascotFrames(frames)
     .then(() => {
       if (!idleFrameTimer) startIdleAnimation();
     });
