@@ -10281,19 +10281,23 @@ body.clerk-desktop-open { overflow: hidden; }
 .archive-formal-attachments > header span { opacity: .68; }
 .archive-formal-attachments > p { margin: 12px 0 2px; opacity: .68; font: 10px/1.5 var(--font-mono); }
 .archive-formal-attachments__list { display: grid; gap: 6px; margin-top: 12px; }
-.archive-formal-attachments__list a {
+.archive-formal-attachments__list :is(a, button) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 8px 9px;
   border: 1px solid currentColor;
+  background: transparent;
   color: inherit;
   text-decoration: none;
+  text-align: left;
   font: 700 10px/1.35 var(--font-mono);
+  cursor: pointer;
 }
-.archive-formal-attachments__list a:hover,
-.archive-formal-attachments__list a:focus-visible { outline: 2px solid #d14949; outline-offset: 2px; background: rgba(209, 73, 73, .12); }
+.archive-formal-attachments__list :is(a, button):hover,
+.archive-formal-attachments__list :is(a, button):focus-visible { outline: 2px solid #d14949; outline-offset: 2px; background: rgba(209, 73, 73, .12); }
 .archive-formal-attachments__list small { opacity: .68; font: inherit; }
 .archive-formal-attachments__list b { color: #d14949; font: inherit; }
 .archive-editor__review-note { border-color: #bb9b58; }
@@ -10307,7 +10311,7 @@ body.clerk-desktop-open { overflow: hidden; }
 .archive-review-amendment-note p { margin: 8px 0 0; white-space: pre-wrap; font: 12px/1.6 var(--font-mono); }
 
 @media (max-width: 620px) {
-  .archive-formal-attachments__list a { grid-template-columns: 1fr auto; }
+  .archive-formal-attachments__list :is(a, button) { grid-template-columns: 1fr auto; }
   .archive-formal-attachments__list small { grid-column: 1 / -1; grid-row: 2; }
 }
 

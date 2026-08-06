@@ -90,6 +90,18 @@ test('legacy person photos remain visible and supplements render only in the bot
   assert.match(html, /archive-formal-attachments/);
   assert.match(html, /现场笔录\.pdf/);
   assert.doesNotMatch(html, /这段内部说明绝不能公开/);
+  assert.match(html, /data-archive-attachment-open="supplement-1"/);
+  assert.doesNotMatch(html, /target="_blank"/);
+
+  const archiveCoverFallback = renderFormalArchiveDocument({
+    archive: {
+      code: 'P49', category: 'person', sequence_number: 49, abbreviation: 'PER',
+      cover_url: 'https://example.test/legacy-directory-avatar.webp',
+    },
+    contribution: { kind: 'new', owner: { display_name: 'Clerk' }, versions: [] },
+    version: { version_label: '0.2', content: personDocument, submitter: { display_name: 'Clerk' } },
+  });
+  assert.match(archiveCoverFallback, /legacy-directory-avatar\.webp/);
 
   const amendment = renderFormalArchiveAmendment({
     contribution: { id: 'amendment-1', owner: { display_name: 'Clerk' } },

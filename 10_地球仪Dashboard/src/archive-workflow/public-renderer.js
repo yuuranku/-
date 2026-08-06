@@ -622,8 +622,13 @@ const renderEcologyArchive = (document, archive, version, preview) => {
   `;
 };
 
-const renderPersonPortrait = (document, title) => {
-  const portrait = primaryMediaFor(document, 'portrait');
+const archiveCoverMedia = (archive) => {
+  const source = visibleValue(archive?.cover_url || archive?.coverUrl || archive?.image);
+  return source ? { publicUrl: source } : null;
+};
+
+const renderPersonPortrait = (document, title, archive = null) => {
+  const portrait = primaryMediaFor(document, 'portrait') || archiveCoverMedia(archive);
   const source = visibleValue(portrait?.publicUrl || portrait?.dataUrl);
   const alt = visibleValue(portrait?.altText) || visibleValue(portrait?.caption) || `${title}\u6863\u6848\u7167\u7247`;
   return source
@@ -634,7 +639,7 @@ const renderPersonPortrait = (document, title) => {
 const renderPersonArchive = (document, archive, version, preview) => {
   const title = archiveTitle(document, archive, '\u672a\u547d\u540d\u4eba\u7269');
   const code = archiveCode(document, archive);
-  const portrait = primaryMediaFor(document, 'portrait');
+  const portrait = primaryMediaFor(document, 'portrait') || archiveCoverMedia(archive);
   const portraitCaption = visibleValue(portrait?.caption) || `${code} / PERSONNEL COPY`;
   return `
     <header class="personnel-mast">
@@ -642,7 +647,7 @@ const renderPersonArchive = (document, archive, version, preview) => {
       ${registrationStamp(version, preview)}
     </header>
     <div class="personnel-layout" data-formal-section="person-dossier">
-      <figure>${renderPersonPortrait(document, title)}<figcaption>${escapeHtml(portraitCaption)}</figcaption></figure>
+      <figure>${renderPersonPortrait(document, title, archive)}<figcaption>${escapeHtml(portraitCaption)}</figcaption></figure>
       <section><h2>${renderMarkedTitle(document, title)}</h2>${renderDossierRows(document, personDossierFields)}</section>
     </div>
   `;
@@ -921,11 +926,11 @@ const renderFormalAttachments = (document) => {
             const source = visibleValue(entry.publicUrl || entry.dataUrl);
             const label = visibleValue(entry.fileName) || `附件 ${String(index + 1).padStart(2, '0')}`;
             const details = [visibleValue(entry.mimeType), attachmentSize(entry.byteSize)].filter(Boolean).join(' / ');
-            return `<a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">
+            return `<button type="button" data-archive-attachment-open="${escapeHtml(entry.attachmentId)}">
               <span>${escapeHtml(label)}</span>
               <small>${escapeHtml(details || '已入库附件')}</small>
               <b>打开</b>
-            </a>`;
+            </button>`;
           }).join('')}
         </div>
       ` : '<p>本卷暂未收录补充附件。</p>'}

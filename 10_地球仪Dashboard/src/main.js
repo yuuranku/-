@@ -6735,11 +6735,24 @@ function initializeArchiveFileMenu(state) {
       openArchiveStoryWindow(state);
       return;
     }
-    const attachmentId = event.target.closest('[data-archive-attachment-open]')?.dataset.archiveAttachmentOpen;
+    const attachmentTrigger = event.target.closest('[data-archive-attachment-open]');
+    const attachmentId = attachmentTrigger?.dataset.archiveAttachmentOpen;
     if (attachmentId) {
       const attachment = state.archiveAttachments?.find((entry) => entry.id === attachmentId);
       setMenuOpen();
-      if (attachment) openArchiveAttachmentWindow(state, attachment);
+      if (attachment) {
+        openArchiveAttachmentWindow(state, attachment);
+      } else {
+        // The document body can finish rendering a fraction before the file
+        // menu's archive-wide attachment cache. Resolve it on demand so both
+        // entry points always open the same PALIS attachment window.
+        attachmentTrigger.disabled = true;
+        void refreshArchiveAttachmentMenu(state).then(() => {
+          const resolved = state.archiveAttachments?.find((entry) => entry.id === attachmentId);
+          if (resolved) openArchiveAttachmentWindow(state, resolved);
+          attachmentTrigger.disabled = false;
+        });
+      }
       return;
     }
     const action = event.target.closest('[data-archive-edit-action]')?.dataset.archiveEditAction;
