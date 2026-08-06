@@ -76,6 +76,8 @@ test('a paused or closed commission cannot keep saving an already linked draft',
 test('is_mother never classifies a contribution as mainline without annotation', () => {
   assert.equal(classifyDossierEntry({ is_mother: true, draft_content: {} }), 'independent');
   assert.equal(classifyDossierEntry({ draft_content: { mainline: { versionCode: '0.1', part: 1, stage: 1 } } }), 'mainline');
+  assert.equal(classifyDossierEntry({ draft_content: { mainline: { versionCode: '0.1' } } }), 'mainline');
+  assert.equal(classifyDossierEntry({ task_response: { task: { kind: 'commission' } } }), 'commission');
 });
 
 test('clerk registration is administrator-controlled and never derives from contribution count', async () => {
@@ -148,6 +150,16 @@ test('task windows expose independent public, clerk dossier, and administrator e
   assert.match(source, /filter\(\(task\) => task\.kind === 'commission'\)/);
   assert.match(repository, /versions:archive_versions!archive_versions_contribution_id_fkey/,
     'Clerk dossier history must explicitly embed versions through archive_versions.contribution_id');
+  assert.match(repository, /target_contribution_id,base_version_id,revision/,
+    'Clerk dossier history must include amendment pointers so edit and submit entries can be labeled separately');
+  assert.match(source, /const dossierActionLabel/);
+  assert.match(source, /修改档案/);
+  assert.match(source, /新增档案/);
+  assert.match(source, /委托修正/);
+  assert.match(source, /委托提交/);
+  assert.match(source, /mainlineDossierCoordinate/);
+  assert.match(source, /Number\.isFinite\(Number\(mainline\.part\)\)/,
+    'Clerk dossier history must omit missing mainline coordinates instead of rendering undefined');
   assert.match(source, /当前登记/);
   assert.doesNotMatch(repository, /versions:archive_versions!archive_versions_contribution_id_fkey\([^)]*\bstatus\b/,
     'Clerk dossier history must not require archive_versions.status on older production schemas');

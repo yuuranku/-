@@ -155,18 +155,38 @@ export const openActiveTaskBoardWindow = async ({
   return state;
 };
 
-const dossierTypeLabel = (entry) => ({ mainline: '主线记录', commission: '受托记录', independent: '自主记录' }[classifyDossierEntry(entry)]);
-const dossierEntriesMarkup = (entries) => entries.map((entry) => {
+const dossierActionLabel = (entry) => {
+  const source = classifyDossierEntry(entry);
+  const isAmendment = entry.kind === 'amendment' || entry.target_contribution_id || entry.base_version_id;
+  if (source === 'mainline') return isAmendment ? '主线修正' : '主线提交';
+  if (source === 'commission') return isAmendment ? '委托修正' : '委托提交';
+  return isAmendment ? '修改档案' : '新增档案';
+};
+const mainlineDossierCoordinate = (mainline = {}) => {
+  const parts = [];
+  if (mainline.versionCode) parts.push(`VER ${escapeHtml(mainline.versionCode)}`);
+  if (Number.isFinite(Number(mainline.part))) parts.push(`PART ${String(mainline.part).padStart(2, '0')}`);
+  if (Number.isFinite(Number(mainline.stage))) parts.push(`STAGE ${String(mainline.stage).padStart(2, '0')}`);
+  return parts.join(' / ');
+};
+const dossierEntrySubtitle = (entry) => {
   const mainline = entry.draft_content?.mainline;
+  const coordinate = mainline ? mainlineDossierCoordinate(mainline) : '';
+  if (coordinate) return coordinate;
+  if (entry.archive?.code) return escapeHtml(entry.archive.code);
+  if (entry.template_id) return escapeHtml(String(entry.template_id).toUpperCase());
+  return '档号待编';
+};
+const dossierEntriesMarkup = (entries) => entries.map((entry) => {
   const versions = entry.versions || [];
   const latestVersion = versions.at(-1);
   const task = entry.task_response?.task;
   return `<button type="button" class="clerk-ledger__entry" data-dossier-contribution="${escapeHtml(entry.id)}">
     <time>${escapeHtml(dateLabel(latestVersion?.approved_at || entry.submitted_at || entry.updated_at))}</time>
-    <span class="clerk-ledger__stamp">${escapeHtml(dossierTypeLabel(entry))}</span>
+    <span class="clerk-ledger__stamp">${escapeHtml(dossierActionLabel(entry))}</span>
     ${task ? `<span class="clerk-ledger__stamp is-task">${escapeHtml(task.code)}</span>` : ''}
     <b>${escapeHtml(entry.title)}</b>
-    <small>${mainline ? `VER ${escapeHtml(mainline.versionCode)} / PART ${String(mainline.part).padStart(2, '0')} / STAGE ${String(mainline.stage).padStart(2, '0')}` : escapeHtml(entry.archive?.code || '档号待编')}</small>
+    <small>${dossierEntrySubtitle(entry)}</small>
     <em>${escapeHtml(latestVersion ? `已归档 · VER ${latestVersion.version_label}` : responseStatusLabel(entry.task_response?.status || entry.status))}</em>
   </button>`;
 }).join('');

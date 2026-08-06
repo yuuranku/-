@@ -65,7 +65,9 @@ export const responseStatusLabel = (status) => ({
 
 export const classifyDossierEntry = (contribution = {}) => {
   const mainline = contribution.draft_content?.mainline;
-  if (mainline?.versionCode && mainline?.part && mainline?.stage) return 'mainline';
-  if (contribution.task?.kind === 'commission' || contribution.task_kind === 'commission') return 'commission';
+  if (mainline) return 'mainline';
+  if (contribution.task_response?.task?.kind === 'commission'
+    || contribution.task?.kind === 'commission'
+    || contribution.task_kind === 'commission') return 'commission';
   return 'independent';
 };
