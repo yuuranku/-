@@ -10681,8 +10681,9 @@ body.clerk-desktop-open { overflow: hidden; }
   position: absolute;
   z-index: 1;
   display: block;
-  width: min(330px, calc(100% - 20px));
-  height: 220px;
+  width: min(640px, calc(100% - 20px));
+  height: auto;
+  aspect-ratio: 3 / 2;
   min-width: 0;
   box-sizing: border-box;
   padding: 0;
@@ -10732,7 +10733,7 @@ body.clerk-desktop-open { overflow: hidden; }
   margin: 0;
   overflow: hidden;
   color: #252013;
-  font: 700 15px/1.1 var(--font-body);
+  font: 700 23px/1.1 var(--font-body);
   letter-spacing: -.025em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10748,7 +10749,7 @@ body.clerk-desktop-open { overflow: hidden; }
   margin: 0;
   overflow: hidden;
   color: #493b22;
-  font: 12px/1.48 var(--font-body);
+  font: 17px/1.5 var(--font-body);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -10767,53 +10768,64 @@ body.clerk-desktop-open { overflow: hidden; }
   padding: 0;
 }
 
-#clerk-desktop #workspace-note-region .workspace-sticky-note button,
-#clerk-desktop .workspace-note-controls button {
-  min-height: 26px;
-  padding: 3px 7px;
-  color: #241d11;
-  border: 1px solid #8e7139;
+#clerk-desktop #workspace-note-region .workspace-sticky-note button {
+  min-height: 32px;
+  padding: 3px 5px;
+  color: #155787;
+  border: 0;
+  border-bottom: 1px solid rgba(21, 87, 135, .62);
   border-radius: 0;
-  background: #f8de83;
-  box-shadow: 1px 1px 0 rgba(83, 59, 21, .32);
-  font: 700 10px/1.1 var(--font-mono);
+  background: transparent;
+  box-shadow: none;
+  font: 700 13px/1.1 var(--font-mono);
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note button:hover,
-#clerk-desktop #workspace-note-region .workspace-sticky-note button:focus-visible,
-#clerk-desktop .workspace-note-controls button:hover,
-#clerk-desktop .workspace-note-controls button:focus-visible {
-  color: #17120a;
-  outline: 2px solid #174b8a;
-  outline-offset: 1px;
-  background: #ffe99d;
+#clerk-desktop #workspace-note-region .workspace-sticky-note button:focus-visible {
+  color: #0a3f68;
+  outline: 1px solid #176da9;
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, .22);
 }
 
-#clerk-desktop #workspace-note-region .workspace-sticky-note button:active,
-#clerk-desktop .workspace-note-controls button:active {
-  box-shadow: none;
-  transform: translate(1px, 1px);
-}
+#clerk-desktop #workspace-note-region .workspace-sticky-note button:active { transform: translateY(1px); }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-close {
   position: absolute;
   right: 0;
   bottom: 0;
-  min-width: 31px;
-  padding-inline: 4px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: transparent !important;
+  border: 1px solid #0d4f82 !important;
+  border-radius: 50% !important;
+  background: linear-gradient(145deg, #2d97de, #0d5b9c) !important;
+  box-shadow: 1px 2px 2px rgba(23, 54, 73, .27) !important;
+}
+#clerk-desktop #workspace-note-region .workspace-sticky-note-close::before {
+  color: #f7fbff;
+  content: '×';
+  font: 700 22px/1 var(--font-body);
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-page {
   position: absolute;
-  right: 42px;
+  right: 46px;
   bottom: 0;
-  min-width: 52px;
+  min-width: 68px;
+  border: 1px solid rgba(21, 87, 135, .58) !important;
+  border-radius: 999px !important;
   color: #143a56;
-  border-color: #547997;
-  background: #d7edff;
+  background: rgba(222, 244, 255, .65) !important;
 }
 #clerk-desktop #workspace-note-region .workspace-sticky-note-edit { margin-left: 0; }
-#clerk-desktop #workspace-note-region .workspace-sticky-note-delete { background: #e6c576; }
+#clerk-desktop #workspace-note-region .workspace-sticky-note-delete {
+  color: #88412a;
+  border-bottom-color: rgba(136, 65, 42, .64);
+}
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-editor {
   position: absolute;
@@ -10931,6 +10943,24 @@ body.clerk-desktop-open { overflow: hidden; }
   pointer-events: auto !important;
 }
 
+#clerk-desktop .workspace-note-controls [data-workspace-note-create] {
+  min-height: 34px;
+  padding: 7px 11px;
+  color: #f3fbff;
+  border: 1px solid #0d4f82;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #2d97de, #0d5b9c);
+  box-shadow: 2px 3px 0 rgba(10, 53, 82, .25);
+  font: 700 12px/1 var(--font-mono);
+}
+
+#clerk-desktop .workspace-note-controls [data-workspace-note-create]:hover,
+#clerk-desktop .workspace-note-controls [data-workspace-note-create]:focus-visible {
+  outline: 2px solid rgba(218, 246, 255, .9);
+  outline-offset: 2px;
+  background: linear-gradient(145deg, #48b2f2, #126baa);
+}
+
 #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] {
   display: grid;
   width: min(264px, 100%);
@@ -10969,7 +10999,7 @@ body.clerk-desktop-open { overflow: hidden; }
 
 @media (max-width: 760px) {
   #clerk-desktop #workspace-note-region .workspace-sticky-note {
-    width: min(330px, calc(100% - 12px));
+    width: min(640px, calc(100% - 12px));
     height: auto;
     aspect-ratio: 3 / 2;
   }

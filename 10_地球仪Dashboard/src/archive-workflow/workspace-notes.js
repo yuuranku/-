@@ -4,7 +4,7 @@ const DEFAULT_GAP = 16;
 const DEFAULT_GUTTER = 168;
 // This matches the supplied pinned-note artwork's native 3:2 canvas. The
 // transparent margins are intentional: the usable paper sits inside them.
-const DEFAULT_NOTE_SIZE = Object.freeze({ height: 220, width: 330 });
+const DEFAULT_NOTE_SIZE = Object.freeze({ height: 427, width: 640 });
 const WORKSPACE_NOTE_PAGE_LENGTH = 72;
 
 const clone = (value) => {
