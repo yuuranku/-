@@ -1991,8 +1991,8 @@ const globe = new ThreeGlobe({ animateIn: false })
   .globeImageUrl('/textures/earth-blue-marble.jpg')
   .bumpImageUrl('/textures/earth-topology.png')
   .showAtmosphere(true)
-  .atmosphereColor('#b9d7d2')
-  .atmosphereAltitude(0.1);
+  .atmosphereColor('#8db4ac')
+  .atmosphereAltitude(0.075);
 
 const globeMaterial = globe.globeMaterial();
 globeMaterial.color = new THREE.Color('#d7ddda');
@@ -2024,7 +2024,9 @@ globeMaterial.onBeforeCompile = (shader) => {
     else if (waIndex == 14.0) waThreshold = 0.84;
     else if (waIndex == 15.0) waThreshold = 0.34;
     float waInk = smoothstep(waThreshold - 0.08, waThreshold + 0.08, waLuma);
-    gl_FragColor.rgb = mix(vec3(0.018), vec3(0.94), waInk);`,
+    gl_FragColor.rgb = mix(vec3(0.024, 0.055, 0.050), vec3(0.94), waInk);
+    float waFacing = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+    gl_FragColor.a *= smoothstep(0.02, 0.23, waFacing);`,
   );
 };
 globeMaterial.needsUpdate = true;
@@ -2038,6 +2040,54 @@ scene.add(keyLight);
 const rimLight = new THREE.DirectionalLight(0x6caaa6, 0.75);
 rimLight.position.set(170, -80, 40);
 scene.add(rimLight);
+
+// The background lives inside the same 3D scene as the globe. Unlike a tiled
+// CSS texture it has depth, slow parallax and a few different star scales, so
+// the archive never reads as a static dark dashboard.
+const starfield = new THREE.Group();
+const starfieldLayers = [];
+function createStarLayer({ count, size, opacity, spread, depth, drift, tint, twinkle }) {
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const color = new THREE.Color();
+  const accent = new THREE.Color(tint);
+
+  for (let index = 0; index < count; index += 1) {
+    const offset = index * 3;
+    const seed = index * 12.9898;
+    const randomX = (Math.sin(seed) * 43758.5453) % 1;
+    const randomY = (Math.sin(seed * 1.73) * 24634.6345) % 1;
+    const randomZ = (Math.sin(seed * 2.41) * 18274.2781) % 1;
+    positions[offset] = (randomX - Math.floor(randomX) - 0.5) * spread;
+    positions[offset + 1] = (randomY - Math.floor(randomY) - 0.5) * spread * 0.62;
+    positions[offset + 2] = -depth - (randomZ - Math.floor(randomZ)) * 120;
+    color.copy(accent).lerp(new THREE.Color('#eef6ef'), (index % 7) / 9);
+    colors[offset] = color.r;
+    colors[offset + 1] = color.g;
+    colors[offset + 2] = color.b;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const material = new THREE.PointsMaterial({
+    size,
+    vertexColors: true,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    sizeAttenuation: false,
+  });
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  starfield.add(points);
+  starfieldLayers.push({ points, material, opacity, drift, twinkle, phase: starfieldLayers.length * 1.7 });
+}
+
+createStarLayer({ count: 210, size: 1.15, opacity: 0.42, spread: 1760, depth: 610, drift: 0.008, tint: '#8ebfbc', twinkle: 0.75 });
+createStarLayer({ count: 56, size: 1.85, opacity: 0.52, spread: 1480, depth: 470, drift: -0.014, tint: '#b7c8e5', twinkle: 2.1 });
+createStarLayer({ count: 18, size: 2.65, opacity: 0.68, spread: 1320, depth: 400, drift: 0.021, tint: '#eef4bd', twinkle: 3.7 });
+scene.add(starfield);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -7193,6 +7243,18 @@ function animate(now) {
   if (archiveOpacity > 0.02) {
     layoutArchiveOrbit(archiveOpacity, archiveExit);
     updateSpeciesHelix(delta);
+  }
+
+  if (!reducedMotion) {
+    const time = now * 0.001;
+    starfieldLayers.forEach((layer) => {
+      layer.points.rotation.z += delta * layer.drift;
+      layer.points.position.x = Math.sin(time * Math.abs(layer.drift) + layer.phase) * 13;
+      layer.points.position.y = Math.cos(time * Math.abs(layer.drift) * 0.7 + layer.phase) * 8;
+      const pulse = Math.sin(time * layer.twinkle + layer.phase);
+      const steppedBrightness = pulse > 0.62 ? 1.2 : pulse > -0.28 ? 0.78 : 0.42;
+      layer.material.opacity = layer.opacity * steppedBrightness;
+    });
   }
 
   controls.update();

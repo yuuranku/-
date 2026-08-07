@@ -244,10 +244,46 @@ body.version-notice-open { overflow: hidden; }
 
 #scene {
   z-index: var(--z-scene);
-  background: var(--space);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 68% 42%, rgba(33, 73, 67, .18) 0, transparent 42%),
+    linear-gradient(118deg, #060908 0%, #0a100e 52%, #030504 100%);
+}
+
+/* The scene receives its stars from WebGL. These two deep, slow colour fields
+   sit behind them like a very distant polar nebula rather than a flat pattern. */
+#scene::before,
+#scene::after {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  content: '';
+}
+
+#scene::before {
+  inset: -25%;
+  opacity: .58;
+  background:
+    radial-gradient(ellipse at 71% 43%, rgba(37, 109, 95, .17) 0, transparent 25%),
+    radial-gradient(ellipse at 26% 64%, rgba(22, 56, 77, .16) 0, transparent 33%),
+    radial-gradient(ellipse at 57% 19%, rgba(143, 183, 167, .06) 0, transparent 19%);
+  filter: blur(24px);
+  animation: polar-space-drift 44s ease-in-out infinite alternate;
+}
+
+#scene::after {
+  inset: -30%;
+  opacity: .36;
+  background:
+    radial-gradient(ellipse at 78% 72%, rgba(11, 78, 93, .16) 0, transparent 27%),
+    radial-gradient(ellipse at 38% 30%, rgba(120, 154, 185, .055) 0, transparent 22%);
+  filter: blur(34px);
+  animation: polar-space-drift 62s ease-in-out -17s infinite alternate-reverse;
 }
 
 #scene canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -271,9 +307,33 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
 }
 
 .space-noise {
-  opacity: 0.16;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* Replace the soft fractal wash with discrete phosphor specks. The former
+     read as a low-resolution blur on large dark fields; this keeps the CRT
+     material without obscuring the globe or the index copy. */
+  opacity: .032;
+  background-image:
+    radial-gradient(circle at center, rgba(220, 230, 224, .52) 0 .55px, transparent .8px),
+    radial-gradient(circle at center, rgba(0, 0, 0, .62) 0 .65px, transparent .92px);
+  background-position: 0 0, 7px 11px;
+  background-size: 17px 17px, 29px 29px;
   mix-blend-mode: screen;
+}
+
+@keyframes polar-space-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to { transform: translate3d(1.5%, 1.2%, 0) scale(1.035); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #scene::before,
+  #scene::after { animation: none; }
+}
+
+/* Chapter 01 is copy-led: keep only a faint phosphor field there, rather
+   than allowing a moving veil of grain to compete with the index readout. */
+body[data-chapter='1'] .space-noise {
+  opacity: .045;
+  mix-blend-mode: normal;
 }
 
 .scanlines {
@@ -346,8 +406,6 @@ body[data-chapter='3'] #scene canvas:active { cursor: grabbing; }
   object-position: center;
   image-rendering: auto;
   mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 19.5% 36% at 50% 48%, transparent 0 96%, #000 100%);
-  mask-image: radial-gradient(ellipse 19.5% 36% at 50% 48%, transparent 0 96%, #000 100%);
 }
 
 .capsule-photo {
@@ -8883,11 +8941,6 @@ body.access-locked .mascot-assistant { display: none; }
     top: 48%;
     width: min(52vw, 250px);
     height: min(52vw, 250px);
-  }
-  .capsule-photo,
-  .capsule-ink {
-    -webkit-mask-image: radial-gradient(circle 25vw at 50% 48%, transparent 0 96%, #000 100%);
-    mask-image: radial-gradient(circle 25vw at 50% 48%, transparent 0 96%, #000 100%);
   }
   .chapter-nav {
     right: auto;
