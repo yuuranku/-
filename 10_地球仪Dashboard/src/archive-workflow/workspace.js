@@ -3182,7 +3182,7 @@ export function initializeArchiveWorkspace({
       className: 'archive-workflow-list-window archive-mailbox-window',
       icon: '/assets/icons/archive-inbox.svg',
       body: `
-        <div class="archive-mailbox">
+        <div class="archive-mailbox${administrator ? ' archive-mailbox--administrator' : ''}">
           ${administrator ? `
             <form class="archive-mailbox__compose" data-mailbox-compose>
               <header><b>发送公告</b><span>PALIS / ARCHIVE ADMINISTRATION</span></header>
@@ -3195,11 +3195,15 @@ export function initializeArchiveWorkspace({
             </form>
           ` : ''}
 
-          <section class="archive-workflow-list archive-mailbox__list" data-notification-list><p>正在读取邮箱…</p></section>
+          <div class="archive-mailbox__inbox">
+            <section class="archive-workflow-list archive-mailbox__list" data-notification-list><p>正在读取邮箱…</p></section>
+            <article class="archive-mailbox__reader" data-notification-reader><p>选择左侧邮件以读取正文。</p></article>
+          </div>
         </div>
       `,
     });
     const list = state.windowElement.querySelector('[data-notification-list]');
+    const reader = state.windowElement.querySelector('[data-notification-reader]');
     const compose = state.windowElement.querySelector('[data-mailbox-compose]');
     const recipientSelect = state.windowElement.querySelector('[data-mailbox-recipient]');
     if (!client) {
@@ -3217,28 +3221,56 @@ export function initializeArchiveWorkspace({
           ? `<option value="">选择书记官</option>${clerks.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(`${clerkRegistrationLabel(user.clerk_rank)} ${user.display_name || '书记官'}`)}</option>`).join('')}`
           : '<option value="">当前没有可收件的书记官</option>';
       }
-      const unread = notifications.filter((notification) => !notification.read_at);
-      if (unread.length && typeof client.markNotificationRead === 'function') {
-        const results = await Promise.allSettled(unread.map((notification) =>
-          client.markNotificationRead(notification.id, context.profile.id)));
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled') unread[index].read_at = result.value?.read_at || new Date().toISOString();
-        });
-      }
-      list.innerHTML = notifications.length
-        ? notifications.map((notification) => {
-          const sender = notification.kind === 'announcement'
-            ? 'PALIS 档案管理处 / 系统公告'
-            : `档案审核 / ${notification.contribution?.title || notification.kind}`;
-          return `
-            <article class="${notification.read_at ? 'is-read' : 'is-unread'}">
-              <header><b>${escapeHtml(notification.subject)}</b><time>${new Date(notification.created_at).toLocaleString('zh-CN')}</time></header>
-              <p>${escapeHtml(notification.message)}</p>
-              <small>${escapeHtml(sender)}</small>
-            </article>
-          `;
-        }).join('')
-        : '<p>邮箱中没有邮件。</p>';
+      let selectedNotificationId = notifications[0]?.id || null;
+      const senderFor = (notification) => notification.kind === 'announcement'
+        ? 'PALIS 档案管理处 / 系统公告'
+        : `档案审核 / ${notification.contribution?.title || notification.kind}`;
+      const dateFor = (notification) => notification.created_at
+        ? new Date(notification.created_at).toLocaleString('zh-CN')
+        : '收发时间未记录';
+      const renderMailbox = () => {
+        const selected = notifications.find((notification) => notification.id === selectedNotificationId) || notifications[0];
+        list.innerHTML = notifications.length
+          ? notifications.map((notification) => `
+            <button type="button" class="archive-mailbox__message ${notification.read_at ? 'is-read' : 'is-unread'}${notification.id === selected?.id ? ' is-selected' : ''}" data-mailbox-message="${escapeHtml(notification.id)}">
+              <b>${escapeHtml(notification.subject || '未命名邮件')}</b>
+              <small>${escapeHtml(senderFor(notification))}</small>
+              <time>${escapeHtml(dateFor(notification))}</time>
+            </button>
+          `).join('')
+          : '<p>邮箱中没有邮件。</p>';
+        reader.innerHTML = selected
+          ? `
+            <header>
+              <p>${escapeHtml(senderFor(selected))}</p>
+              <time>${escapeHtml(dateFor(selected))}</time>
+              <h3>${escapeHtml(selected.subject || '未命名邮件')}</h3>
+            </header>
+            <div class="archive-mailbox__message-body">${escapeHtml(selected.message || '（该邮件没有正文内容。）')}</div>
+          `
+          : '<p>邮箱中没有邮件。</p>';
+      };
+      const selectMailboxMessage = async (notificationId) => {
+        const notification = notifications.find((item) => item.id === notificationId);
+        if (!notification) return;
+        selectedNotificationId = notification.id;
+        renderMailbox();
+        if (!notification.read_at && typeof client.markNotificationRead === 'function') {
+          try {
+            const result = await client.markNotificationRead(notification.id, context.profile.id);
+            notification.read_at = result?.read_at || new Date().toISOString();
+            renderMailbox();
+            void refreshMailboxAlert();
+          } catch {
+            // 阅读邮件不应因回执写入失败而阻塞内容展示。
+          }
+        }
+      };
+      renderMailbox();
+      list.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-mailbox-message]');
+        if (target) void selectMailboxMessage(target.dataset.mailboxMessage);
+      });
       if (compose) {
         compose.addEventListener('submit', async (event) => {
           event.preventDefault();
