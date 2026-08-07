@@ -3195,10 +3195,14 @@ export function initializeArchiveWorkspace({
             </form>
           ` : ''}
 
-          <div class="archive-mailbox__inbox">
-            <section class="archive-workflow-list archive-mailbox__list" data-notification-list><p>正在读取邮箱…</p></section>
-            <article class="archive-mailbox__reader" data-notification-reader><p>选择左侧邮件以读取正文。</p></article>
-          </div>
+          ${administrator
+            ? '<section class="archive-workflow-list archive-mailbox__list archive-mailbox__list--administrator" data-notification-list><p>正在读取邮件记录…</p></section>'
+            : `
+              <div class="archive-mailbox__inbox">
+                <section class="archive-workflow-list archive-mailbox__list" data-notification-list><p>正在读取邮箱…</p></section>
+                <article class="archive-mailbox__reader" data-notification-reader><p>选择左侧邮件以读取正文。</p></article>
+              </div>
+            `}
         </div>
       `,
     });
@@ -3229,6 +3233,18 @@ export function initializeArchiveWorkspace({
         ? new Date(notification.created_at).toLocaleString('zh-CN')
         : '收发时间未记录';
       const renderMailbox = () => {
+        if (administrator) {
+          list.innerHTML = notifications.length
+            ? notifications.map((notification) => `
+              <article class="${notification.read_at ? 'is-read' : 'is-unread'}">
+                <header><b>${escapeHtml(notification.subject || '未命名邮件')}</b><time>${escapeHtml(dateFor(notification))}</time></header>
+                <p>${escapeHtml(notification.message || '（该邮件没有正文内容。）')}</p>
+                <small>${escapeHtml(senderFor(notification))}</small>
+              </article>
+            `).join('')
+            : '<p>邮件记录为空。</p>';
+          return;
+        }
         const selected = notifications.find((notification) => notification.id === selectedNotificationId) || notifications[0];
         list.innerHTML = notifications.length
           ? notifications.map((notification) => `
@@ -3267,10 +3283,12 @@ export function initializeArchiveWorkspace({
         }
       };
       renderMailbox();
-      list.addEventListener('click', (event) => {
-        const target = event.target.closest('[data-mailbox-message]');
-        if (target) void selectMailboxMessage(target.dataset.mailboxMessage);
-      });
+      if (!administrator) {
+        list.addEventListener('click', (event) => {
+          const target = event.target.closest('[data-mailbox-message]');
+          if (target) void selectMailboxMessage(target.dataset.mailboxMessage);
+        });
+      }
       if (compose) {
         compose.addEventListener('submit', async (event) => {
           event.preventDefault();

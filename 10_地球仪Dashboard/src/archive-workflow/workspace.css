@@ -1080,6 +1080,7 @@
   border: 0;
   border-right: 2px solid #808080;
 }
+.archive-mailbox__list--administrator { border-right: 0; }
 .archive-mailbox__list > .archive-mailbox__message {
   min-height: 70px;
   gap: 5px;
