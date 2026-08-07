@@ -2373,8 +2373,25 @@ function resetVersionNotice() {
   versionNoticeTask.hidden = false;
 }
 
+function capsuleOperatorName() {
+  const profile = activeArchiveStorySession?.profile ?? null;
+  const user = activeArchiveStorySession?.session?.user ?? null;
+  return String(
+    profile?.display_name
+      ?? user?.user_metadata?.display_name
+      ?? user?.user_metadata?.full_name
+      ?? user?.email?.split('@')[0]
+      ?? '',
+  ).trim();
+}
+
 function applyCapsuleAccessState() {
-  capsuleTitle.innerHTML = '系统接入已完成<br />欢迎使用';
+  const operatorName = capsuleOperatorName();
+  capsuleTitle.replaceChildren(
+    document.createTextNode('系统接入已完成'),
+    document.createElement('br'),
+    document.createTextNode(operatorName ? `欢迎回来，${operatorName}` : '欢迎使用'),
+  );
   bootChannel.textContent = 'CHANNEL 09A / PALIS ONLINE';
   bootStatus.textContent = 'SYSTEM READY';
   scrollCueLabel.textContent = isPreviewAccess() ? '向下滚动检查索引' : '向下滚动进入系统';
@@ -3118,6 +3135,10 @@ renderer.domElement.addEventListener('pointerup', (event) => {
     selectedMapAt = 0;
     openMapArchive(item);
   }
+});
+
+window.addEventListener('palis:session-change', () => {
+  if (capsuleBootComplete) applyCapsuleAccessState();
 });
 renderer.domElement.addEventListener('pointercancel', () => {
   pointerDown = false;
