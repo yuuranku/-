@@ -769,7 +769,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       stage: kind === 'mainline' ? Number(input.stage) : null,
       slot_id: kind === 'mainline' ? String(input.slot_id ?? input.slotId ?? '').trim() : null,
       slot_label: kind === 'mainline' ? String(input.slot_label ?? input.slotLabel ?? '').trim() : '',
-      ...(String(input.status ?? '') === 'open' ? { opened_at: new Date().toISOString() } : {}),
+      ...(String(input.status ?? '') === 'open' && !String(input.id ?? '').trim() ? { opened_at: new Date().toISOString() } : {}),
     };
     return unwrap(
       supabase.from('workflow_tasks').upsert(payload, { onConflict: 'id' }).select('*').single(),
@@ -784,10 +784,21 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   );
 
   const registerWorkflowTaskResponse = (taskId) => unwrap(
-    supabase.from('workflow_task_responses').upsert({ task_id: requireId(taskId, 'taskId') }, { onConflict: 'task_id,clerk_id' })
+    supabase.from('workflow_task_responses').upsert({
+      task_id: requireId(taskId, 'taskId'), status: 'registered', registered_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }, { onConflict: 'task_id,clerk_id' })
       .select('id,task_id,clerk_id,contribution_id,status,registered_at,updated_at').single(),
     '无法登记任务响应',
   );
+
+  const cancelWorkflowTaskResponse = async (taskId) => {
+    const { data, error } = await supabase.rpc('withdraw_workflow_task_response', {
+      target_task_id: requireId(taskId, 'taskId'),
+    });
+    if (error) throw normalizeError(error, '无法退出该委托');
+    if (!data) throw new Error('未找到可退出的委托响应');
+    return data;
+  };
 
   const listWorkflowTaskResponses = (taskId) => unwrap(
     supabase.from('workflow_task_responses')
@@ -941,7 +952,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     listArchiveStoryPages, createArchiveStoryPage, updateArchiveStoryPage, deleteArchiveStoryPage,
     listMainlineVersions, saveMainlineVersion, listMainlineStaffSlots, listMainlinePersonnelSubmissions, saveMainlineStaffSlot,
     deleteMainlineStaffSlot, uploadMainlineCover, subscribeMainlineChanges,
-    listWorkflowTasks, saveWorkflowTask, updateWorkflowTaskStatus, registerWorkflowTaskResponse,
+    listWorkflowTasks, saveWorkflowTask, updateWorkflowTaskStatus, registerWorkflowTaskResponse, cancelWorkflowTaskResponse,
     listWorkflowTaskResponses, listClerkDossierEntries,
   });
 };

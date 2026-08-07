@@ -34,15 +34,20 @@ const taskTemplateLabel = (task, templates = []) =>
 const taskDetail = (task, role, response = null, templates = []) => {
   if (!task) return '<div class="commission-empty"><b>选择一份档案委托</b><span>右页将显示任务坐标、收件状态与可执行动作。</span></div>';
   const canRespond = ['clerk', 'admin'].includes(role) && taskAcceptsResponses(task);
-  const responseAction = response && task.kind === 'commission' && taskAcceptsResponses(task) && ['registered', 'drafting', 'changes_requested'].includes(response.status)
-    ? '<button type="button" data-task-action="edit">编辑委托</button>'
+  const responseIsEditable = response
+    && task.kind === 'commission'
+    && ['registered', 'drafting', 'changes_requested'].includes(response.status);
+  // Leaving stays available even after the publisher stops receiving new work.
+  // A linked draft is detached (rather than deleted) by the repository operation.
+  const canWithdrawResponse = responseIsEditable;
+  const responseAction = responseIsEditable
+    ? `${taskAcceptsResponses(task)
+      ? `<button type="button" data-task-action="edit">${response.contribution_id ? '继续编辑' : '开始编辑'}</button>`
+      : ''}${canWithdrawResponse ? '<button type="button" class="commission-sheet__withdraw" data-task-action="withdraw">退出委托</button>' : ''}`
     : canRespond && !response
       ? `<button type="button" data-task-action="respond">${task.kind === 'mainline' ? '登记响应并开始撰写' : '接收委托'}</button>`
       : '';
-  const managementAction = role === 'admin'
-    ? '<button type="button" data-task-action="manage">管理此委托</button>'
-    : '';
-  const action = `${responseAction}${managementAction}`;
+  const action = responseAction;
   return `
     <article class="commission-sheet" data-task-detail="${escapeHtml(task.id)}">
       <header>
@@ -72,7 +77,7 @@ const taskDetail = (task, role, response = null, templates = []) => {
 
 export const openActiveTaskBoardWindow = async ({
   createWindow, client, role = 'observer', profile = null,
-  templates = [], onOpenMainlineTask = null, onOpenCommissionTask = null, onManageTask = null,
+  templates = [], onOpenMainlineTask = null, onOpenCommissionTask = null,
 } = {}) => {
   if (typeof createWindow !== 'function') throw new TypeError('createWindow is required');
   const state = createWindow({
@@ -108,7 +113,7 @@ export const openActiveTaskBoardWindow = async ({
         .filter((task) => task.kind === 'commission');
       if (['clerk', 'admin'].includes(role) && typeof client?.listWorkflowTaskResponses === 'function') {
         const responses = await Promise.all(tasks.map(async (task) => [task.id, await client.listWorkflowTaskResponses(task.id)]));
-        responsesByTaskId = new Map(responses.map(([taskId, entries]) => [taskId, entries.find((entry) => entry.clerk_id === profile?.id) || null]));
+        responsesByTaskId = new Map(responses.map(([taskId, entries]) => [taskId, entries.find((entry) => entry.clerk_id === profile?.id && entry.status !== 'withdrawn') || null]));
       } else {
         responsesByTaskId = new Map();
       }
@@ -131,8 +136,21 @@ export const openActiveTaskBoardWindow = async ({
       const task = tasks.find((entry) => entry.id === selectedId);
       const action = event.target.closest('[data-task-action]')?.dataset.taskAction;
       if (!task || !action) return;
-      if (action === 'manage') { onManageTask?.(task, event.target); return; }
       if (action === 'edit') { onOpenCommissionTask?.(task, responsesByTaskId.get(task.id) || null, event.target); return; }
+      if (action === 'withdraw') {
+        event.target.disabled = true;
+        status.textContent = '正在退出该委托…';
+        try {
+          await client.cancelWorkflowTaskResponse(task.id);
+          responsesByTaskId.delete(task.id);
+          status.textContent = '已退出该委托；已有草稿已保留为独立草稿。';
+          await reload();
+        } catch (error) {
+          status.textContent = error.message || '无法退出该委托。';
+          event.target.disabled = false;
+        }
+        return;
+      }
       event.target.disabled = true;
       status.textContent = '正在写入响应登记……';
       try {
@@ -252,24 +270,36 @@ export const openTaskAdministrationWindow = async ({ createWindow, client, templ
   const output = root.querySelector('[data-task-control-status]');
   let tasks = [];
   let selectedId = null;
-  let creating = false;
+  let mode = 'view';
+  const taskForm = (task = null) => {
+    const editing = Boolean(task);
+    const templateLocked = editing && task.response_count > 0;
+    const templateOptions = templates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === task?.template_id ? 'selected' : ''}>${escapeHtml(template.code)} / ${escapeHtml(template.title)}</option>`).join('');
+    return `<form class="task-control__form" data-admin-task-form>
+      <p class="task-control__form-note">${editing
+        ? '修改会即时同步到公开委托册。已有书记官接收后，档案类型会锁定，以免其正在撰写的档案失去对应类型。'
+        : '此处只发布开放委托；主线岗位、阶段与响应请在“档案纠错程序”内处理。'}</p>
+      ${editing ? `<input name="id" type="hidden" value="${escapeHtml(task.id)}" /><input name="status" type="hidden" value="${escapeHtml(task.status)}" />` : ''}
+      <label>委托编号<input name="code" required placeholder="T-017" value="${escapeHtml(task?.code || '')}" /></label><label>标题<input name="title" required value="${escapeHtml(task?.title || '')}" /></label>
+      ${templateLocked
+        ? `<label>档案类型<output class="task-control__locked-field">${escapeHtml(taskTemplateLabel(task, templates))}</output><input name="templateId" type="hidden" value="${escapeHtml(task.template_id)}" /></label>`
+        : `<label>档案类型<select name="templateId" required><option value="">请选择九类档案中的一种</option>${templateOptions}</select></label>`}
+      <label>委托目标<textarea name="objective" required>${escapeHtml(task?.objective || '')}</textarea></label><label>材料形式<input name="format" placeholder="例如：人物档案、事件补述、现场记录" value="${escapeHtml(task?.format || '')}" /></label>
+      <footer><button type="button" data-admin-cancel-edit ${editing ? '' : 'hidden'}>放弃修改</button><button type="submit">${editing ? '保存委托修改' : '发布开放委托'}</button></footer>
+    </form>`;
+  };
   const render = () => {
-    const selected = creating ? null : (tasks.find((task) => task.id === selectedId) || tasks[0]);
+    const selected = tasks.find((task) => task.id === selectedId) || tasks[0] || null;
     selectedId = selected?.id || null;
     list.innerHTML = `<button type="button" data-admin-new-task>＋ 新建委托</button>${taskRows(tasks, selectedId)}`;
-    detail.innerHTML = selected ? `${taskDetail(selected, 'observer', null, templates)}<div class="task-control__actions">
+    detail.innerHTML = mode === 'new' ? taskForm() : mode === 'edit' && selected ? taskForm(selected) : selected ? `${taskDetail(selected, 'observer', null, templates)}<div class="task-control__actions">
       ${selected.status === 'open' ? '<button data-admin-status="paused">暂停</button><button data-admin-status="closed">停止接收</button>' : ''}
       ${selected.status === 'paused' ? '<button data-admin-status="open">恢复接收</button><button data-admin-status="closed">停止接收</button>' : ''}
-      ${selected.status === 'closed' ? '<button data-admin-status="settling">进入结算</button>' : ''}
-      ${selected.status === 'settling' ? '<button data-admin-status="settled">确认结算</button>' : ''}
-      ${selected.status === 'settled' ? '<button data-admin-status="sealed">封存卷宗</button>' : ''}
+      ${selected.status === 'closed' ? '<button data-admin-status="open">恢复接收</button><button data-admin-status="sealed">封存委托</button>' : ''}
+      ${['settling', 'settled'].includes(selected.status) ? '<button data-admin-status="sealed">封存委托</button>' : ''}
+      <button data-admin-edit-task>修改委托</button>
       <button data-admin-open-task>调阅响应记录</button>
-    </div>` : `<form class="task-control__form" data-admin-task-form>
-      <p class="task-control__form-note">此处只发布开放委托；主线岗位、阶段与响应请在“档案纠错程序”内处理。</p>
-      <label>委托编号<input name="code" required placeholder="T-017" /></label><label>标题<input name="title" required /></label>
-      <label>档案类型<select name="templateId" required><option value="">请选择九类档案中的一种</option>${templates.map((template) => `<option value="${escapeHtml(template.id)}">${escapeHtml(template.code)} / ${escapeHtml(template.title)}</option>`).join('')}</select></label>
-      <label>委托目标<textarea name="objective" required></textarea></label><label>材料形式<input name="format" placeholder="例如：人物档案、事件补述、现场记录" /></label>
-      <button type="submit">发布开放委托</button></form>`;
+    </div>` : taskForm();
   };
   const reload = async () => {
     tasks = (await client.listWorkflowTasks({ includeFinished: true }))
@@ -281,9 +311,11 @@ export const openTaskAdministrationWindow = async ({ createWindow, client, templ
     state.taskControlReady = true;
     root.addEventListener('click', async (event) => {
       const row = event.target.closest('[data-task-id]');
-      if (row) { creating = false; selectedId = row.dataset.taskId; render(); return; }
-      if (event.target.closest('[data-admin-new-task]')) { creating = true; selectedId = null; render(); return; }
+      if (row) { mode = 'view'; selectedId = row.dataset.taskId; render(); return; }
+      if (event.target.closest('[data-admin-new-task]')) { mode = 'new'; render(); return; }
       const selected = tasks.find((task) => task.id === selectedId);
+      if (event.target.closest('[data-admin-edit-task]') && selected) { mode = 'edit'; render(); return; }
+      if (event.target.closest('[data-admin-cancel-edit]')) { mode = 'view'; render(); return; }
       const status = event.target.closest('[data-admin-status]')?.dataset.adminStatus;
       if (selected && status) {
         await client.updateWorkflowTaskStatus(selected.id, status);
@@ -297,14 +329,19 @@ export const openTaskAdministrationWindow = async ({ createWindow, client, templ
       if (!event.target.matches('[data-admin-task-form]')) return;
       event.preventDefault();
       const data = new FormData(event.target);
-      await client.saveWorkflowTask({
-        kind: 'commission', code: data.get('code'), title: data.get('title'), objective: data.get('objective'), format: data.get('format'), templateId: data.get('templateId'), status: 'open',
-      });
-      globalThis.window?.dispatchEvent?.(new CustomEvent('palis:commission-published'));
-      output.textContent = '开放委托已盖章发布。';
-      creating = false;
-      selectedId = null;
-      await reload();
+      const editing = Boolean(data.get('id'));
+      try {
+        const saved = await client.saveWorkflowTask({
+          id: data.get('id'), kind: 'commission', code: data.get('code'), title: data.get('title'), objective: data.get('objective'), format: data.get('format'), templateId: data.get('templateId'), status: data.get('status') || 'open',
+        });
+        globalThis.window?.dispatchEvent?.(new CustomEvent(editing ? 'palis:commission-status-changed' : 'palis:commission-published'));
+        output.textContent = editing ? '委托内容已更新并同步到公开登记册。' : '开放委托已盖章发布。';
+        selectedId = saved.id;
+        mode = 'view';
+        await reload();
+      } catch (error) {
+        output.textContent = error.message || '无法保存委托内容。';
+      }
     });
   }
   await reload();

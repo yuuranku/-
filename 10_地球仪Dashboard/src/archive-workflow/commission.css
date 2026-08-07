@@ -108,6 +108,7 @@
 .task-control textarea { border-radius: 0; }
 .commission-sheet footer button,
 .task-control button { min-height: 36px; padding: 7px 12px; color: #f2f0e7; border: 1px solid #081b17; background: var(--ledger-green); box-shadow: 2px 2px 0 #777b70; font: 700 12px var(--font-body, sans-serif); }
+.commission-sheet footer .commission-sheet__withdraw { color: #5a211d; border-color: #7c3832; background: #e6d2bd; }
 .commission-board__status,
 .task-control > p { margin: 0; padding: 5px 12px; color: #d7e0d5; background: #102824; border-top: 1px solid #718078; font: 11px/1.4 var(--font-mono, monospace); }
 .commission-empty { min-height: 240px; display: grid; place-content: center; gap: 5px; text-align: center; color: var(--ledger-muted); }
@@ -143,6 +144,8 @@
 .task-control__form select,
 .task-control__form textarea { min-height: 36px; padding: 7px 8px; color: var(--ledger-ink); border: 1px solid #686e65; background: rgba(255,255,255,.32); font: 13px var(--font-body, sans-serif); }
 .task-control__form textarea { min-height: 100px; resize: vertical; }
+.task-control__form footer { display: flex; justify-content: flex-end; gap: 7px; }
+.task-control__locked-field { min-height: 36px; display: flex; align-items: center; padding: 7px 8px; color: #4e554f; border: 1px solid #686e65; background: rgba(85, 91, 82, .11); font: 13px var(--font-body, sans-serif); }
 .task-control__form fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px; border: 1px solid #747970; }
 .task-control__form legend { padding: 0 5px; font: 11px var(--font-mono, monospace); }
 

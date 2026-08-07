@@ -51,6 +51,49 @@ test('a commission fixes its archive template and links the accepted clerk draft
   assert.equal(response.status, 'drafting');
 });
 
+test('a clerk can leave a commission after drafting, keep the draft, and accept again', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const task = await harness.repository.saveWorkflowTask({
+    kind: 'commission', code: 'T-WITHDRAW-01', title: '可撤回接收', objective: '登记后暂不开始编写',
+    templateId: '07', status: 'open',
+  });
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  await harness.repository.registerWorkflowTaskResponse(task.id);
+  const draft = await harness.repository.saveDraft({
+    ownerId: 'clerk-1', templateId: '07', title: '保留的草稿', kind: 'new',
+    content: { schemaVersion: 2, templateCode: '07', values: {}, workflowTaskId: task.id },
+  });
+  const withdrawn = await harness.repository.cancelWorkflowTaskResponse(task.id);
+  assert.equal(withdrawn.status, 'withdrawn');
+  assert.equal(withdrawn.contribution_id, null);
+  const state = await harness.inspectState();
+  assert.equal(state.contributions.find((entry) => entry.id === draft.id).draft_content.workflowTaskId, undefined);
+  assert.equal((await harness.repository.listWorkflowTasks()).find((entry) => entry.id === task.id).response_count, 0);
+  const acceptedAgain = await harness.repository.registerWorkflowTaskResponse(task.id);
+  assert.equal(acceptedAgain.status, 'registered');
+});
+
+test('an administrator may amend a commission but cannot swap its archive type after acceptance', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const task = await harness.repository.saveWorkflowTask({
+    kind: 'commission', code: 'T-AMEND-01', title: '原始标题', objective: '原始目标', format: '原始形式',
+    templateId: '07', status: 'open',
+  });
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  await harness.repository.registerWorkflowTaskResponse(task.id);
+  await harness.setPrincipal(LOCAL_PROFILES[0]);
+  const amended = await harness.repository.saveWorkflowTask({
+    ...task, title: '修订标题', objective: '修订目标', format: '修订形式', templateId: '07',
+  });
+  assert.equal(amended.title, '修订标题');
+  await assert.rejects(
+    harness.repository.saveWorkflowTask({ ...amended, template_id: '06' }),
+    /Archive type cannot change/i,
+  );
+});
+
 test('a paused or closed commission cannot keep saving an already linked draft', async () => {
   const harness = await createLocalWorkflowHarness();
   await harness.seedDefaults();
@@ -141,10 +184,17 @@ test('task windows expose independent public, clerk dossier, and administrator e
   assert.match(source, /openClerkDossierWindow/);
   assert.match(source, /openTaskAdministrationWindow/);
   assert.match(source, /registerWorkflowTaskResponse/);
+  assert.match(source, /cancelWorkflowTaskResponse/);
+  assert.match(source, /data-task-action="withdraw"/);
   assert.match(source, /data-task-action="edit"/);
+  assert.match(source, /data-admin-edit-task/);
   assert.match(source, /name="templateId"/);
   assert.match(source, /responseAction/);
-  assert.match(source, /managementAction/);
+  assert.doesNotMatch(source, /managementAction/);
+  assert.doesNotMatch(source, /data-task-action="manage"/);
+  assert.match(source, /继续编辑/);
+  assert.match(source, /退出委托/);
+  assert.match(source, /data-admin-status="sealed"/);
   assert.match(source, /kind: 'commission'/);
   assert.doesNotMatch(source, /<option value="mainline">/);
   assert.match(source, /filter\(\(task\) => task\.kind === 'commission'\)/);

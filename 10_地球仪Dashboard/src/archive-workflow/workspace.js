@@ -4007,9 +4007,6 @@ export function initializeArchiveWorkspace({
           content: existing?.draft_content ?? { workflowTaskId: task.id },
         });
       },
-      onManageTask: () => {
-        if (canReview(context.role)) void openTaskAdministration();
-      },
     });
     window.dispatchEvent(new CustomEvent('palis:commission-read'));
     return state;

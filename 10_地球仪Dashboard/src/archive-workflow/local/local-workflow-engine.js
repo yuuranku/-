@@ -1874,7 +1874,7 @@ export const createLocalWorkflowEngine = ({
   const listWorkflowTasks = ({ includeFinished = false } = {}) => readSnapshot((state) => {
     const statuses = includeFinished ? [...ACTIVE_TASK_STATUSES, 'settling', 'settled', 'sealed'] : ACTIVE_TASK_STATUSES;
     return (state.workflowTasks || []).filter((task) => statuses.includes(task.status)).map((task) => {
-      const responses = (state.workflowTaskResponses || []).filter((response) => response.task_id === task.id);
+      const responses = (state.workflowTaskResponses || []).filter((response) => response.task_id === task.id && response.status !== 'withdrawn');
       return {
         ...task,
         response_count: responses.length,
@@ -1897,6 +1897,10 @@ export const createLocalWorkflowEngine = ({
       const timestamp = now();
       const index = nextState.workflowTasks.findIndex((task) => task.id === normalized.id);
       const previous = index >= 0 ? nextState.workflowTasks[index] : null;
+      if (previous?.kind === 'commission' && previous.template_id !== normalized.template_id
+        && (nextState.workflowTaskResponses || []).some((response) => response.task_id === previous.id && response.status !== 'withdrawn')) {
+        throw workflowError('task_template_locked', 'Archive type cannot change after a clerk accepts this commission');
+      }
       const saved = {
         ...(previous || { created_at: timestamp }), ...normalized,
         created_by: previous?.created_by || principal.id, updated_at: timestamp,
@@ -1940,10 +1944,43 @@ export const createLocalWorkflowEngine = ({
       if (task.status !== 'open') throw workflowError('task_not_open', 'Task is not accepting responses');
       nextState.workflowTaskResponses ||= [];
       const existing = nextState.workflowTaskResponses.find((entry) => entry.task_id === task.id && entry.clerk_id === principal.id);
-      if (existing) return { nextState, result: clone(existing) };
       const timestamp = now();
+      if (existing) {
+        if (existing.status === 'withdrawn' && !existing.contribution_id) {
+          existing.status = 'registered';
+          existing.registered_at = timestamp;
+          existing.updated_at = timestamp;
+        }
+        return { nextState, result: clone(existing) };
+      }
       const response = { id: randomUUID(), task_id: task.id, clerk_id: principal.id, contribution_id: null, status: 'registered', registered_at: timestamp, updated_at: timestamp };
       nextState.workflowTaskResponses.push(response);
+      return { nextState, result: clone(response) };
+    });
+  };
+
+  const cancelWorkflowTaskResponse = async (taskId) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      requireWorkspaceMember(principal);
+      const nextState = clone(currentState);
+      const task = (nextState.workflowTasks || []).find((entry) => entry.id === String(taskId ?? '').trim());
+      if (!task || task.kind !== 'commission') throw workflowError('not_found', 'Commission was not found');
+      const response = (nextState.workflowTaskResponses || []).find((entry) => entry.task_id === task.id && entry.clerk_id === principal.id);
+      if (!response || !['registered', 'drafting', 'changes_requested'].includes(response.status)) {
+        throw workflowError('response_not_withdrawable', 'Only an unsubmitted commission can be withdrawn');
+      }
+      if (response.contribution_id) {
+        const contribution = (nextState.contributions || []).find((entry) => entry.id === response.contribution_id && entry.owner_id === principal.id);
+        if (!contribution) throw workflowError('response_not_withdrawable', 'Commission draft could not be detached');
+        const content = { ...(contribution.draft_content || {}) };
+        delete content.workflowTaskId;
+        contribution.draft_content = content;
+        contribution.updated_at = now();
+        response.contribution_id = null;
+      }
+      response.status = 'withdrawn';
+      response.updated_at = now();
       return { nextState, result: clone(response) };
     });
   };
@@ -2030,6 +2067,7 @@ export const createLocalWorkflowEngine = ({
     saveWorkflowTask,
     updateWorkflowTaskStatus,
     registerWorkflowTaskResponse,
+    cancelWorkflowTaskResponse,
     listWorkflowTaskResponses,
     listClerkDossierEntries,
   };
