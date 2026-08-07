@@ -310,6 +310,76 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     supabase.rpc('list_public_clerk_directory'),
     'Unable to load clerk directory',
   );
+  const honorRibbonUrl = (path) => path && supabase.storage?.from
+    ? supabase.storage.from('honor-ribbons').getPublicUrl(path)?.data?.publicUrl || ''
+    : '';
+  const projectHonorRibbon = (row = {}, award = {}) => ({
+    id: row.id,
+    code: award.code || row.code,
+    title: award.title || row.title,
+    category: award.category || row.category,
+    description: award.description || award.issue_note || row.description,
+    imageUrl: honorRibbonUrl(row.image_path),
+    image_path: row.image_path,
+    award_id: award.id ?? null,
+    issued_at: award.issued_at ?? null,
+    issue_note: award.issue_note ?? '',
+    status: award.status ?? 'active',
+  });
+  const listHonorRibbons = async () => {
+    const rows = await unwrap(
+      supabase.from('honor_ribbons').select('id,code,title,category,description,image_path,created_at').order('code'),
+      'Unable to load honor ribbon directory',
+    );
+    return (rows || []).map((row) => projectHonorRibbon(row));
+  };
+  const listClerkHonors = async (profileId, { includeRevoked = false } = {}) => {
+    let request = supabase.from('clerk_honors')
+      .select('id,clerk_id,ribbon_id,code,title,category,description,issue_note,visibility,status,issued_at,revoked_at,revoke_note,ribbon:honor_ribbons(id,code,title,category,description,image_path)')
+      .eq('clerk_id', requireId(profileId, 'profileId')).order('issued_at', { ascending: false });
+    if (!includeRevoked) request = request.eq('status', 'active');
+    const rows = await unwrap(request, 'Unable to load clerk honor ledger');
+    return (rows || []).map((award) => projectHonorRibbon(award.ribbon || {}, award));
+  };
+  const createHonorRibbon = async ({ file } = {}) => {
+    if (!file?.name || !['image/png', 'image/webp'].includes(String(file.type).toLowerCase()) || file.size > 250 * 1024) {
+      throw new ArchiveWorkflowError('Honor ribbon must be a PNG or WebP no larger than 250KB', { code: 'invalid_honor_ribbon' });
+    }
+    const styleId = (globalThis.crypto?.randomUUID?.() || `${Date.now()}${Math.random()}`)
+      .replaceAll('-', '').replaceAll('.', '').slice(0, 12).toUpperCase();
+    const normalizedCode = `STYLE-${styleId}`;
+    const title = String(file.name ?? '').replace(/\.[^.]+$/, '').trim() || '未命名条带样式';
+    const path = `${normalizedCode}/${globalThis.crypto?.randomUUID?.() || Date.now()}${storageObjectExtension(file.name)}`;
+    const uploaded = await unwrap(supabase.storage.from('honor-ribbons').upload(path, file, { contentType: file.type, upsert: false }), 'Unable to upload honor ribbon');
+    try {
+      const row = await unwrap(supabase.from('honor_ribbons').insert({ code: normalizedCode, title, category: 'style', description: '可复用授信条样式', image_path: uploaded.path || path, image_width: 240, image_height: 72 }).select('id,code,title,category,description,image_path,created_at').single(), 'Unable to create honor ribbon');
+      return projectHonorRibbon(row);
+    } catch (error) {
+      await supabase.storage.from('honor-ribbons').remove?.([uploaded.path || path]);
+      throw error;
+    }
+  };
+  const issueClerkHonor = async ({ clerkId, ribbonId, code, title, category, description } = {}) => {
+    const normalizedCode = String(code ?? '').trim().toUpperCase();
+    const normalizedTitle = String(title ?? '').trim();
+    const normalizedCategory = String(category ?? '').trim();
+    const normalizedDescription = String(description ?? '').trim();
+    if (!/^[A-Z0-9-]{3,32}$/.test(normalizedCode) || !normalizedTitle || !normalizedDescription || !normalizedCategory || normalizedCategory.length > 60) {
+      throw new ArchiveWorkflowError('Honor code, title, category, and description are required', { code: 'invalid_honor_award' });
+    }
+    return unwrap(
+      supabase.from('clerk_honors').insert({
+        clerk_id: requireId(clerkId, 'clerkId'), ribbon_id: requireId(ribbonId, 'ribbonId'),
+        code: normalizedCode, title: normalizedTitle, category: normalizedCategory, description: normalizedDescription,
+        issue_note: '', visibility: 'public',
+      }).select('id').single(),
+      'Unable to issue honor ribbon',
+    );
+  };
+  const revokeClerkHonor = (awardId, revokeNote = '') => unwrap(
+    supabase.from('clerk_honors').update({ status: 'revoked', revoked_at: new Date().toISOString(), revoke_note: String(revokeNote).trim() }).eq('id', requireId(awardId, 'awardId')).select('id').single(),
+    'Unable to revoke honor ribbon',
+  );
   const createUser = ({ email, displayName, role, password }) => {
     if (!['clerk', 'observer'].includes(role)) {
       throw new ArchiveWorkflowError('Only clerk or observer accounts can be created', { code: 'invalid_role' });
@@ -481,10 +551,16 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     supabase.from('archives').delete().eq('id', requireId(archiveId, 'archiveId')).select('id,code,title').single(),
     'Unable to delete archive',
   );
-  const listArchiveContributions = (archiveId) => unwrap(
-    supabase.rpc('list_public_archive_contributions', { p_archive_id: requireId(archiveId, 'archiveId') }),
-    'Unable to load archive contributions',
-  );
+  const listArchiveContributions = async (archiveId) => {
+    const entries = await unwrap(supabase.rpc('list_public_archive_contributions', { p_archive_id: requireId(archiveId, 'archiveId') }), 'Unable to load archive contributions');
+    const ids = [...new Set((entries || []).flatMap((entry) => (entry.versions || []).flatMap((version) => [version.submitter?.id, version.modifier?.id])).filter(Boolean))];
+    const honors = new Map(await Promise.all(ids.map(async (id) => [id, await listClerkHonors(id).catch(() => [])])));
+    return (entries || []).map((entry) => ({ ...entry, versions: (entry.versions || []).map((version) => ({
+      ...version,
+      submitter: version.submitter ? { ...version.submitter, honors: honors.get(version.submitter.id) || [] } : version.submitter,
+      modifier: version.modifier ? { ...version.modifier, honors: honors.get(version.modifier.id) || [] } : version.modifier,
+    })) }));
+  };
   const listArchiveDocuments = (archiveId) => unwrap(
     supabase.rpc('list_archive_documents', {
       p_archive_id: requireId(archiveId, 'archiveId'),
@@ -944,6 +1020,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
   return assertArchiveWorkflowRepository({
     getProfile, listTemplates, listMyDrafts, deleteDraft, saveDraft, submitDraft, listReviewQueue, reviewSubmission,
     publishContribution, inviteUser, listUsers, listClerkDirectory, createUser, updateUserRole, updateUserClerkRank, resetUserPassword, deleteUser,
+    listHonorRibbons, createHonorRibbon, listClerkHonors, issueClerkHonor, revokeClerkHonor,
     sendAnnouncement, listNotifications, markNotificationRead, searchArchives, searchArchiveStoryPages, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
     listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,

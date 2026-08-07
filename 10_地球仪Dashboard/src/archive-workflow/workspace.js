@@ -4018,6 +4018,11 @@ export function initializeArchiveWorkspace({
     return openTaskAdministrationWindow({ createWindow, client, templates: ARCHIVE_TEMPLATES });
   };
 
+  const openHonorAdministration = async () => {
+    const { openHonorAdministrationWindow } = await import('./honor-window.js');
+    return openHonorAdministrationWindow({ createWindow, client });
+  };
+
   const openActiveTaskBoard = async () => {
     const { openActiveTaskBoardWindow } = await import('./commission-window.js');
     const state = await openActiveTaskBoardWindow({
@@ -4115,6 +4120,11 @@ export function initializeArchiveWorkspace({
     if (command === 'task-control' && canReview(context.role)) {
       void runWorkspaceCommand('task-control', openTaskAdministration).catch(() => {
         setWorkspaceMessage('TASK CONTROL LOAD FAILED');
+      });
+    }
+    if (command === 'honor-control' && canReview(context.role)) {
+      void runWorkspaceCommand('honor-control', openHonorAdministration).catch(() => {
+        setWorkspaceMessage('HONOR CONTROL LOAD FAILED');
       });
     }
     if (command === 'review' && canReview(context.role)) void openReviewPanel();

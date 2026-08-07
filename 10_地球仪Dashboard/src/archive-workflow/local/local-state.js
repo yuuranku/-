@@ -19,6 +19,8 @@ export const createEmptyLocalState = () => ({
   mainlineStaffSlots: [],
   workflowTasks: [],
   workflowTaskResponses: [],
+  honorRibbons: [],
+  clerkHonors: [],
 });
 
 export const normalizeLocalState = (state) => {
@@ -42,5 +44,7 @@ export const normalizeLocalState = (state) => {
     ...(Object.hasOwn(state, 'mainlineStaffSlots') ? {} : { mainlineStaffSlots: [] }),
     ...(Object.hasOwn(state, 'workflowTasks') ? {} : { workflowTasks: [] }),
     ...(Object.hasOwn(state, 'workflowTaskResponses') ? {} : { workflowTaskResponses: [] }),
+    ...(Object.hasOwn(state, 'honorRibbons') ? {} : { honorRibbons: [] }),
+    ...(Object.hasOwn(state, 'clerkHonors') ? {} : { clerkHonors: [] }),
   };
 };

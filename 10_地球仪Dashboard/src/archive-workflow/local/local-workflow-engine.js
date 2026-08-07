@@ -967,6 +967,130 @@ export const createLocalWorkflowEngine = ({
     }))
     .sort((left, right) => String(left.display_name).localeCompare(String(right.display_name), 'zh-CN')));
 
+  const normalizeHonorStyleInput = (input = {}) => {
+    const imageUrl = String(input.imageUrl ?? input.image_url ?? '').trim();
+    const fileName = String(input.file?.name ?? '').replace(/\.[^.]+$/, '').trim();
+    if (!imageUrl) throw workflowError('invalid_honor_ribbon', 'Honor ribbon image is required');
+    return { title: fileName || '未命名条带样式', image_url: imageUrl };
+  };
+
+  const normalizeHonorAwardInput = (input = {}) => {
+    const code = String(input.code ?? '').trim().toUpperCase();
+    const title = String(input.title ?? '').trim();
+    const category = String(input.category ?? '').trim();
+    const description = String(input.description ?? '').trim();
+    if (!/^[A-Z0-9-]{3,32}$/.test(code) || !title || !description) {
+      throw workflowError('invalid_honor_award', 'Honor code, title, and description are required');
+    }
+    if (!category || category.length > 60) throw workflowError('invalid_honor_category', 'Honor category is invalid');
+    return { code, title, category, description };
+  };
+
+  const activePublicHonors = (state, profileId) => (state.clerkHonors || [])
+    .filter((award) => award.clerk_id === profileId && award.status === 'active' && award.visibility === 'public')
+    .map((award) => {
+      const ribbon = (state.honorRibbons || []).find((entry) => entry.id === award.ribbon_id);
+      return ribbon ? {
+        ...clone(ribbon),
+        code: award.code || ribbon.code,
+        title: award.title || ribbon.title,
+        category: award.category || ribbon.category,
+        description: award.description || award.issue_note || ribbon.description,
+        imageUrl: ribbon.image_url,
+        award_id: award.id,
+        issued_at: award.issued_at,
+        issue_note: award.issue_note,
+        status: award.status,
+      } : null;
+    }).filter(Boolean);
+
+  const listHonorRibbons = () => readSnapshot((state) => (state.honorRibbons || [])
+    .map((ribbon) => ({ ...clone(ribbon), imageUrl: ribbon.image_url }))
+    .sort((left, right) => String(left.code).localeCompare(String(right.code))));
+
+  const createHonorRibbon = async (input = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const payload = normalizeHonorStyleInput(input);
+      const ribbon = {
+        id: randomUUID(),
+        code: `STYLE-${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`,
+        title: payload.title,
+        category: 'style',
+        description: '可复用授信条样式',
+        image_url: payload.image_url,
+        created_by: principal.id,
+        created_at: now(),
+        updated_at: now(),
+      };
+      nextState.honorRibbons.push(ribbon);
+      appendAudit(nextState, principal, 'create_honor_ribbon', 'honor_ribbon', ribbon.id, { code: ribbon.code, category: ribbon.category }, ribbon.created_at);
+      return { nextState, result: clone(ribbon) };
+    });
+  };
+
+  const listClerkHonors = (profileId, { includeRevoked = false } = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    const targetId = requireWorkspaceId(profileId, 'profileId');
+    if (principal.role !== 'admin' && principal.id !== targetId) {
+      throw workflowError('permission_denied', 'Clerks can only read their own honors');
+    }
+    return readSnapshot((state) => (state.clerkHonors || [])
+      .filter((award) => award.clerk_id === targetId && (includeRevoked || award.status === 'active'))
+      .map((award) => {
+        const ribbon = (state.honorRibbons || []).find((entry) => entry.id === award.ribbon_id);
+        return ribbon ? {
+          ...clone(ribbon),
+          code: award.code || ribbon.code,
+          title: award.title || ribbon.title,
+          category: award.category || ribbon.category,
+          description: award.description || award.issue_note || ribbon.description,
+          imageUrl: ribbon.image_url,
+          award_id: award.id,
+          issued_at: award.issued_at,
+          issue_note: award.issue_note,
+          status: award.status,
+          revoked_at: award.revoked_at ?? null,
+          revoke_note: award.revoke_note ?? '',
+        } : null;
+      }).filter(Boolean)
+      .sort((left, right) => String(right.issued_at).localeCompare(String(left.issued_at))));
+  };
+
+  const issueClerkHonor = async ({ clerkId, ribbonId, code, title, category, description } = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const profile = nextState.profiles.find((entry) => entry.id === String(clerkId ?? '').trim());
+      const ribbon = nextState.honorRibbons.find((entry) => entry.id === String(ribbonId ?? '').trim());
+      if (!profile || profile.enabled === false || !ribbon) throw workflowError('not_found', 'Clerk or honor ribbon was not found');
+      const payload = normalizeHonorAwardInput({ code, title, category, description });
+      const award = {
+        id: randomUUID(), clerk_id: profile.id, ribbon_id: ribbon.id, issued_by: principal.id, ...payload,
+        issue_note: '', visibility: 'public', status: 'active', issued_at: now(), revoked_at: null, revoke_note: '',
+      };
+      nextState.clerkHonors.push(award);
+      appendAudit(nextState, principal, 'issue_clerk_honor', 'clerk_honor', award.id, { clerk_id: profile.id, ribbon_id: ribbon.id }, award.issued_at);
+      return { nextState, result: clone(award) };
+    });
+  };
+
+  const revokeClerkHonor = async (awardId, revokeNote = '') => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const award = nextState.clerkHonors.find((entry) => entry.id === String(awardId ?? '').trim());
+      if (!award) throw workflowError('not_found', 'Honor award was not found');
+      award.status = 'revoked'; award.revoked_at = now(); award.revoke_note = String(revokeNote).trim();
+      appendAudit(nextState, principal, 'revoke_clerk_honor', 'clerk_honor', award.id, null, award.revoked_at);
+      return { nextState, result: clone(award) };
+    });
+  };
+
   const createUser = async (input = {}) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
@@ -1270,13 +1394,17 @@ export const createLocalWorkflowEngine = ({
 
   const versionPerson = (state, version, prefix) => {
     const existing = version[prefix];
-    if (existing !== undefined) return clone(existing);
+    if (existing !== undefined) {
+      const person = clone(existing);
+      return person ? { ...person, honors: activePublicHonors(state, person.id) } : person;
+    }
     const id = version[`${prefix}_id`];
     if (!id) return null;
     const profile = state.profiles.find((entry) => entry.id === id);
     return {
       id,
       display_name: version[`${prefix}_name`] ?? profile?.display_name ?? id,
+      honors: activePublicHonors(state, id),
     };
   };
 
@@ -2035,6 +2163,11 @@ export const createLocalWorkflowEngine = ({
     inviteUser,
     listUsers,
     listClerkDirectory,
+    listHonorRibbons,
+    createHonorRibbon,
+    listClerkHonors,
+    issueClerkHonor,
+    revokeClerkHonor,
     createUser,
     updateUserRole,
     updateUserClerkRank,

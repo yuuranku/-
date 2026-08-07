@@ -1219,6 +1219,20 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
 
   const desktopShortcutLayoutEnabled = () => window.matchMedia('(min-width: 761px)').matches;
 
+  function desktopShortcutLayoutIsReady() {
+    if (desktop.hidden || !desktopShortcutRail) return false;
+    const railBounds = desktopShortcutRail.getBoundingClientRect();
+    return railBounds.width > 180 && railBounds.height > 140;
+  }
+
+  function shortcutLayoutHasCollapsed(savedLayout, visibleShortcuts) {
+    const positions = visibleShortcuts
+      .map((entry) => savedLayout[entry.dataset.workspaceCommand])
+      .filter((position) => Number.isFinite(position?.left) && Number.isFinite(position?.top));
+    if (positions.length < 2) return false;
+    return new Set(positions.map((position) => `${position.left}:${position.top}`)).size === 1;
+  }
+
   function selectDesktopShortcut(entry) {
     desktopShortcuts.forEach((button) => button.classList.toggle('is-selected', button === entry));
     selectedDesktopShortcut = entry;
@@ -1249,7 +1263,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     );
   }
 
-  function applyDesktopShortcutLayout({ persist = false } = {}) {
+  function applyDesktopShortcutLayout({ persist = false, retry = 0 } = {}) {
     if (!desktopShortcutRail) return;
     if (!desktopShortcutLayoutEnabled()) {
       desktopShortcutArrange.hidden = true;
@@ -1259,9 +1273,26 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       });
       return;
     }
+
+    // A hidden desktop reports a zero-sized rail.  Persisting a layout at that
+    // moment previously clamped every shortcut to the same top-left point.
+    // Wait for the open desktop to have a measurable drawing surface instead.
+    if (!desktopShortcutLayoutIsReady()) {
+      desktopShortcutArrange.hidden = true;
+      if (!desktop.hidden && retry < 3) {
+        requestAnimationFrame(() => applyDesktopShortcutLayout({ persist, retry: retry + 1 }));
+      }
+      return;
+    }
+
     desktopShortcutArrange.hidden = false;
-    const layout = readDesktopShortcutLayout();
     const visibleShortcuts = desktopShortcuts.filter((entry) => !entry.hidden);
+    const savedLayout = readDesktopShortcutLayout();
+    // Repair the exact corrupted state created by the old zero-size write.
+    // A deliberately overlapped pair remains possible; only a whole desktop
+    // collapsed to one coordinate is reset.
+    const repairCollapsedLayout = shortcutLayoutHasCollapsed(savedLayout, visibleShortcuts);
+    const layout = repairCollapsedLayout ? {} : savedLayout;
     let changed = false;
     visibleShortcuts.forEach((entry, index) => {
       const command = entry.dataset.workspaceCommand;
@@ -1276,7 +1307,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
         changed = true;
       }
     });
-    if (persist && changed) writeDesktopShortcutLayout(layout);
+    if ((persist || repairCollapsedLayout) && changed) writeDesktopShortcutLayout(layout);
   }
 
   function arrangeDesktopShortcuts() {
@@ -1871,7 +1902,9 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     entry.title = '单击选择，双击打开；按住拖动以移动';
     installDesktopShortcutDrag(entry);
   });
-  window.addEventListener('resize', () => applyDesktopShortcutLayout({ persist: true }));
+  window.addEventListener('resize', () => {
+    if (!desktop.hidden || !desktopShortcutLayoutEnabled()) applyDesktopShortcutLayout({ persist: true });
+  });
   window.addEventListener('palis:session-change', () => {
     if (!desktop.hidden) requestAnimationFrame(() => applyDesktopShortcutLayout());
   });
@@ -2134,6 +2167,7 @@ let selectedMapAt = 0;
 let polarDiagnosticStarted = false;
 let polarDiagnosticComplete = false;
 let polarDiagnosticMode = '';
+let polarDiagnosticRun = 0;
 let archiveDirectory = null;
 let archiveTransitioning = false;
 let archiveTransitionId = 0;
@@ -2787,6 +2821,13 @@ function commitRestrictedOverviewSync(runId, channelTotal) {
 
 const diagnosticWait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
 
+const isPolarDiagnosticActiveRun = (runId) => runId === polarDiagnosticRun;
+const isPolarDiagnosticAudible = (runId) => isPolarDiagnosticActiveRun(runId) && currentChapter === 3;
+
+function emitPolarDiagnosticCue(runId, name, minInterval) {
+  if (isPolarDiagnosticAudible(runId)) emitLoadingCue(name, minInterval);
+}
+
 function setDiagnosticProgress(completed, total, title, channel, log) {
   const percent = Math.round((completed / total) * 100);
   diagnosticProgress.style.width = `${percent}%`;
@@ -2808,6 +2849,7 @@ function setDiagnosticRow(key, state, value) {
 async function runPolarDiagnostic() {
   if (polarDiagnosticStarted || !polarDiagnostic) return;
   polarDiagnosticStarted = true;
+  const runId = ++polarDiagnosticRun;
   polarDiagnosticMode = isPreviewAccess() ? 'preview' : 'authenticated';
   polarDiagnosticComplete = false;
   Object.keys(polarDiagnosticState).forEach((key) => { polarDiagnosticState[key] = 0; });
@@ -2821,7 +2863,7 @@ async function runPolarDiagnostic() {
   let completed = 0;
 
   polarDiagnostic.hidden = false;
-  emitLoadingCue('window', 260);
+  emitPolarDiagnosticCue(runId, 'window', 260);
   polarDiagnostic.classList.remove('is-dismissed', 'is-complete', 'is-failed');
   focusLocalWindow(localWindowStates.get('polar-self-test'));
   polarDiagnostic.dataset.phase = 'standby';
@@ -2841,7 +2883,7 @@ async function runPolarDiagnostic() {
   document.querySelector('[data-layer="stations"] small').textContent = '20 座公开站点／2 个行动节点';
 
   if (isPreviewAccess()) {
-    await runRestrictedPolarDiagnostic(totals);
+    await runRestrictedPolarDiagnostic(totals, runId);
     return;
   }
 
@@ -2859,11 +2901,12 @@ async function runPolarDiagnostic() {
     setDiagnosticRow('routes', 'complete', `${totals.routes} / ${totals.routes}`);
     setDiagnosticRow('weather', 'complete', '正常');
     setDiagnosticRow('storm', 'complete', '正常');
-    finishPolarDiagnostic(allChecks);
+    finishPolarDiagnostic(allChecks, runId);
     return;
   }
 
   await diagnosticWait(520);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   const phases = [
     { key: 'stations', total: totals.stations, delay: 160, title: '正在轮询科研站通信', channel: 'CHANNEL 01', log: 'PING SURFACE STATION' },
     { key: 'entrances', total: totals.entrances, delay: 145, title: '正在校验入口信标', channel: 'CHANNEL 02', log: 'QUERY DESCENT BEACON' },
@@ -2874,8 +2917,9 @@ async function runPolarDiagnostic() {
   for (const phase of phases) {
     polarDiagnostic.dataset.phase = phase.key;
     setDiagnosticRow(phase.key, 'active', `00 / ${String(phase.total).padStart(2, '0')}`);
-    emitLoadingCue('scan', 130);
+    emitPolarDiagnosticCue(runId, 'scan', 130);
     for (let index = 0; index < phase.total; index += 1) {
+      if (!isPolarDiagnosticActiveRun(runId)) return;
       polarDiagnosticState[phase.key] = index + 1;
       completed += 1;
       const diagnosticItem = getDiagnosticMapItem(phase.key, index);
@@ -2891,40 +2935,47 @@ async function runPolarDiagnostic() {
       }
       setDiagnosticRow(phase.key, 'active', `${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
       setDiagnosticProgress(completed, allChecks, phase.title, phase.channel, `${phase.log} ${String(index + 1).padStart(2, '0')} / RESPONSE NORMAL`);
-      emitLoadingCue('telemetry', 88);
+      emitPolarDiagnosticCue(runId, 'telemetry', 88);
       taskStatus.textContent = `${phase.title} / ${index + 1} OF ${phase.total}`;
       await diagnosticWait(phase.delay);
+      if (!isPolarDiagnosticActiveRun(runId)) return;
     }
     setDiagnosticRow(phase.key, 'complete', `${String(phase.total).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
     await diagnosticWait(310);
+    if (!isPolarDiagnosticActiveRun(runId)) return;
   }
 
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.dataset.phase = 'weather';
   setDiagnosticRow('weather', 'active', '校准中');
-  emitLoadingCue('scan', 160);
+  emitPolarDiagnosticCue(runId, 'scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在校准天气遥测', 'CHANNEL 04', 'SYNC PRESSURE / WIND / TEMPERATURE TELEMETRY');
   taskStatus.textContent = '天气遥测 / 校准中';
   await diagnosticWait(720);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnosticState.weather = 1;
   completed += 1;
   setDiagnosticRow('weather', 'complete', '正常');
   setDiagnosticProgress(completed, allChecks, '天气遥测响应正常', 'CHANNEL 04', 'WEATHER TELEMETRY NORMAL');
   await diagnosticWait(360);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
 
   polarDiagnostic.dataset.phase = 'storm';
   setDiagnosticRow('storm', 'active', '扫描中');
-  emitLoadingCue('scan', 160);
+  emitPolarDiagnosticCue(runId, 'scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在检查风暴监控阵列', 'CHANNEL 05', 'SCAN STORM WATCH SECTORS');
   taskStatus.textContent = '风暴监控 / 扫描扇区';
   await diagnosticWait(820);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnosticState.storm = 1;
   completed += 1;
   setDiagnosticRow('storm', 'complete', '正常');
-  finishPolarDiagnostic(allChecks);
+  finishPolarDiagnostic(allChecks, runId);
 }
 
-async function finishPolarDiagnostic(allChecks) {
-  emitLoadingCue('verified', 360);
+async function finishPolarDiagnostic(allChecks, runId = polarDiagnosticRun) {
+  if (!isPolarDiagnosticActiveRun(runId)) return;
+  emitPolarDiagnosticCue(runId, 'verified', 360);
   polarDiagnosticComplete = true;
   polarDiagnostic.dataset.phase = 'complete';
   polarDiagnostic.classList.add('is-complete');
@@ -2937,12 +2988,15 @@ async function finishPolarDiagnostic(allChecks) {
   setDiagnosticProgress(allChecks, allChecks, '南极网络检查完成', 'CHANNEL READY', 'ALL POLAR SYSTEMS NORMAL');
   taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
   await diagnosticWait(reducedMotion ? 20 : 1250);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.classList.add('is-dismissed');
   await diagnosticWait(reducedMotion ? 20 : 520);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.hidden = true;
 }
 
-async function runRestrictedPolarDiagnostic(totals) {
+async function runRestrictedPolarDiagnostic(totals, runId = polarDiagnosticRun) {
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   const shortWait = reducedMotion ? 10 : 90;
   const stationWait = reducedMotion ? 10 : 150;
   const entranceWait = reducedMotion ? 10 : 130;
@@ -2955,6 +3009,7 @@ async function runRestrictedPolarDiagnostic(totals) {
   polarDiagnostic.dataset.phase = 'stations';
   setDiagnosticRow('stations', 'active', `00 / ${String(totals.stations).padStart(2, '0')}`);
   for (let index = 0; index < totals.stations; index += 1) {
+    if (!isPolarDiagnosticActiveRun(runId)) return;
     const station = RESEARCH_STATIONS[index];
     polarDiagnosticState.stations = index + 1;
     completed += 1;
@@ -2967,18 +3022,21 @@ async function runRestrictedPolarDiagnostic(totals) {
       `STATION ${String(index + 1).padStart(2, '0')}`,
       `PING ${station.code} / NO RESPONSE`,
     );
-    emitLoadingCue('telemetry', 88);
+    emitPolarDiagnosticCue(runId, 'telemetry', 88);
     taskStatus.textContent = `科研站检索 / ${index + 1} OF ${totals.stations}`;
     await diagnosticWait(stationWait);
+    if (!isPolarDiagnosticActiveRun(runId)) return;
     if (!reducedMotion) selectMapItem(station, { transient: true, diagnosticStatus: '离线' });
   }
   setDiagnosticRow('stations', 'failed', `${totals.stations} 离线`);
   setDiagnosticProgress(completed, allChecks, '所有科研站均离线', 'CHANNEL 01', 'SURFACE STATION UPLINK FAILED');
 
   await diagnosticWait(shortWait * 2);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.dataset.phase = 'entrances';
   setDiagnosticRow('entrances', 'active', `00 / ${String(totals.entrances).padStart(2, '0')}`);
   for (let index = 0; index < totals.entrances; index += 1) {
+    if (!isPolarDiagnosticActiveRun(runId)) return;
     const entrance = MAPPED_ABYSS_POINTS[index];
     polarDiagnosticState.entrances = index + 1;
     completed += 1;
@@ -2991,15 +3049,17 @@ async function runRestrictedPolarDiagnostic(totals) {
       `BEACON ${String(index + 1).padStart(2, '0')}`,
       `QUERY ${entrance.code} / RECORD NOT FOUND`,
     );
-    emitLoadingCue('telemetry', 88);
+    emitPolarDiagnosticCue(runId, 'telemetry', 88);
     taskStatus.textContent = `入口信标检索 / ${index + 1} OF ${totals.entrances}`;
     await diagnosticWait(entranceWait);
+    if (!isPolarDiagnosticActiveRun(runId)) return;
     if (!reducedMotion) selectMapItem(entrance, { transient: true, diagnosticStatus: '检索失败' });
   }
   setDiagnosticRow('entrances', 'failed', `${totals.entrances} 失败`);
   setDiagnosticProgress(completed, allChecks, '所有入口信标检索失败', 'CHANNEL 02', 'DESCENT BEACON LOOKUP FAILED');
 
   await diagnosticWait(shortWait * 2);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   for (const phase of [
     { key: 'supplyRoutes', total: totals.supplyRoutes, title: '正在检索南极物资保障航线', label: '国际补给航线' },
     { key: 'routes', total: totals.routes, title: '正在检索主要南极航线', label: '内陆转运航线' },
@@ -3007,6 +3067,7 @@ async function runRestrictedPolarDiagnostic(totals) {
     polarDiagnostic.dataset.phase = phase.key;
     setDiagnosticRow(phase.key, 'active', `00 / ${String(phase.total).padStart(2, '0')}`);
     for (let index = 0; index < phase.total; index += 1) {
+      if (!isPolarDiagnosticActiveRun(runId)) return;
       const route = getDiagnosticRoute(phase.key, index);
       const mapItem = getDiagnosticMapItem(phase.key, index);
       polarDiagnosticState[phase.key] = index + 1;
@@ -3020,13 +3081,15 @@ async function runRestrictedPolarDiagnostic(totals) {
         `ROUTE ${String(index + 1).padStart(2, '0')}`,
         `TRACE ${route?.nodes?.join(' > ') || route?.label || 'UNKNOWN'} / ROUTE LOST`,
       );
-      emitLoadingCue('telemetry', 88);
+      emitPolarDiagnosticCue(runId, 'telemetry', 88);
       taskStatus.textContent = `${phase.label}检索 / ${index + 1} OF ${phase.total}`;
       await diagnosticWait(routeWait);
+      if (!isPolarDiagnosticActiveRun(runId)) return;
       if (!reducedMotion && mapItem) selectMapItem(mapItem, { transient: true, diagnosticStatus: '路线未知' });
     }
     setDiagnosticRow(phase.key, 'failed', `${phase.total} 未知`);
     await diagnosticWait(shortWait * 2);
+    if (!isPolarDiagnosticActiveRun(runId)) return;
   }
   setDiagnosticProgress(completed, allChecks, '所有航线均未知', 'CHANNEL 04', 'ROUTE STATUS UNKNOWN');
 
@@ -3036,13 +3099,14 @@ async function runRestrictedPolarDiagnostic(totals) {
   setDiagnosticProgress(completed, allChecks, '天气遥测资料缺失', 'CHANNEL 04', 'WEATHER TELEMETRY RECORD NOT FOUND');
 
   await diagnosticWait(shortWait * 2);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.dataset.phase = 'storm';
   setDiagnosticRow('storm', 'failed', '未收录');
   completed += 1;
   setDiagnosticProgress(completed, allChecks, '网络资料检索失败', 'DATA OFFLINE', 'ALL STATIONS OFFLINE / ROUTES UNKNOWN');
 
   polarDiagnostic.dataset.phase = 'failed';
-  emitLoadingCue('error', 360);
+  emitPolarDiagnosticCue(runId, 'error', 360);
   polarDiagnostic.classList.add('is-failed');
   polarLayer.classList.remove('is-diagnostic-running', 'is-network-ready');
   polarLayer.classList.add('is-network-offline');
@@ -3052,8 +3116,10 @@ async function runRestrictedPolarDiagnostic(totals) {
   document.querySelector('[data-layer="stations"] small').textContent = '20 座站点离线／补给路线未知';
   taskStatus.textContent = '南极网络离线 / 补给路线未知';
   await diagnosticWait(reducedMotion ? 20 : 1250);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.classList.add('is-dismissed');
   await diagnosticWait(reducedMotion ? 20 : 520);
+  if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.hidden = true;
 }
 

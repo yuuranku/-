@@ -14,6 +14,11 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'updateUserRole',
   'resetUserPassword',
   'deleteUser',
+  'listHonorRibbons',
+  'createHonorRibbon',
+  'listClerkHonors',
+  'issueClerkHonor',
+  'revokeClerkHonor',
   'sendAnnouncement',
   'listNotifications',
   'markNotificationRead',
@@ -242,6 +247,16 @@ export const assertArchiveWorkflowResult = (method, result) => {
         }
       }
       return result;
+    case 'listHonorRibbons':
+    case 'listClerkHonors':
+      for (const [index, honor] of requireList(result, method).entries()) {
+        requireFields(honor, ['id', 'code', 'title', 'category', 'description'], `${method}[${index}].`);
+      }
+      return result;
+    case 'createHonorRibbon':
+    case 'issueClerkHonor':
+    case 'revokeClerkHonor':
+      return requireFields(result, ['id']);
     case 'sendAnnouncement':
       return requireFields(result, ['id', 'subject', 'created_at', 'message', 'kind', 'read_at', 'sender_label']);
     case 'markNotificationRead':

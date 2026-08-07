@@ -4285,6 +4285,19 @@ body:not([data-operator-role='clerk']):not([data-operator-role='admin']) .offici
   border-bottom: 1px dotted #77776c;
   font: 11px/1.4 var(--font-mono);
 }
+
+.archive-honor-ribbons { display: inline-flex; gap: 4px; align-items: center; margin: 4px 0 0 6px; vertical-align: middle; }
+.archive-honor-ribbon { position: relative; display: inline-flex; width: 60px; height: 18px; padding: 0; overflow: visible; border: 1px solid rgba(8, 18, 20, .65); border-radius: 0; background: #151a1a; box-shadow: 1px 1px 0 rgba(0, 0, 0, .34); cursor: pointer; }
+.archive-honor-ribbon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.archive-honor-ribbon__detail { position: absolute; z-index: 30; bottom: calc(100% + 7px); left: 0; display: none; width: 210px; padding: 8px; color: #e8eee6; border: 1px solid #81988f; background: #102723; box-shadow: 3px 4px 0 rgba(0, 0, 0, .34); font: 10px/1.35 var(--font-body); text-align: left; }
+.archive-honor-ribbon__detail::after { position: absolute; bottom: -5px; left: 12px; width: 8px; height: 8px; border-right: 1px solid #81988f; border-bottom: 1px solid #81988f; background: #102723; content: ''; transform: rotate(45deg); }
+.archive-honor-ribbon__detail b, .archive-honor-ribbon__detail i, .archive-honor-ribbon__detail small { display: block; position: relative; z-index: 1; }
+.archive-honor-ribbon__detail b { color: #f5e5a7; font: 700 9px/1.25 var(--font-mono); }
+.archive-honor-ribbon__detail i { margin: 3px 0; color: #9fb9b0; font-style: normal; }
+.archive-honor-ribbon__detail small { color: #e8eee6; }
+.archive-honor-ribbon:hover .archive-honor-ribbon__detail, .archive-honor-ribbon:focus-visible .archive-honor-ribbon__detail { display: block; }
+.archive-honor-ribbon:focus-visible { outline: 2px solid #d8a834; outline-offset: 2px; }
+.archive-honor-ribbon--more { width: auto; min-width: 26px; padding: 0 4px; color: #ece8d7; border-color: #6c756f; background: #31413c; font: 700 9px/1 var(--font-mono); }
 .archive-version-history--amendments li { padding: 0; }
 .archive-version-history--amendments button {
   display: grid;

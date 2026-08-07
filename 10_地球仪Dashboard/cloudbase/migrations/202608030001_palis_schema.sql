@@ -4295,3 +4295,258 @@ create policy workflow_task_responses_owner_update on public.workflow_task_respo
     and exists (select 1 from public.workflow_tasks where id = task_id and status = 'open')
   )
 )
+
+-- Source migration: 202608060001_repair_supplement_attachment_role.sql
+begin;
+
+-- Production repair: some deployed databases still have the pre-supplement
+-- attachment trigger. Reinstall the current rule so a normal evidence file
+-- (role = supplement) is not mistaken for a public-layout media slot.
+create or replace function public.validate_archive_attachment_slot()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_category text;
+  v_limit integer;
+  v_count integer;
+begin
+  new.role := coalesce(nullif(trim(new.role), ''), 'supplement');
+
+  if new.role = 'supplement' then
+    if new.byte_size < 1 or new.byte_size > 1048576 then
+      raise exception using
+        errcode = '23514',
+        message = 'supplement attachment must be between 1 byte and 1MB';
+    end if;
+    return new;
+  end if;
+
+  if new.mime_type <> 'image/webp' or new.byte_size < 1 or new.byte_size > 819200 then
+    raise exception using
+      errcode = '23514',
+      message = 'archive media must be WebP and no larger than 800KB';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(new.contribution_id::text, 0));
+
+  select coalesce(
+    contribution.draft_content ->> 'category',
+    template.category,
+    archive.category
+  )
+  into v_category
+  from public.archive_contributions contribution
+  left join public.archive_templates template on template.id = contribution.template_id
+  left join public.archives archive on archive.id = contribution.archive_id
+  where contribution.id = new.contribution_id;
+
+  if new.role = 'portrait' then
+    if v_category <> 'person' then
+      raise exception using errcode = '23514', message = 'portrait is only valid for person archives';
+    end if;
+    v_limit := 1;
+  elsif new.role in ('event-cover', 'event-evidence') then
+    if v_category <> 'event' then
+      raise exception using errcode = '23514', message = 'event media is only valid for event archives';
+    end if;
+    v_limit := case when new.role = 'event-cover' then 1 else 6 end;
+  elsif new.role in ('anomaly-cover', 'anomaly-image') then
+    if v_category <> 'anomaly' then
+      raise exception using errcode = '23514', message = 'anomaly media is only valid for anomaly archives';
+    end if;
+    v_limit := case when new.role = 'anomaly-cover' then 1 else 6 end;
+  elsif new.role in ('species-cover', 'species-image') then
+    if v_category <> 'species' then
+      raise exception using errcode = '23514', message = 'species media is only valid for species archives';
+    end if;
+    v_limit := case when new.role = 'species-cover' then 1 else 6 end;
+  elsif new.role = 'country-flag' then
+    if v_category <> 'country' then
+      raise exception using errcode = '23514', message = 'country-flag is only valid for country archives';
+    end if;
+    v_limit := 1;
+  elsif new.role = 'organization-cover' then
+    if v_category <> 'organization' then
+      raise exception using errcode = '23514', message = 'organization-cover is only valid for organization archives';
+    end if;
+    v_limit := 1;
+  elsif new.role = 'station-cover' then
+    if v_category <> 'station' then
+      raise exception using errcode = '23514', message = 'station-cover is only valid for station archives';
+    end if;
+    v_limit := 1;
+  elsif new.role = 'entrance-cover' then
+    if v_category <> 'entrance' then
+      raise exception using errcode = '23514', message = 'entrance-cover is only valid for entrance archives';
+    end if;
+    v_limit := 1;
+  elsif new.role = 'ecology-cover' then
+    if v_category <> 'ecology' then
+      raise exception using errcode = '23514', message = 'ecology-cover is only valid for ecology archives';
+    end if;
+    v_limit := 1;
+  else
+    raise exception using errcode = '23514', message = 'unknown archive media role';
+  end if;
+
+  select count(*) into v_count
+  from public.archive_attachments attachment
+  where attachment.contribution_id = new.contribution_id
+    and attachment.role = new.role
+    and attachment.id <> coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid);
+
+  if v_count >= v_limit then
+    raise exception using errcode = '23514', message = 'archive media slot limit exceeded';
+  end if;
+
+  return new;
+end;
+$$;
+
+update storage.buckets
+set file_size_limit = 1048576
+where id = 'archive-attachments';
+
+commit
+
+-- Source migration: 202608070001_commission_withdraw_and_amend.sql
+-- A clerk or administrator may leave an unsubmitted commission. When work has
+-- begun, the draft is detached by the RPC below rather than being deleted.
+create or replace function public.enforce_workflow_response_lifecycle()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  linked_task public.workflow_tasks%rowtype;
+begin
+  select * into linked_task from public.workflow_tasks where id = new.task_id;
+
+  if new.status = 'withdrawn' then
+    if old.status not in ('registered', 'drafting', 'changes_requested')
+      or new.contribution_id is not null
+      or linked_task.kind <> 'commission' then
+      raise exception 'Only an unsubmitted commission can be withdrawn' using errcode = 'P0001';
+    end if;
+  end if;
+
+  if old.status = 'withdrawn' and new.status = 'registered' then
+    if old.contribution_id is not null or linked_task.kind <> 'commission' or linked_task.status <> 'open' then
+      raise exception 'Commission cannot be accepted again' using errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists workflow_task_responses_lifecycle on public.workflow_task_responses;
+
+create trigger workflow_task_responses_lifecycle
+before update of status, contribution_id on public.workflow_task_responses
+for each row execute function public.enforce_workflow_response_lifecycle();
+
+-- Detach a participant's draft and then mark the response withdrawn in one
+-- transaction. Both clerks and administrators participate through auth.uid()::uuid.
+create or replace function public.withdraw_workflow_task_response(target_task_id uuid)
+returns public.workflow_task_responses
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  selected_response public.workflow_task_responses%rowtype;
+  selected_task public.workflow_tasks%rowtype;
+begin
+  select * into selected_response
+  from public.workflow_task_responses
+  where task_id = target_task_id and clerk_id = auth.uid()::uuid
+  for update;
+
+  if not found then
+    raise exception 'Commission response was not found' using errcode = 'P0001';
+  end if;
+
+  select * into selected_task from public.workflow_tasks where id = selected_response.task_id;
+  if selected_task.kind <> 'commission'
+    or selected_response.status not in ('registered', 'drafting', 'changes_requested') then
+    raise exception 'Only an unsubmitted commission can be withdrawn' using errcode = 'P0001';
+  end if;
+
+  if selected_response.contribution_id is not null then
+    update public.archive_contributions
+    set draft_content = coalesce(draft_content, '{}'::jsonb) - 'workflowTaskId', updated_at = now()
+    where id = selected_response.contribution_id and owner_id = auth.uid()::uuid;
+    if not found then
+      raise exception 'Commission draft could not be detached' using errcode = 'P0001';
+    end if;
+  end if;
+
+  update public.workflow_task_responses
+  set status = 'withdrawn', contribution_id = null, updated_at = now()
+  where id = selected_response.id
+  returning * into selected_response;
+  return selected_response;
+end;
+$$;
+
+grant execute on function public.withdraw_workflow_task_response(uuid) to authenticated;
+
+-- An accepted commission owns a specific archive template. Its prose may be
+-- corrected by an administrator, but its type may not be swapped underneath
+-- an already accepted or drafted response.
+create or replace function public.enforce_commission_template_lock()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.kind = 'commission'
+    and new.template_id is distinct from old.template_id
+    and exists (
+      select 1 from public.workflow_task_responses
+      where task_id = old.id and status <> 'withdrawn'
+    ) then
+    raise exception 'Archive type cannot change after a clerk accepts this commission' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists workflow_tasks_commission_template_lock on public.workflow_tasks;
+
+create trigger workflow_tasks_commission_template_lock
+before update of template_id on public.workflow_tasks
+for each row execute function public.enforce_commission_template_lock();
+
+-- Withdrawn attempts remain in the audit trail, but are absent from the live
+-- commission register's counts.
+drop function if exists public.list_public_workflow_tasks(boolean);
+
+create function public.list_public_workflow_tasks(include_finished boolean default false)
+returns table (
+  id uuid, code text, kind text, title text, objective text, format text, template_id text, status text,
+  version_code text, part smallint, stage smallint, slot_id uuid, slot_label text,
+  response_count bigint, submission_count bigint,
+  opened_at timestamptz, closed_at timestamptz, settled_at timestamptz,
+  created_at timestamptz, updated_at timestamptz
+)
+language sql security definer set search_path = public, pg_temp stable as $$
+  select task.id, task.code, task.kind, task.title, task.objective, task.format, task.template_id,
+    task.status, task.version_code, task.part, task.stage, task.slot_id, task.slot_label,
+    count(response.id) filter (where response.status <> 'withdrawn') as response_count,
+    count(response.id) filter (where response.status in ('submitted', 'archived', 'settled')) as submission_count,
+    task.opened_at, task.closed_at, task.settled_at, task.created_at, task.updated_at
+  from public.workflow_tasks task
+  left join public.workflow_task_responses response on response.task_id = task.id
+  where task.status in ('open', 'paused', 'closed')
+    or (include_finished and task.status in ('settling', 'settled', 'sealed'))
+  group by task.id
+  order by coalesce(task.opened_at, task.updated_at) desc, task.code
+$$;
+
+grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated

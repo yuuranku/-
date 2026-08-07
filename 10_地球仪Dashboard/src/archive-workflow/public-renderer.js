@@ -1,6 +1,7 @@
 import { normalizeEditorDocument } from './editor-document.js';
 import { normalizeArchiveMedia } from './media.js';
 import { renderInlineText } from './inline-text-format.js';
+import { honorCategory } from './honors.js';
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -946,6 +947,35 @@ const modifierNames = (contribution, version) => {
   return [...new Set(names)];
 };
 
+const modifierProfiles = (contribution, version) => {
+  const profiles = [
+    ...(contribution?.versions || []).map((entry) => entry?.modifier),
+    version?.modifier,
+  ].filter(Boolean);
+  const seen = new Set();
+  return profiles.filter((profile) => {
+    const key = String(profile?.id || displayName(profile, '')).trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const renderHonorRibbons = (honors = []) => {
+  const visible = (honors || []).filter((honor) => honor?.status !== 'revoked' && honor?.imageUrl);
+  if (!visible.length) return '';
+  const shown = visible.slice(0, 3);
+  return `<span class="archive-honor-ribbons" aria-label="书记官公开授信记录">
+    ${shown.map((honor) => `<button type="button" class="archive-honor-ribbon" data-honor-ribbon="${escapeHtml(honor.award_id || honor.id)}" aria-label="${escapeHtml(honor.title)}">
+      <img src="${escapeHtml(honor.imageUrl)}" alt="" decoding="async" />
+      <span class="archive-honor-ribbon__detail"><b>${escapeHtml(honor.code)} / ${escapeHtml(honor.title)}</b><i>${escapeHtml(honorCategory(honor.category).label)}</i><small>${escapeHtml(honor.issue_note || honor.description)}</small></span>
+    </button>`).join('')}
+    ${visible.length > shown.length ? `<button type="button" class="archive-honor-ribbon archive-honor-ribbon--more" aria-label="另有 ${visible.length - shown.length} 条公开授信记录">+${visible.length - shown.length}</button>` : ''}
+  </span>`;
+};
+
+const renderAttributedPerson = (profile, fallback = '') => `${escapeHtml(displayName(profile, fallback))}${renderHonorRibbons(profile?.honors)}`;
+
 export const renderFormalArchiveDocument = ({
   archive,
   contribution = {},
@@ -957,10 +987,15 @@ export const renderFormalArchiveDocument = ({
   const officialBase = archive?.origin === 'official'
     && contribution.kind === 'amendment'
     && !contribution.target_contribution_id;
+  const collectorProfile = officialBase ? null : (version.submitter || contribution.owner);
   const collector = officialBase
     ? '官方档案'
     : displayName(version.submitter || contribution.owner);
   const modifiers = modifierNames(contribution, version);
+  const modifierPeople = modifierProfiles(contribution, version);
+  const modifierAttribution = modifierPeople.length
+    ? modifierPeople.map((profile) => renderAttributedPerson(profile)).join('、')
+    : escapeHtml(modifiers.join('、'));
   const approvedDate = version.approved_at
     ? new Date(version.approved_at).toLocaleDateString('zh-CN')
     : '待录入';
@@ -982,9 +1017,9 @@ export const renderFormalArchiveDocument = ({
       <dl class="archive-formal-document__metadata archive-formal-document__metadata--footer">
         <div><dt>正式档号</dt><dd>${escapeHtml(formalNumber(archive, document))}</dd></div>
         <div><dt>档案版本</dt><dd>VER ${escapeHtml(version.version_label || '0.1')}</dd></div>
-        <div><dt>档案收录者</dt><dd>${escapeHtml(collector)}</dd></div>
+        <div><dt>档案收录者</dt><dd>${officialBase ? escapeHtml(collector) : renderAttributedPerson(collectorProfile)}</dd></div>
         ${modifiers.length
-          ? `<div><dt>档案修改者</dt><dd>${escapeHtml(modifiers.join('、'))}</dd></div>`
+          ? `<div><dt>档案修改者</dt><dd>${modifierAttribution}</dd></div>`
           : ''}
         <div><dt>收录日期</dt><dd>${escapeHtml(approvedDate)}</dd></div>
       </dl>`;
@@ -1014,9 +1049,9 @@ export const renderFormalArchiveDocument = ({
       <dl class="archive-formal-document__metadata archive-formal-document__metadata--legacy">
         <div><dt>正式档号</dt><dd>${escapeHtml(formalNumber(archive, document))}</dd></div>
         <div><dt>档案版本</dt><dd>VER ${escapeHtml(version.version_label || '0.1')}</dd></div>
-        <div><dt>档案收录者</dt><dd>${escapeHtml(collector)}</dd></div>
+        <div><dt>档案收录者</dt><dd>${officialBase ? escapeHtml(collector) : renderAttributedPerson(collectorProfile)}</dd></div>
         ${modifiers.length
-          ? `<div><dt>档案修改者</dt><dd>${escapeHtml(modifiers.join('、'))}</dd></div>`
+          ? `<div><dt>档案修改者</dt><dd>${modifierAttribution}</dd></div>`
           : ''}
         <div><dt>收录日期</dt><dd>${escapeHtml(approvedDate)}</dd></div>
       </dl>
@@ -1055,7 +1090,8 @@ export const renderFormalArchiveAmendment = ({
 } = {}) => {
   if (!version?.content) return '';
   const document = normalizeEditorDocument(version.content);
-  const modifier = displayName(version.modifier || contribution.owner);
+  const modifierProfile = version.modifier || contribution.owner;
+  const modifier = displayName(modifierProfile);
   const reviewer = displayName(version.reviewer, '审核记录未署名');
   const approvedDate = version.approved_at
     ? new Date(version.approved_at).toLocaleDateString('zh-CN')
@@ -1078,7 +1114,7 @@ export const renderFormalArchiveAmendment = ({
         ${!contribution.target_contribution_id
           ? '<div><dt>原始档案</dt><dd>官方档案</dd></div>'
           : ''}
-        <div><dt>档案修改者</dt><dd>${escapeHtml(modifier)}</dd></div>
+        <div><dt>档案修改者</dt><dd>${renderAttributedPerson(modifierProfile, modifier)}</dd></div>
         <div><dt>审核者</dt><dd>${escapeHtml(reviewer)}</dd></div>
         <div><dt>收录日期</dt><dd>${escapeHtml(approvedDate)}</dd></div>
       </dl>

@@ -7,6 +7,7 @@ import {
   taskStatusLabel,
 } from './commission-domain.js';
 import { clerkRegistrationLabel } from './clerk-registration.js';
+import { honorCategory } from './honors.js';
 
 const TASK_ICON = '/assets/icons/archive-event.svg';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -227,6 +228,14 @@ const dossierEntriesForFilter = (entries, filter) => filter === 'mainline'
     ? entries.filter((entry) => classifyDossierEntry(entry) === 'commission')
     : entries;
 
+const honorLedgerMarkup = (honors = []) => honors.length ? `<section class="clerk-honor-ledger">
+  <p>PUBLIC CREDENTIALS / 授信记录</p>
+  ${honors.map((honor) => {
+    const category = honorCategory(honor.category);
+    return `<article data-honor-status="${escapeHtml(honor.status)}"><img src="${escapeHtml(honor.imageUrl)}" alt="${escapeHtml(honor.title)}" /><div><b>${escapeHtml(honor.title)}</b><small>${escapeHtml(honor.code)} / ${escapeHtml(category.label)} / ${escapeHtml(dateLabel(honor.issued_at))}</small><p>${escapeHtml(honor.description || honor.issue_note)}</p></div><i style="--honor-category:${escapeHtml(category.color)}">${honor.status === 'revoked' ? '已撤销' : '有效'}</i></article>`;
+  }).join('')}
+</section>` : '<div class="commission-empty"><b>尚无公开授信记录</b><span>管理员授予的荣誉条会收录在这里。</span></div>';
+
 export const openClerkDossierWindow = async ({ createWindow, client, profile, onOpenContribution = null } = {}) => {
   if (!profile?.id) throw new TypeError('profile is required');
   const registration = clerkRegistrationLabel(profile.clerk_rank);
@@ -235,15 +244,19 @@ export const openClerkDossierWindow = async ({ createWindow, client, profile, on
     code: 'PERSONNEL.DOS', className: 'clerk-dossier-window', icon: TASK_ICON,
     body: `<section class="clerk-dossier" data-clerk-dossier>
       <header><div><span>PALIS / PERSONNEL DOSSIER</span><b>${escapeHtml(profile.display_name || profile.email || '书记官')}</b></div><i>当前登记 / ${escapeHtml(registration)}</i></header>
-      <nav aria-label="书记官履历筛选"><button type="button" class="is-current" data-dossier-filter="all">履历总簿</button><button type="button" data-dossier-filter="mainline">主线卷宗</button><button type="button" data-dossier-filter="commission">委托记录</button></nav>
+      <nav aria-label="书记官履历筛选"><button type="button" class="is-current" data-dossier-filter="all">履历总簿</button><button type="button" data-dossier-filter="mainline">主线卷宗</button><button type="button" data-dossier-filter="commission">委托记录</button><button type="button" data-dossier-filter="honors">授信记录</button></nav>
       <main class="clerk-ledger" data-clerk-ledger><p>正在调阅履历总簿……</p></main>
     </section>`,
   });
   const ledger = state.windowElement.querySelector('[data-clerk-ledger]');
   try {
-    const entries = await client.listClerkDossierEntries(profile.id);
+    const [entries, honors] = await Promise.all([
+      client.listClerkDossierEntries(profile.id),
+      client.listClerkHonors?.(profile.id, { includeRevoked: true }) || [],
+    ]);
     let filter = 'all';
     const render = () => {
+      if (filter === 'honors') { ledger.innerHTML = honorLedgerMarkup(honors); return; }
       const filtered = dossierEntriesForFilter(entries, filter);
       ledger.innerHTML = filtered.length ? dossierEntriesMarkup(filtered) : '<div class="commission-empty"><b>这个分类下尚无可调阅记录</b><span>正式提交或归档后会自动写入本卷。</span></div>';
     };

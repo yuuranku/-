@@ -24,6 +24,8 @@ const ARRAY_STORES = Object.freeze([
   'mainlineStaffSlots',
   'workflowTasks',
   'workflowTaskResponses',
+  'honorRibbons',
+  'clerkHonors',
 ]);
 const MAP_STORES = Object.freeze([
   'numberCounters',
