@@ -10678,8 +10678,6 @@ body.clerk-desktop-open { overflow: hidden; }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note {
   --workspace-note-ink: #352a18;
-  --workspace-note-line: rgba(114, 85, 35, .13);
-  --workspace-note-paper: #fff29d;
   position: absolute;
   z-index: 1;
   display: flex;
@@ -10688,33 +10686,19 @@ body.clerk-desktop-open { overflow: hidden; }
   min-width: 0;
   box-sizing: border-box;
   flex-direction: column;
-  padding: 0 13px 10px;
+  padding: 0 17px 12px;
   overflow: visible;
   color: var(--workspace-note-ink);
-  border: 1px solid #c5a850;
-  border-radius: 2px 2px 16px 3px / 2px 2px 7px 3px;
-  background:
-    linear-gradient(110deg, rgba(255, 255, 255, .58), transparent 28%, rgba(193, 151, 48, .11) 100%),
-    repeating-linear-gradient(to bottom, transparent 0 25px, var(--workspace-note-line) 25px 26px),
-    var(--workspace-note-paper);
-  box-shadow: 5px 7px 0 rgba(38, 28, 10, .29), 8px 11px 16px rgba(38, 28, 10, .24), inset 0 1px 0 rgba(255, 255, 255, .82);
+  border: 0;
+  border-radius: 0;
+  background: url('/assets/workspace/sticky-note-pinned.png') center / 170% 110% no-repeat;
+  box-shadow: none;
   isolation: isolate;
   pointer-events: auto !important;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-stack {
-  position: absolute;
-  z-index: -1;
-  top: 11px;
-  right: -11px;
-  bottom: -12px;
-  left: 9px;
-  border: 1px solid #c1a557;
-  border-radius: 2px 3px 15px 3px / 2px 2px 10px 3px;
-  background: #f6e587;
-  box-shadow: 3px 5px 0 rgba(65, 45, 12, .22);
-  pointer-events: none;
-  transform: rotate(-3deg);
+  display: none;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
@@ -10725,7 +10709,7 @@ body.clerk-desktop-open { overflow: hidden; }
   min-height: 31px;
   align-items: center;
   color: transparent;
-  border-bottom: 1px dashed rgba(110, 82, 30, .23);
+  border: 0;
   font: 700 9px/1 var(--font-mono);
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -11214,31 +11198,11 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle::before {
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  width: 37px;
-  height: 23px;
-  border: 2px solid #075fae;
-  border-radius: 52% 48% 54% 46%;
-  background: radial-gradient(ellipse at 35% 28%, #73c4ff 0 11%, #1784e0 34%, #0865ba 73%, #064d93 100%);
-  box-shadow: 3px 5px 5px rgba(22, 42, 49, .33), inset 2px 2px 2px rgba(255, 255, 255, .32);
-  content: '';
-  transform: translateX(-50%) rotate(-9deg);
+  content: none;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle::after {
-  position: absolute;
-  z-index: -1;
-  top: 3px;
-  left: calc(50% - 2px);
-  width: 5px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #064f95, #28a1ee 52%, #064f95);
-  box-shadow: 1px 2px 2px rgba(14, 31, 34, .28);
-  content: '';
-  transform: rotate(-9deg);
+  content: none;
 }
 
 .clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-dragging .mascot-trigger {
