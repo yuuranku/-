@@ -6,6 +6,7 @@ import {
   clampWorkspaceNotePosition,
   defaultWorkspaceNotePosition,
   initializeWorkspaceNotes,
+  paginateWorkspaceNoteContent,
 } from '../src/archive-workflow/workspace-notes.js';
 
 function deferred() {
@@ -22,6 +23,11 @@ function deferred() {
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
+
+test('workspace note content is split into readable pages without breaking Unicode characters', () => {
+  assert.deepEqual(paginateWorkspaceNoteContent('甲乙丙丁戊', 2), ['甲乙', '丙丁', '戊']);
+  assert.deepEqual(paginateWorkspaceNoteContent('𠮷野家', 2), ['𠮷野', '家']);
+});
 
 function createClient({ notes = [], layouts = [] } = {}) {
   const calls = {
@@ -245,6 +251,31 @@ test('only admins can manage shared workspace note content', () => {
   assert.equal(canManageWorkspaceNotes('clerk'), false);
   assert.equal(canManageWorkspaceNotes('visitor'), false);
   assert.equal(canManageWorkspaceNotes(null), false);
+});
+
+test('long workspace notes expose a bottom-right page control instead of a scrollbar', async () => {
+  const root = createRoot({ height: 300, width: 400 });
+  const client = createClient({ notes: [{ content: `${'甲'.repeat(120)}乙`, id: 'note-1', title: '交接事项' }] });
+  const controller = initializeWorkspaceNotes({
+    bounds: { height: 300, taskbarHeight: 0, width: 400 },
+    client,
+    initialSession: CLERK_SESSION,
+    noteSize: NOTE_SIZE,
+    root,
+  });
+
+  await controller.ready;
+  let body = root.find((element) => element.classList.contains('workspace-sticky-note-body'));
+  let page = root.find((element) => element.dataset.workspaceNotePage === 'true');
+  assert.equal(body.textContent, '甲'.repeat(120));
+  assert.equal(page.textContent, '1/2 ›');
+
+  page.dispatch('click');
+  body = root.find((element) => element.classList.contains('workspace-sticky-note-body'));
+  page = root.find((element) => element.dataset.workspaceNotePage === 'true');
+  assert.equal(body.textContent, '乙');
+  assert.equal(page.textContent, '2/2 ›');
+  assert.equal(controller.getState().pageIndexes['note-1'], 1);
 });
 
 test('default note positions fill a right-side stack before moving left, while saved coordinates win', async () => {

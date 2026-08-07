@@ -3,6 +3,7 @@ const DEFAULT_GAP = 16;
 // right-hand column, so the first note's edit controls remain clickable.
 const DEFAULT_GUTTER = 168;
 const DEFAULT_NOTE_SIZE = Object.freeze({ height: 180, width: 264 });
+const WORKSPACE_NOTE_PAGE_LENGTH = 120;
 
 const clone = (value) => {
   if (typeof structuredClone === 'function') return structuredClone(value);
@@ -73,6 +74,17 @@ const normalizeDraft = (draft = {}) => ({
   content: String(draft.content ?? ''),
   title: String(draft.title ?? ''),
 });
+
+export const paginateWorkspaceNoteContent = (content, pageLength = WORKSPACE_NOTE_PAGE_LENGTH) => {
+  const characters = Array.from(String(content ?? ''));
+  const size = Math.max(1, Math.floor(asFiniteNumber(pageLength, WORKSPACE_NOTE_PAGE_LENGTH)));
+  if (!characters.length) return [''];
+  const pages = [];
+  for (let start = 0; start < characters.length; start += size) {
+    pages.push(characters.slice(start, start + size).join(''));
+  }
+  return pages;
+};
 
 const workspaceNoteName = (note) => String(note?.title ?? '').trim() || '未命名便签';
 
@@ -200,6 +212,7 @@ export const initializeWorkspaceNotes = ({
   const editingNoteIds = new Set();
   const layoutErrors = new Map();
   const mutationErrors = new Map();
+  const notePages = new Map();
   const cards = new Map();
   const dragHandles = new Map();
   let keyboardDraggingNoteId = null;
@@ -258,6 +271,7 @@ export const initializeWorkspaceNotes = ({
     notes: clone(notes),
     pendingOperations: sortSet(new Set(pendingOperations.values())),
     positions: mapToObject(positions),
+    pageIndexes: mapToObject(notePages),
     session: clone(session),
     tearingNoteIds: sortSet(new Set(tearingNotes.keys())),
     visibleNoteIds: visibleNotes().map((note) => note.id),
@@ -307,6 +321,11 @@ export const initializeWorkspaceNotes = ({
       if (isLayoutSaving) card.classList.add('is-layout-saving');
       if (editingNoteIds.has(note.id)) card.classList.add('is-editing');
       if (keyboardDraggingNoteId === note.id) card.classList.add('is-keyboard-dragging');
+
+      const paperStack = document.createElement('i');
+      paperStack.classList.add('workspace-sticky-note-stack');
+      paperStack.setAttribute('aria-hidden', 'true');
+      card.append(paperStack);
 
       const dragHandle = document.createElement('div');
       dragHandle.dataset.workspaceNoteDragHandle = 'true';
@@ -367,7 +386,10 @@ export const initializeWorkspaceNotes = ({
       heading.textContent = note.title;
       const body = document.createElement('p');
       body.classList.add('workspace-sticky-note-body');
-      body.textContent = note.content;
+      const pages = paginateWorkspaceNoteContent(note.content);
+      const pageIndex = clamp(asFiniteNumber(notePages.get(note.id)), 0, pages.length - 1);
+      notePages.set(note.id, pageIndex);
+      body.textContent = pages[pageIndex];
       card.append(heading, body);
 
       const actions = document.createElement('div');
@@ -381,6 +403,21 @@ export const initializeWorkspaceNotes = ({
       closeButton.textContent = '关闭';
       closeButton.addEventListener('click', () => closeNote(note.id));
       actions.append(closeButton);
+
+      if (pages.length > 1 && !editingNoteIds.has(note.id)) {
+        const pageButton = document.createElement('button');
+        pageButton.dataset.workspaceNotePage = 'true';
+        pageButton.classList.add('workspace-sticky-note-page');
+        pageButton.type = 'button';
+        pageButton.setAttribute('aria-label', `翻到便签第 ${pageIndex === pages.length - 1 ? 1 : pageIndex + 2} 页，共 ${pages.length} 页：${workspaceNoteName(note)}`);
+        pageButton.setAttribute('title', '翻页');
+        pageButton.textContent = `${pageIndex + 1}/${pages.length} ›`;
+        pageButton.addEventListener('click', () => {
+          notePages.set(note.id, (pageIndex + 1) % pages.length);
+          render();
+        });
+        actions.append(pageButton);
+      }
 
       if (canManageWorkspaceNotes(session.role)) {
         const editButton = document.createElement('button');
@@ -531,6 +568,7 @@ export const initializeWorkspaceNotes = ({
       notes = [];
       layouts = new Map();
       positions = new Map();
+      notePages.clear();
       loadError = null;
       render();
       return getState();
@@ -547,6 +585,7 @@ export const initializeWorkspaceNotes = ({
 
       notes = normalizeNotes(loadedNotes);
       layouts = normalizeLayouts(loadedLayouts, targetSession.profileId);
+      notePages.clear();
       rebuildVisualPositions();
       render();
       return getState();
@@ -577,6 +616,7 @@ export const initializeWorkspaceNotes = ({
       editingNoteIds.clear();
       layoutErrors.clear();
       mutationErrors.clear();
+      notePages.clear();
       notes = [];
       layouts = new Map();
       positions = new Map();
@@ -765,6 +805,7 @@ export const initializeWorkspaceNotes = ({
         notes = notes.map((entry) => (entry.id === id ? updated : entry));
         drafts.delete(id);
         editingNoteIds.delete(id);
+        notePages.set(id, 0);
       }
       return updated;
     } catch (error) {
@@ -811,6 +852,7 @@ export const initializeWorkspaceNotes = ({
         editingNoteIds.delete(id);
         layoutErrors.delete(id);
         mutationErrors.delete(id);
+        notePages.delete(id);
       }
       return true;
     } catch (error) {

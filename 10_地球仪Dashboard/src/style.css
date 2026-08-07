@@ -10678,8 +10678,8 @@ body.clerk-desktop-open { overflow: hidden; }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note {
   --workspace-note-ink: #352a18;
-  --workspace-note-line: rgba(103, 76, 34, .16);
-  --workspace-note-paper: #faedaa;
+  --workspace-note-line: rgba(114, 85, 35, .13);
+  --workspace-note-paper: #fff29d;
   position: absolute;
   z-index: 1;
   display: flex;
@@ -10688,53 +10688,44 @@ body.clerk-desktop-open { overflow: hidden; }
   min-width: 0;
   box-sizing: border-box;
   flex-direction: column;
-  padding: 0 12px 10px;
-  overflow: hidden;
+  padding: 0 13px 10px;
+  overflow: visible;
   color: var(--workspace-note-ink);
-  border: 1px solid #ae914c;
-  border-radius: 1px;
+  border: 1px solid #c5a850;
+  border-radius: 2px 2px 16px 3px / 2px 2px 7px 3px;
   background:
-    linear-gradient(105deg, rgba(255, 255, 255, .48), transparent 26%, rgba(159, 121, 42, .08) 100%),
-    repeating-linear-gradient(to bottom, transparent 0 24px, var(--workspace-note-line) 24px 25px),
+    linear-gradient(110deg, rgba(255, 255, 255, .58), transparent 28%, rgba(193, 151, 48, .11) 100%),
+    repeating-linear-gradient(to bottom, transparent 0 25px, var(--workspace-note-line) 25px 26px),
     var(--workspace-note-paper);
-  box-shadow: 4px 5px 0 rgba(38, 28, 10, .33), inset 0 1px 0 rgba(255, 255, 255, .78);
+  box-shadow: 5px 7px 0 rgba(38, 28, 10, .29), 8px 11px 16px rgba(38, 28, 10, .24), inset 0 1px 0 rgba(255, 255, 255, .82);
   isolation: isolate;
   pointer-events: auto !important;
 }
 
-#clerk-desktop #workspace-note-region .workspace-sticky-note::before {
+#clerk-desktop #workspace-note-region .workspace-sticky-note-stack {
   position: absolute;
   z-index: -1;
-  top: -2px;
-  left: 18%;
-  width: 54%;
-  height: 8px;
-  opacity: .48;
-  background: rgba(236, 221, 157, .86);
-  box-shadow: 0 1px 0 rgba(112, 85, 35, .26);
-  content: '';
-  transform: rotate(-.7deg);
-}
-
-#clerk-desktop #workspace-note-region .workspace-sticky-note::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 7px;
-  opacity: .74;
-  background: linear-gradient(135deg, transparent 0 4px, rgba(116, 89, 39, .2) 4px 5px, transparent 5px 10px) 0 0 / 10px 7px repeat-x;
-  content: '';
+  top: 11px;
+  right: -11px;
+  bottom: -12px;
+  left: 9px;
+  border: 1px solid #c1a557;
+  border-radius: 2px 3px 15px 3px / 2px 2px 10px 3px;
+  background: #f6e587;
+  box-shadow: 3px 5px 0 rgba(65, 45, 12, .22);
   pointer-events: none;
+  transform: rotate(-3deg);
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
   display: flex;
-  width: calc(100% - 42px);
-  min-height: 27px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 31px;
   align-items: center;
-  color: #715520;
-  border-bottom: 1px dashed rgba(110, 82, 30, .35);
+  color: transparent;
+  border-bottom: 1px dashed rgba(110, 82, 30, .23);
   font: 700 9px/1 var(--font-mono);
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -10748,6 +10739,8 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
+  position: relative;
+  z-index: 1;
   margin: 10px 34px 3px 0;
   overflow: hidden;
   color: #252013;
@@ -10758,17 +10751,21 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-body {
+  position: relative;
+  z-index: 1;
   min-height: 0;
   flex: 1 1 auto;
   margin: 0;
-  overflow: auto;
+  overflow: hidden;
   color: #493b22;
   font: 12px/1.48 var(--font-body);
   overflow-wrap: anywhere;
-  scrollbar-color: rgba(92, 67, 27, .55) transparent;
+  white-space: pre-wrap;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 4px;
   align-items: center;
@@ -10813,7 +10810,16 @@ body.clerk-desktop-open { overflow: hidden; }
   padding-inline: 4px;
 }
 
-#clerk-desktop #workspace-note-region .workspace-sticky-note-edit { margin-left: auto; }
+#clerk-desktop #workspace-note-region .workspace-sticky-note-page {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 52px;
+  color: #143a56;
+  border-color: #547997;
+  background: #d7edff;
+}
+#clerk-desktop #workspace-note-region .workspace-sticky-note-edit { margin-left: 0; }
 #clerk-desktop #workspace-note-region .workspace-sticky-note-delete { background: #e6c576; }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-editor {
@@ -11205,6 +11211,34 @@ body.clerk-desktop-open { overflow: hidden; }
 .clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger {
   touch-action: none;
   cursor: var(--cursor-retro-grab) !important;
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle::before {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  width: 37px;
+  height: 23px;
+  border: 2px solid #075fae;
+  border-radius: 52% 48% 54% 46%;
+  background: radial-gradient(ellipse at 35% 28%, #73c4ff 0 11%, #1784e0 34%, #0865ba 73%, #064d93 100%);
+  box-shadow: 3px 5px 5px rgba(22, 42, 49, .33), inset 2px 2px 2px rgba(255, 255, 255, .32);
+  content: '';
+  transform: translateX(-50%) rotate(-9deg);
+}
+
+#clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle::after {
+  position: absolute;
+  z-index: -1;
+  top: 3px;
+  left: calc(50% - 2px);
+  width: 5px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #064f95, #28a1ee 52%, #064f95);
+  box-shadow: 1px 2px 2px rgba(14, 31, 34, .28);
+  content: '';
+  transform: rotate(-9deg);
 }
 
 .clerk-desktop > .mascot-assistant[data-desktop-pet='true'].is-pet-dragging .mascot-trigger {
