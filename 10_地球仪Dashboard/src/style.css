@@ -10680,18 +10680,19 @@ body.clerk-desktop-open { overflow: hidden; }
   --workspace-note-ink: #352a18;
   position: absolute;
   z-index: 1;
-  display: flex;
-  width: min(264px, calc(100% - 32px));
-  height: 180px;
+  display: block;
+  width: min(330px, calc(100% - 20px));
+  height: 220px;
   min-width: 0;
   box-sizing: border-box;
-  flex-direction: column;
-  padding: 0 17px 12px;
+  padding: 0;
   overflow: visible;
   color: var(--workspace-note-ink);
   border: 0;
   border-radius: 0;
-  background: url('/assets/workspace/sticky-note-pinned.png') center / 170% 110% no-repeat;
+  /* Keep the supplied artwork at its native 3:2 ratio.  Text is placed in
+     the visible paper area rather than stretching the image beneath it. */
+  background: url('/assets/workspace/sticky-note-pinned.png') center / 100% 100% no-repeat;
   box-shadow: none;
   isolation: isolate;
   pointer-events: auto !important;
@@ -10702,12 +10703,12 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
-  display: flex;
-  position: relative;
+  position: absolute;
   z-index: 1;
-  width: 100%;
-  min-height: 31px;
-  align-items: center;
+  top: 10%;
+  right: 19%;
+  left: 26%;
+  min-height: 14%;
   color: transparent;
   border: 0;
   font: 700 9px/1 var(--font-mono);
@@ -10723,9 +10724,12 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
-  position: relative;
+  position: absolute;
   z-index: 1;
-  margin: 10px 34px 3px 0;
+  top: 28%;
+  right: 19%;
+  left: 26%;
+  margin: 0;
   overflow: hidden;
   color: #252013;
   font: 700 15px/1.1 var(--font-body);
@@ -10735,10 +10739,12 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-body {
-  position: relative;
+  position: absolute;
   z-index: 1;
-  min-height: 0;
-  flex: 1 1 auto;
+  top: 39%;
+  right: 19%;
+  bottom: 26%;
+  left: 26%;
   margin: 0;
   overflow: hidden;
   color: #493b22;
@@ -10748,14 +10754,17 @@ body.clerk-desktop-open { overflow: hidden; }
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
-  position: relative;
+  position: absolute;
   z-index: 1;
+  right: 19%;
+  bottom: 13%;
+  left: 26%;
   display: flex;
   gap: 4px;
   align-items: center;
-  margin-top: 7px;
-  border-top: 1px solid rgba(103, 76, 34, .2);
-  padding-top: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note button,
@@ -10788,15 +10797,15 @@ body.clerk-desktop-open { overflow: hidden; }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-close {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  right: 0;
+  bottom: 0;
   min-width: 31px;
   padding-inline: 4px;
 }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-page {
   position: absolute;
-  right: 0;
+  right: 42px;
   bottom: 0;
   min-width: 52px;
   color: #143a56;
@@ -10807,9 +10816,14 @@ body.clerk-desktop-open { overflow: hidden; }
 #clerk-desktop #workspace-note-region .workspace-sticky-note-delete { background: #e6c576; }
 
 #clerk-desktop #workspace-note-region .workspace-sticky-note-editor {
+  position: absolute;
+  z-index: 1;
+  top: 27%;
+  right: 19%;
+  bottom: 13%;
+  left: 26%;
   display: grid;
   min-height: 0;
-  flex: 1 1 auto;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 5px;
@@ -10955,8 +10969,9 @@ body.clerk-desktop-open { overflow: hidden; }
 
 @media (max-width: 760px) {
   #clerk-desktop #workspace-note-region .workspace-sticky-note {
-    width: min(244px, calc(100% - 20px));
-    height: 176px;
+    width: min(330px, calc(100% - 12px));
+    height: auto;
+    aspect-ratio: 3 / 2;
   }
   #clerk-desktop .workspace-note-controls {
     top: 8px !important;
@@ -11087,22 +11102,20 @@ body.clerk-desktop-open { overflow: hidden; }
 
 @media (max-width: 760px) {
   #clerk-desktop #workspace-note-region .workspace-sticky-note {
-    height: 180px;
-    padding-bottom: 6px;
+    height: auto;
+    padding: 0;
   }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
-    width: calc(100% - 54px);
-    min-height: 44px;
+    width: auto;
+    min-height: 14%;
   }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
-    margin-top: 5px;
-    margin-right: 50px;
-    margin-bottom: 1px;
+    margin: 0;
   }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-body { font-size: 11px; line-height: 1.32; }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
-    margin-top: 4px;
-    padding-top: 3px;
+    margin: 0;
+    padding: 0;
   }
   #clerk-desktop #workspace-note-region .workspace-sticky-note button {
     min-width: 44px;
@@ -11111,8 +11124,9 @@ body.clerk-desktop-open { overflow: hidden; }
   }
   #clerk-desktop .workspace-note-controls button { min-height: 44px; }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-close {
-    top: 3px;
+    top: auto;
     right: 3px;
+    bottom: 0;
     min-width: 44px;
   }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-editor { margin-top: 2px; }

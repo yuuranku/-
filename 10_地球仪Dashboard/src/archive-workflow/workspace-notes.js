@@ -2,8 +2,10 @@ const DEFAULT_GAP = 16;
 // Keep fresh notes below the draggable mailbox ornament in the desktop's
 // right-hand column, so the first note's edit controls remain clickable.
 const DEFAULT_GUTTER = 168;
-const DEFAULT_NOTE_SIZE = Object.freeze({ height: 180, width: 264 });
-const WORKSPACE_NOTE_PAGE_LENGTH = 120;
+// This matches the supplied pinned-note artwork's native 3:2 canvas. The
+// transparent margins are intentional: the usable paper sits inside them.
+const DEFAULT_NOTE_SIZE = Object.freeze({ height: 220, width: 330 });
+const WORKSPACE_NOTE_PAGE_LENGTH = 72;
 
 const clone = (value) => {
   if (typeof structuredClone === 'function') return structuredClone(value);

@@ -255,7 +255,7 @@ test('only admins can manage shared workspace note content', () => {
 
 test('long workspace notes expose a bottom-right page control instead of a scrollbar', async () => {
   const root = createRoot({ height: 300, width: 400 });
-  const client = createClient({ notes: [{ content: `${'甲'.repeat(120)}乙`, id: 'note-1', title: '交接事项' }] });
+    const client = createClient({ notes: [{ content: `${'甲'.repeat(72)}乙`, id: 'note-1', title: '交接事项' }] });
   const controller = initializeWorkspaceNotes({
     bounds: { height: 300, taskbarHeight: 0, width: 400 },
     client,
@@ -267,7 +267,7 @@ test('long workspace notes expose a bottom-right page control instead of a scrol
   await controller.ready;
   let body = root.find((element) => element.classList.contains('workspace-sticky-note-body'));
   let page = root.find((element) => element.dataset.workspaceNotePage === 'true');
-  assert.equal(body.textContent, '甲'.repeat(120));
+    assert.equal(body.textContent, '甲'.repeat(72));
   assert.equal(page.textContent, '1/2 ›');
 
   page.dispatch('click');
