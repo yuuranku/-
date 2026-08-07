@@ -28,6 +28,16 @@ test('loading sound palette provides each state cue used by the timed loading vi
   assert.ok(SOUND_PROFILES.verified);
 });
 
+test('archive terminal palette includes typing and stamp cues', () => {
+  assert.ok(SOUND_PROFILES.key);
+  assert.ok(SOUND_PROFILES['key-enter']);
+  assert.ok(SOUND_PROFILES.indent);
+  assert.ok(SOUND_PROFILES.stamp);
+  assert.equal(SOUND_PROFILES.key.cap <= .1, true);
+  assert.equal(SOUND_PROFILES['key-enter'].cap <= .16, true);
+  assert.equal(SOUND_PROFILES.indent.cap <= .2, true);
+});
+
 test('desk pet heavy landing has a muted impact cue', () => {
   assert.ok(SOUND_PROFILES['pet-impact']);
   assert.ok(SOUND_PROFILES['pet-impact'].layers.some((layer) => layer.frequency < 160));

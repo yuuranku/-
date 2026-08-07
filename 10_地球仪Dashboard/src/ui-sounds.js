@@ -19,6 +19,28 @@ export const SOUND_PROFILES = Object.freeze({
       { kind: 'noise', filter: 'highpass', cutoff: 4300, attack: 0, decay: .012, release: .004, gain: .025 },
     ]),
   }),
+  key: Object.freeze({
+    cap: .07,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 920, endFrequency: 760, attack: .001, decay: .024, release: .01, gain: .018 },
+      { kind: 'noise', filter: 'highpass', cutoff: 5200, attack: 0, decay: .008, release: .004, gain: .012 },
+    ]),
+  }),
+  'key-enter': Object.freeze({
+    cap: .14,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'square', frequency: 620, endFrequency: 420, attack: .002, decay: .045, release: .016, gain: .022 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 2600, attack: .001, decay: .025, release: .012, gain: .014 },
+    ]),
+  }),
+  indent: Object.freeze({
+    cap: .18,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 360, endFrequency: 540, attack: .002, decay: .07, release: .018, gain: .024 },
+      { kind: 'osc', wave: 'square', frequency: 1080, endFrequency: 940, start: .045, attack: .001, decay: .034, release: .012, gain: .012 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 2100, attack: .001, decay: .04, release: .012, gain: .012 },
+    ]),
+  }),
   open: Object.freeze({
     cap: .5,
     layers: Object.freeze([
@@ -99,6 +121,13 @@ export const SOUND_PROFILES = Object.freeze({
     layers: Object.freeze([
       { kind: 'osc', wave: 'square', frequency: 328, endFrequency: 328, attack: .004, decay: .09, release: .025, gain: .028 },
       { kind: 'osc', wave: 'triangle', frequency: 656, endFrequency: 656, start: .1, attack: .004, decay: .12, release: .028, gain: .026 },
+    ]),
+  }),
+  stamp: Object.freeze({
+    cap: .32,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 146, endFrequency: 96, attack: .003, decay: .11, release: .045, gain: .036 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 1450, attack: .001, decay: .075, release: .02, gain: .024 },
     ]),
   }),
 });
@@ -358,6 +387,25 @@ const quietNavigationSelector = [
   '[data-mainline-enter]',
 ].join(',');
 
+const editableTextSelector = 'input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]';
+const typingInputTypes = new Set(['email', 'number', 'password', 'search', 'tel', 'text', 'url']);
+let lastTextInputCueAt = 0;
+
+function getEditableTextTarget(target) {
+  const editable = target?.closest?.(editableTextSelector);
+  if (!editable || editable.matches?.('[readonly], [disabled], [aria-disabled="true"]')) return null;
+  if (editable.tagName === 'INPUT') {
+    const type = String(editable.getAttribute('type') || 'text').toLowerCase();
+    if (!typingInputTypes.has(type)) return null;
+  }
+  return editable;
+}
+
+function pulseTypingTarget(editable) {
+  editable.classList?.add('is-ui-typing');
+  window.setTimeout(() => editable.classList?.remove('is-ui-typing'), 90);
+}
+
 export function initializeUiSounds() {
   const toggle = document.querySelector('#ui-sound-toggle');
   const label = document.querySelector('[data-ui-sound-label]');
@@ -394,8 +442,30 @@ export function initializeUiSounds() {
     else if (target.matches(openSelector)) void manager.play('open');
     else void manager.play('tap');
   });
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+    const editable = getEditableTextTarget(event.target);
+    if (!editable) return;
+    const playableKey = ['Backspace', 'Delete', 'Enter', 'Tab'].includes(event.key);
+    if (!playableKey) return;
+    if (event.key === 'Tab') lastTextInputCueAt = globalThis.performance?.now?.() ?? Date.now();
+    const cue = event.key === 'Enter' ? 'key-enter' : event.key === 'Tab' ? 'indent' : 'key';
+    void manager.play(cue);
+    pulseTypingTarget(editable);
+  });
+  document.addEventListener('input', (event) => {
+    if (event.inputType?.startsWith?.('delete')) return;
+    const editable = getEditableTextTarget(event.target);
+    if (!editable) return;
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    if (now - lastTextInputCueAt < 42) return;
+    lastTextInputCueAt = now;
+    void manager.play('key');
+    pulseTypingTarget(editable);
+  });
   window.addEventListener('palis:archive-submission-changed', () => { void manager.play('success'); });
   window.addEventListener('palis:workspace-denied', () => { void manager.play('error'); });
+  window.addEventListener('palis:archive-stamped', () => { void manager.play('stamp'); });
   window.addEventListener('palis:ui-sound', (event) => {
     const { name, minInterval } = event.detail || {};
     if (name) void emitUiSound(name, { minInterval });
