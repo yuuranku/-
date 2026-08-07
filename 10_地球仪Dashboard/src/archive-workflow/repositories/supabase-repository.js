@@ -802,7 +802,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
 
   const listWorkflowTaskResponses = (taskId) => unwrap(
     supabase.from('workflow_task_responses')
-      .select('id,task_id,clerk_id,contribution_id,status,registered_at,updated_at,clerk:profiles!workflow_task_responses_clerk_id_fkey(id,display_name),contribution:archive_contributions(id,archive_id,template_id,title,kind,target_contribution_id,base_version_id,status,draft_content,revision,submitted_at,updated_at)')
+      .select('id,task_id,clerk_id,contribution_id,status,registered_at,updated_at,clerk:profiles!workflow_task_responses_clerk_id_fkey(id,display_name,email,role,clerk_rank),contribution:archive_contributions(id,archive_id,template_id,title,kind,target_contribution_id,base_version_id,status,draft_content,revision,submitted_at,updated_at)')
       .eq('task_id', requireId(taskId, 'taskId')).order('registered_at', { ascending: true }),
     '无法读取任务响应记录',
   );

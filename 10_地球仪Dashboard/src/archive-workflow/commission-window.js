@@ -195,6 +195,18 @@ const dossierEntrySubtitle = (entry) => {
   if (entry.template_id) return escapeHtml(String(entry.template_id).toUpperCase());
   return '档号待编';
 };
+const dossierVersionStatus = (entry, latestVersion) => {
+  const task = entry.task_response?.task;
+  const mainlineVersion = task?.kind === 'mainline'
+    ? task.version_code
+    : entry.draft_content?.mainline?.versionCode;
+  // The ledger's right edge is for the large mainline version when there is
+  // one. Archive version_label is only a per-file revision, never a mainline
+  // release, so label it explicitly instead of presenting it as a bare VER.
+  if (mainlineVersion) return `已归档 · 主线 VER ${mainlineVersion}`;
+  if (latestVersion?.version_label) return `已归档 · 档案修订 ${latestVersion.version_label}`;
+  return responseStatusLabel(entry.task_response?.status || entry.status);
+};
 const dossierEntriesMarkup = (entries) => entries.map((entry) => {
   const versions = entry.versions || [];
   const latestVersion = versions.at(-1);
@@ -205,7 +217,7 @@ const dossierEntriesMarkup = (entries) => entries.map((entry) => {
     ${task ? `<span class="clerk-ledger__stamp is-task">${escapeHtml(task.code)}</span>` : ''}
     <b>${escapeHtml(entry.title)}</b>
     <small>${dossierEntrySubtitle(entry)}</small>
-    <em>${escapeHtml(latestVersion ? `已归档 · VER ${latestVersion.version_label}` : responseStatusLabel(entry.task_response?.status || entry.status))}</em>
+    <em>${escapeHtml(dossierVersionStatus(entry, latestVersion))}</em>
   </button>`;
 }).join('');
 
@@ -254,7 +266,61 @@ export const openClerkDossierWindow = async ({ createWindow, client, profile, on
   return state;
 };
 
-export const openTaskAdministrationWindow = async ({ createWindow, client, templates = [], onOpenTask = null } = {}) => {
+const responseParticipantLabel = (response) => {
+  const clerk = response.clerk || {};
+  if (clerk.role === 'admin') return '管理员参与';
+  return clerkRegistrationLabel(clerk.clerk_rank);
+};
+
+const responseRegisterMarkup = (responses = []) => {
+  const written = responses.filter((response) => response.contribution);
+  const people = responses.map((response) => `
+    <li>
+      <b>${escapeHtml(response.clerk?.display_name || response.clerk?.email || response.clerk_id)}</b>
+      <span>${escapeHtml(responseParticipantLabel(response))} · ${escapeHtml(responseStatusLabel(response.status))}</span>
+    </li>`).join('') || '<li class="task-response-register__empty">尚无人登记响应。</li>';
+  const documents = written.map((response) => `
+    <li>
+      <b>${escapeHtml(response.contribution.title || '未命名档案')}</b>
+      <span>${escapeHtml(response.clerk?.display_name || response.clerk_id)} · ${escapeHtml(response.contribution.template_id || '档案类型未记')} · ${escapeHtml(responseStatusLabel(response.status))}</span>
+    </li>`).join('') || '<li class="task-response-register__empty">已登记人员尚未写入档案。</li>';
+  return `<div class="task-response-register__columns">
+    <section><header><b>参与人员</b><output>${String(responses.length).padStart(2, '0')}</output></header><ol>${people}</ol></section>
+    <section><header><b>已写档案</b><output>${String(written.length).padStart(2, '0')}</output></header><ol>${documents}</ol></section>
+  </div>`;
+};
+
+export const openTaskResponseRegisterWindow = async ({ createWindow, client, task } = {}) => {
+  if (!task?.id) throw new TypeError('task is required');
+  const state = createWindow({
+    key: `task-response-register-${task.id}`, title: `响应记录 / ${task.code}`, code: 'RESP.LOG',
+    className: 'task-response-register-window', icon: TASK_ICON,
+    body: `<section class="task-response-register" data-task-response-register>
+      <header><div><span>PALIS / COMMISSION RESPONSE LOG</span><b>${escapeHtml(task.title)}</b></div><i>${escapeHtml(task.code)}</i></header>
+      <p>登记名单与已写档案分列保存；草稿会在首次自动保存后出现在右栏。</p>
+      <main data-task-response-register-body>正在调阅响应记录……</main>
+      <footer data-task-response-register-status>读取中……</footer>
+    </section>`,
+  });
+  const root = state.windowElement.querySelector('[data-task-response-register]');
+  const body = root.querySelector('[data-task-response-register-body]');
+  const status = root.querySelector('[data-task-response-register-status]');
+  const reload = async () => {
+    try {
+      const responses = await client.listWorkflowTaskResponses(task.id);
+      body.innerHTML = responseRegisterMarkup(responses);
+      status.textContent = `记录已更新 / 已登记 ${responses.length} 人`;
+    } catch (error) {
+      body.innerHTML = `<div class="commission-empty"><b>响应记录调阅失败</b><span>${escapeHtml(error.message)}</span></div>`;
+      status.textContent = '读取失败。';
+    }
+  };
+  state.reloadResponses = reload;
+  await reload();
+  return state;
+};
+
+export const openTaskAdministrationWindow = async ({ createWindow, client, templates = [] } = {}) => {
   const state = createWindow({
     key: 'workflow-task-control', title: '开放委托发布台 / ADMIN', code: 'TASK.CTL',
     className: 'task-control-window', icon: TASK_ICON,
@@ -323,7 +389,9 @@ export const openTaskAdministrationWindow = async ({ createWindow, client, templ
         output.textContent = `任务状态已改为：${taskStatusLabel(status)}`;
         await reload();
       }
-      if (selected && event.target.closest('[data-admin-open-task]')) onOpenTask?.(selected, event.target);
+      if (selected && event.target.closest('[data-admin-open-task]')) {
+        await openTaskResponseRegisterWindow({ createWindow, client, task: selected });
+      }
     });
     root.addEventListener('submit', async (event) => {
       if (!event.target.matches('[data-admin-task-form]')) return;
