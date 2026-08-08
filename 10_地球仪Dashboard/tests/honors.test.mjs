@@ -31,6 +31,8 @@ test('administrator can issue and revoke a ribbon without erasing the clerk ledg
   assert.equal(ledger[0].status, 'revoked');
   assert.equal(ledger[0].code, 'CM-001');
   assert.equal(ledger[0].imageUrl, 'data:image/png;base64,AA==');
+  const visibleHonors = await harness.repository.listClerkHonors(LOCAL_PROFILES[1].id);
+  assert.equal(visibleHonors.length, 0);
 });
 
 test('honor codes are assigned from each category issuance count and never reuse a revoked number', async () => {

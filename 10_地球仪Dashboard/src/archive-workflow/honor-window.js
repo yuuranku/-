@@ -54,8 +54,8 @@ const clerkHonorMarkup = (honors = []) => honors.length ? honors.map((honor) => 
     <img src="${escapeHtml(honor.imageUrl)}" alt="${escapeHtml(honor.title)}" />
     <div><b>${escapeHtml(honor.code)} / ${escapeHtml(honor.title)}</b><small>${escapeHtml(category.label)} / ${escapeHtml(dateLabel(honor.issued_at))}</small><p>${escapeHtml(honor.description)}</p></div>
     <footer>${honor.status === 'revoked'
-      ? `<i>已撤销${honor.revoke_note ? ` / ${escapeHtml(honor.revoke_note)}` : ''}</i>`
-      : `<button type="button" data-honor-action="revoke" data-award-id="${escapeHtml(honor.award_id || honor.id)}">撤销授信</button>`}</footer>
+      ? ''
+      : `<button type="button" data-honor-action="revoke" data-award-id="${escapeHtml(honor.award_id || honor.id)}" aria-label="取消授信">× 取消授信</button>`}</footer>
   </article>`;
 }).join('') : '<p class="honor-control__empty">该人员尚无授信记录。</p>';
 
@@ -126,7 +126,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
     const profile = selectedProfile();
     if (!profile) { awards = []; render(); return; }
     ledger.textContent = '正在调阅授信履历……';
-    try { awards = await client.listClerkHonors(profile.id, { includeRevoked: true }); render(); } catch (error) {
+    try { awards = await client.listClerkHonors(profile.id); render(); } catch (error) {
       awards = []; ledger.innerHTML = `<p class="honor-control__empty">${escapeHtml(error.message || '无法读取授信履历')}</p>`;
     }
   };
@@ -192,7 +192,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
       const note = globalThis.window?.prompt?.('撤销说明（可留空）：', '') ?? null;
       if (note === null) return;
       button.disabled = true;
-      try { await client.revokeClerkHonor(button.dataset.awardId, note); status.textContent = '荣誉已撤销，历史仍保留于档案袋。'; await loadLedger(); } catch (error) { status.textContent = error.message || '无法撤销该荣誉'; button.disabled = false; }
+      try { await client.revokeClerkHonor(button.dataset.awardId, note); status.textContent = '授信已取消，并已从该书记官的可见档案中移除。'; await loadLedger(); } catch (error) { status.textContent = error.message || '无法撤销该荣誉'; button.disabled = false; }
     });
   }
   await reload();
