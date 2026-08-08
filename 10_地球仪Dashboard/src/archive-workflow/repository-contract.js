@@ -20,6 +20,7 @@ export const ARCHIVE_WORKFLOW_METHODS = Object.freeze([
   'issueClerkHonor',
   'revokeClerkHonor',
   'sendAnnouncement',
+  'sendHonorNotification',
   'listNotifications',
   'markNotificationRead',
   'searchArchives',
@@ -258,6 +259,7 @@ export const assertArchiveWorkflowResult = (method, result) => {
     case 'revokeClerkHonor':
       return requireFields(result, ['id']);
     case 'sendAnnouncement':
+    case 'sendHonorNotification':
       return requireFields(result, ['id', 'subject', 'created_at', 'message', 'kind', 'read_at', 'sender_label']);
     case 'markNotificationRead':
       return requireFields(result, ['id', 'read_at']);

@@ -978,6 +978,25 @@ test('administrator announcements reach the addressed clerk without exposing an 
   assert.doesNotMatch(JSON.stringify(notifications[0]), /admin@example\.com/);
 });
 
+test('administrator honor notices are delivered through the recipient mailbox', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[0] });
+  await harness.seedDefaults();
+
+  const sent = await harness.repository.sendHonorNotification('clerk-1', {
+    subject: 'Honor notification',
+    message: 'Your credential has been issued.',
+  });
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  const notifications = await harness.repository.listNotifications('clerk-1');
+
+  assert.equal(sent.kind, 'honor');
+  assert.equal(sent.sender_label, '\u5357\u6781\u516c\u7ea6\u76d1\u7ba1\u529e\u516c\u5ba4 / \u5ba3\u4f20\u90e8\u6388\u4fe1\u7ba1\u7406\u5904');
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].subject, 'Honor notification');
+  assert.equal(notifications[0].message, 'Your credential has been issued.');
+  assert.equal(notifications[0].contribution, null);
+});
+
 test('uploadAttachment stores a 1-byte to 5MB Blob and returns an isolated metadata copy', async () => {
   const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
   await harness.seedDefaults();

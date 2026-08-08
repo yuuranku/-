@@ -359,20 +359,18 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       throw error;
     }
   };
-  const issueClerkHonor = async ({ clerkId, ribbonId, code, title, category, description } = {}) => {
-    const normalizedCode = String(code ?? '').trim().toUpperCase();
+  const issueClerkHonor = async ({ clerkId, ribbonId, title, category, description } = {}) => {
     const normalizedTitle = String(title ?? '').trim();
     const normalizedCategory = String(category ?? '').trim();
     const normalizedDescription = String(description ?? '').trim();
-    if (!/^[A-Z0-9-]{3,32}$/.test(normalizedCode) || !normalizedTitle || !normalizedDescription || !normalizedCategory || normalizedCategory.length > 60) {
-      throw new ArchiveWorkflowError('Honor code, title, category, and description are required', { code: 'invalid_honor_award' });
+    if (!normalizedTitle || !normalizedDescription || !normalizedCategory || normalizedCategory.length > 60) {
+      throw new ArchiveWorkflowError('Honor title, category, and description are required', { code: 'invalid_honor_award' });
     }
     return unwrap(
-      supabase.from('clerk_honors').insert({
-        clerk_id: requireId(clerkId, 'clerkId'), ribbon_id: requireId(ribbonId, 'ribbonId'),
-        code: normalizedCode, title: normalizedTitle, category: normalizedCategory, description: normalizedDescription,
-        issue_note: '', visibility: 'public',
-      }).select('id').single(),
+      supabase.rpc('issue_clerk_honor', {
+        p_clerk_id: requireId(clerkId, 'clerkId'), p_ribbon_id: requireId(ribbonId, 'ribbonId'),
+        p_title: normalizedTitle, p_category: normalizedCategory, p_description: normalizedDescription,
+      }),
       'Unable to issue honor ribbon',
     );
   };
@@ -423,6 +421,19 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       p_subject: normalizedSubject,
       p_message: normalizedMessage,
     }), 'Unable to send mailbox announcement');
+  };
+
+  const sendHonorNotification = (recipientId, { subject, message } = {}) => {
+    const normalizedSubject = String(subject ?? '').trim();
+    const normalizedMessage = String(message ?? '').trim();
+    if (!normalizedSubject || !normalizedMessage || normalizedSubject.length > 160 || normalizedMessage.length > 4000) {
+      throw new ArchiveWorkflowError('Honor notification subject or message is invalid', { code: 'invalid_honor_notification' });
+    }
+    return unwrap(supabase.rpc('send_honor_notification', {
+      p_recipient_id: requireId(recipientId, 'recipientId'),
+      p_subject: normalizedSubject,
+      p_message: normalizedMessage,
+    }), 'Unable to send honor notification');
   };
 
   const listNotifications = (recipientId) => unwrap(
@@ -1021,7 +1032,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     getProfile, listTemplates, listMyDrafts, deleteDraft, saveDraft, submitDraft, listReviewQueue, reviewSubmission,
     publishContribution, inviteUser, listUsers, listClerkDirectory, createUser, updateUserRole, updateUserClerkRank, resetUserPassword, deleteUser,
     listHonorRibbons, createHonorRibbon, listClerkHonors, issueClerkHonor, revokeClerkHonor,
-    sendAnnouncement, listNotifications, markNotificationRead, searchArchives, searchArchiveStoryPages, listPublishedArchives, listEditableArchives,
+    sendAnnouncement, sendHonorNotification, listNotifications, markNotificationRead, searchArchives, searchArchiveStoryPages, listPublishedArchives, listEditableArchives,
     listAdminArchives, deleteArchive, loadArchiveEditorSource, listArchiveContributions, listArchiveReferences,
     listArchiveDocuments, listContributionMedia, listPublishedMedia, setArchiveNewBadge, uploadAttachment,
     listWorkspaceNotes, createWorkspaceNote, updateWorkspaceNote, deleteWorkspaceNote,

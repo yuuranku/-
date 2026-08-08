@@ -22,6 +22,7 @@ test('administrator can issue and revoke a ribbon without erasing the clerk ledg
     clerkId: LOCAL_PROFILES[1].id, ribbonId: ribbon.id,
     code: 'CM-001', title: '委托执行记录', category: 'commission', description: '完成公开档案委托。',
   });
+  assert.equal(issued.code, 'CM-001');
   await harness.repository.revokeClerkHonor(issued.id, '记录归档');
 
   await harness.setPrincipal(LOCAL_PROFILES[1]);
@@ -30,6 +31,27 @@ test('administrator can issue and revoke a ribbon without erasing the clerk ledg
   assert.equal(ledger[0].status, 'revoked');
   assert.equal(ledger[0].code, 'CM-001');
   assert.equal(ledger[0].imageUrl, 'data:image/png;base64,AA==');
+});
+
+test('honor codes are assigned from each category issuance count and never reuse a revoked number', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const ribbon = await harness.repository.createHonorRibbon({
+    file: { name: 'service-ribbon.webp' },
+    imageUrl: 'data:image/png;base64,AA==',
+  });
+  const first = await harness.repository.issueClerkHonor({
+    clerkId: LOCAL_PROFILES[1].id, ribbonId: ribbon.id,
+    code: 'IGNORED-001', title: 'First service', category: 'service', description: 'First service record.',
+  });
+  await harness.repository.revokeClerkHonor(first.id, 'Superseded');
+  const second = await harness.repository.issueClerkHonor({
+    clerkId: LOCAL_PROFILES[1].id, ribbonId: ribbon.id,
+    code: 'IGNORED-002', title: 'Second service', category: 'service', description: 'Second service record.',
+  });
+
+  assert.equal(first.code, 'LS-001');
+  assert.equal(second.code, 'LS-002');
 });
 
 test('a public archive only renders the strip image beside the attributed clerk name', () => {

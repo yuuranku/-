@@ -3226,9 +3226,10 @@ export function initializeArchiveWorkspace({
           : '<option value="">当前没有可收件的书记官</option>';
       }
       let selectedNotificationId = notifications[0]?.id || null;
-      const senderFor = (notification) => notification.kind === 'announcement'
-        ? 'PALIS 档案管理处 / 系统公告'
-        : `档案审核 / ${notification.contribution?.title || notification.kind}`;
+      const senderFor = (notification) => String(notification.sender_label || '').trim()
+        || (notification.kind === 'announcement'
+          ? 'PALIS 档案管理处 / 系统公告'
+          : `档案审核 / ${notification.contribution?.title || notification.kind}`);
       const dateFor = (notification) => notification.created_at
         ? new Date(notification.created_at).toLocaleString('zh-CN')
         : '收发时间未记录';

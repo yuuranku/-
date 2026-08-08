@@ -13,6 +13,14 @@ import { normalizeMainlineCode, normalizeMainlineVersion } from '../mainline-dom
 import { ACTIVE_TASK_STATUSES, normalizeWorkflowTask, TASK_STATUSES } from '../commission-domain.js';
 import { isValidClerkRegistration, normalizeClerkRegistration } from '../clerk-registration.js';
 
+const HONOR_CODE_PREFIXES = Object.freeze({
+  mainline: 'ML',
+  event: 'EV',
+  commission: 'CM',
+  service: 'LS',
+  investigation: 'SI',
+});
+
 export class LocalWorkflowError extends Error {
   constructor(message, code, details = null) {
     super(message);
@@ -975,15 +983,21 @@ export const createLocalWorkflowEngine = ({
   };
 
   const normalizeHonorAwardInput = (input = {}) => {
-    const code = String(input.code ?? '').trim().toUpperCase();
     const title = String(input.title ?? '').trim();
     const category = String(input.category ?? '').trim();
     const description = String(input.description ?? '').trim();
-    if (!/^[A-Z0-9-]{3,32}$/.test(code) || !title || !description) {
-      throw workflowError('invalid_honor_award', 'Honor code, title, and description are required');
+    if (!title || !description) {
+      throw workflowError('invalid_honor_award', 'Honor title and description are required');
     }
     if (!category || category.length > 60) throw workflowError('invalid_honor_category', 'Honor category is invalid');
-    return { code, title, category, description };
+    return { title, category, description };
+  };
+
+  const nextHonorCode = (state, category) => {
+    const issuedCount = (state.clerkHonors || [])
+      .filter((award) => award.category === category).length;
+    const prefix = HONOR_CODE_PREFIXES[category] || 'HR';
+    return `${prefix}-${String(issuedCount + 1).padStart(3, '0')}`;
   };
 
   const activePublicHonors = (state, profileId) => (state.clerkHonors || [])
@@ -1059,7 +1073,7 @@ export const createLocalWorkflowEngine = ({
       .sort((left, right) => String(right.issued_at).localeCompare(String(left.issued_at))));
   };
 
-  const issueClerkHonor = async ({ clerkId, ribbonId, code, title, category, description } = {}) => {
+  const issueClerkHonor = async ({ clerkId, ribbonId, title, category, description } = {}) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
       const nextState = clone(currentState);
@@ -1067,9 +1081,10 @@ export const createLocalWorkflowEngine = ({
       const profile = nextState.profiles.find((entry) => entry.id === String(clerkId ?? '').trim());
       const ribbon = nextState.honorRibbons.find((entry) => entry.id === String(ribbonId ?? '').trim());
       if (!profile || profile.enabled === false || !ribbon) throw workflowError('not_found', 'Clerk or honor ribbon was not found');
-      const payload = normalizeHonorAwardInput({ code, title, category, description });
+      const payload = normalizeHonorAwardInput({ title, category, description });
       const award = {
-        id: randomUUID(), clerk_id: profile.id, ribbon_id: ribbon.id, issued_by: principal.id, ...payload,
+        id: randomUUID(), clerk_id: profile.id, ribbon_id: ribbon.id, issued_by: principal.id,
+        code: nextHonorCode(nextState, payload.category), ...payload,
         issue_note: '', visibility: 'public', status: 'active', issued_at: now(), revoked_at: null, revoke_note: '',
       };
       nextState.clerkHonors.push(award);
@@ -1233,6 +1248,40 @@ export const createLocalWorkflowEngine = ({
       };
       nextState.notifications.push(notification);
       appendAudit(nextState, principal, 'send_announcement', 'profile', recipient.id, {
+        notification_id: notification.id,
+        subject: normalizedSubject,
+      }, notification.created_at);
+      return { nextState, result: clone(notification) };
+    });
+  };
+
+  const sendHonorNotification = async (recipientId, { subject, message } = {}) => {
+    const principal = requirePrincipal(getPrincipal);
+    return transactState((currentState) => {
+      const nextState = clone(currentState);
+      requireAdministrator(principal);
+      const recipient = nextState.profiles.find((entry) => entry.id === String(recipientId ?? '').trim());
+      if (!recipient || recipient.role !== 'clerk' || recipient.enabled === false) {
+        throw workflowError('invalid_recipient', 'Honor notifications can only be sent to enabled clerks');
+      }
+      const normalizedSubject = String(subject ?? '').trim();
+      const normalizedMessage = String(message ?? '').trim();
+      if (!normalizedSubject || !normalizedMessage || normalizedSubject.length > 160 || normalizedMessage.length > 4000) {
+        throw workflowError('invalid_honor_notification', 'Honor notification subject or message is invalid');
+      }
+      const notification = {
+        id: randomUUID(),
+        recipient_id: recipient.id,
+        contribution_id: null,
+        kind: 'honor',
+        sender_label: '南极公约监管办公室 / 宣传部授信管理处',
+        subject: normalizedSubject,
+        message: normalizedMessage,
+        read_at: null,
+        created_at: now(),
+      };
+      nextState.notifications.push(notification);
+      appendAudit(nextState, principal, 'send_honor_notification', 'profile', recipient.id, {
         notification_id: notification.id,
         subject: normalizedSubject,
       }, notification.created_at);
@@ -2174,6 +2223,7 @@ export const createLocalWorkflowEngine = ({
     resetUserPassword,
     deleteUser,
     sendAnnouncement,
+    sendHonorNotification,
     listNotifications,
     markNotificationRead,
     searchArchives,
