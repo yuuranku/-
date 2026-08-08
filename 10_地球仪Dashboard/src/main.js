@@ -7735,8 +7735,11 @@ function getGlobeLayout(progress) {
   const archive = mobile
     ? {
       x: 0,
-      y: stageCenterY + stageHeight * worldPerPixel * 0.27,
-      scale: fit(0.66, 1.12),
+      // The phone archive board sits in the lower third of the stage.  Give
+      // the directory a recognisable upper hemisphere instead of a small,
+      // isolated globe between the heading and the cards.
+      y: stageCenterY + stageHeight * worldPerPixel * 0.36,
+      scale: fit(0.88, 1.24),
     }
     : { x: 0, y: stageCenterY, scale: fit(archiveScale) };
   const polar = mobile
