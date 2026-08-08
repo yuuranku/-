@@ -8078,7 +8078,12 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '', reveal 
     if (reveal) document.querySelector('#map-detail')?.classList.add('has-selection');
   }
   interactiveMeshes.forEach((marker) => {
-    const isSelected = polarDiagnosticComplete && marker.userData.item?.code === item.code;
+    // Never light a point while the self-test is still traversing nodes. Once
+    // that sequence has settled (including preview/offline mode), a deliberate
+    // tap must produce the same bright selected state on phone and desktop.
+    const polarIsStillLoading = polarLayer.classList.contains('is-diagnostic-running');
+    const isSelected = marker.userData.item?.code === item.code
+      && (polarDiagnosticComplete || (!polarIsStillLoading && !transient));
     marker.userData.selectionHighlight.visible = isSelected;
     marker.scale.setScalar(isSelected ? 1.16 : 1);
     marker.material.color.set(isSelected ? 0xfff5b2 : marker.material.userData.baseColor);

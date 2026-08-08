@@ -6434,3 +6434,152 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   PHONE VIEWPORT FIT / 2026-08
+   Use --app-height, maintained from visualViewport in main.js, instead of
+   the device's nominal height. Browser chrome can therefore expand without
+   hiding the last archive tile or the selected polar record.
+   -------------------------------------------------------------------------- */
+@media (max-width: 760px) {
+  .version-notice,
+  .version-notice__panel,
+  .version-notice__content {
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+  }
+
+  .version-notice__panel {
+    height: var(--app-height, 100dvh) !important;
+  }
+
+  .version-notice__titlebar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 44px !important;
+    align-items: center !important;
+    gap: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .version-notice__titlebar > span {
+    display: block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .version-notice__titlebar .window-controls {
+    display: grid !important;
+    grid-template-columns: 44px !important;
+    min-width: 44px !important;
+    overflow: hidden !important;
+  }
+
+  .version-notice__content,
+  .version-notice__copy {
+    min-width: 0 !important;
+  }
+
+  .version-notice__copy :is(p, h2, h3, dd, .version-notice__lead-reference) {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Root directory: all nine folders inhabit one non-scrolling 3 × 3 board.
+     Individual category views remain independently scrollable as before. */
+  #archive-layer:not(.has-directory) {
+    height: calc(var(--app-height, 100dvh) - var(--palis-phone-nav)) !important;
+    max-height: calc(var(--app-height, 100dvh) - var(--palis-phone-nav)) !important;
+    overflow: hidden !important;
+  }
+
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit {
+    position: absolute !important;
+    inset: var(--palis-phone-header) 0 0 !important;
+    display: grid !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 7px 8px 9px !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+  }
+
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-item {
+    display: block !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-button,
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-button:hover,
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-button:focus-visible {
+    height: 100% !important;
+    min-height: 0 !important;
+    align-content: center !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    padding: 8px 5px !important;
+    text-align: center !important;
+  }
+
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-name {
+    font-size: clamp(13px, 3.6vw, 16px) !important;
+    line-height: 1.1 !important;
+  }
+
+  #archive-layer:not(.has-directory) #folder-orbit.mode-orbit .folder-button small {
+    margin-top: 1px !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+  }
+
+  /* The polar detail card is a complete action card: selected coordinate,
+     four attributes and its open button are always visible together. */
+  .polar-layer .map-detail.has-selection {
+    right: 9px !important;
+    bottom: 9px !important;
+    left: 9px !important;
+    width: auto !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  .polar-layer .map-detail.has-selection .window-body {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      'code code'
+      'title english'
+      'details details'
+      'open open' !important;
+    gap: 7px 10px !important;
+    max-height: none !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+  }
+
+  .polar-layer .map-detail .detail-code { grid-area: code !important; margin: 0 !important; }
+  .polar-layer .map-detail h3 { grid-area: title !important; margin: 0 !important; font-size: 20px !important; line-height: 1.1 !important; }
+  .polar-layer .map-detail #detail-english { grid-area: english !important; align-self: end !important; margin: 0 !important; font-size: 10px !important; text-align: right !important; }
+  .polar-layer .map-detail dl { grid-area: details !important; margin: 0 !important; }
+  .polar-layer .map-detail .detail-note { display: none !important; }
+  .polar-layer .map-detail .map-open-selected {
+    grid-area: open !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+  }
+
+  .polar-layer .map-detail dl div { min-height: 62px !important; padding: 7px 8px !important; }
+  .polar-layer .map-detail dl dt { font-size: 10px !important; }
+  .polar-layer .map-detail dl dd { margin-top: 7px !important; font-size: 14px !important; line-height: 1.18 !important; }
+}
