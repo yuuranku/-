@@ -8081,7 +8081,11 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '', reveal 
     // Never light a point while the self-test is still traversing nodes. Once
     // that sequence has settled (including preview/offline mode), a deliberate
     // tap must produce the same bright selected state on phone and desktop.
-    const polarIsStillLoading = polarLayer.classList.contains('is-diagnostic-running');
+    // `selectMapItem()` also prepares the initial record before `polarLayer`
+    // is assigned below. Querying the DOM here deliberately avoids touching
+    // that temporal-dead-zone binding during application boot.
+    const polarIsStillLoading = document.querySelector('#polar-layer')
+      ?.classList.contains('is-diagnostic-running') ?? false;
     const isSelected = marker.userData.item?.code === item.code
       && (polarDiagnosticComplete || (!polarIsStillLoading && !transient));
     marker.userData.selectionHighlight.visible = isSelected;
