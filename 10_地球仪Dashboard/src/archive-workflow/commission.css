@@ -187,6 +187,12 @@
 .honor-control__issue { width: min(100%, 640px); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--honor-space-4); row-gap: var(--honor-space-3); margin: var(--honor-space-4) auto 0; padding: var(--honor-space-4); border: 1px solid #747970; background: rgba(255,255,255,.17); }
 .honor-control__issue .honor-control__full { grid-column: 1 / -1; }
 .honor-control__issue > button { grid-column: 1 / -1; justify-self: end; min-width: 140px; }
+.honor-control__recipient-mode { grid-column: 1 / -1; display: flex; align-items: center; gap: 1px; margin: 0; padding: 0; border: 1px solid #747970; background: #747970; }
+.honor-control__recipient-mode legend { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+.honor-control__recipient-mode label { display: flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 7px; min-height: 34px; margin: 0; padding: 0 10px; color: #38463d; background: rgba(248, 248, 243, .78); font-size: 12px; cursor: pointer; }
+.honor-control__recipient-mode label:has(input:checked) { color: #f1f5e7; background: #183a34; box-shadow: inset 3px 0 0 #b79a3d; }
+.honor-control__recipient-mode input { flex: 0 0 auto; width: 14px; min-height: 0; height: 14px; margin: 0; padding: 0; accent-color: #b79a3d; }
+.honor-control__issue [data-honor-single-recipient] label { display: grid; }
 .honor-control__clerk-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; max-height: 132px; margin-top: 5px; overflow-y: auto; border: 1px solid #747970; background: #747970; }
 .honor-control__clerk-option { display: flex !important; grid-column: auto !important; align-items: center; gap: 7px; min-height: 31px; margin: 0 !important; padding: 6px 8px; color: #26352e; background: rgba(248, 248, 243, .78); font-size: 12px; cursor: pointer; }
 .honor-control__clerk-option:hover { background: #e4e9dc; }
