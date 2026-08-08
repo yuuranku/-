@@ -2496,6 +2496,9 @@ window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('wheel', onPageWheel, { passive: false });
 window.addEventListener('resize', onResize);
 window.visualViewport?.addEventListener('resize', onResize);
+window.addEventListener('hashchange', () => {
+  if (!syncMobileChapterFromHash()) onScroll();
+});
 capsuleLayer.addEventListener('pointermove', updateCapsuleParallax, { passive: true });
 capsuleLayer.addEventListener('pointerleave', resetCapsuleParallax, { passive: true });
 capsuleLayer.addEventListener('pointercancel', resetCapsuleParallax, { passive: true });
@@ -2504,6 +2507,7 @@ chapterLinks.forEach((link, index) => {
   link.addEventListener('click', (event) => {
     event.preventDefault();
     history.replaceState(null, '', link.hash);
+    if (syncMobileChapterFromHash(index)) return;
     scrollToChapter(index);
   });
 });
@@ -7296,8 +7300,35 @@ function openArchive(archive, trigger) {
 }
 
 function onScroll() {
+  if (syncMobileChapterFromHash()) return;
   const maxScroll = Math.max(document.documentElement.scrollHeight - innerHeight, 1);
   targetProgress = THREE.MathUtils.clamp(scrollY / maxScroll, 0, 1);
+}
+
+function isPhoneViewport() {
+  return (window.visualViewport?.width || innerWidth) < 761;
+}
+
+function chapterFromHash(hash = location.hash) {
+  const index = chapterLinks.findIndex((link) => link.hash === hash);
+  return index >= 0 ? index : 0;
+}
+
+function syncMobileChapterFromHash(forcedChapter = null) {
+  if (!isPhoneViewport()) return false;
+  const chapter = Number.isInteger(forcedChapter)
+    ? THREE.MathUtils.clamp(forcedChapter, 0, chapterTargets.length - 1)
+    : chapterFromHash();
+  const progress = chapterTargets[chapter] ?? 0;
+  if (chapterScrollFrame) {
+    cancelAnimationFrame(chapterScrollFrame);
+    chapterScrollFrame = 0;
+  }
+  targetProgress = progress;
+  scrollProgress = progress;
+  document.documentElement.classList.remove('is-chapter-transitioning');
+  setChapter(chapter);
+  return true;
 }
 
 function onPageWheel(event) {
@@ -7704,8 +7735,8 @@ function getGlobeLayout(progress) {
   const archive = mobile
     ? {
       x: 0,
-      y: stageCenterY + stageHeight * worldPerPixel * 0.25,
-      scale: fit(0.34, 0.72),
+      y: stageCenterY + stageHeight * worldPerPixel * 0.27,
+      scale: fit(0.66, 1.12),
     }
     : { x: 0, y: stageCenterY, scale: fit(archiveScale) };
   const polar = mobile
