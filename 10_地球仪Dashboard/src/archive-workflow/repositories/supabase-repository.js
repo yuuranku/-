@@ -38,6 +38,21 @@ const isWorkflowSchemaUnavailable = (error) => {
       && /(?:does not exist|could not find|schema cache)/i.test(message));
 };
 
+const isMissingRpc = (error, rpcName) => {
+  const code = String(error?.code ?? '');
+  const message = String(error?.message ?? '');
+  return code === 'PGRST202'
+    || (message.includes(`public.${rpcName}`) && /could not find the function|schema cache/i.test(message));
+};
+
+const honorCodePrefix = (category) => ({
+  mainline: 'ML',
+  event: 'EV',
+  commission: 'CM',
+  service: 'LS',
+  investigation: 'SI',
+}[category] || 'HR');
+
 const requireId = (value, label) => {
   const id = String(value ?? '').trim();
   if (!id) throw new ArchiveWorkflowError(`${label} is required`, { code: 'invalid_input' });
@@ -366,13 +381,31 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     if (!normalizedTitle || !normalizedDescription || !normalizedCategory || normalizedCategory.length > 60) {
       throw new ArchiveWorkflowError('Honor title, category, and description are required', { code: 'invalid_honor_award' });
     }
-    return unwrap(
-      supabase.rpc('issue_clerk_honor', {
-        p_clerk_id: requireId(clerkId, 'clerkId'), p_ribbon_id: requireId(ribbonId, 'ribbonId'),
-        p_title: normalizedTitle, p_category: normalizedCategory, p_description: normalizedDescription,
-      }),
-      'Unable to issue honor ribbon',
-    );
+    const normalizedClerkId = requireId(clerkId, 'clerkId');
+    const normalizedRibbonId = requireId(ribbonId, 'ribbonId');
+    try {
+      return await unwrap(
+        supabase.rpc('issue_clerk_honor', {
+          p_clerk_id: normalizedClerkId, p_ribbon_id: normalizedRibbonId,
+          p_title: normalizedTitle, p_category: normalizedCategory, p_description: normalizedDescription,
+        }),
+        'Unable to issue honor ribbon',
+      );
+    } catch (error) {
+      if (!isMissingRpc(error, 'issue_clerk_honor')) throw error;
+      const { count, error: countError } = await supabase.from('clerk_honors')
+        .select('id', { count: 'exact', head: true }).eq('category', normalizedCategory);
+      if (countError) throw normalizeError(countError, 'Unable to count issued honors');
+      const code = `${honorCodePrefix(normalizedCategory)}-${String((count || 0) + 1).padStart(3, '0')}`;
+      return unwrap(
+        supabase.from('clerk_honors').insert({
+          clerk_id: normalizedClerkId, ribbon_id: normalizedRibbonId,
+          code, title: normalizedTitle, category: normalizedCategory, description: normalizedDescription,
+          issue_note: '', visibility: 'public',
+        }).select('id,code').single(),
+        'Unable to issue honor ribbon',
+      );
+    }
   };
   const revokeClerkHonor = (awardId, revokeNote = '') => unwrap(
     supabase.from('clerk_honors').update({ status: 'revoked', revoked_at: new Date().toISOString(), revoke_note: String(revokeNote).trim() }).eq('id', requireId(awardId, 'awardId')).select('id').single(),
@@ -423,17 +456,30 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     }), 'Unable to send mailbox announcement');
   };
 
-  const sendHonorNotification = (recipientId, { subject, message } = {}) => {
+  const sendHonorNotification = async (recipientId, { subject, message } = {}) => {
     const normalizedSubject = String(subject ?? '').trim();
     const normalizedMessage = String(message ?? '').trim();
     if (!normalizedSubject || !normalizedMessage || normalizedSubject.length > 160 || normalizedMessage.length > 4000) {
       throw new ArchiveWorkflowError('Honor notification subject or message is invalid', { code: 'invalid_honor_notification' });
     }
-    return unwrap(supabase.rpc('send_honor_notification', {
-      p_recipient_id: requireId(recipientId, 'recipientId'),
-      p_subject: normalizedSubject,
-      p_message: normalizedMessage,
-    }), 'Unable to send honor notification');
+    const normalizedRecipientId = requireId(recipientId, 'recipientId');
+    try {
+      return await unwrap(supabase.rpc('send_honor_notification', {
+        p_recipient_id: normalizedRecipientId,
+        p_subject: normalizedSubject,
+        p_message: normalizedMessage,
+      }), 'Unable to send honor notification');
+    } catch (error) {
+      if (!isMissingRpc(error, 'send_honor_notification')) throw error;
+      return unwrap(supabase.from('archive_notifications').insert({
+        recipient_id: normalizedRecipientId,
+        contribution_id: null,
+        kind: 'announcement',
+        sender_label: '南极公约监管办公室 / 宣传部授信管理处',
+        subject: normalizedSubject,
+        message: normalizedMessage,
+      }).select('*').single(), 'Unable to send honor notification');
+    }
   };
 
   const listNotifications = (recipientId) => unwrap(
