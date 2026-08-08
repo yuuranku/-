@@ -185,8 +185,14 @@
 .honor-control__body > main > header span { color: var(--ledger-muted); font: 11px var(--font-mono, monospace); }
 .honor-control__body > main > header b { font-size: 18px; }
 .honor-control__issue { width: min(100%, 640px); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--honor-space-4); row-gap: var(--honor-space-3); margin: var(--honor-space-4) auto 0; padding: var(--honor-space-4); border: 1px solid #747970; background: rgba(255,255,255,.17); }
-.honor-control__issue label:first-of-type, .honor-control__issue label:last-of-type { grid-column: 1 / -1; }
+.honor-control__issue .honor-control__full { grid-column: 1 / -1; }
 .honor-control__issue > button { grid-column: 1 / -1; justify-self: end; min-width: 140px; }
+.honor-control__clerk-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; max-height: 132px; margin-top: 5px; overflow-y: auto; border: 1px solid #747970; background: #747970; }
+.honor-control__clerk-option { display: flex !important; grid-column: auto !important; align-items: center; gap: 7px; min-height: 31px; margin: 0 !important; padding: 6px 8px; color: #26352e; background: rgba(248, 248, 243, .78); font-size: 12px; cursor: pointer; }
+.honor-control__clerk-option:hover { background: #e4e9dc; }
+.honor-control__clerk-option:has(input:checked) { color: #f1f5e7; background: #183a34; box-shadow: inset 3px 0 0 #b79a3d; }
+.honor-control__clerk-option input { flex: 0 0 auto; width: 15px; min-height: 0; height: 15px; margin: 0; padding: 0; accent-color: #b79a3d; }
+.honor-control__batch-summary { display: block; margin-top: 6px; color: #59645b; font: 10px/1.4 var(--font-mono, monospace); }
 .honor-control__person-ledger { max-width: 640px; margin: var(--honor-space-5) auto 0; padding-top: var(--honor-space-4); border-top: 1px solid #777b70; }
 .honor-control__award { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: var(--honor-space-3); align-items: start; padding: var(--honor-space-3) 0; border-bottom: 1px solid #858b82; }
 .honor-control__award[data-award-status="revoked"] { opacity: .6; }
@@ -330,7 +336,8 @@
   .honor-control__style-library > div { overflow: visible; }
   .honor-control__category-guide { flex: initial; grid-template-columns: repeat(5, minmax(44px, 1fr)); width: 100%; }
   .honor-control__issue { width: 100%; grid-template-columns: 1fr; }
-  .honor-control__issue label:first-of-type, .honor-control__issue label:last-of-type, .honor-control__issue > button { grid-column: auto; }
+  .honor-control__issue .honor-control__full, .honor-control__issue > button { grid-column: auto; }
+  .honor-control__clerk-picker { grid-template-columns: 1fr; max-height: 156px; }
   .honor-control__award { grid-template-columns: 104px minmax(0, 1fr); }
   .honor-control__award footer { grid-column: 1 / -1; }
   .task-response-register__columns { grid-template-columns: 1fr; }

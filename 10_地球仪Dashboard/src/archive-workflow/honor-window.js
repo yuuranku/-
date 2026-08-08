@@ -30,6 +30,14 @@ const clerkOptions = (profiles = [], selected = '') => profiles
   .map((profile) => `<option value="${escapeHtml(profile.id)}" ${profile.id === selected ? 'selected' : ''}>${escapeHtml(profile.display_name || profile.email)}${profile.role === 'admin' ? ' / 管理员' : ''}</option>`)
   .join('');
 
+const clerkPickerMarkup = (profiles = [], selectedIds = new Set()) => profiles
+  .filter((profile) => profile.enabled !== false && profile.role === 'clerk')
+  .map((profile) => `<label class="honor-control__clerk-option">
+    <input type="checkbox" name="clerkIds" value="${escapeHtml(profile.id)}" ${selectedIds.has(profile.id) ? 'checked' : ''} />
+    <span>${escapeHtml(profile.display_name || profile.email)}</span>
+  </label>`)
+  .join('') || '<p class="honor-control__empty">暂无可授信的书记官。</p>';
+
 const styleOptions = (ribbons = []) => ribbons.map((ribbon) => `<option value="${escapeHtml(ribbon.id)}">${escapeHtml(ribbon.title || ribbon.code)}</option>`).join('');
 
 const honorNotification = ({ recipient, code, title, category, description }) => `书记官 ${recipient}：
@@ -80,13 +88,17 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
         <main>
           <header><div><span>PERSONNEL / CREDENTIAL LEDGER</span><b>授予荣誉</b></div><ul class="honor-control__category-guide" aria-label="荣誉分类颜色提示">${HONOR_CATEGORIES.map((category) => `<li title="${escapeHtml(category.label)}：制图底色提示"><i style="--honor-category:${escapeHtml(category.color)}"></i><span>${escapeHtml(category.label)}</span></li>`).join('')}</ul></header>
           <form class="honor-control__issue" data-honor-issue-form>
-            <label>书记官<select name="clerkId" data-honor-clerk required></select></label>
+            <label class="honor-control__full">授信对象
+              <div class="honor-control__clerk-picker" data-honor-clerk-picker></div>
+              <small class="honor-control__batch-summary" data-honor-batch-summary>请选择至少一名书记官。</small>
+            </label>
+            <label>查看履历<select data-honor-clerk></select></label>
             <label>编号<input data-honor-code-preview value="AUTO / ISSUANCE ORDER" readonly aria-label="自动编号" /></label>
             <label>名称<input name="title" maxlength="100" required /></label>
             <label>归类<select name="category" required>${categoryOptions()}</select></label>
             <label>条带样式<select name="ribbonId" data-honor-ribbon required></select></label>
-            <label>说明<textarea name="description" maxlength="500" required></textarea></label>
-            <button type="submit">授予所选书记官</button>
+            <label class="honor-control__full">说明<textarea name="description" maxlength="500" required></textarea></label>
+            <button type="submit" data-honor-issue-submit>授予已选书记官</button>
           </form>
           <section class="honor-control__person-ledger"><h2 data-honor-ledger-title>选择一名书记官</h2><div data-honor-person-ledger>从上方选择人员后读取完整授信履历。</div></section>
         </main>
@@ -98,6 +110,9 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   const status = root.querySelector('[data-honor-control-status]');
   const library = root.querySelector('[data-honor-style-library]');
   const clerkSelect = root.querySelector('[data-honor-clerk]');
+  const clerkPicker = root.querySelector('[data-honor-clerk-picker]');
+  const batchSummary = root.querySelector('[data-honor-batch-summary]');
+  const issueButton = root.querySelector('[data-honor-issue-submit]');
   const ribbonSelect = root.querySelector('[data-honor-ribbon]');
   const codePreview = root.querySelector('[data-honor-code-preview]');
   const ledger = root.querySelector('[data-honor-person-ledger]');
@@ -105,9 +120,18 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   let ribbons = [];
   let profiles = [];
   let awards = [];
+  let selectedClerkIds = new Set();
   const selectedProfile = () => profiles.find((profile) => profile.id === clerkSelect.value) || null;
+  const selectedRecipients = () => profiles.filter((profile) => selectedClerkIds.has(profile.id));
   const updateCodePreview = () => {
     codePreview.value = `AUTO / ${honorCategory(root.querySelector('[name="category"]').value).label}`;
+  };
+  const updateBatchSummary = () => {
+    const count = selectedRecipients().length;
+    batchSummary.textContent = count
+      ? `已选择 ${count} 名书记官；每人将获得独立自动编号并收到站内通知。`
+      : '请选择至少一名书记官。';
+    issueButton.textContent = count ? `授予已选 ${count} 名书记官` : '授予已选书记官';
   };
   const render = () => {
     library.innerHTML = styleLibraryMarkup(ribbons);
@@ -117,10 +141,16 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
     const previousStyle = ribbonSelect.value;
     ribbonSelect.innerHTML = `<option value="">选择已保存样式</option>${styleOptions(ribbons)}`;
     if (previousStyle && [...ribbonSelect.options].some((option) => option.value === previousStyle)) ribbonSelect.value = previousStyle;
+    const availableClerkIds = new Set(profiles
+      .filter((profile) => profile.enabled !== false && profile.role === 'clerk')
+      .map((profile) => profile.id));
+    selectedClerkIds = new Set([...selectedClerkIds].filter((id) => availableClerkIds.has(id)));
+    clerkPicker.innerHTML = clerkPickerMarkup(profiles, selectedClerkIds);
     const profile = selectedProfile();
     ledgerTitle.textContent = profile ? `${profile.display_name || profile.email} / 授信履历` : '选择一名书记官';
     ledger.innerHTML = profile ? clerkHonorMarkup(awards) : '从上方选择人员后读取完整授信履历。';
     updateCodePreview();
+    updateBatchSummary();
   };
   const loadLedger = async () => {
     const profile = selectedProfile();
@@ -141,6 +171,13 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   if (!state.honorControlReady) {
     state.honorControlReady = true;
     clerkSelect.addEventListener('change', () => { void loadLedger(); });
+    clerkPicker.addEventListener('change', (event) => {
+      const input = event.target.closest('input[name="clerkIds"]');
+      if (!input) return;
+      if (input.checked) selectedClerkIds.add(input.value);
+      else selectedClerkIds.delete(input.value);
+      updateBatchSummary();
+    });
     root.querySelector('[name="category"]').addEventListener('change', updateCodePreview);
     root.addEventListener('submit', async (event) => {
       const form = event.target;
@@ -161,28 +198,52 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
         const button = form.querySelector('button[type="submit"]');
         button.disabled = true;
         try {
+          const recipients = selectedRecipients();
+          if (!recipients.length) throw new Error('请至少选择一名书记官');
           const award = {
-            clerkId: values.get('clerkId'), ribbonId: values.get('ribbonId'),
+            ribbonId: values.get('ribbonId'),
             title: values.get('title'), category: values.get('category'), description: values.get('description'),
           };
-          const issued = await client.issueClerkHonor(award);
-          const recipient = selectedProfile();
-          try {
-            await client.sendHonorNotification(award.clerkId, {
-              subject: '授信通知',
-              message: honorNotification({
-                recipient: recipient?.display_name || recipient?.email || '书记官',
-                code: issued.code,
-                title: award.title,
-                category: award.category,
-                description: award.description,
-              }),
-            });
-            status.textContent = '授信已写入人员履历，通知已寄送至对方邮箱。';
-          } catch (notificationError) {
-            status.textContent = `授信已写入人员履历，但通知未能寄送：${notificationError.message || '请稍后重试'}`;
+          const outcomes = [];
+          for (const recipient of recipients) {
+            try {
+              const issued = await client.issueClerkHonor({ ...award, clerkId: recipient.id });
+              try {
+                await client.sendHonorNotification(recipient.id, {
+                  subject: '授信通知',
+                  message: honorNotification({
+                    recipient: recipient.display_name || recipient.email || '书记官',
+                    code: issued.code,
+                    title: award.title,
+                    category: award.category,
+                    description: award.description,
+                  }),
+                });
+                outcomes.push({ id: recipient.id, issued: true, notified: true });
+              } catch (notificationError) {
+                outcomes.push({ id: recipient.id, issued: true, notified: false, error: notificationError });
+              }
+            } catch (issueError) {
+              outcomes.push({ id: recipient.id, issued: false, notified: false, error: issueError });
+            }
           }
-          form.reset(); updateCodePreview(); await loadLedger();
+          const issuedCount = outcomes.filter((outcome) => outcome.issued).length;
+          const notifiedCount = outcomes.filter((outcome) => outcome.notified).length;
+          const failedIssues = outcomes.filter((outcome) => !outcome.issued);
+          const failedNotices = outcomes.filter((outcome) => outcome.issued && !outcome.notified).length;
+          if (failedIssues.length) {
+            selectedClerkIds = new Set(failedIssues.map((outcome) => outcome.id));
+            render();
+            status.textContent = `批量授信完成：${issuedCount} 名已发放，${notifiedCount} 名已收到通知；${failedIssues.length} 名未完成，已保留勾选。${failedNotices ? `另有 ${failedNotices} 封通知未寄出。` : ''}`;
+          } else {
+            selectedClerkIds.clear();
+            form.reset();
+            render();
+            status.textContent = failedNotices
+              ? `已向 ${issuedCount} 名书记官批量授信；${notifiedCount} 封通知已寄出，${failedNotices} 封未寄出。`
+              : `已向 ${issuedCount} 名书记官批量授信，并分别寄送站内通知。`;
+          }
+          await loadLedger();
         } catch (error) { status.textContent = error.message || '无法授予该荣誉'; } finally { button.disabled = false; }
       }
     });
