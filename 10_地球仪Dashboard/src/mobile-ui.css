@@ -1,0 +1,2858 @@
+/*
+ * PALIS phone adaptation layer.
+ *
+ * This file intentionally loads last and every existing-interface override is
+ * fenced to phone-sized viewports or coarse-pointer phone landscape. Mouse and
+ * trackpad desktop composition is therefore visually unchanged by this layer.
+ */
+
+.map-open-selected {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------
+   Clerk workspace: phone-only app shell
+
+   The desktop remains a draggable Win95 workspace. Below 760px the same
+   commands become a two-column touch launcher and every opened tool gets the
+   whole working area. No workflow or persistence code is changed here.
+   ------------------------------------------------------------------------- */
+@media (max-width: 760px) {
+  #clerk-desktop {
+    --workspace-mobile-header: 72px;
+    --workspace-mobile-bar: calc(58px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title {
+    position: absolute !important;
+    z-index: 8;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: grid !important;
+    width: auto !important;
+    height: var(--workspace-mobile-header) !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: center;
+    gap: 2px 10px;
+    padding: max(10px, env(safe-area-inset-top)) 14px 9px;
+    overflow: hidden !important;
+    clip: auto !important;
+    clip-path: none !important;
+    color: #f0f2ee;
+    border-bottom: 1px solid rgba(207, 216, 211, .54);
+    background: linear-gradient(90deg, rgba(4, 16, 29, .96), rgba(5, 32, 28, .9));
+    box-shadow: 0 4px 0 rgba(0, 0, 0, .28);
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title h2 {
+    grid-column: 1;
+    margin: 0;
+    font: 700 18px/1.15 var(--font-ui);
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title > span {
+    font: 9px/1.3 var(--font-mono);
+    letter-spacing: .08em;
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title > span:first-of-type {
+    grid-column: 1;
+    color: #94aaa1;
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title > span:last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    max-width: 92px;
+    color: #d6b33e;
+    text-align: right;
+  }
+
+  #clerk-desktop .clerk-desktop__watermark {
+    display: none;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail],
+  #clerk-desktop[data-workspace-role='clerk'] .clerk-desktop__icons[data-archive-category-rail] {
+    inset: calc(var(--workspace-mobile-header) + 10px) 10px calc(var(--workspace-mobile-bar) + 8px) 10px;
+    display: grid;
+    height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(86px, auto);
+    gap: 8px;
+    padding: 2px 0 18px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 8px;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    display: grid;
+    width: auto !important;
+    min-width: 0;
+    min-height: 86px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-items: start;
+    gap: 8px;
+    padding: 10px;
+    color: #122238;
+    border: 2px outset #efefef;
+    background: rgba(239, 239, 234, .94);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, .3);
+    text-align: left;
+    transform: none !important;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:active,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button.is-selected {
+    border-style: inset;
+    background: #fff;
+    box-shadow: inset 4px 0 0 #315bcf;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon {
+    width: 48px;
+    height: 48px;
+    margin: 0;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    align-self: center;
+    max-width: 100%;
+    margin: 0;
+    color: inherit;
+    font: 700 14px/1.3 var(--font-ui);
+    text-shadow: none;
+    white-space: normal;
+  }
+
+  #clerk-desktop .clerk-desktop__window-layer {
+    inset: 0 0 var(--workspace-mobile-bar);
+    z-index: 20;
+  }
+
+  #clerk-desktop .archive-workflow-window,
+  #clerk-desktop #assistant-window-layer .mascot-document-window,
+  #clerk-desktop .clerk-desktop__welcome {
+    inset: 4px !important;
+    width: auto !important;
+    height: calc(100dvh - var(--workspace-mobile-bar) - 8px) !important;
+    max-width: none !important;
+    max-height: none !important;
+    transform: none !important;
+  }
+
+  #clerk-desktop :is(.title-bar, .archive-workflow-window__titlebar, .mascot-document-window__titlebar) {
+    min-height: 44px;
+  }
+
+  #clerk-desktop :is(.title-bar, .archive-workflow-window__titlebar, .mascot-document-window__titlebar) .window-controls button,
+  #clerk-desktop :is(.title-bar, .archive-workflow-window__titlebar, .mascot-document-window__titlebar) > button {
+    min-width: 42px;
+    min-height: 38px;
+  }
+
+  #clerk-desktop .clerk-desktop__taskbar {
+    min-height: var(--workspace-mobile-bar);
+    grid-template-columns: 68px minmax(0, 1fr) 52px;
+    gap: 4px;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+  }
+
+  #clerk-desktop .clerk-desktop__start {
+    min-width: 0;
+    min-height: 46px;
+    padding-inline: 7px;
+  }
+
+  #clerk-desktop .clerk-desktop__start b {
+    font-size: 12px;
+  }
+
+  #clerk-desktop .clerk-desktop__task-list {
+    min-width: 0;
+    height: 46px;
+    gap: 4px;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #clerk-desktop .clerk-desktop__task-list button {
+    flex: 0 0 min(54vw, 190px);
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  #clerk-desktop .clerk-desktop__tray {
+    min-width: 0;
+    min-height: 46px;
+    padding: 0;
+  }
+
+  #clerk-desktop .clerk-desktop__tray > :not(time):not([data-workspace-tray='sync']) {
+    display: none;
+  }
+
+  #clerk-desktop .clerk-desktop__tray time {
+    font-size: 10px;
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu {
+    right: 8px;
+    bottom: var(--workspace-mobile-bar);
+    left: 8px;
+    width: auto;
+    max-height: min(68dvh, 540px);
+    grid-template-columns: 26px minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu button {
+    min-height: 50px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  #clerk-desktop .workspace-note-controls {
+    top: calc(var(--workspace-mobile-header) + 8px) !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+  }
+
+  #clerk-desktop [data-workspace-mailbox-ornament] {
+    right: 10px;
+    bottom: calc(var(--workspace-mobile-bar) + 12px);
+    min-width: 52px;
+    min-height: 52px;
+  }
+}
+
+@media (max-width: 760px), (max-height: 560px) and (orientation: landscape) and (pointer: coarse) {
+  :root {
+    --mobile-edge: max(10px, env(safe-area-inset-left));
+    --mobile-edge-right: max(10px, env(safe-area-inset-right));
+    --mobile-touch: 44px;
+    --mobile-taskbar: calc(58px + env(safe-area-inset-bottom));
+    --mobile-nav: 52px;
+  }
+
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  :is(button, a, input, select, textarea) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :is(
+    .folder-button,
+    .layer-button,
+    .chapter-nav a,
+    .start-button,
+    .taskbar button,
+    .archive-window button,
+    .archive-workflow-window button,
+    .mascot-document-window button,
+    .version-notice button,
+    .workspace-exit-dialog button,
+    .workspace-sync-dialog button
+  ) {
+    touch-action: manipulation;
+  }
+
+  /* Persistent public controls: thumb-sized, safe-area aware, and never
+     competing with the four chapter destinations. */
+  .chapter-nav {
+    top: auto !important;
+    right: calc(116px + env(safe-area-inset-right));
+    bottom: calc(var(--mobile-taskbar) + 6px);
+    left: calc(66px + env(safe-area-inset-left));
+    display: grid !important;
+    width: auto;
+    height: var(--mobile-nav);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    transform: none !important;
+  }
+
+  .chapter-nav a {
+    width: auto;
+    min-width: var(--mobile-touch);
+    height: var(--mobile-nav);
+    flex: 1 1 0;
+    font-size: 11px;
+  }
+
+  .taskbar,
+  .taskbar:has(.archive-task-list[hidden]),
+  .taskbar:has(.auth-session:not([hidden])),
+  .taskbar:has(.archive-task-list[hidden]):has(.auth-session:not([hidden])) {
+    height: var(--mobile-taskbar);
+    min-height: var(--mobile-taskbar);
+    grid-template-columns: 76px minmax(0, 1fr) 54px !important;
+    gap: 4px;
+    padding: 4px var(--mobile-edge-right) calc(4px + env(safe-area-inset-bottom)) var(--mobile-edge);
+  }
+
+  .taskbar .start-button {
+    min-width: 0;
+    min-height: 48px;
+    padding-inline: 7px;
+    font-size: 12px;
+  }
+
+  .taskbar time {
+    min-width: 0;
+    min-height: 48px;
+    padding-inline: 2px;
+    font-size: 12px;
+  }
+
+  .taskbar .auth-session {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 3px;
+  }
+
+  .taskbar .auth-session .clerk-workspace-entry,
+  .taskbar .auth-session #auth-sign-out {
+    min-width: 0;
+    min-height: 48px;
+    padding-inline: 5px;
+  }
+
+  .taskbar .auth-session #auth-sign-out {
+    overflow: hidden;
+    font-size: 10px;
+    white-space: normal;
+  }
+
+  .clerk-workspace-entry > span b {
+    overflow: hidden;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Release notice is a reading sheet on phones, not a shrunken desktop
+     dialog. The cover remains visible but no longer consumes half the screen. */
+  .version-notice {
+    padding: max(8px, env(safe-area-inset-top)) var(--mobile-edge-right) max(8px, env(safe-area-inset-bottom)) var(--mobile-edge);
+  }
+
+  .version-notice__panel {
+    width: 100%;
+    height: calc(100dvh - max(16px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    max-height: none;
+    grid-template-rows: 44px minmax(0, 1fr);
+  }
+
+  .version-notice__titlebar {
+    min-height: 44px;
+    padding: 4px 4px 4px 10px;
+    font-size: 10px;
+  }
+
+  .version-notice__titlebar > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .version-notice__titlebar .window-controls button {
+    width: 40px;
+    height: 36px;
+  }
+
+  .version-notice__cover img {
+    max-height: 30dvh;
+  }
+
+  .version-notice__copy {
+    padding: 22px 20px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .version-notice__copy h2 {
+    font-size: clamp(30px, 10vw, 42px);
+  }
+
+  .version-notice__copy p,
+  .version-notice__report p,
+  .version-notice__report dd {
+    font-size: 15px;
+    line-height: 1.72;
+  }
+
+  .version-notice__report dl div {
+    grid-template-columns: 1fr;
+  }
+
+  .version-notice__report [data-version-reference],
+  .version-notice__enter {
+    min-height: var(--mobile-touch);
+  }
+
+  /* Directory cards keep the PALIS orbital composition while behaving like
+     a clear two-column touch launcher. */
+  .archive-layer {
+    padding-right: var(--mobile-edge-right);
+    padding-bottom: calc(var(--mobile-taskbar) + var(--mobile-nav) + 24px);
+    padding-left: var(--mobile-edge);
+  }
+
+  .folder-orbit.mode-orbit {
+    gap: 10px;
+  }
+
+  .folder-orbit.mode-orbit .folder-button,
+  .folder-orbit.mode-orbit.is-dense .folder-button {
+    min-height: 112px;
+    padding: 8px 6px;
+  }
+
+  .folder-orbit.mode-orbit .folder-name,
+  .folder-orbit.mode-orbit.is-dense .folder-name {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .folder-orbit.mode-orbit .folder-button small,
+  .folder-orbit.mode-orbit.is-dense .folder-button small {
+    font-size: 9px;
+  }
+
+  .archive-layer.has-directory .folder-orbit.mode-dossier,
+  .archive-layer.has-directory .folder-orbit.mode-case-chronology,
+  .archive-layer.has-directory .folder-orbit.mode-entrance-network,
+  .archive-layer.has-directory .folder-orbit.mode-ecology-strata,
+  .archive-layer.has-directory .folder-orbit.mode-anomaly-monitor,
+  .archive-layer.has-directory .folder-orbit.mode-event-plane,
+  .archive-layer.has-directory .folder-orbit.mode-station-board {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .eco-atlas-console {
+    height: auto;
+    overflow: visible;
+  }
+
+  .eco-atlas-layout {
+    height: auto;
+    overflow: visible;
+  }
+
+  .eco-atlas-index {
+    grid-template-rows: 36px auto 34px;
+  }
+
+  .eco-atlas-index-list {
+    max-height: 430px;
+  }
+
+  .eco-atlas-observatory {
+    min-height: 0;
+  }
+
+  .eco-atlas-stage {
+    min-height: 0;
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .eco-atlas-profile {
+    height: 520px;
+    min-height: 520px;
+  }
+
+  .eco-atlas-inspector__body {
+    overflow: visible;
+    padding: 16px 14px 22px;
+  }
+
+  .eco-atlas-inspector h3 {
+    font-size: 25px;
+  }
+
+  .eco-atlas-inspector dt,
+  .eco-atlas-inspector dd,
+  .eco-atlas-inspector__body > p:not(.eco-atlas-inspector__meta) {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* The polar screen becomes a vertical sequence: terminal title, globe,
+     layer controls, selected record. Window chrome remains visually Win95. */
+  .polar-layer {
+    padding: max(10px, env(safe-area-inset-top)) var(--mobile-edge-right)
+      calc(var(--mobile-taskbar) + var(--mobile-nav) + 30px) var(--mobile-edge);
+    scroll-padding-bottom: calc(var(--mobile-taskbar) + var(--mobile-nav) + 30px);
+  }
+
+  .polar-brand,
+  .map-layers,
+  .map-detail {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .polar-layer [data-local-window] {
+    --local-window-x: 0px !important;
+    --local-window-y: 0px !important;
+    transform: none !important;
+  }
+
+  .polar-brand .title-bar,
+  .map-layers .title-bar,
+  .map-detail .title-bar {
+    min-height: 44px;
+  }
+
+  .polar-brand .window-controls button,
+  .map-layers .window-controls button,
+  .map-detail .window-controls button {
+    width: 44px;
+    min-width: 44px;
+    height: 40px;
+  }
+
+  .polar-brand .brand-body {
+    min-height: 64px;
+    padding: 9px 12px;
+  }
+
+  .polar-brand .brand-body h2 {
+    font-size: 22px;
+  }
+
+  .map-layers {
+    margin-top: min(44dvh, 390px);
+  }
+
+  .map-layers .window-body,
+  .map-detail .window-body {
+    padding: 10px;
+  }
+
+  .layer-button {
+    min-height: 58px;
+    padding: 8px 10px;
+  }
+
+  .layer-button b {
+    font-size: 14px;
+  }
+
+  .layer-button small,
+  .map-detail dt,
+  .map-detail dd,
+  .detail-note {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .map-layers label {
+    margin-top: 10px;
+    font-size: 12px;
+  }
+
+  .map-layers select {
+    width: 100%;
+    min-height: var(--mobile-touch);
+    padding: 7px 34px 7px 9px;
+    font-size: 16px;
+  }
+
+  .map-detail h3 {
+    font-size: 26px;
+  }
+
+  .map-open-selected {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 12px;
+    color: #f3f1e7;
+    border: 2px outset #efefe9;
+    border-radius: 0;
+    background: #132d29;
+    font: 700 14px/1.2 var(--font-body);
+  }
+
+  .map-open-selected:active {
+    border-style: inset;
+    background: #8f302b;
+  }
+
+  .map-instructions {
+    min-height: 22px;
+    margin-top: 14px;
+    font-size: 0;
+  }
+
+  .map-instructions::after {
+    content: '轻触站点进行选择，再用下方按钮打开档案';
+    font: 10px/1.45 var(--font-mono);
+  }
+
+  .polar-diagnostic {
+    position: absolute;
+    top: auto !important;
+    right: var(--mobile-edge-right) !important;
+    bottom: calc(var(--mobile-taskbar) + var(--mobile-nav) + 12px) !important;
+    left: var(--mobile-edge) !important;
+    width: auto !important;
+    max-height: min(56dvh, 430px);
+    overflow: auto;
+    transform: none !important;
+  }
+
+  .polar-diagnostic .title-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 40px;
+  }
+
+  .polar-diagnostic .window-body {
+    padding: 9px;
+  }
+
+  .polar-diagnostic .window-body > header {
+    min-height: 38px;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .polar-diagnostic .window-body > header strong {
+    font-size: 13px;
+  }
+
+  .polar-diagnostic li {
+    min-height: 42px;
+    padding-block: 4px;
+  }
+
+  .polar-diagnostic li b {
+    font-size: 11px;
+  }
+
+  .polar-diagnostic li output {
+    min-width: 54px;
+  }
+
+  /* Every archive or utility document uses the phone as its work area. This
+     removes clipped title bars and leaves a stable strip for system tasks. */
+  .archive-window,
+  .archive-window.archive-utility-window,
+  #clerk-desktop .archive-workflow-window,
+  #clerk-desktop #assistant-window-layer .mascot-document-window {
+    top: 4px !important;
+    right: 4px !important;
+    bottom: auto !important;
+    left: 4px !important;
+    width: calc(100vw - 8px) !important;
+    height: calc(100dvh - var(--mobile-taskbar) - 8px) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    resize: none !important;
+    transform: none !important;
+  }
+
+  .archive-window .dialog-titlebar,
+  .archive-workflow-titlebar,
+  .mascot-document-titlebar {
+    min-height: 44px;
+    padding-left: 9px;
+  }
+
+  .archive-window .dialog-titlebar > span,
+  .archive-workflow-titlebar > span,
+  .mascot-document-titlebar > span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .archive-window .window-controls button,
+  .archive-workflow-titlebar button,
+  .mascot-document-titlebar button {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .archive-window .window-body,
+  .archive-utility-window__body,
+  .archive-workflow-window__body,
+  .mascot-document-body {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .document-sheet {
+    padding: 20px 16px calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .document-sheet p,
+  .document-sheet li,
+  .record-longform,
+  .archive-formal-document p,
+  .archive-formal-document li {
+    font-size: 16px;
+    line-height: 1.78;
+  }
+
+  .record-table-wrap,
+  .archive-formal-review-preview {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  /* Clerk/admin desktop: mobile is an app launcher, not a draggable Windows
+     desktop. Inline positions persisted by the PC layout are neutralised so
+     icons cannot collapse into the top-left corner on first load. */
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    inset: max(10px, env(safe-area-inset-top)) 8px calc(var(--mobile-taskbar) + 8px) 8px;
+    width: auto;
+    height: auto;
+    max-height: none;
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(92px, auto);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: none;
+    gap: 8px;
+    padding: 4px 2px 18px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform: none;
+  }
+
+  #clerk-desktop[data-workspace-role='clerk'] .clerk-desktop__icons[data-archive-category-rail] {
+    height: auto;
+    grid-template-rows: none;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: auto !important;
+    min-width: 0;
+    min-height: 92px;
+    align-content: center;
+    justify-items: center;
+    padding: 7px 3px;
+    transform: none !important;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    max-width: 100%;
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  #clerk-desktop .clerk-desktop__taskbar {
+    min-height: var(--mobile-taskbar);
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  #clerk-desktop .clerk-desktop__arrange {
+    display: none;
+  }
+
+  #clerk-desktop .clerk-desktop__start {
+    min-width: 68px;
+    min-height: 48px;
+  }
+
+  #clerk-desktop .clerk-desktop__task-list {
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #clerk-desktop .clerk-desktop__tray {
+    min-width: 58px;
+  }
+
+  #clerk-desktop .clerk-desktop__tray [data-workspace-tray-role],
+  #clerk-desktop .clerk-desktop__tray [data-workspace-connection] {
+    display: none;
+  }
+
+  #clerk-desktop .clerk-desktop__window-layer {
+    bottom: var(--mobile-taskbar);
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu {
+    right: 8px;
+    bottom: var(--mobile-taskbar);
+    left: 8px;
+    width: auto;
+    max-height: min(68dvh, 520px);
+    overflow-y: auto;
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu button {
+    min-height: 48px;
+  }
+
+  #clerk-desktop [data-workspace-mailbox-ornament] {
+    top: auto;
+    right: 10px;
+    bottom: calc(var(--mobile-taskbar) + 12px);
+  }
+
+  /* Editing, review, mail, honors and commissioning switch from dense PC
+     columns to a readable touch form while retaining the original chrome. */
+  .archive-editor,
+  .archive-admin-review,
+  .archive-admin-users-layout,
+  .commission-board,
+  .clerk-dossier,
+  .task-control,
+  .honor-control {
+    height: calc(100% - 44px);
+    font-size: 15px;
+  }
+
+  .archive-editor__toolbar,
+  .archive-editor__footer,
+  .archive-recovery,
+  .archive-registration__grid,
+  .archive-admin-review,
+  .archive-admin-users-layout,
+  .task-control__form fieldset,
+  .honor-control__issue,
+  .task-response-register__columns {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-editor__toolbar,
+  .archive-editor__section,
+  .archive-review-form,
+  .archive-registration,
+  .commission-board__body > main,
+  .task-control__body > main,
+  .honor-control__body > main {
+    padding: 14px 12px;
+  }
+
+  .archive-editor :is(input, select, textarea),
+  .archive-review-form :is(input, select, textarea),
+  .archive-registration :is(input, select, textarea),
+  .task-control :is(input, select, textarea),
+  .honor-control :is(input, select, textarea) {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 16px;
+  }
+
+  .archive-editor textarea,
+  .archive-review-form textarea,
+  .archive-registration textarea,
+  .task-control textarea,
+  .honor-control textarea {
+    min-height: 112px;
+  }
+
+  .archive-editor__footer button,
+  .archive-review-form button,
+  .archive-registration button,
+  .commission-board button,
+  .task-control button,
+  .honor-control button,
+  .clerk-dossier > nav button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .archive-editor__footer p,
+  .archive-recovery div {
+    grid-column: auto;
+  }
+
+  .archive-admin-review {
+    grid-template-rows: minmax(150px, 34dvh) minmax(0, 1fr);
+  }
+
+  .archive-admin-category-tabs,
+  .clerk-dossier > nav,
+  .honor-control__category-guide {
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .archive-admin-category-tab,
+  .clerk-dossier > nav button {
+    scroll-snap-align: start;
+  }
+
+  .honor-control__category-guide {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .honor-control__category-guide > * {
+    min-width: 76px;
+  }
+
+  .honor-control__award {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .archive-workflow-list {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .archive-workflow-list > button,
+  .archive-workflow-list > article,
+  .archive-draft-card__continue {
+    min-height: 58px;
+    padding: 11px 10px;
+  }
+
+  .archive-workflow-list > h3 {
+    font-size: 14px;
+  }
+
+  .archive-workflow-list > p,
+  .archive-workflow-list small,
+  .archive-workflow-list time,
+  .archive-draft-card footer > span {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .archive-draft-card__delete {
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .archive-mailbox,
+  .archive-mailbox--administrator,
+  .archive-mailbox__inbox {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .archive-mailbox__compose,
+  .archive-mailbox__list {
+    border-right: 0;
+    border-bottom: 2px solid #808080;
+  }
+
+  .archive-mailbox__compose :is(input, select, textarea) {
+    min-height: 44px;
+    padding: 8px;
+    font-size: 16px;
+  }
+
+  .archive-mailbox__compose textarea {
+    min-height: 132px;
+  }
+
+  .archive-mailbox__compose button,
+  .archive-mailbox__message {
+    min-height: 48px;
+  }
+
+  .archive-mailbox__message > b {
+    font-size: 14px;
+  }
+
+  .archive-mailbox__message > small,
+  .archive-mailbox__message > time,
+  .archive-mailbox__reader > header > p,
+  .archive-mailbox__reader > header > time {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .archive-mailbox__reader {
+    min-height: 280px;
+    padding: 16px 14px 28px;
+    overflow: visible;
+  }
+
+  .archive-mailbox__reader > header > h3 {
+    font-size: 22px;
+  }
+
+  .archive-mailbox__message-body {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .archive-cabinet {
+    min-height: 100%;
+  }
+
+  .archive-cabinet__address {
+    grid-template-columns: 1fr;
+    font-size: 12px;
+  }
+
+  .archive-cabinet__address input {
+    min-height: 44px;
+    padding: 7px;
+    font-size: 16px;
+  }
+
+  .archive-cabinet__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .archive-cabinet__grid > button {
+    min-height: 112px;
+  }
+
+  .archive-category-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-category-actions > button {
+    min-height: 84px;
+  }
+
+  .assistant-clerk-index__lead {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .assistant-clerk-index__list button {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .assistant-clerk-index__list b {
+    font-size: 15px;
+  }
+
+  .assistant-clerk-index__list small,
+  .assistant-clerk-index__list i {
+    font-size: 11px;
+  }
+
+  /* The mission atlas was rebuilt after the old mobile block; these rules
+     restore a genuine phone reading order without altering its desktop grid. */
+  .mainline-brief {
+    height: calc(100% - 44px);
+    overflow: auto;
+  }
+
+  .mainline-brief__layout {
+    display: block;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .mainline-brief__rail,
+  .mainline-brief__center,
+  .mainline-brief__inspector {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .mainline-brief__rail {
+    padding: 14px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--atlas-rule);
+  }
+
+  .mainline-brief__rail footer,
+  .mainline-brief__legend {
+    display: none;
+  }
+
+  .mainline-brief__progress {
+    margin-top: 0;
+  }
+
+  .mainline-brief__progress ol {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+  }
+
+  .mainline-brief__progress li {
+    min-width: 176px;
+    scroll-snap-align: start;
+  }
+
+  .mainline-brief__hero {
+    min-height: 112px;
+    padding: 18px 16px;
+    background: linear-gradient(90deg, rgba(236, 233, 224, .98), rgba(236, 233, 224, .84));
+  }
+
+  .mainline-brief__hero h1 {
+    font-size: clamp(28px, 9vw, 38px);
+  }
+
+  .mainline-brief__atlas {
+    min-height: 540px;
+    padding: 1px 0 18px;
+    overflow: hidden;
+  }
+
+  .mainline-brief__atlas > canvas {
+    inset: 0 -42% auto 6%;
+    width: 138%;
+    height: 440px;
+  }
+
+  .mainline-brief__station {
+    top: 12px;
+    right: 10px;
+    max-width: min(220px, 62%);
+  }
+
+  .mainline-brief__mission {
+    width: auto;
+    min-height: 0;
+    margin: 204px 12px 0;
+    padding: 18px 17px 15px 21px;
+    rotate: 0deg;
+  }
+
+  .mainline-brief__mission h2 {
+    max-width: 100%;
+    font-size: 25px;
+  }
+
+  .mainline-brief__summary {
+    max-width: 100%;
+    font-size: 13px;
+  }
+
+  .mainline-brief__mission dl {
+    grid-template-columns: 1fr;
+  }
+
+  .mainline-brief__inspector {
+    border-left: 0;
+    border-top: 1px solid var(--atlas-rule);
+  }
+
+  .mainline-brief__focus,
+  .mainline-brief__vacancy-grid,
+  .mainline-brief__stages,
+  .mainline-brief__admin,
+  .mainline-brief__personnel-submissions {
+    grid-template-columns: 1fr;
+  }
+
+  .mainline-personnel-roster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Related people becomes a touch-first file strip on phones. The desktop
+     relationship graph remains intact above this breakpoint. */
+  .people-network-workbench {
+    display: grid;
+    grid-template: 44px auto auto 96px / minmax(0, 1fr);
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .people-network-header {
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .people-network-header > div:not(:first-of-type) {
+    display: none;
+  }
+
+  .people-network-stage {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+    padding: 10px;
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 1px solid #565f5b;
+  }
+
+  .people-network-stage::before,
+  .people-network-stage::after,
+  .people-network-links,
+  .people-network-axis {
+    display: none;
+  }
+
+  .people-network-nodes {
+    position: static;
+    display: flex;
+    inset: auto;
+    width: auto;
+    height: auto;
+    gap: 9px;
+    padding: 1px 1px 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-inline: contain;
+  }
+
+  .mode-dossier .people-network-nodes .folder-item,
+  .mode-dossier .people-network-nodes .folder-item.is-network-center,
+  .mode-dossier .people-network-nodes .folder-item[data-relation='cross-reference'] {
+    position: static;
+    flex: 0 0 172px;
+    width: 172px;
+    opacity: 1;
+    transform: none;
+    scroll-snap-align: start;
+  }
+
+  .mode-dossier .people-network-nodes .folder-item.is-network-hidden {
+    display: none;
+  }
+
+  .mode-dossier .people-network-nodes .folder-button,
+  .mode-dossier .people-network-nodes .folder-button:hover,
+  .mode-dossier .people-network-nodes .folder-button:focus-visible {
+    min-height: 82px;
+  }
+
+  .people-network-dossier {
+    grid-column: 1;
+    grid-row: 3;
+    grid-template: auto 148px auto auto auto auto / 104px minmax(0, 1fr);
+    gap: 10px 12px;
+    min-height: 0;
+    padding: 14px;
+    overflow: visible;
+  }
+
+  .people-network-dossier > p:first-child,
+  .people-network-dossier dl,
+  .people-network-summary,
+  .people-network-dossier .directory-open-button {
+    grid-column: 1 / -1;
+  }
+
+  .people-network-portrait {
+    grid-column: 1;
+    grid-row: 2;
+    height: 148px;
+  }
+
+  .people-network-dossier h3 {
+    grid-column: 2;
+    align-self: end;
+    font-size: 25px;
+  }
+
+  .people-network-dossier dl {
+    grid-template-columns: 1fr;
+  }
+
+  .people-network-dossier dl div {
+    grid-template-columns: 76px minmax(0, 1fr);
+    min-height: 38px;
+  }
+
+  .people-network-dossier dt,
+  .people-network-dossier dd {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .people-network-summary {
+    overflow: visible;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .people-network-index {
+    grid-column: 1;
+    grid-row: 4;
+    grid-template-columns: repeat(36, 48px);
+    grid-template-rows: 48px;
+    gap: 1px;
+    min-height: 96px;
+    padding: 8px 7px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .people-network-index button {
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 11px;
+    scroll-snap-align: start;
+  }
+
+  .archive-layer.has-directory .archive-browser-controls {
+    display: none !important;
+  }
+
+  /* The entrance drafting sheet keeps its real wide drawing, but its record
+     slip must not be stranded off-screen on a phone. */
+  .entrance-sheet-console {
+    grid-template-rows: 44px auto auto;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .entrance-sheet-header {
+    min-height: 44px;
+    gap: 8px;
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+
+  .entrance-sheet-table {
+    display: block;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .entrance-sheet-stage {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: none;
+    padding: 8px 0 2px;
+    overflow-x: auto;
+    overflow-y: visible;
+    aspect-ratio: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .entrance-sheet-svg {
+    width: 680px;
+    max-width: none;
+    height: 328px;
+  }
+
+  .sheet-callout {
+    display: none;
+  }
+
+  .entrance-sheet-review {
+    position: static;
+    width: auto;
+    margin: 10px;
+    padding: 14px;
+    transform: none;
+  }
+
+  .entrance-sheet-review h3 {
+    font-size: 24px;
+  }
+
+  .entrance-sheet-summary {
+    display: block;
+    overflow: visible;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .entrance-sheet-review .directory-open-button {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .entrance-sheet-drawer {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-inline: contain;
+  }
+
+  .entrance-sheet-drawer .folder-item {
+    flex: 0 0 144px;
+    scroll-snap-align: start;
+  }
+
+  .entrance-sheet-drawer .folder-button,
+  .entrance-sheet-drawer .folder-button:hover,
+  .entrance-sheet-drawer .folder-button:focus-visible {
+    min-height: 64px;
+  }
+
+  /* The desktop event archive is an intentionally oversized pan-and-zoom
+     plane. On a portrait touch screen that reduces records to thumbnails and
+     competes with native page scrolling, so present the same buttons as a
+     direct, vertically scrollable accession shelf. */
+  .archive-layer:has(.folder-orbit.mode-event-plane) {
+    padding-bottom: calc(var(--mobile-taskbar) + var(--mobile-nav) + 8px);
+    overflow-y: auto;
+  }
+
+  .folder-orbit.mode-event-plane {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .event-plane {
+    min-height: 0;
+    overflow: visible;
+    box-shadow: inset 0 0 0 4px #0c0f10;
+  }
+
+  .event-plane-viewport {
+    position: relative;
+    min-height: 0;
+    overflow: visible;
+    touch-action: pan-y;
+  }
+
+  .event-plane-world {
+    position: relative;
+    display: grid;
+    width: 100% !important;
+    height: auto !important;
+    gap: 12px;
+    padding: 52px 12px 48px;
+    transform: none !important;
+  }
+
+  .mode-event-plane .folder-item {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: clamp(208px, 58vw, 248px);
+    transform: none !important;
+  }
+
+  .mode-event-plane .folder-button {
+    min-height: 100%;
+    box-shadow: 8px 9px 0 rgba(0, 0, 0, .32);
+  }
+
+  .mode-event-plane .folder-button.is-selected {
+    box-shadow: 7px 8px 0 rgba(163, 46, 46, .3);
+  }
+
+  .event-plane-year {
+    top: 22px;
+    left: 20px;
+  }
+
+  .event-plane-year b {
+    font-size: clamp(56px, 20vw, 78px);
+  }
+
+  .mode-event-plane .folder-name {
+    right: 20px;
+    bottom: 54px;
+    left: 20px;
+    font-size: clamp(24px, 7.2vw, 31px);
+  }
+
+  .mode-event-plane .folder-button > small {
+    right: 20px;
+    bottom: 28px;
+    left: 22px;
+    font-size: 9px;
+  }
+
+  .event-plane-reticle,
+  .event-plane-monument,
+  .event-plane-axis,
+  .event-plane-hud,
+  .event-plane-map {
+    display: none;
+  }
+
+  .event-plane-mast {
+    top: 10px;
+    right: 12px;
+    left: 12px;
+    min-height: 31px;
+    font-size: 7px;
+  }
+
+  .event-plane > footer {
+    right: 12px;
+    bottom: 10px;
+    left: 12px;
+    font-size: 6px;
+  }
+
+  .event-plane > footer span::before {
+    content: '上下滑动浏览 / ';
+  }
+
+  /* Dialogs and controls that appear above either public or workspace shells. */
+  .workspace-exit-dialog,
+  .workspace-sync-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .workspace-exit-dialog form,
+  .workspace-sync-dialog form {
+    padding: 14px;
+  }
+
+  .workspace-exit-dialog button,
+  .workspace-sync-dialog button {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 359px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .version-notice__copy {
+    padding-inline: 16px;
+  }
+
+  .mainline-personnel-roster {
+    grid-template-columns: 1fr;
+  }
+
+  .people-network-dossier {
+    grid-template: auto auto auto auto auto auto / minmax(0, 1fr);
+  }
+
+  .people-network-dossier > p:first-child,
+  .people-network-portrait,
+  .people-network-dossier h3,
+  .people-network-dossier dl,
+  .people-network-summary,
+  .people-network-dossier .directory-open-button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .people-network-portrait {
+    width: min(180px, 100%);
+    height: 196px;
+  }
+
+  .people-network-dossier h3 {
+    align-self: auto;
+    font-size: 23px;
+  }
+}
+
+@media (max-width: 760px) and (pointer: coarse),
+  (max-height: 560px) and (orientation: landscape) and (pointer: coarse) {
+  /* Coarse pointers have no hover preview. Visible pressed/selected states
+     replace mouse-only feedback while all targets remain at least 44px. */
+  :is(
+    .folder-button,
+    .layer-button,
+    .chapter-nav a,
+    .clerk-desktop__icons button,
+    .archive-admin-category-tab
+  ) {
+    cursor: default;
+  }
+
+  :is(.folder-button, .layer-button, .clerk-desktop__icons button):active {
+    filter: brightness(1.12) contrast(1.04);
+  }
+
+  :is(input[type='checkbox'], input[type='radio']) {
+    min-width: 22px;
+    min-height: 22px;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) and (pointer: coarse) {
+  :root {
+    --mobile-taskbar: calc(50px + env(safe-area-inset-bottom));
+    --mobile-nav: 46px;
+  }
+
+  .chapter-nav a {
+    height: 46px;
+  }
+
+  .polar-diagnostic {
+    max-height: calc(100dvh - var(--mobile-taskbar) - var(--mobile-nav) - 18px);
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-rows: minmax(82px, auto);
+  }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: reduce),
+  (max-height: 560px) and (orientation: landscape) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Nine archive families: purpose-built portrait interaction
+
+   These rules deliberately sit after the compatibility layer above. Each
+   archive keeps its desktop composition and data model, while its phone
+   surface becomes a familiar select -> inspect -> open flow with readable
+   type and thumb-sized controls.
+   ------------------------------------------------------------------------- */
+@media (max-width: 760px) {
+  :root {
+    --phone-archive-gap: 12px;
+    --phone-archive-pad: 12px;
+    --phone-archive-text: 15px;
+    --phone-archive-meta: 11px;
+    --phone-archive-rule: #58615d;
+    --phone-archive-dark: #090d0e;
+    --phone-archive-paper: #eeede7;
+  }
+
+  /* Keep the status-bar language, but give the two real actions enough room. */
+  .taskbar,
+  .taskbar:has(.archive-task-list[hidden]),
+  .taskbar:has(.auth-session:not([hidden])),
+  .taskbar:has(.archive-task-list[hidden]):has(.auth-session:not([hidden])) {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+  }
+
+  .taskbar > time {
+    display: none;
+  }
+
+  /* Root directory: a dedicated nine-item phone launcher, not a compressed
+     desktop orbit. The globe becomes a quiet section marker above the list. */
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit {
+    position: relative;
+    inset: auto !important;
+    display: grid;
+    width: 100%;
+    max-width: 430px;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-inline: auto;
+    padding: 0 10px calc(var(--mobile-taskbar) + var(--mobile-nav) + 34px);
+    scroll-margin-bottom: calc(var(--mobile-taskbar) + var(--mobile-nav));
+    transform: none !important;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit::before {
+    position: relative;
+    z-index: 0;
+    grid-column: 1 / -1;
+    width: 118px;
+    aspect-ratio: 1;
+    justify-self: center;
+    margin: 0 0 2px;
+    content: '';
+    border: 1px solid rgba(174, 190, 184, .34);
+    border-radius: 50%;
+    background: var(--globe-texture) center / cover no-repeat;
+    filter: grayscale(1) contrast(1.12) brightness(.74);
+    opacity: .78;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-item {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 1;
+    width: auto !important;
+    transform: none !important;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-item:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-button,
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit.is-dense .folder-button {
+    display: grid;
+    width: 100%;
+    min-height: 72px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 10px;
+    align-items: center;
+    padding: 8px 9px;
+    color: #e9ede9;
+    border: 1px solid rgba(164, 181, 174, .58);
+    background: linear-gradient(135deg, rgba(21, 31, 30, .94), rgba(8, 13, 14, .96));
+    box-shadow: inset 3px 0 0 #315bcf, 0 3px 0 rgba(0, 0, 0, .35);
+    text-align: left;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-item:nth-child(2n) .folder-button {
+    box-shadow: inset 3px 0 0 #c94842, 0 3px 0 rgba(0, 0, 0, .35);
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-icon {
+    grid-row: 1 / 3;
+    width: 38px;
+    height: 38px;
+    margin: 0;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-name,
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit.is-dense .folder-name {
+    align-self: end;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit .folder-button small,
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit.is-dense .folder-button small {
+    align-self: start;
+    color: #9ea9a5;
+    font-size: 10px;
+    letter-spacing: .06em;
+  }
+
+  .archive-layer.has-directory {
+    padding-top: clamp(150px, 20svh, 170px);
+    padding-inline: var(--phone-archive-pad);
+  }
+
+  .archive-layer.has-directory .archive-heading h2 {
+    font-size: 30px;
+    line-height: 1.08;
+  }
+
+  .archive-layer.has-directory .archive-heading > p:last-child {
+    max-width: 36ch;
+    font-size: 10px;
+    line-height: 1.45;
+    text-wrap: balance;
+  }
+
+  .archive-layer.has-directory .archive-back {
+    position: absolute;
+    top: 96px;
+    left: var(--phone-archive-pad);
+    z-index: 34;
+    min-width: 96px;
+    min-height: 46px;
+    margin: 0;
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+
+  .archive-layer.has-directory .directory-open-button {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  /* 01 / Countries — compact registry with readable selected-state record. */
+  .folder-orbit.mode-country-stack {
+    min-height: 0;
+  }
+
+  .country-stack-vault {
+    height: auto;
+    min-height: 0;
+  }
+
+  .country-stack-vault > header {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    min-height: 52px;
+    padding: 5px;
+  }
+
+  .country-stack-vault > header nav {
+    gap: 5px;
+  }
+
+  .country-stack-vault > header button {
+    min-height: 42px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .country-stack-workbench {
+    min-height: 0;
+  }
+
+  .country-stack-readout {
+    gap: 9px;
+    padding: 16px;
+  }
+
+  .country-stack-readout p,
+  .country-stack-readout footer {
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .country-readout-heading {
+    gap: 12px;
+    margin-block: 4px;
+  }
+
+  .country-flag--readout {
+    flex-basis: 74px;
+    width: 74px;
+    height: 49px;
+  }
+
+  .country-stack-readout h3 {
+    font-size: 25px;
+    line-height: 1.08;
+  }
+
+  .country-readout-heading small,
+  .country-stack-readout > div {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .country-readout-redaction span {
+    height: 8px;
+  }
+
+  .country-stack-readout dl div {
+    grid-template-columns: 86px minmax(0, 1fr);
+    min-height: 42px;
+  }
+
+  .country-stack-readout dt,
+  .country-stack-readout dd {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .country-stack-readout dd {
+    justify-content: flex-end;
+  }
+
+  /* 02 / Organizations — lanes become clear full-width authority lists. */
+  .folder-orbit.mode-network {
+    position: relative;
+    display: grid;
+    width: 100%;
+    gap: 12px;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .organization-lane {
+    min-height: 0;
+    border: 1px solid var(--phone-archive-rule);
+    background: var(--phone-archive-dark);
+  }
+
+  .organization-lane__head {
+    min-height: 50px;
+    padding: 8px 12px;
+  }
+
+  .organization-lane__head h3 {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .organization-lane__head span,
+  .organization-lane__head b {
+    font-size: 10px;
+  }
+
+  .organization-lane__list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    overflow: visible;
+  }
+
+  .mode-network .organization-lane .folder-item {
+    position: static;
+  }
+
+  .mode-network .organization-lane .folder-button,
+  .mode-network .organization-lane .folder-button:hover,
+  .mode-network .organization-lane .folder-button:focus-visible {
+    grid-template-columns: 54px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 11px;
+    width: 100%;
+    min-height: 76px;
+    padding: 10px 12px;
+    transform: none;
+  }
+
+  .mode-network .organization-lane .folder-icon,
+  .mode-network .organization-lane .folder-icon img {
+    grid-row: 1 / 3;
+    width: 46px;
+    height: 46px;
+  }
+
+  .mode-network .organization-lane .folder-name {
+    align-self: end;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .mode-network .organization-lane .folder-button small {
+    align-self: start;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  /* 03 / Stations — the polar plot becomes a scan-friendly station list.
+     Coordinates remain in each row and the selected record stays above it. */
+  .folder-orbit.mode-station-board {
+    min-height: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .station-coordinate-board {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    border: 2px outset #bfc0ba;
+    background: #d7d6ce;
+  }
+
+  .station-coordinate-guide {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    display: block;
+    min-height: 0;
+    padding: 8px;
+    border-bottom: 2px ridge #979995;
+  }
+
+  .station-coordinate-readout {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto auto !important;
+    gap: 4px 8px !important;
+    min-height: 0;
+    padding: 10px !important;
+    box-shadow: none;
+  }
+
+  .station-coordinate-readout > span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    font-size: 9px;
+  }
+
+  .station-coordinate-readout > b {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+
+  .station-coordinate-readout > em {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    font-size: 10px;
+    text-align: right;
+  }
+
+  .station-coordinate-readout > small {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    font-size: 11px;
+    line-height: 1.35;
+    white-space: normal;
+  }
+
+  .station-coordinate-readout > button {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .station-coordinate-plane {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 10px;
+    overflow: visible;
+    background: #0a0e0f;
+    box-shadow: none;
+    transform: none;
+    aspect-ratio: auto;
+  }
+
+  .station-coordinate-plane::before,
+  .station-coordinate-grid,
+  .station-axis,
+  .station-origin {
+    display: none;
+  }
+
+  .station-node-layer {
+    position: static;
+    display: grid;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .mode-station-board .station-coordinate-node,
+  .mode-station-board .station-coordinate-node.is-outside-arc {
+    position: static;
+    width: auto;
+    height: auto;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .mode-station-board .folder-button,
+  .folder-orbit.mode-station-board .folder-button:hover,
+  .folder-orbit.mode-station-board .folder-button:focus-visible {
+    position: static;
+    display: grid;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 76px;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 2px 10px;
+    align-items: center;
+    padding: 10px 12px;
+    color: #171b1c;
+    border: 1px solid #6f7774;
+    background: var(--phone-archive-paper);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, .28);
+    transform: none !important;
+  }
+
+  .mode-station-board .folder-button.is-preview {
+    border-color: #315bcf;
+    outline: 2px solid #315bcf;
+    outline-offset: -4px;
+    background: #fff;
+  }
+
+  .mode-station-board .station-signal {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1 / 3;
+    width: 44px;
+    height: 48px;
+    place-items: start center;
+  }
+
+  .mode-station-board .station-signal i {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mode-station-board .station-signal b,
+  .station-coordinate-node[data-anchor='left'] .station-signal b {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: 50%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 10px;
+    transform: translateX(-50%);
+  }
+
+  .mode-station-board .folder-name {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .mode-station-board .folder-button small {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    color: #505854;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .mode-station-board .folder-button::after {
+    display: block;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    justify-self: end;
+    content: '查看';
+    color: #23478e;
+    font: 12px var(--font-ui);
+  }
+
+  /* 04 / Entrances — one drawing, one readable record, one swipeable index. */
+  .entrance-sheet-console {
+    border: 1px solid var(--phone-archive-rule);
+  }
+
+  .entrance-sheet-header {
+    min-height: 48px;
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+
+  .entrance-sheet-stage {
+    min-height: 230px;
+    padding-top: 6px;
+  }
+
+  .entrance-sheet-svg {
+    width: 520px;
+    height: 250px;
+  }
+
+  .entrance-sheet-review {
+    margin: 10px;
+    padding: 16px;
+  }
+
+  .entrance-sheet-review > p,
+  .entrance-sheet-type {
+    font-size: 11px;
+  }
+
+  .entrance-sheet-review h3 {
+    font-size: 26px;
+    line-height: 1.15;
+  }
+
+  .entrance-sheet-summary {
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .entrance-sheet-drawer {
+    gap: 6px;
+    padding: 8px;
+    border-top: 1px solid var(--phone-archive-rule);
+    scroll-padding-inline: 8px;
+  }
+
+  .entrance-sheet-drawer .folder-item {
+    flex-basis: 154px;
+  }
+
+  .entrance-sheet-drawer .folder-button,
+  .entrance-sheet-drawer .folder-button:hover,
+  .entrance-sheet-drawer .folder-button:focus-visible {
+    min-height: 70px;
+    padding: 8px;
+  }
+
+  .entrance-sheet-drawer .folder-name {
+    font-size: 13px;
+  }
+
+  .entrance-sheet-drawer .folder-button small {
+    font-size: 10px;
+  }
+
+  /* 05 / Ecology — horizontal stratum selector, then the selected profile. */
+  .eco-atlas-console {
+    border: 1px solid var(--phone-archive-rule);
+  }
+
+  .eco-atlas-header {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .eco-atlas-header > div:first-child b {
+    font-size: 16px;
+  }
+
+  .eco-atlas-tabs {
+    min-height: 48px;
+  }
+
+  .eco-atlas-tabs button {
+    min-height: 46px;
+    font-size: 13px;
+  }
+
+  .eco-atlas-index {
+    display: grid;
+    grid-template-rows: 38px auto;
+    border-bottom: 1px solid var(--phone-archive-rule);
+  }
+
+  .eco-atlas-index > header,
+  .eco-atlas-observatory > header,
+  .eco-atlas-inspector > header {
+    min-height: 38px;
+    padding-inline: 11px;
+    font-size: 10px;
+  }
+
+  .eco-atlas-index > footer {
+    display: none;
+  }
+
+  .eco-atlas-index-list {
+    display: flex;
+    max-height: none;
+    gap: 7px;
+    padding: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 8px;
+  }
+
+  .mode-ecology-strata .eco-atlas-index-list .folder-item {
+    flex: 0 0 164px;
+    scroll-snap-align: start;
+  }
+
+  .mode-ecology-strata .eco-atlas-index-list .folder-button,
+  .mode-ecology-strata .eco-atlas-index-list .folder-button:hover,
+  .mode-ecology-strata .eco-atlas-index-list .folder-button:focus-visible {
+    min-height: 72px;
+    padding: 8px;
+  }
+
+  .mode-ecology-strata .eco-atlas-index-list .folder-name {
+    font-size: 14px;
+  }
+
+  .mode-ecology-strata .eco-atlas-index-list .folder-button small {
+    font-size: 10px;
+  }
+
+  .eco-atlas-observatory {
+    min-height: 0;
+  }
+
+  .eco-atlas-stage {
+    padding: 10px;
+  }
+
+  .eco-atlas-profile {
+    height: 380px;
+    min-height: 380px;
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .eco-atlas-stratum {
+    min-height: 44px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .eco-atlas-inspector__body {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .eco-atlas-inspector h3 {
+    font-size: 26px;
+  }
+
+  .eco-atlas-inspector dt,
+  .eco-atlas-inspector dd,
+  .eco-atlas-inspector__body > p:not(.eco-atlas-inspector__meta) {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .eco-atlas-inspector dl div {
+    grid-template-columns: 86px minmax(0, 1fr);
+    min-height: 42px;
+  }
+
+  .eco-atlas-inspector .directory-open-button {
+    justify-self: stretch;
+  }
+
+  .eco-atlas-species-ledger__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .eco-atlas-species-card {
+    min-height: 116px;
+    padding: 14px;
+  }
+
+  .eco-atlas-species-card span {
+    font-size: 16px;
+  }
+
+  .eco-atlas-species-card small {
+    font-size: 12px;
+  }
+
+  /* 06 / People — recognisable portraits first, complete dossier second. */
+  .people-network-workbench {
+    grid-template-rows: 48px auto auto 58px;
+  }
+
+  .people-network-header {
+    min-height: 48px;
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+
+  .people-network-stage {
+    padding: 10px 10px 2px;
+  }
+
+  .people-network-nodes {
+    gap: 8px;
+    padding-bottom: 10px;
+  }
+
+  .mode-dossier .people-network-nodes .folder-item,
+  .mode-dossier .people-network-nodes .folder-item.is-network-center,
+  .mode-dossier .people-network-nodes .folder-item[data-relation='cross-reference'] {
+    flex-basis: 184px;
+    width: 184px;
+  }
+
+  .mode-dossier .people-network-nodes .folder-button,
+  .mode-dossier .people-network-nodes .folder-button:hover,
+  .mode-dossier .people-network-nodes .folder-button:focus-visible {
+    min-height: 92px;
+    padding: 9px;
+  }
+
+  .mode-dossier .people-network-nodes .dossier-cover,
+  .mode-dossier .people-network-nodes .dossier-photo {
+    width: 48px;
+    height: 64px;
+  }
+
+  .mode-dossier .people-network-nodes .folder-name,
+  .mode-dossier .people-network-nodes .is-network-center .folder-name {
+    font-size: 14px;
+  }
+
+  .mode-dossier .people-network-nodes .folder-button small {
+    font-size: 11px;
+  }
+
+  .people-network-dossier {
+    padding: 16px;
+  }
+
+  .people-network-dossier > p:first-child {
+    font-size: 10px;
+  }
+
+  .people-network-dossier h3 {
+    font-size: 27px;
+  }
+
+  .people-network-dossier dt,
+  .people-network-dossier dd {
+    font-size: 14px;
+  }
+
+  .people-network-summary {
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .people-network-index {
+    min-height: 58px;
+    grid-template-columns: repeat(36, 48px);
+    grid-template-rows: 48px;
+    padding: 5px;
+  }
+
+  .people-network-index button {
+    font-size: 11px;
+  }
+
+  /* 07 / Events — a vertical accession shelf, sized like a phone story card. */
+  .event-plane-world {
+    gap: 14px;
+    padding: 54px 10px 48px;
+  }
+
+  .mode-event-plane .folder-item {
+    height: clamp(230px, 64vw, 276px);
+  }
+
+  .mode-event-plane .folder-button {
+    box-shadow: 6px 7px 0 rgba(0, 0, 0, .34);
+  }
+
+  .mode-event-plane .folder-name {
+    font-size: 28px;
+    line-height: 1.12;
+  }
+
+  .mode-event-plane .folder-button > small {
+    font-size: 11px;
+  }
+
+  /* 08 / Anomalies — replace the mouse-centric wheel with a swipe shelf. */
+  .folder-orbit.mode-anomaly-monitor {
+    min-height: 0;
+    overflow: visible;
+    cursor: default;
+  }
+
+  .anomaly-carousel {
+    display: grid;
+    grid-template-rows: 44px auto 58px;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    user-select: auto;
+    touch-action: pan-x pan-y;
+  }
+
+  .anomaly-carousel-mast,
+  .anomaly-carousel > footer {
+    position: static;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 9px;
+    pointer-events: auto;
+  }
+
+  .anomaly-carousel-mast b {
+    display: none;
+  }
+
+  .anomaly-carousel > footer {
+    min-height: 58px;
+  }
+
+  .anomaly-carousel > footer span {
+    font-size: 0;
+  }
+
+  .anomaly-carousel > footer span::after {
+    content: '左右滑动选择异常档案';
+    font-size: 10px;
+  }
+
+  .anomaly-orbit-rail,
+  .anomaly-carousel-track::after {
+    display: none;
+  }
+
+  .anomaly-carousel-track {
+    position: static;
+    display: flex;
+    gap: 14px;
+    padding: 12px 14px 22px;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 14px;
+    z-index: auto;
+  }
+
+  .mode-anomaly-monitor .folder-item,
+  .mode-anomaly-monitor .folder-item.is-selected,
+  .mode-anomaly-monitor .folder-item.is-outside-arc {
+    position: static;
+    flex: 0 0 min(82vw, 310px);
+    width: min(82vw, 310px);
+    height: 360px;
+    opacity: 1 !important;
+    pointer-events: auto;
+    transform: none !important;
+    scroll-snap-align: center;
+  }
+
+  .mode-anomaly-monitor .folder-button {
+    min-height: 360px;
+    padding: 16px;
+    transform: none !important;
+  }
+
+  .anomaly-card-face {
+    min-height: 188px;
+  }
+
+  .anomaly-card-kicker,
+  .anomaly-card-rule,
+  .mode-anomaly-monitor .folder-button > small {
+    font-size: 10px;
+  }
+
+  .mode-anomaly-monitor .folder-name {
+    margin-top: 18px;
+    font-size: 22px;
+  }
+
+  .anomaly-carousel-index {
+    position: static;
+    display: flex;
+    width: auto;
+    min-width: 112px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    color: #cbd0d1;
+    text-align: right;
+    pointer-events: none;
+  }
+
+  .anomaly-carousel-index > span,
+  .anomaly-carousel-index > div {
+    display: none;
+  }
+
+  .anomaly-carousel-index > strong {
+    margin: 0;
+    font-size: 30px;
+  }
+
+  .anomaly-carousel-index > b {
+    font-size: 10px;
+  }
+
+  /* 09 / Species — a taxonomic list instead of a tiny desktop helix. */
+  .folder-orbit.mode-species-helix {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .species-helix-console {
+    display: block;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .species-helix-console > header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .species-helix-console > header > div b {
+    font-size: 16px;
+  }
+
+  .species-helix-console > header > p {
+    font-size: 10px;
+    text-align: left;
+  }
+
+  .species-sequence-readout {
+    min-height: 54px;
+    padding: 8px 10px;
+  }
+
+  .species-sequence-readout strong {
+    font-size: 16px;
+  }
+
+  .species-sequence-readout small {
+    font-size: 10px;
+  }
+
+  .species-helix-stage,
+  .species-helix-scroll {
+    position: static;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .species-helix-label,
+  .species-helix-lines,
+  .species-helix-core,
+  .species-helix-stage::after {
+    display: none;
+  }
+
+  .species-helix-track {
+    position: static;
+    width: 100%;
+    height: auto !important;
+    min-height: 0;
+    padding: 10px;
+    transform: none !important;
+  }
+
+  .species-helix-cards {
+    position: static;
+    display: grid;
+    width: 100%;
+    height: auto;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  .folder-orbit.mode-species-helix .folder-item,
+  .mode-species-helix .folder-item[data-side='left'],
+  .mode-species-helix .folder-item[data-side='right'],
+  .mode-species-helix .folder-item[data-side='dual'] {
+    position: static;
+    width: 100%;
+    height: auto;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .folder-orbit.mode-species-helix .folder-button,
+  .folder-orbit.mode-species-helix .folder-button:hover,
+  .folder-orbit.mode-species-helix .folder-button:focus-visible {
+    display: grid;
+    width: 100%;
+    height: auto;
+    min-height: 76px;
+    grid-template-columns: 54px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 11px;
+    padding: 9px 11px;
+    color: #e6ebe8;
+    border: 1px solid #60706a;
+    background: #0c1213;
+    transform: none;
+  }
+
+  .folder-orbit.mode-species-helix .folder-item[data-side='left'] .folder-button {
+    border-color: #315bcf;
+  }
+
+  .folder-orbit.mode-species-helix .folder-item[data-side='right'] .folder-button {
+    border-color: #b44343;
+  }
+
+  .folder-orbit.mode-species-helix .folder-item[data-side='dual'] .folder-button {
+    border-color: #8a918d;
+  }
+
+  .mode-species-helix .specimen-photo-slot {
+    grid-row: 1 / 3;
+    width: 46px;
+    height: 56px;
+  }
+
+  .mode-species-helix .folder-name {
+    align-self: end;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .mode-species-helix .folder-button small {
+    align-self: start;
+    color: #a9b3ae;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .species-helix-console > footer {
+    min-height: 42px;
+    padding-inline: 10px;
+    font-size: 9px;
+  }
+}
+
+/* Final cascade lock for the workspace launcher. Earlier compatibility rules
+   support phone landscape; these portrait values intentionally win here. */
+@media (max-width: 760px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail],
+  #clerk-desktop[data-workspace-role='clerk'] .clerk-desktop__icons[data-archive-category-rail] {
+    inset: calc(var(--workspace-mobile-header) + 10px) 10px calc(var(--workspace-mobile-bar) + 8px) 10px;
+    height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(86px, auto);
+    gap: 8px;
+    padding: 2px 0 18px;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    display: grid;
+    min-height: 86px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    justify-items: start;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.3;
+    text-align: left;
+  }
+
+  #clerk-desktop .clerk-desktop__window-layer {
+    inset: 0 0 var(--workspace-mobile-bar);
+  }
+
+  #clerk-desktop .clerk-desktop__taskbar {
+    min-height: var(--workspace-mobile-bar);
+    grid-template-columns: 68px minmax(0, 1fr) 52px;
+  }
+}
+
+/* Phone archive viewport guard ------------------------------------------------
+   The chapter rail and taskbar are persistent controls. Keep every archive
+   reader above them instead of letting long drawers pass underneath. */
+@media (max-width: 760px) {
+  .archive-layer {
+    inset: 0 0 auto !important;
+    height: calc(100dvh - var(--mobile-taskbar) - var(--mobile-nav) - 10px);
+    max-height: calc(100dvh - var(--mobile-taskbar) - var(--mobile-nav) - 10px);
+    padding-bottom: 24px !important;
+    overflow-y: auto;
+    scroll-padding-bottom: 24px;
+    overscroll-behavior-y: contain;
+  }
+
+  .archive-layer:not(.has-directory) .folder-orbit.mode-orbit {
+    padding-bottom: 24px;
+  }
+
+  .archive-layer.has-directory > .folder-orbit {
+    margin-bottom: 12px;
+  }
+
+  /* 04 / Entrance sheets: grouped, readable touch cards. The desktop drawer
+     remains unchanged; only the portrait-phone presentation is replaced. */
+  .entrance-sheet-drawer {
+    display: grid;
+    gap: 10px;
+    margin: 0 8px 8px;
+    padding: 10px 0 0;
+    overflow: visible;
+    border-top: 1px solid var(--phone-archive-rule);
+    scroll-snap-type: none;
+  }
+
+  .entrance-sheet-drawer .entrance-index-group {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #343c39;
+    background: #090d0e;
+  }
+
+  .entrance-sheet-drawer .entrance-index-group > header {
+    min-height: 34px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+
+  .entrance-sheet-drawer .entrance-index-group-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: #343c39;
+  }
+
+  .entrance-sheet-drawer .folder-item {
+    width: auto;
+    min-width: 0;
+  }
+
+  .entrance-sheet-drawer .folder-button,
+  .entrance-sheet-drawer .folder-button:hover,
+  .entrance-sheet-drawer .folder-button:focus-visible {
+    min-height: 72px;
+    padding: 9px;
+    background: #0e1415;
+  }
+
+  .entrance-sheet-drawer .folder-button.is-selected {
+    background: var(--phone-archive-paper);
+  }
+
+  .entrance-sheet-drawer .folder-name {
+    font-size: 12px;
+    white-space: normal;
+  }
+
+  .entrance-sheet-drawer .folder-button small {
+    font-size: 9px;
+    line-height: 1.3;
+    white-space: normal;
+  }
+}

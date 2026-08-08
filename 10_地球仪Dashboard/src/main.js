@@ -9,6 +9,7 @@ import './auth.css';
 import './archive-workflow/workspace.css';
 import './archive-workflow/mainline.css';
 import './archive-workflow/commission.css';
+import './mobile-ui.css';
 import {
   emitUiSound,
   initializeUiSounds,
@@ -3179,6 +3180,12 @@ document.querySelector('#point-picker').addEventListener('change', (event) => {
   if (item) selectMapItem(item);
 });
 
+document.querySelector('#map-open-selected')?.addEventListener('click', () => {
+  const code = document.querySelector('#detail-index')?.textContent?.trim();
+  const item = [...RESEARCH_STATIONS, ...MAPPED_ABYSS_POINTS].find((point) => point.code === code);
+  if (item) openMapArchive(item);
+});
+
 renderer.domElement.addEventListener('pointerdown', (event) => {
   pointerDown = true;
   pointerStart = { x: event.clientX, y: event.clientY };
@@ -5435,6 +5442,7 @@ function buildAnomalyMonitor(orbit, entries, appendArchiveEntry) {
   let drag = null;
   scene.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
+    if (event.pointerType === 'touch' && window.matchMedia('(max-width: 760px)').matches) return;
     drag = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -5877,6 +5885,10 @@ async function transitionArchiveDirectory(directory, { force = false } = {}) {
     archiveSelection = 0;
     updateArchivePresentation(directory);
     buildArchiveOrbit(directory);
+    // Phone directories are independent reading screens. Reset the internal
+    // archive scroller so a selection made near the bottom of the nine-item
+    // launcher never carries that scroll offset into the next directory.
+    if (window.matchMedia('(max-width: 760px)').matches) archiveLayer.scrollTop = 0;
     if (!reducedMotion) {
       requestAnimationFrame(() => archiveLayer.classList.remove('is-switching-directory'));
       const open = orbit.animate(
