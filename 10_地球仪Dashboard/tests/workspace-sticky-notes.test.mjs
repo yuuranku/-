@@ -231,9 +231,14 @@ class FakeElement {
   }
 }
 
-function createRoot(rect) {
+function createRoot(rect, { mobile = false } = {}) {
   const document = {
     activeElement: null,
+    defaultView: {
+      matchMedia(query) {
+        return { matches: mobile && query === '(max-width: 760px)' };
+      },
+    },
     createElement(tagName) {
       return new FakeElement(tagName, document);
     },
@@ -248,6 +253,7 @@ const NOTE_SIZE = Object.freeze({ height: 150, width: 240 });
 
 test('only admins can manage shared workspace note content', () => {
   assert.equal(canManageWorkspaceNotes('admin'), true);
+  assert.equal(canManageWorkspaceNotes('administrator'), true);
   assert.equal(canManageWorkspaceNotes('clerk'), false);
   assert.equal(canManageWorkspaceNotes('visitor'), false);
   assert.equal(canManageWorkspaceNotes(null), false);
@@ -543,6 +549,20 @@ test('reduced motion completes a clerk close immediately', async () => {
   controller.closeNote('note-1');
   assert.deepEqual(controller.getState().tearingNoteIds, []);
   assert.deepEqual(controller.getState().closedNoteIds, ['note-1']);
+});
+
+test('phone close completes immediately when the static mobile skin disables animation', async () => {
+  const controller = initializeWorkspaceNotes({
+    client: createClient({ notes: [{ content: 'body', id: 'note-1', title: 'Notice' }] }),
+    initialSession: CLERK_SESSION,
+    root: createRoot(undefined, { mobile: true }),
+  });
+  await controller.ready;
+
+  await controller.closeNote('note-1');
+  assert.deepEqual(controller.getState().tearingNoteIds, []);
+  assert.deepEqual(controller.getState().closedNoteIds, ['note-1']);
+  assert.equal(controller.getState().visibleNoteIds.includes('note-1'), false);
 });
 
 test('content mutations retain failed input and a failed delete restores the torn note', async () => {

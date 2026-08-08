@@ -25,6 +25,9 @@ export const normalizeWorkflowTask = (value = {}) => {
     objective: text(value.objective),
     format: text(value.format),
     template_id: text(value.template_id ?? value.templateId) || (kind === 'commission' ? '07' : ''),
+    // A commission owns one archive after its first approved record is
+    // published.  Later participants write additional records into it.
+    archive_id: text(value.archive_id ?? value.archiveId) || null,
     status,
     version_code: text(value.version_code ?? value.versionCode).replace(/^ver\s*/i, ''),
     part: integer(value.part, null, 1, 7),

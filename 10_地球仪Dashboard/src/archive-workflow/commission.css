@@ -187,6 +187,8 @@
 .honor-control__issue { width: min(100%, 640px); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--honor-space-4); row-gap: var(--honor-space-3); margin: var(--honor-space-4) auto 0; padding: var(--honor-space-4); border: 1px solid #747970; background: rgba(255,255,255,.17); }
 .honor-control__issue .honor-control__full { grid-column: 1 / -1; }
 .honor-control__issue > button { grid-column: 1 / -1; justify-self: end; min-width: 140px; }
+.honor-control__ledger-selector { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--honor-space-2); padding: var(--honor-space-2); border: 1px solid #8a9086; background: rgba(16, 40, 36, .06); }
+.honor-control__ledger-selector button { min-width: 70px; }
 .honor-control__recipient-mode { grid-column: 1 / -1; display: flex; align-items: center; gap: 1px; margin: 0; padding: 0; border: 1px solid #747970; background: #747970; }
 .honor-control__recipient-mode legend { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
 .honor-control__recipient-mode label { display: flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 7px; min-height: 34px; margin: 0; padding: 0 10px; color: #38463d; background: rgba(248, 248, 243, .78); font-size: 12px; cursor: pointer; }
@@ -202,6 +204,8 @@
 .honor-control__person-ledger { max-width: 640px; margin: var(--honor-space-5) auto 0; padding-top: var(--honor-space-4); border-top: 1px solid #777b70; }
 .honor-control__award { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: var(--honor-space-3); align-items: start; padding: var(--honor-space-3) 0; border-bottom: 1px solid #858b82; }
 .honor-control__award[data-award-status="revoked"] { opacity: .6; }
+.honor-control__award em { display: inline-block; margin-top: 5px; padding: 2px 5px; color: #1c463e; border: 1px solid #55736c; background: #dae6d7; font: 10px/1.2 var(--font-mono, monospace); font-style: normal; }
+.honor-control__award[data-award-status="revoked"] em { color: #6e2e29; border-color: #8a4a43; background: #ead8c5; }
 .honor-control__award footer { align-self: center; }
 .honor-control__award footer button { min-height: 30px; color: #5c2722; border-color: #843c35; background: #e2ccb9; box-shadow: 1px 1px 0 #777b70; }
 .honor-control__award footer i { color: #7e3731; font: 10px/1.35 var(--font-mono, monospace); font-style: normal; }
@@ -343,6 +347,8 @@
   .honor-control__category-guide { flex: initial; grid-template-columns: repeat(5, minmax(44px, 1fr)); width: 100%; }
   .honor-control__issue { width: 100%; grid-template-columns: 1fr; }
   .honor-control__issue .honor-control__full, .honor-control__issue > button { grid-column: auto; }
+  .honor-control__ledger-selector { grid-column: auto; grid-template-columns: 1fr; }
+  .honor-control__ledger-selector button { width: 100%; }
   .honor-control__clerk-picker { grid-template-columns: 1fr; max-height: 156px; }
   .honor-control__award { grid-template-columns: 104px minmax(0, 1fr); }
   .honor-control__award footer { grid-column: 1 / -1; }

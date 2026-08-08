@@ -129,6 +129,60 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     'Unable to load archive templates',
   );
 
+  // A commission is one dossier with several independently authored records.
+  // This lookup also supports installations that have not run the newest SQL
+  // migration yet: after the first publication we can still find its archive
+  // through the earlier participant response instead of making a second one.
+  const resolveCommissionArchiveId = async (contributionId) => {
+    const responseResult = await supabase.from('workflow_task_responses').select('task_id')
+      .eq('contribution_id', contributionId).maybeSingle();
+    if (responseResult.error && isWorkflowSchemaUnavailable(responseResult.error)) return null;
+    const response = await unwrap(Promise.resolve(responseResult), 'Unable to inspect the commission response');
+    if (!response?.task_id) return null;
+
+    let task = null;
+    const currentTask = await supabase.from('workflow_tasks').select('kind,archive_id')
+      .eq('id', response.task_id).maybeSingle();
+    if (currentTask.error && /archive_id/i.test(String(currentTask.error.message ?? ''))) {
+      task = await unwrap(
+        supabase.from('workflow_tasks').select('kind').eq('id', response.task_id).maybeSingle(),
+        'Unable to inspect the commission task',
+      );
+    } else {
+      task = await unwrap(currentTask, 'Unable to inspect the commission task');
+    }
+    if (task?.kind !== 'commission') return null;
+    if (task.archive_id) return task.archive_id;
+
+    const responses = await unwrap(
+      supabase.from('workflow_task_responses').select('contribution_id,registered_at')
+        .eq('task_id', response.task_id).not('contribution_id', 'is', null)
+        .neq('contribution_id', contributionId).order('registered_at', { ascending: true }),
+      'Unable to inspect earlier commission records',
+    );
+    const contributionIds = responses.map((entry) => entry.contribution_id).filter(Boolean);
+    if (!contributionIds.length) return null;
+    const published = await unwrap(
+      supabase.from('archive_contributions').select('id,archive_id,status')
+        .in('id', contributionIds).eq('status', 'published'),
+      'Unable to find the commission dossier',
+    );
+    const byId = new Map(published.map((entry) => [entry.id, entry.archive_id]));
+    return contributionIds.map((id) => byId.get(id)).find(Boolean) ?? null;
+  };
+
+  const linkCommissionArchive = async (contributionId, archiveId) => {
+    const { error } = await supabase.rpc('link_commission_archive_record', {
+      p_contribution_id: contributionId,
+      p_archive_id: archiveId,
+    });
+    // The RPC is deliberately optional for existing live databases. The
+    // response-history fallback above still prevents parallel dossier cards.
+    if (error && !isMissingRpc(error, 'link_commission_archive_record') && !isWorkflowSchemaUnavailable(error)) {
+      throw normalizeError(error, 'Unable to link the commission dossier');
+    }
+  };
+
   const listMyDrafts = (ownerId) => unwrap(
     supabase.from('archive_contributions')
       .select('*,archive:archives(id,code,title,category),template:archive_templates(id,code,title,category)')
@@ -164,21 +218,35 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       throw new ArchiveWorkflowError('Archive documents must use schema version 2', { code: 'invalid_document' });
     }
     const taskId = String(content.workflowTaskId ?? content.mainline?.taskId ?? '').trim();
+    let workflowTask = null;
     if (taskId) {
-      const task = await unwrap(
-        supabase.from('workflow_tasks').select('kind,status').eq('id', taskId).maybeSingle(),
-        'Unable to check commission status',
-      );
+      const taskResult = await supabase.from('workflow_tasks')
+        .select('kind,status,archive_id').eq('id', taskId).maybeSingle();
+      // Older deployed schemas do not expose archive_id yet. Keep the editor
+      // usable there; publication still resolves a previously created record.
+      const task = taskResult.error && /archive_id/i.test(String(taskResult.error.message ?? ''))
+        ? await unwrap(
+          supabase.from('workflow_tasks').select('kind,status').eq('id', taskId).maybeSingle(),
+          'Unable to check commission status',
+        )
+        : await unwrap(taskResult, 'Unable to check commission status');
+      workflowTask = task;
       if (task?.kind === 'commission' && task.status !== 'open') {
         throw new ArchiveWorkflowError('Commission editing is paused or closed', { code: 'task_not_open' });
       }
     }
+    const explicitArchiveId = draft.archiveId ?? draft.archive_id ?? null;
+    const inheritedArchiveId = workflowTask?.kind === 'commission' ? workflowTask.archive_id ?? null : null;
+    const archiveId = explicitArchiveId ?? inheritedArchiveId;
+    const requestedKind = draft.kind ?? 'new';
     const payload = {
-      archive_id: draft.archiveId ?? draft.archive_id ?? null,
+      archive_id: archiveId,
       template_id: draft.templateId ?? draft.template_id ?? null,
       owner_id: ownerId,
       title: String(draft.title ?? '').trim() || '未命名档案',
-      kind: draft.kind ?? 'new',
+      kind: inheritedArchiveId && !explicitArchiveId && requestedKind === 'new'
+        ? 'contribution'
+        : requestedKind,
       target_contribution_id: draft.targetContributionId ?? draft.target_contribution_id ?? null,
       base_version_id: draft.baseVersionId ?? draft.base_version_id ?? null,
       status: draft.status ?? 'draft',
@@ -256,7 +324,7 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       // database creates the immutable public version.
       const contributionId = requireId(submissionId, 'submissionId');
       const contribution = await unwrap(
-        supabase.from('archive_contributions').select('draft_content').eq('id', contributionId).single(),
+        supabase.from('archive_contributions').select('draft_content,archive_id,kind').eq('id', contributionId).single(),
         'Unable to prepare contribution for formal registration',
       );
       if (contribution?.draft_content?.reviewNote) {
@@ -266,10 +334,11 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
           'Unable to remove internal amendment note before formal registration',
         );
       }
+      const linkedArchiveId = contribution.archive_id || await resolveCommissionArchiveId(contributionId);
       const result = await unwrap(
         supabase.rpc('publish_archive_contribution', {
           p_contribution_id: contributionId,
-          p_archive_id: registration.archiveId || null,
+          p_archive_id: registration.archiveId || linkedArchiveId || null,
           p_code: null,
           p_category: requireId(registration.category, 'category'),
           p_version: '0.1',
@@ -279,8 +348,10 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
         }),
         'Unable to register contribution',
       );
+      const archiveId = result?.archiveId ?? result?.archive_id;
+      if (archiveId) await linkCommissionArchive(contributionId, archiveId);
       return {
-        archiveId: result?.archiveId ?? result?.archive_id,
+        archiveId,
         versionId: result?.versionId ?? result?.version_id,
         status: result?.status,
         code: result?.code,
@@ -340,6 +411,8 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     issued_at: award.issued_at ?? null,
     issue_note: award.issue_note ?? '',
     status: award.status ?? 'active',
+    revoked_at: award.revoked_at ?? null,
+    revoke_note: award.revoke_note ?? '',
   });
   const listHonorRibbons = async () => {
     const rows = await unwrap(
@@ -896,6 +969,9 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
       objective: String(input.objective ?? '').trim(),
       format: String(input.format ?? '').trim(),
       template_id: kind === 'commission' ? String(input.template_id ?? input.templateId ?? '').trim() : null,
+      ...(String(input.archive_id ?? input.archiveId ?? '').trim()
+        ? { archive_id: String(input.archive_id ?? input.archiveId).trim() }
+        : {}),
       status: String(input.status ?? 'draft').trim(),
       version_code: kind === 'mainline' ? String(input.version_code ?? input.versionCode ?? '').replace(/^ver\s*/i, '').trim() : null,
       part: kind === 'mainline' ? Number(input.part) : null,

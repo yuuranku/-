@@ -197,6 +197,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const desktopTime = document.querySelector('#clerk-desktop-time');
   const desktopWelcome = document.querySelector('#clerk-desktop-welcome');
   const desktopWelcomeClose = document.querySelector('#clerk-desktop-welcome-close');
+  const mobileWorkspaceReturn = document.querySelector('.mobile-workspace-return');
   const desktopStartMenu = document.querySelector('#clerk-desktop-start-menu');
   const workspaceNoteRegion = document.querySelector('#workspace-note-region');
   const workspaceNoteControls = document.querySelector('[data-workspace-note-controls]');
@@ -212,6 +213,117 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const desktopShortcuts = [...desktop.querySelectorAll('[data-workspace-shortcut]')];
   const desktopShortcutRail = desktop.querySelector('[data-archive-category-rail]');
   if (!assistant || !trigger || !startMenu || !frame || !status || !directoryView || !clerkDirectory || !audioView || !clerkList || !documentView || !experienceRoot || !archiveWindowLayer || !archiveTaskbar || !archiveTaskList || !desktop || !desktopWindowLayer || !desktopTaskbar || !desktopTaskList || !desktopEntry || !desktopStart || !desktopShortcutArrange || !desktopStartMenu) return;
+
+  // The phone workspace is a compact operating-system home screen rather
+  // than a squeezed version of the draggable desktop.  Dock buttons proxy the
+  // existing commands, so permissions and every workflow handler stay shared
+  // with the desktop implementation.
+  const mobileWorkspaceDock = document.createElement('nav');
+  mobileWorkspaceDock.className = 'clerk-mobile-dock';
+  mobileWorkspaceDock.setAttribute('aria-label', '常用工作应用');
+  mobileWorkspaceDock.hidden = true;
+  desktop.insertBefore(mobileWorkspaceDock, desktopTaskbar);
+
+  const updateMobileWorkspaceDock = () => {
+    const isPhone = window.matchMedia('(max-width: 760px)').matches;
+    desktopShortcuts.forEach((shortcut) => delete shortcut.dataset.mobileDockSource);
+    mobileWorkspaceDock.replaceChildren();
+    mobileWorkspaceDock.hidden = !isPhone;
+    if (!isPhone) return;
+
+    const isAdministrator = desktop.dataset.workspaceRole === 'administrator'
+      || document.body.dataset.operatorRole === 'admin';
+    const commands = isAdministrator
+      ? ['review', 'archives', 'users', 'honor-control', 'mailbox']
+      : ['mailbox', 'mainline', 'active-tasks', 'clerk-dossier'];
+
+    commands.forEach((command) => {
+      const source = desktop.querySelector(
+        `[data-workspace-shortcut][data-workspace-command="${command}"]`,
+      ) || desktop.querySelector(`[data-workspace-command="${command}"]`);
+      if (!source || source.hidden) return;
+      if (source.matches('[data-workspace-shortcut]')) source.dataset.mobileDockSource = 'true';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.mobileWorkspaceCommand = command;
+      button.setAttribute('aria-label', source.textContent.trim());
+      const icon = source.querySelector('.clerk-desktop__icon, .workspace-mailbox-icon');
+      const label = source.querySelector(':scope > span:last-child')?.textContent?.trim()
+        || source.getAttribute('aria-label')
+        || source.textContent.trim();
+      if (icon) button.appendChild(icon.cloneNode(true));
+      const copy = document.createElement('span');
+      copy.textContent = label.replace(/!+$/, '').trim();
+      button.appendChild(copy);
+      button.addEventListener('click', () => dispatchWorkspaceCommand(command, button));
+      mobileWorkspaceDock.appendChild(button);
+    });
+  };
+  const mobileWorkspaceQuery = window.matchMedia('(max-width: 760px)');
+  mobileWorkspaceQuery.addEventListener('change', updateMobileWorkspaceDock);
+
+  const mobileNoteFabPositionKey = 'palis.workspace.mobile-note-fab.v1';
+  let mobileNoteFabDrag = null;
+  let suppressMobileNoteFabClick = false;
+  const applyMobileNoteFabPosition = (position) => {
+    if (!workspaceNoteControls || !position) return;
+    const left = Math.min(Math.max(8, Number(position.left) || 8), Math.max(8, innerWidth - 64));
+    const top = Math.min(Math.max(96, Number(position.top) || 96), Math.max(96, innerHeight - 170));
+    workspaceNoteControls.style.setProperty('--mobile-note-fab-left', `${left}px`);
+    workspaceNoteControls.style.setProperty('--mobile-note-fab-top', `${top}px`);
+    workspaceNoteControls.dataset.mobileFabPositioned = 'true';
+  };
+  try {
+    applyMobileNoteFabPosition(JSON.parse(localStorage.getItem(mobileNoteFabPositionKey) || 'null'));
+  } catch {
+    // A malformed preference should never prevent the note composer opening.
+  }
+  workspaceNoteCreate?.addEventListener('pointerdown', (event) => {
+    if (!mobileWorkspaceQuery.matches || event.button > 0) return;
+    const bounds = workspaceNoteCreate.getBoundingClientRect();
+    mobileNoteFabDrag = {
+      left: bounds.left,
+      moved: false,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      top: bounds.top,
+    };
+    workspaceNoteCreate.setPointerCapture?.(event.pointerId);
+  });
+  workspaceNoteCreate?.addEventListener('pointermove', (event) => {
+    if (!mobileNoteFabDrag || event.pointerId !== mobileNoteFabDrag.pointerId) return;
+    const dx = event.clientX - mobileNoteFabDrag.startX;
+    const dy = event.clientY - mobileNoteFabDrag.startY;
+    if (Math.hypot(dx, dy) > 5) mobileNoteFabDrag.moved = true;
+    if (!mobileNoteFabDrag.moved) return;
+    event.preventDefault();
+    applyMobileNoteFabPosition({
+      left: mobileNoteFabDrag.left + dx,
+      top: mobileNoteFabDrag.top + dy,
+    });
+  });
+  const finishMobileNoteFabDrag = (event) => {
+    if (!mobileNoteFabDrag || event.pointerId !== mobileNoteFabDrag.pointerId) return;
+    if (mobileNoteFabDrag.moved && workspaceNoteControls) {
+      suppressMobileNoteFabClick = true;
+      const bounds = workspaceNoteCreate.getBoundingClientRect();
+      try {
+        localStorage.setItem(mobileNoteFabPositionKey, JSON.stringify({ left: bounds.left, top: bounds.top }));
+      } catch {
+        // Local preference persistence is optional.
+      }
+    }
+    mobileNoteFabDrag = null;
+  };
+  workspaceNoteCreate?.addEventListener('pointerup', finishMobileNoteFabDrag);
+  workspaceNoteCreate?.addEventListener('pointercancel', finishMobileNoteFabDrag);
+  workspaceNoteCreate?.addEventListener('click', (event) => {
+    if (!suppressMobileNoteFabClick) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    suppressMobileNoteFabClick = false;
+  }, true);
 
   // Frame 01 has a noticeably different body axis and reads as a jump rather
   // than part of this idle sway, so keep the coherent 02–07 loop.
@@ -433,7 +545,12 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const petBounds = () => {
     const desktopBounds = desktop.getBoundingClientRect();
     const triggerBounds = trigger.getBoundingClientRect();
-    const taskbarHeight = desktopTaskbar.getBoundingClientRect().height || 38;
+    // The phone taskbar is replaced by the application dock. Reserve that
+    // dock as the pet's floor so walking, dropping and dragging never hide the
+    // character behind the touch targets.
+    const taskbarHeight = mobileWorkspaceQuery.matches
+      ? 102
+      : (desktopTaskbar.getBoundingClientRect().height || 38);
     return {
       height: desktopBounds.height,
       petHeight: triggerBounds.height,
@@ -866,6 +983,11 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       width: desktopBounds.width,
     };
   };
+  const workspaceNoteSize = () => (
+    window.innerWidth >= 3200 && window.innerHeight >= 1700
+      ? { height: 280, width: 420 }
+      : { height: 180, width: 264 }
+  );
   const closeWorkspaceNoteCreateForm = () => {
     if (!workspaceNoteCreateForm) return;
     workspaceNoteCreateForm.reset();
@@ -903,6 +1025,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     if (workspaceNoteControls) workspaceNoteControls.toggleAttribute('data-workspace-notes-active', desktopOpen);
   };
   const syncWorkspaceNoteBounds = () => {
+    workspaceNotes?.setNoteSize(workspaceNoteSize());
     workspaceNotes?.setBounds(workspaceNoteBounds());
   };
   const setWorkspaceNoteSession = (nextSession, { desktopOpen } = {}) => {
@@ -930,6 +1053,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       bounds: workspaceNoteBounds(),
       client: workspaceNoteClient,
       initialSession: workspaceNoteSession,
+      noteSize: workspaceNoteSize(),
       onState: renderWorkspaceNoteChrome,
       reducedMotion,
       root: workspaceNoteRegion,
@@ -1032,6 +1156,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     assistant.removeAttribute('inert');
     if (open) {
       desktop.hidden = false;
+      updateMobileWorkspaceDock();
       activateDesktopPet();
       updateDesktopClock();
       setWorkspaceNotesDesktopOpen(true);
@@ -1108,6 +1233,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     updateWorkspaceIdentityAndSync();
   });
   window.addEventListener('palis:session-change', updateWorkspaceIdentityAndSync);
+  window.addEventListener('palis:session-change', updateMobileWorkspaceDock);
   window.addEventListener('palis:session-change', (event) => {
     const nextSession = createWorkspaceNoteSession(event.detail, {
       fallback: workspaceNoteSession,
@@ -1193,12 +1319,22 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       ?? activeArchiveStorySession?.session?.user?.id
       ?? 'local';
     const role = desktop.dataset.workspaceRole || document.body.dataset.operatorRole || 'clerk';
+    // Desktop shortcuts are stored in pixels. A layout authored at 720p must
+    // not be reused at 4K (or vice versa), otherwise every icon crowds into a
+    // corner. Keep one remembered arrangement per common resolution class.
+    const resolutionClass = innerWidth >= 3200 && innerHeight >= 1700
+      ? 'uhd'
+      : innerWidth >= 2200 && innerHeight >= 1200
+        ? 'qhd'
+        : innerWidth >= 1500 && innerHeight >= 850
+          ? 'fhd'
+          : 'hd';
     // Clerk shortcuts previously used a five-row rail and their saved points
     // were clipped to that height.  Version their layout once so they are
     // arranged again across the complete desktop above the taskbar, while an
     // administrator's existing arrangement remains untouched.
     const layoutVersion = role === 'clerk' ? 'v2-full-desktop' : 'v1';
-    return `${DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX}.${principal}.${role}.${layoutVersion}`;
+    return `${DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX}.${principal}.${role}.${layoutVersion}.${resolutionClass}`;
   };
 
   const readDesktopShortcutLayout = () => {
@@ -1892,13 +2028,24 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     setDesktopStartMenuOpen(false);
   });
   desktopWelcomeClose?.addEventListener('click', () => { desktopWelcome.hidden = true; });
+  mobileWorkspaceReturn?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('palis:workspace-exit-request'));
+  });
   desktopCommands.filter((entry) => entry.closest('#clerk-desktop-start-menu')).forEach((entry) => entry.addEventListener('click', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry)));
   desktopShortcuts.forEach((entry) => {
     entry.addEventListener('click', () => {
+      if (window.matchMedia('(max-width: 760px)').matches) {
+        dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry);
+        return;
+      }
       selectDesktopShortcut(entry);
     });
     entry.addEventListener('dblclick', () => dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry));
-    entry.addEventListener('pointerup', (event) => { if (event.pointerType !== 'mouse') dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); });
+    entry.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'touch' && !window.matchMedia('(max-width: 760px)').matches) {
+        dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry);
+      }
+    });
     entry.addEventListener('keydown', (event) => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); dispatchWorkspaceCommand(entry.dataset.workspaceCommand, entry); } });
     entry.title = '单击选择，双击打开；按住拖动以移动';
     installDesktopShortcutDrag(entry);
@@ -2128,6 +2275,11 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.065;
 controls.enablePan = false;
 controls.enableZoom = true;
+// Phones use the globe as a genuine touch surface: one finger rotates while
+// two fingers zoom and may gently correct the viewing angle.  This is scoped
+// to OrbitControls itself, so desktop mouse behaviour is unchanged.
+controls.touches.ONE = THREE.TOUCH.ROTATE;
+controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
 // Keep the polar globe reachable at a genuinely close inspection distance.
 // The old 150-unit floor made the last zoom level feel like a distant overview.
 controls.minDistance = 105;
@@ -2263,6 +2415,10 @@ const syncCounts = document.querySelector('#sync-counts');
 const syncEnter = document.querySelector('#sync-enter');
 const syncLog = document.querySelector('#sync-log');
 const chapterLinks = [...document.querySelectorAll('.chapter-nav a')];
+const mobileChapterLabels = ['接入', '总览', '档案', '南极'];
+chapterLinks.forEach((link, index) => {
+  link.dataset.mobileLabel = mobileChapterLabels[index] || link.dataset.label || '';
+});
 const taskStatus = document.querySelector('#task-status');
 const chapterName = document.querySelector('#chapter-name');
 const scrollPercent = document.querySelector('#scroll-percent');
@@ -2292,6 +2448,8 @@ let capsuleBootComplete = false;
 let lastFrame = performance.now();
 let pointerDown = false;
 let pointerStart = { x: 0, y: 0 };
+const polarTouchPointers = new Set();
+let polarTouchGesture = false;
 const capsuleParallax = {
   targetX: 0,
   targetY: 0,
@@ -3177,7 +3335,7 @@ document.querySelector('#network-filter').addEventListener('change', (event) => 
 
 document.querySelector('#point-picker').addEventListener('change', (event) => {
   const item = [...RESEARCH_STATIONS, ...MAPPED_ABYSS_POINTS].find((point) => point.code === event.target.value);
-  if (item) selectMapItem(item);
+  if (item) selectMapItem(item, { reveal: true });
 });
 
 document.querySelector('#map-open-selected')?.addEventListener('click', () => {
@@ -3187,20 +3345,30 @@ document.querySelector('#map-open-selected')?.addEventListener('click', () => {
 });
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
+  if (event.pointerType === 'touch') {
+    polarTouchPointers.add(event.pointerId);
+    if (polarTouchPointers.size > 1) polarTouchGesture = true;
+  }
   pointerDown = true;
   pointerStart = { x: event.clientX, y: event.clientY };
 });
 renderer.domElement.addEventListener('pointerup', (event) => {
   const wasDragging = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 6;
+  const wasTouchGesture = polarTouchGesture;
+  if (event.pointerType === 'touch') {
+    polarTouchPointers.delete(event.pointerId);
+    if (polarTouchPointers.size === 0) polarTouchGesture = false;
+  }
   pointerDown = false;
   renderer.domElement.style.cursor = currentChapter === 3 ? 'grab' : '';
-  if (currentChapter !== 3 || wasDragging) return;
+  if (currentChapter !== 3 || wasDragging || wasTouchGesture) return;
   const hit = findMapHit(event);
   if (!hit) return;
   const item = hit.object.userData.item;
   const now = Date.now();
   const isDoubleSelection = selectedMapCode === item.code && now - selectedMapAt < 380;
   selectMapItem(item);
+  document.querySelector('#map-detail')?.classList.add('has-selection');
   selectedMapCode = item.code;
   selectedMapAt = now;
   if (isDoubleSelection) {
@@ -3214,6 +3382,8 @@ window.addEventListener('palis:session-change', () => {
   if (capsuleBootComplete) applyCapsuleAccessState();
 });
 renderer.domElement.addEventListener('pointercancel', () => {
+  polarTouchPointers.clear();
+  polarTouchGesture = false;
   pointerDown = false;
   renderer.domElement.style.cursor = currentChapter === 3 ? 'grab' : '';
 });
@@ -3690,6 +3860,58 @@ window.addEventListener('palis:session-change', () => { void refreshCommissionAl
 void refreshCommissionAlert();
 window.setInterval(() => { void refreshCommissionAlert(); }, 45000);
 
+function buildMobileArchiveRegister(orbit, directory, mode, entries) {
+  if (!directory || !window.matchMedia('(max-width: 760px)').matches) return;
+
+  const register = document.createElement('section');
+  register.className = `mobile-archive-register mobile-archive-register--${mode}`;
+  register.setAttribute('aria-label', `${directory.name}手机档案目录`);
+  register.innerHTML = `
+    <header class="mobile-archive-register__head">
+      <div><span>${directory.code || 'PALIS'} / MOBILE REGISTER</span><h3>${directory.name}</h3></div>
+      <b>${String(entries.length).padStart(2, '0')}</b>
+    </header>
+    <p class="mobile-archive-register__hint">${mode === 'station-board' ? '轻触选择站点，再次轻触打开档案' : '轻触条目打开完整档案'}</p>
+    <div class="mobile-archive-register__list" role="list"></div>
+  `;
+  const list = register.querySelector('.mobile-archive-register__list');
+  let selectedStationButton = null;
+
+  entries.forEach((archive, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mobile-archive-register__item';
+    button.dataset.code = archive.code;
+    button.setAttribute('role', 'listitem');
+    button.setAttribute('aria-label', `${mode === 'station-board' ? '选择' : '打开'}${archive.name}档案`);
+    const secondary = archive.year || archive.operator || archive.type || archive.officialName || archive.meta || 'PALIS ARCHIVE';
+    button.innerHTML = `
+      <span class="mobile-archive-register__index">${String(index + 1).padStart(2, '0')}</span>
+      <span class="mobile-archive-register__copy"><b>${escapeRecordText(archive.name)}</b><small>${escapeRecordText(secondary)}</small></span>
+      <span class="mobile-archive-register__code">${escapeRecordText(archive.code)}</span>
+      <i aria-hidden="true">›</i>
+    `;
+    button.addEventListener('click', () => {
+      if (mode !== 'station-board') {
+        openArchive(archive, button);
+        return;
+      }
+      if (selectedStationButton === button) {
+        openArchive(archive, button);
+        return;
+      }
+      selectedStationButton?.classList.remove('is-selected');
+      selectedStationButton?.setAttribute('aria-pressed', 'false');
+      selectedStationButton = button;
+      button.classList.add('is-selected');
+      button.setAttribute('aria-pressed', 'true');
+    });
+    list.appendChild(button);
+  });
+
+  orbit.appendChild(register);
+}
+
 function buildArchiveOrbit(directory = archiveDirectory) {
   const orbit = document.querySelector('#folder-orbit');
   const sourceEntries = directory ? directory.children : archiveRoots;
@@ -3771,6 +3993,10 @@ function buildArchiveOrbit(directory = archiveDirectory) {
       else if (mode === 'event-plane') {
         openArchive(archive, button);
       }
+      // Station nodes have their own select -> open interaction below. Keeping
+      // them out of this generic branch prevents a first tap from opening the
+      // record before the user has had a chance to inspect the station.
+      else if (mode === 'station-board') return;
       else if ((mode === 'dossier' || mode === 'entrance-network' || mode === 'ecology-strata' || mode === 'country-stack' || mode === 'anomaly-monitor' || mode === 'species-helix') && index !== archiveSelection) updateArchiveSelection(index, true);
       else openArchive(archive, button);
     });
@@ -3821,6 +4047,7 @@ function buildArchiveOrbit(directory = archiveDirectory) {
   } else {
     entries.forEach((archive, index) => appendArchiveEntry(archive, index));
   }
+  buildMobileArchiveRegister(orbit, directory, mode, entries);
   folderButtons = [...orbit.querySelectorAll('.folder-button')];
   updateArchiveControls(mode, entries.length);
   layoutArchiveOrbit(1);
@@ -4022,6 +4249,14 @@ function buildStationBoard(orbit, entries, appendArchiveEntry) {
   const routeLayer = board.querySelector('.station-route-lines');
   const readout = board.querySelector('.station-coordinate-readout');
   const openSelectedButton = readout.querySelector('[data-open-station]');
+  const isMobileStationRegister = window.matchMedia('(max-width: 760px)').matches;
+  if (isMobileStationRegister) {
+    readout.querySelector('span').textContent = '站点坐标索引';
+    readout.querySelector('[data-station-preview-name]').textContent = '尚未选择站点';
+    readout.querySelector('[data-station-preview-code]').textContent = '单击选择 / 双击打开';
+    readout.querySelector('[data-station-preview-meta]').textContent = `${String(entries.length).padStart(2, '0')} 个站点档案`;
+    openSelectedButton.textContent = '请先选择站点';
+  }
   const plottedNodes = [];
   let previewState = null;
 
@@ -4034,6 +4269,7 @@ function buildStationBoard(orbit, entries, appendArchiveEntry) {
     readout.querySelector('[data-station-preview-code]').textContent = `${archive.code} · ${Math.abs(archive.lat).toFixed(2)}°S / ${formatLongitude(archive.lng)}`;
     readout.querySelector('[data-station-preview-meta]').textContent = `${archive.operator} · ${archive.type}`;
     openSelectedButton.disabled = false;
+    openSelectedButton.textContent = '打开档案';
     openSelectedButton.setAttribute('aria-label', `打开${archive.name}档案`);
   };
 
@@ -4067,7 +4303,11 @@ function buildStationBoard(orbit, entries, appendArchiveEntry) {
     line.dataset.stationIndex = String(index);
     routeLayer.appendChild(line);
 
-    button.addEventListener('focus', () => updateStationPreview(archive, index, button, line));
+    button.addEventListener('focus', () => {
+      if (!isMobileStationRegister) updateStationPreview(archive, index, button, line);
+    });
+    button.addEventListener('click', () => updateStationPreview(archive, index, button, line));
+    button.addEventListener('dblclick', () => openArchive(archive, button));
     plottedNodes.push({ item, button, line, archive, left, top, revealDelay });
   });
 
@@ -4083,13 +4323,17 @@ function buildStationBoard(orbit, entries, appendArchiveEntry) {
     plottedNodes[(currentIndex + direction + plottedNodes.length) % plottedNodes.length].button.focus();
   });
 
-  const defaultPreviewIndex = Math.max(0, entries.findIndex((archive) => archive.code === 'US-SP'));
-  const defaultPreview = plottedNodes[defaultPreviewIndex];
-  if (defaultPreview) updateStationPreview(defaultPreview.archive, defaultPreviewIndex, defaultPreview.button, defaultPreview.line);
+  // Desktop keeps a useful default focus. On phones the register starts in a
+  // neutral state so no station appears selected before the user taps it.
+  if (!window.matchMedia('(max-width: 760px)').matches) {
+    const defaultPreviewIndex = Math.max(0, entries.findIndex((archive) => archive.code === 'US-SP'));
+    const defaultPreview = plottedNodes[defaultPreviewIndex];
+    if (defaultPreview) updateStationPreview(defaultPreview.archive, defaultPreviewIndex, defaultPreview.button, defaultPreview.line);
+  }
 
   orbit.appendChild(board);
 
-  if (reducedMotion) return;
+  if (reducedMotion || window.matchMedia('(max-width: 760px)').matches) return;
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const plane = board.querySelector('.station-coordinate-plane');
     const planeWidth = plane.clientWidth;
@@ -7455,8 +7699,22 @@ function getGlobeLayout(progress) {
   const intro = mobile
     ? { x: 40, y: stageCenterY, scale: fit(0.59) }
     : { x: introCornerX, y: introCornerY, scale: introScale };
-  const archive = { x: 0, y: stageCenterY, scale: fit(mobile ? 0.47 : archiveScale) };
-  const polar = { x: 0, y: stageCenterY, scale: mobile ? fit(0.62, 0.94) : fit(polarScale) };
+  // On phones the globe is a compact visual index above the two-column
+  // directory, rather than sitting behind the tappable cards.
+  const archive = mobile
+    ? {
+      x: 0,
+      y: stageCenterY + stageHeight * worldPerPixel * 0.25,
+      scale: fit(0.34, 0.72),
+    }
+    : { x: 0, y: stageCenterY, scale: fit(archiveScale) };
+  const polar = mobile
+    ? {
+      x: 0,
+      y: stageCenterY + stageHeight * worldPerPixel * 0.19,
+      scale: Math.min(0.86, fitScale * 1.08),
+    }
+    : { x: 0, y: stageCenterY, scale: fit(polarScale) };
   const clampedProgress = THREE.MathUtils.clamp(progress, 0, 1);
   const chapterSpan = 1 / 3;
 
@@ -7797,7 +8055,7 @@ function getDiagnosticRoute(phase, index) {
   return MAP_ROUTES.filter((route) => (route.kind || 'intra-antarctic') === kind)[index] || null;
 }
 
-function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) {
+function selectMapItem(item, { transient = false, diagnosticStatus = '', reveal = false } = {}) {
   const isStation = RESEARCH_STATIONS.includes(item);
   const isCommandHub = item.markerType === 'command-hub';
   const previewStatus = isPreviewAccess() ? (isStation ? '离线' : '资料未收录') : '';
@@ -7817,6 +8075,7 @@ function selectMapItem(item, { transient = false, diagnosticStatus = '' } = {}) 
   if (!transient) {
     selectedMapItem = item;
     document.querySelector('#point-picker').value = item.code;
+    if (reveal) document.querySelector('#map-detail')?.classList.add('has-selection');
   }
   interactiveMeshes.forEach((marker) => {
     const isSelected = polarDiagnosticComplete && marker.userData.item?.code === item.code;

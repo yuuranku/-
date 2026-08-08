@@ -9203,6 +9203,7 @@ body.clerk-desktop-open { overflow: hidden; }
 .clerk-desktop__accessible-title { position: absolute; top: 18px; left: 22px; z-index: 3; display: grid; gap: 2px; color: #f4f1e8; }
 .clerk-desktop__accessible-title h2 { margin: 0; font: 700 20px/1 var(--font-body); }
 .clerk-desktop__accessible-title span { font: 10px/1 var(--font-mono); }
+.mobile-workspace-return { display: none; }
 .clerk-desktop__watermark { position: absolute; top: 22px; right: 24px; z-index: 3; display: grid; justify-items: end; gap: 3px; color: rgba(255,255,255,.48); font: 10px/1 var(--font-mono); }
 .clerk-desktop__start-menu { position: absolute; z-index: 24000; bottom: 55px; left: 4px; display: grid; grid-template-columns: 34px minmax(190px, 240px); min-height: 250px; color: #111; background: #c0c0c0; border: 2px outset #efefef; box-shadow: 4px -4px 0 rgba(0,0,0,.35); }
 .clerk-desktop__start-menu[hidden] { display: none !important; }
@@ -10289,6 +10290,87 @@ body.clerk-desktop-open { overflow: hidden; }
     height: 100%;
     flex: 0 1 190px;
   }
+}
+
+/* Resolution-density ladder for the Win95 workspace. 2K remains the visual
+   baseline; HD tightens, Full HD uses standard controls, and UHD grows the
+   entire working vocabulary instead of marooning 2K-sized icons in a corner. */
+@media (min-width: 761px) and (max-width: 1439px),
+  (min-width: 761px) and (max-height: 799px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: 56px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    width: 84px;
+    height: 101px;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span { font-size: 10px; }
+  #clerk-desktop .clerk-desktop__taskbar { height: 34px; min-height: 34px; max-height: 34px; }
+  #clerk-desktop .clerk-desktop__window-layer { bottom: 34px; }
+  #clerk-desktop .clerk-desktop__start-menu { bottom: 34px; }
+}
+
+@media (min-width: 1440px) and (max-width: 2199px) and (min-height: 800px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: clamp(68px, 4.2vw, 82px); }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span { font-size: 12px; }
+}
+
+@media (min-width: 3200px) and (min-height: 1700px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: 126px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    width: 166px;
+    height: 188px;
+    row-gap: 10px;
+    padding: 5px;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::before { inset: 12px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::after {
+    right: 4px;
+    bottom: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+  }
+  #clerk-desktop .clerk-desktop__taskbar {
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
+    gap: 5px;
+    padding: 5px;
+  }
+  #clerk-desktop .clerk-desktop__window-layer { bottom: 56px; }
+  #clerk-desktop .clerk-desktop__start-menu { bottom: 56px; grid-template-columns: 42px minmax(330px, 1fr); }
+  #clerk-desktop .clerk-desktop__start,
+  #clerk-desktop .clerk-desktop__arrange { min-height: 42px; padding-inline: 14px; font-size: 15px; }
+  #clerk-desktop .clerk-desktop__tray { gap: 10px; padding-inline: 10px; font-size: 15px; }
+  #clerk-desktop .clerk-desktop__task-list .archive-task-button { flex-basis: 285px; font-size: 15px; }
+  #clerk-desktop [data-workspace-mailbox-ornament] { width: 92px; height: 92px; }
+  #clerk-desktop [data-workspace-mailbox-ornament] > span,
+  #clerk-desktop [data-workspace-mailbox-ornament] .workspace-mailbox-icon { width: 82px; height: 82px; }
+
+  #clerk-desktop .archive-workflow-window {
+    width: min(2460px, calc(100vw - 120px));
+    height: min(1500px, calc(100dvh - 132px));
+  }
+  #clerk-desktop .archive-workflow-list-window {
+    width: min(1560px, calc(100vw - 120px));
+    height: min(1120px, calc(100dvh - 150px));
+  }
+  #clerk-desktop .archive-workflow-titlebar { min-height: 48px; padding-left: 12px; }
+  #clerk-desktop .archive-workflow-titlebar > span { font-size: 18px; }
+  #clerk-desktop .archive-workflow-titlebar button { width: 42px; min-width: 42px; height: 38px; font-size: 17px; }
+  #clerk-desktop .archive-editor,
+  #clerk-desktop .archive-admin-review { height: calc(100% - 48px); }
+  #clerk-desktop .archive-workflow-window :is(input, select, textarea, button) { font-size: 17px; }
+  #clerk-desktop .archive-workflow-window :is(label, p, li, dt, dd) { font-size: 15px; }
+  #clerk-desktop .archive-workflow-window :is(h2, h3) { font-size: 28px; }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note { width: min(800px, calc(100% - 32px)); }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-title { font-size: 29px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-body { font-size: 21px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note button { min-height: 42px; font-size: 16px; }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create] { min-width: 72px; min-height: 72px; font-size: 18px; }
 }
 
 .clerk-desktop__welcome,

@@ -25,8 +25,8 @@ const styleLibraryMarkup = (ribbons = []) => ribbons.length ? ribbons.map((ribbo
   </article>
 `).join('') : '<p class="honor-control__empty">还没有保存的条带样式。</p>';
 
-const clerkOptions = (profiles = [], selected = '') => profiles
-  .filter((profile) => profile.enabled !== false && profile.role === 'clerk')
+const profileOptions = (profiles = [], selected = '', { issuableOnly = false } = {}) => profiles
+  .filter((profile) => profile.enabled !== false && (!issuableOnly || profile.role === 'clerk'))
   .map((profile) => `<option value="${escapeHtml(profile.id)}" ${profile.id === selected ? 'selected' : ''}>${escapeHtml(profile.display_name || profile.email)}${profile.role === 'admin' ? ' / 管理员' : ''}</option>`)
   .join('');
 
@@ -58,9 +58,11 @@ ${description}
 
 const clerkHonorMarkup = (honors = []) => honors.length ? honors.map((honor) => {
   const category = honorCategory(honor.category);
+  const statusLabel = honor.status === 'revoked' ? `已撤销 / ${dateLabel(honor.revoked_at)}` : '生效中';
+  const statusNote = honor.status === 'revoked' && honor.revoke_note ? `撤销说明：${honor.revoke_note}` : '';
   return `<article class="honor-control__award" data-award-status="${escapeHtml(honor.status)}">
     <img src="${escapeHtml(honor.imageUrl)}" alt="${escapeHtml(honor.title)}" />
-    <div><b>${escapeHtml(honor.code)} / ${escapeHtml(honor.title)}</b><small>${escapeHtml(category.label)} / ${escapeHtml(dateLabel(honor.issued_at))}</small><p>${escapeHtml(honor.description)}</p></div>
+    <div><b>${escapeHtml(honor.code)} / ${escapeHtml(honor.title)}</b><small>${escapeHtml(category.label)} / ${escapeHtml(dateLabel(honor.issued_at))}</small><em>${escapeHtml(statusLabel)}</em><p>${escapeHtml(honor.description)}${statusNote ? `<br />${escapeHtml(statusNote)}` : ''}</p></div>
     <footer>${honor.status === 'revoked'
       ? ''
       : `<button type="button" data-honor-action="revoke" data-award-id="${escapeHtml(honor.award_id || honor.id)}" aria-label="取消授信">× 取消授信</button>`}</footer>
@@ -103,7 +105,10 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
               <small class="honor-control__batch-summary" data-honor-batch-summary>请选择至少一名书记官。</small>
               </label>
             </section>
-            <label>查看履历<select data-honor-clerk></select></label>
+            <section class="honor-control__ledger-selector" aria-label="书记官授信履历调阅">
+              <label>查看书记官授信履历<select data-honor-clerk></select></label>
+              <button type="button" data-honor-ledger-load>调阅</button>
+            </section>
             <label>编号<input data-honor-code-preview value="AUTO / ISSUANCE ORDER" readonly aria-label="自动编号" /></label>
             <label>名称<input name="title" maxlength="100" required /></label>
             <label>归类<select name="category" required>${categoryOptions()}</select></label>
@@ -121,6 +126,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   const status = root.querySelector('[data-honor-control-status]');
   const library = root.querySelector('[data-honor-style-library]');
   const clerkSelect = root.querySelector('[data-honor-clerk]');
+  const loadLedgerButton = root.querySelector('[data-honor-ledger-load]');
   const singleClerkSelect = root.querySelector('[data-honor-single-clerk]');
   const recipientModeControls = root.querySelectorAll('[name="recipientMode"]');
   const singleRecipientPanel = root.querySelector('[data-honor-single-recipient]');
@@ -168,10 +174,10 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   const render = () => {
     library.innerHTML = styleLibraryMarkup(ribbons);
     const previousClerk = clerkSelect.value;
-    clerkSelect.innerHTML = `<option value="">选择书记官</option>${clerkOptions(profiles, previousClerk)}`;
+    clerkSelect.innerHTML = `<option value="">选择人员</option>${profileOptions(profiles, previousClerk)}`;
     if (previousClerk && [...clerkSelect.options].some((option) => option.value === previousClerk)) clerkSelect.value = previousClerk;
     const previousSingleClerk = singleClerkSelect.value;
-    singleClerkSelect.innerHTML = `<option value="">选择一名书记官</option>${clerkOptions(profiles, previousSingleClerk)}`;
+    singleClerkSelect.innerHTML = `<option value="">选择一名书记官</option>${profileOptions(profiles, previousSingleClerk, { issuableOnly: true })}`;
     if (previousSingleClerk && [...singleClerkSelect.options].some((option) => option.value === previousSingleClerk)) singleClerkSelect.value = previousSingleClerk;
     const previousStyle = ribbonSelect.value;
     ribbonSelect.innerHTML = `<option value="">选择已保存样式</option>${styleOptions(ribbons)}`;
@@ -191,7 +197,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
     const profile = selectedProfile();
     if (!profile) { awards = []; render(); return; }
     ledger.textContent = '正在调阅授信履历……';
-    try { awards = await client.listClerkHonors(profile.id); render(); } catch (error) {
+    try { awards = await client.listClerkHonors(profile.id, { includeRevoked: true }); render(); } catch (error) {
       awards = []; ledger.innerHTML = `<p class="honor-control__empty">${escapeHtml(error.message || '无法读取授信履历')}</p>`;
     }
   };
@@ -206,6 +212,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
   if (!state.honorControlReady) {
     state.honorControlReady = true;
     clerkSelect.addEventListener('change', () => { void loadLedger(); });
+    loadLedgerButton.addEventListener('click', () => { void loadLedger(); });
     singleClerkSelect.addEventListener('change', updateRecipientSummary);
     recipientModeControls.forEach((control) => control.addEventListener('change', () => {
       if (!control.checked) return;
@@ -285,6 +292,7 @@ export const openHonorAdministrationWindow = async ({ createWindow, client } = {
               ? `已向 ${issuedCount} 名书记官授信；${notifiedCount} 封通知已寄出，${failedNotices} 封未寄出。`
               : `已向 ${issuedCount} 名书记官授信，并分别寄送站内通知。`;
           }
+          if (recipients.length === 1) clerkSelect.value = recipients[0].id;
           await loadLedger();
         } catch (error) { status.textContent = error.message || '无法授予该荣誉'; } finally { button.disabled = false; }
       }

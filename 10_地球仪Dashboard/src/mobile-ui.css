@@ -10,6 +10,832 @@
   display: none;
 }
 
+/* Phone workflow surfaces: keep the existing workflow/data layer, but render
+   dense administrator tools as touch-sized application pages. */
+@media (max-width: 760px) {
+  #clerk-desktop .archive-admin-archives {
+    display: block !important;
+    min-height: 100% !important;
+    color: #172127 !important;
+    background: #f4f5f2 !important;
+  }
+
+  #clerk-desktop .archive-admin-archives > header {
+    position: sticky !important;
+    z-index: 5 !important;
+    top: 0 !important;
+    display: grid !important;
+    gap: 12px !important;
+    padding: 16px 14px 14px !important;
+    border: 0 !important;
+    border-bottom: 4px solid #b63a35 !important;
+    background: #f4f5f2 !important;
+  }
+  #clerk-desktop .archive-admin-archives > header h3 {
+    margin: 4px 0 !important;
+    color: #172127 !important;
+    font-size: 23px !important;
+    line-height: 1.1 !important;
+  }
+  #clerk-desktop .archive-admin-archives > header p,
+  #clerk-desktop .archive-admin-archives > header span {
+    font-size: 9px !important;
+    line-height: 1.45 !important;
+  }
+  #clerk-desktop .archive-admin-archives > header form {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 58px 58px !important;
+    gap: 7px !important;
+    width: 100% !important;
+  }
+  #clerk-desktop .archive-admin-archives > header input,
+  #clerk-desktop .archive-admin-archives > header button {
+    min-width: 0 !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    border-radius: 0 !important;
+    font-size: 14px !important;
+  }
+  #clerk-desktop .archive-admin-archives > [data-admin-archive-message] {
+    margin: 0 !important;
+    padding: 9px 14px !important;
+    border-bottom: 1px solid #9da5a4 !important;
+    color: #667278 !important;
+    background: #e4e6e2 !important;
+    font: 700 9px/1.35 var(--font-mono) !important;
+  }
+  #clerk-desktop .archive-admin-archive-browser { overflow: visible !important; }
+  #clerk-desktop .archive-admin-category-tabs {
+    top: 0 !important;
+    padding: 7px 10px !important;
+    gap: 6px !important;
+    background: #e4e6e2 !important;
+    scrollbar-width: none !important;
+  }
+  #clerk-desktop .archive-admin-category-tabs::-webkit-scrollbar { display: none !important; }
+  #clerk-desktop .archive-admin-category-tab {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    min-width: 126px !important;
+    min-height: 44px !important;
+    gap: 6px !important;
+    align-items: center !important;
+    padding: 7px 9px !important;
+    border: 1px solid #7c8586 !important;
+    border-radius: 0 !important;
+    color: #283237 !important;
+    background: #f5f6f3 !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .archive-admin-category-tab.is-active {
+    color: #fff !important;
+    border-color: #082d4e !important;
+    background: #082d4e !important;
+    box-shadow: inset 4px 0 0 #bd3832 !important;
+  }
+  #clerk-desktop .archive-admin-category-tab :is(b, span, em) {
+    margin: 0 !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+  }
+  #clerk-desktop .archive-admin-archive-results {
+    display: grid !important;
+    gap: 10px !important;
+    padding: 10px 10px 24px !important;
+    overflow: visible !important;
+  }
+  #clerk-desktop .archive-admin-archive {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 7px 10px !important;
+    min-height: 0 !important;
+    padding: 13px !important;
+    border: 1px solid #8b9290 !important;
+    border-left: 4px solid #082d4e !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: 2px 2px 0 #c3c7c3 !important;
+  }
+  #clerk-desktop .archive-admin-archive > header,
+  #clerk-desktop .archive-admin-archive > p,
+  #clerk-desktop .archive-admin-archive > small,
+  #clerk-desktop .archive-admin-archive > form {
+    grid-column: 1 / -1 !important;
+    margin: 0 !important;
+  }
+  #clerk-desktop .archive-admin-archive > header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+  #clerk-desktop .archive-admin-archive > header div { display: grid !important; gap: 2px !important; }
+  #clerk-desktop .archive-admin-archive > header b { color: #082d4e !important; font-size: 15px !important; }
+  #clerk-desktop .archive-admin-archive > header span { font-size: 13px !important; font-weight: 800 !important; }
+  #clerk-desktop .archive-admin-archive > header em {
+    padding: 3px 6px !important;
+    border: 1px solid #698472 !important;
+    color: #28563d !important;
+    background: #eaf1eb !important;
+    font: 700 9px/1 var(--font-mono) !important;
+  }
+  #clerk-desktop .archive-admin-archive > p { color: #546167 !important; font-size: 12px !important; line-height: 1.45 !important; }
+  #clerk-desktop .archive-admin-archive > small { color: #788286 !important; font: 700 8px/1.3 var(--font-mono) !important; }
+  #clerk-desktop .archive-admin-archive > button {
+    min-width: 0 !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 8px 10px !important;
+    border-radius: 0 !important;
+    font-size: 12px !important;
+  }
+  #clerk-desktop .archive-admin-archive > [data-request-archive-delete] {
+    color: #7a221f !important;
+    border-color: #7a221f !important;
+    background: #f4e7e5 !important;
+  }
+  #clerk-desktop .archive-admin-archive > form[hidden] { display: none !important; }
+  #clerk-desktop .archive-admin-archive > form:not([hidden]) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+    border: 1px solid #7a221f !important;
+    background: #f4e7e5 !important;
+  }
+  #clerk-desktop .archive-admin-archive > form label { display: grid !important; gap: 6px !important; font-size: 11px !important; }
+  #clerk-desktop .archive-admin-archive > form :is(input, button) { min-height: 44px !important; margin: 0 !important; }
+}
+
+/* ========================================================================== */
+/* PALIS PHONE APPLICATION SHELL v2                                           */
+/* A dedicated phone information architecture. Desktop geometry is untouched. */
+/* ========================================================================== */
+@media (max-width: 760px) {
+  :root {
+    --palis-phone-header: calc(68px + env(safe-area-inset-top));
+    --palis-phone-nav: calc(68px + env(safe-area-inset-bottom));
+    --palis-phone-gutter: 16px;
+    --palis-phone-paper: #f7f8f6;
+    --palis-phone-ink: #101a22;
+    --palis-phone-line: #7d8a8f;
+    --palis-phone-navy: #082d4e;
+    --palis-phone-red: #ba352f;
+    --palis-phone-green: #173b34;
+  }
+
+  html,
+  body {
+    width: 100%;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .archive-layer *,
+  .polar-layer *,
+  .chapter-nav *,
+  .version-notice * {
+    text-shadow: none !important;
+  }
+
+  /* Four durable destinations, labelled like an app tab bar. */
+  .chapter-nav {
+    position: fixed !important;
+    z-index: 2600 !important;
+    inset: auto 0 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    height: var(--palis-phone-nav) !important;
+    padding: 0 6px env(safe-area-inset-bottom) !important;
+    gap: 0 !important;
+    border: 0 !important;
+    border-top: 2px solid #0c151b !important;
+    background: #eef0ed !important;
+    box-shadow: 0 -3px 0 rgba(6, 15, 20, .22) !important;
+  }
+
+  .chapter-nav a {
+    position: relative !important;
+    display: grid !important;
+    min-width: 0 !important;
+    min-height: 58px !important;
+    place-content: center !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    padding: 7px 2px 5px !important;
+    color: #5e686d !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font: 700 11px/1 var(--font-ui) !important;
+    touch-action: manipulation;
+  }
+
+  .chapter-nav a::before { display: none !important; content: none !important; }
+  .chapter-nav a::after {
+    position: static !important;
+    display: block !important;
+    content: attr(data-mobile-label) !important;
+    color: inherit !important;
+    font: 700 12px/1 var(--font-ui) !important;
+    letter-spacing: .04em !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .chapter-nav a span {
+    display: grid !important;
+    width: 24px !important;
+    height: 19px !important;
+    place-items: center !important;
+    color: inherit !important;
+    border: 1px solid currentColor !important;
+    background: transparent !important;
+    font: 700 9px/1 var(--font-mono) !important;
+  }
+
+  .chapter-nav a.active,
+  .chapter-nav a[aria-current='page'] {
+    color: #fff !important;
+    background: var(--palis-phone-navy) !important;
+    box-shadow: inset 0 4px 0 var(--palis-phone-red) !important;
+  }
+
+  /* The desktop status bar is not a second mobile navigation bar. Keep only
+     the authenticated workspace launcher as a compact action. */
+  .taskbar {
+    position: fixed !important;
+    z-index: 2590 !important;
+    top: calc(10px + env(safe-area-inset-top)) !important;
+    right: 10px !important;
+    bottom: auto !important;
+    left: auto !important;
+    display: block !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+
+  .taskbar > :not(.auth-session) { display: none !important; }
+  .taskbar .auth-session:not([hidden]) {
+    display: block !important;
+    width: 46px !important;
+    height: 46px !important;
+    pointer-events: auto;
+  }
+  .taskbar .auth-session > :not(.clerk-workspace-entry) { display: none !important; }
+  .taskbar .clerk-workspace-entry {
+    display: grid !important;
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    place-items: center !important;
+    padding: 0 !important;
+    border: 2px solid #0c151b !important;
+    border-radius: 0 !important;
+    background: #e9ece8 !important;
+    box-shadow: 3px 3px 0 #0c151b !important;
+  }
+  .taskbar .clerk-workspace-entry > span { display: none !important; }
+  .taskbar .clerk-workspace-entry__marks { margin: 0 !important; transform: scale(.88); }
+
+  /* Archive application: one header, one scroll surface, no overlapping
+     desktop decorations. */
+  .archive-layer {
+    position: fixed !important;
+    z-index: 120 !important;
+    inset: 0 0 var(--palis-phone-nav) !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: hidden auto !important;
+    overscroll-behavior: contain;
+    color: var(--palis-phone-ink) !important;
+    background: var(--palis-phone-paper) !important;
+  }
+
+  .archive-heading {
+    position: sticky !important;
+    z-index: 30 !important;
+    top: 0 !important;
+    display: grid !important;
+    min-height: var(--palis-phone-header) !important;
+    align-content: end !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: calc(11px + env(safe-area-inset-top)) 66px 11px var(--palis-phone-gutter) !important;
+    border: 0 !important;
+    border-bottom: 2px solid #0c151b !important;
+    background: rgba(247, 248, 246, .97) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .archive-layer.has-directory .archive-heading {
+    padding-left: 66px !important;
+  }
+
+  .archive-heading::before,
+  .archive-heading::after,
+  .archive-category-visual,
+  .archive-feature,
+  .orbit-ring,
+  .archive-browser-controls,
+  .archive-hint {
+    display: none !important;
+    content: none !important;
+  }
+
+  .archive-heading .kicker { display: none !important; }
+  .archive-heading h2 {
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: var(--palis-phone-navy) !important;
+    font: 800 23px/1.12 var(--font-display) !important;
+    letter-spacing: .01em !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .archive-heading p {
+    margin: 5px 0 0 !important;
+    overflow: hidden !important;
+    color: #66747a !important;
+    font: 700 9px/1.15 var(--font-mono) !important;
+    letter-spacing: .045em !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .archive-back:not([hidden]) {
+    position: fixed !important;
+    z-index: 155 !important;
+    top: calc(11px + env(safe-area-inset-top)) !important;
+    left: 10px !important;
+    display: grid !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    place-items: center !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    color: var(--palis-phone-navy) !important;
+    border: 2px solid #0c151b !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: 2px 2px 0 #0c151b !important;
+    font-size: 0 !important;
+    transform: none !important;
+  }
+  .archive-back::after { content: '←'; font: 800 22px/1 var(--font-mono); }
+
+  #folder-orbit {
+    position: static !important;
+    display: grid !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 16px var(--palis-phone-gutter) 28px !important;
+    gap: 10px !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  #folder-orbit.mode-orbit {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #folder-orbit.mode-orbit .folder-item {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  #folder-orbit.mode-orbit .folder-button {
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 118px !important;
+    align-content: end !important;
+    justify-items: start !important;
+    padding: 13px !important;
+    color: var(--palis-phone-ink) !important;
+    border: 1px solid #879196 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: inset 0 5px 0 var(--palis-phone-navy) !important;
+    text-align: left !important;
+    transform: none !important;
+    touch-action: manipulation;
+  }
+  #folder-orbit.mode-orbit .folder-button::before,
+  #folder-orbit.mode-orbit .folder-button::after { display: none !important; content: none !important; }
+  #folder-orbit.mode-orbit .folder-name { color: var(--palis-phone-navy) !important; font: 800 16px/1.2 var(--font-ui) !important; }
+  #folder-orbit.mode-orbit .folder-button small { margin-top: 6px !important; color: #6d777c !important; font: 700 9px/1.3 var(--font-mono) !important; }
+  #folder-orbit.mode-orbit .folder-item:nth-child(3n + 2) .folder-button { box-shadow: inset 0 5px 0 var(--palis-phone-red) !important; }
+  #folder-orbit.mode-orbit .folder-item:nth-child(3n) .folder-button { box-shadow: inset 0 5px 0 var(--palis-phone-green) !important; }
+
+  /* Every one of the nine categories uses the same phone register. */
+  #folder-orbit:has(> .mobile-archive-register) > :not(.mobile-archive-register) {
+    display: none !important;
+  }
+  #folder-orbit:has(> .mobile-archive-register) {
+    display: block !important;
+    padding: 0 !important;
+  }
+  .mobile-archive-register {
+    display: block !important;
+    width: 100% !important;
+    min-height: 100% !important;
+    padding: 0 0 28px !important;
+    color: var(--palis-phone-ink) !important;
+    background: var(--palis-phone-paper) !important;
+  }
+  .mobile-archive-register__head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: end !important;
+    min-height: 84px !important;
+    padding: 17px var(--palis-phone-gutter) 13px !important;
+    color: #fff !important;
+    background: var(--palis-phone-navy) !important;
+    box-shadow: inset 5px 0 0 var(--palis-phone-red) !important;
+  }
+  .mobile-archive-register__head span { display: block !important; color: #a9bdc9 !important; font: 700 9px/1 var(--font-mono) !important; }
+  .mobile-archive-register__head h3 { margin: 7px 0 0 !important; color: #fff !important; font: 800 20px/1.1 var(--font-ui) !important; }
+  .mobile-archive-register__head > b { color: #fff !important; font: 300 34px/1 var(--font-mono) !important; }
+  .mobile-archive-register__hint {
+    margin: 0 !important;
+    padding: 11px var(--palis-phone-gutter) !important;
+    color: #55646a !important;
+    border-bottom: 1px solid #aeb6b8 !important;
+    background: #e7eae7 !important;
+    font: 700 10px/1.4 var(--font-ui) !important;
+  }
+  .mobile-archive-register__list { display: grid !important; gap: 0 !important; padding: 0 var(--palis-phone-gutter) !important; }
+  .mobile-archive-register__item {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) auto 12px !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-height: 76px !important;
+    gap: 9px !important;
+    padding: 10px 4px !important;
+    color: var(--palis-phone-ink) !important;
+    border: 0 !important;
+    border-bottom: 1px solid #abb3b5 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    touch-action: manipulation;
+  }
+  .mobile-archive-register__index { color: var(--palis-phone-red) !important; font: 800 13px/1 var(--font-mono) !important; }
+  .mobile-archive-register__copy { display: grid !important; min-width: 0 !important; gap: 5px !important; }
+  .mobile-archive-register__copy b { overflow: hidden !important; color: inherit !important; font: 800 15px/1.2 var(--font-ui) !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  .mobile-archive-register__copy small { overflow: hidden !important; color: #677278 !important; font: 600 10px/1.2 var(--font-ui) !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  .mobile-archive-register__code { color: #65737a !important; font: 700 9px/1 var(--font-mono) !important; }
+  .mobile-archive-register__item > i { font: 700 22px/1 var(--font-mono) !important; font-style: normal !important; }
+  .mobile-archive-register__item.is-selected {
+    margin-inline: -6px !important;
+    width: calc(100% + 12px) !important;
+    padding-inline: 10px !important;
+    color: #fff !important;
+    border-bottom-color: var(--palis-phone-navy) !important;
+    background: var(--palis-phone-navy) !important;
+    box-shadow: inset 4px 0 0 #e0ad38 !important;
+  }
+  .mobile-archive-register__item.is-selected .mobile-archive-register__copy small,
+  .mobile-archive-register__item.is-selected .mobile-archive-register__code { color: #d4dee3 !important; }
+
+  /* Complete records remain the same data, presented as a phone reader. */
+  .archive-desktop { z-index: 2900 !important; }
+  .archive-window {
+    position: fixed !important;
+    z-index: 2910 !important;
+    inset: 0 0 var(--palis-phone-nav) !important;
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    resize: none !important;
+    transform: none !important;
+  }
+  .archive-window .dialog-titlebar {
+    min-height: var(--palis-phone-header) !important;
+    padding: env(safe-area-inset-top) 8px 0 14px !important;
+    cursor: default !important;
+    touch-action: manipulation !important;
+  }
+  .archive-window .dialog-titlebar > span {
+    max-width: calc(100vw - 70px) !important;
+    overflow: hidden !important;
+    font-size: 11px !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .archive-window .window-minimize,
+  .archive-window .window-maximize { display: none !important; }
+  .archive-window .window-controls button,
+  .archive-window .window-close { width: 44px !important; height: 44px !important; min-height: 44px !important; }
+  .archive-window .dialog-menu { overflow-x: auto !important; min-height: 44px !important; scrollbar-width: none; }
+  .archive-window .document-sheet {
+    height: calc(100% - var(--palis-phone-header) - 44px) !important;
+    padding: 22px var(--palis-phone-gutter) 48px !important;
+    overflow: auto !important;
+    font-size: 16px !important;
+    line-height: 1.72 !important;
+    overscroll-behavior: contain;
+  }
+  .archive-window .record-copy,
+  .archive-window .record-longform { max-width: none !important; font-size: 16px !important; line-height: 1.75 !important; }
+  .archive-window table { min-width: 600px !important; }
+  .archive-window input,
+  .archive-window select,
+  .archive-window textarea { max-width: 100% !important; min-height: 46px !important; font-size: 16px !important; }
+
+  /* Release announcement: cover/list summary first, uninterrupted reader
+     second. It no longer behaves like a draggable desktop dialog. */
+  .version-notice {
+    z-index: 5200 !important;
+    display: block !important;
+    padding: 0 !important;
+    background: var(--palis-phone-paper) !important;
+  }
+  .version-notice__veil { display: none !important; }
+  .version-notice__panel {
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-rows: var(--palis-phone-header) minmax(0, 1fr) !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: var(--palis-phone-paper) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .version-notice__titlebar {
+    min-height: var(--palis-phone-header) !important;
+    padding: env(safe-area-inset-top) 8px 0 16px !important;
+    color: #fff !important;
+    border-bottom: 3px solid var(--palis-phone-red) !important;
+    background: var(--palis-phone-navy) !important;
+  }
+  .version-notice__titlebar > span::after { content: ' / 公告'; }
+  .version-notice__titlebar .window-controls button { width: 44px !important; height: 44px !important; }
+  .version-notice__titlebar [data-version-notice-action='minimize'] { display: none !important; }
+  .version-notice__content {
+    display: block !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    background: var(--palis-phone-paper) !important;
+  }
+  .version-notice__cover { display: block !important; height: 30dvh !important; min-height: 190px !important; background: #101a22 !important; }
+  .version-notice__cover img { width: 100% !important; height: 100% !important; max-height: none !important; object-fit: cover !important; object-position: center !important; }
+  .version-notice__copy { display: block !important; padding: 22px var(--palis-phone-gutter) calc(42px + env(safe-area-inset-bottom)) !important; overflow: visible !important; background: var(--palis-phone-paper) !important; }
+  .version-notice__copy h2 { margin-bottom: 18px !important; color: var(--palis-phone-navy) !important; font-size: 29px !important; line-height: 1.06 !important; }
+  .version-notice__copy p { font-size: 16px !important; line-height: 1.75 !important; text-align: left !important; }
+  .version-notice__report { margin: 14px 0 !important; padding: 16px 0 14px !important; border: 0 !important; border-top: 2px solid var(--palis-phone-navy) !important; background: transparent !important; }
+  .version-notice__report h3 { font-size: 15px !important; }
+  .version-notice__report dl div { grid-template-columns: 78px minmax(0, 1fr) !important; gap: 10px !important; }
+  .version-notice__report [data-version-reference],
+  .version-notice__enter { min-height: 48px !important; font-size: 14px !important; touch-action: manipulation; }
+  .version-notice__footer { align-items: stretch !important; }
+  .version-notice__enter { width: 100% !important; }
+
+  /* Antarctica is a single tactile map surface. Auxiliary desktop managers
+     are removed; selected coordinates rise as a bottom sheet. */
+  .polar-layer {
+    position: fixed !important;
+    z-index: 120 !important;
+    inset: 0 0 var(--palis-phone-nav) !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #07110f !important;
+  }
+  .polar-brand {
+    position: absolute !important;
+    z-index: 45 !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: var(--palis-phone-header) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid #0c151b !important;
+    background: rgba(247, 248, 246, .96) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .polar-brand > .title-bar { display: none !important; }
+  .polar-brand .brand-body {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    align-items: end !important;
+    height: 100% !important;
+    padding: calc(10px + env(safe-area-inset-top)) 64px 10px var(--palis-phone-gutter) !important;
+    color: var(--palis-phone-navy) !important;
+    background: transparent !important;
+  }
+  .polar-brand .brand-body img { width: 26px !important; height: 26px !important; }
+  .polar-brand .brand-body p { margin: 0 0 3px !important; color: #68767b !important; font: 700 8px/1 var(--font-mono) !important; }
+  .polar-brand .brand-body h2 { margin: 0 !important; color: var(--palis-phone-navy) !important; font: 800 21px/1.05 var(--font-display) !important; }
+  .polar-layer canvas {
+    position: absolute !important;
+    z-index: 2 !important;
+    inset: var(--palis-phone-header) 0 0 !important;
+    width: 100% !important;
+    height: calc(100% - var(--palis-phone-header)) !important;
+    touch-action: none !important;
+  }
+  .polar-layer .map-layers,
+  .polar-layer .local-window-dock,
+  .polar-layer .map-instructions { display: none !important; }
+  .polar-diagnostic {
+    position: absolute !important;
+    z-index: 50 !important;
+    inset: var(--palis-phone-header) 0 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    border: 0 !important;
+    background: #07110f !important;
+    transform: none !important;
+  }
+  .polar-diagnostic[hidden] { display: none !important; }
+  .map-detail {
+    position: absolute !important;
+    z-index: 44 !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    display: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: min(42dvh, 310px) !important;
+    margin: 0 !important;
+    overflow: auto !important;
+    border: 2px solid #0b151b !important;
+    border-radius: 0 !important;
+    background: #f7f8f6 !important;
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, .55) !important;
+    transform: none !important;
+  }
+  .map-detail.has-selection { display: block !important; }
+  .map-detail > .title-bar { display: none !important; }
+  .map-detail .window-body { padding: 13px !important; }
+  .map-detail .detail-code { display: flex !important; justify-content: space-between !important; }
+  .map-detail h3 { margin: 9px 0 2px !important; font-size: 21px !important; }
+  .map-detail dl { display: grid !important; grid-template-columns: 1fr 1fr !important; margin: 10px 0 !important; }
+  .map-detail dl div { display: block !important; padding: 7px !important; border: 1px solid #a7b0b2 !important; }
+  .map-detail .detail-note { display: none !important; }
+  .map-open-selected { width: 100% !important; min-height: 48px !important; color: #fff !important; background: var(--palis-phone-navy) !important; }
+
+  /* Workspace home follows a phone desktop: a scrollable launcher grid and
+     full-screen applications. */
+  .clerk-desktop {
+    padding: calc(80px + env(safe-area-inset-top)) 14px calc(84px + env(safe-area-inset-bottom)) !important;
+    overflow: hidden auto !important;
+    overscroll-behavior: contain;
+  }
+  .clerk-desktop__accessible-title { top: calc(14px + env(safe-area-inset-top)) !important; left: 16px !important; right: 70px !important; }
+  .clerk-desktop__accessible-title h2 { font-size: 19px !important; }
+  .clerk-desktop__watermark { display: none !important; }
+  .clerk-desktop__icons {
+    position: static !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 0 28px !important;
+    gap: 18px 8px !important;
+    overflow: visible !important;
+  }
+  .clerk-desktop__icons button {
+    position: static !important;
+    display: grid !important;
+    min-width: 0 !important;
+    min-height: 94px !important;
+    justify-items: center !important;
+    align-content: start !important;
+    padding: 5px 2px !important;
+    gap: 5px !important;
+    color: #fff !important;
+    border: 1px solid transparent !important;
+    background: rgba(0, 0, 0, .16) !important;
+    transform: none !important;
+    touch-action: manipulation;
+  }
+  .clerk-desktop__icons button > span { max-width: 100% !important; font-size: 11px !important; line-height: 1.3 !important; text-align: center !important; }
+  .clerk-desktop__icon { width: 54px !important; height: 54px !important; }
+  .clerk-desktop__welcome { display: none !important; }
+  .clerk-desktop__taskbar { min-height: calc(58px + env(safe-area-inset-bottom)) !important; }
+  .clerk-desktop__start { min-width: 54px !important; min-height: 46px !important; }
+
+  #assistant-window-layer .archive-workflow-window,
+  .clerk-desktop__window-layer .archive-workflow-window,
+  .clerk-desktop__window-layer .mascot-document-window,
+  .mascot-document-window[data-mascot-surface='workspace'] {
+    position: fixed !important;
+    z-index: 25000 !important;
+    inset: 0 0 calc(58px + env(safe-area-inset-bottom)) !important;
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    resize: none !important;
+    transform: none !important;
+  }
+  .archive-workflow-window .window-controls [data-window-action='minimize'],
+  .archive-workflow-window .window-controls [data-window-action='maximize'],
+  .mascot-document-window .window-controls [data-window-action='minimize'],
+  .mascot-document-window .window-controls [data-window-action='maximize'] { display: none !important; }
+  .archive-workflow-window .window-controls button,
+  .mascot-document-window .window-controls button { width: 44px !important; height: 44px !important; min-height: 44px !important; }
+  .archive-workflow-window input,
+  .archive-workflow-window select,
+  .archive-workflow-window textarea,
+  .archive-workflow-window button { font-size: 16px !important; }
+  .archive-workflow-window input,
+  .archive-workflow-window select,
+  .archive-workflow-window button { min-height: 46px !important; }
+}
+
+/* Tablet: retain PC spatial logic, enlarge hit targets and keep every window
+   inside the touch-safe viewport. Fine-pointer desktop remains unchanged. */
+@media (min-width: 761px) and (max-width: 1180px) and (pointer: coarse) {
+  :root { --palis-tablet-edge: 12px; }
+
+  button,
+  [role='button'],
+  .chapter-nav a,
+  select,
+  input:not([type='checkbox']):not([type='radio']) {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .chapter-nav {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    gap: 7px !important;
+  }
+  .chapter-nav a { width: 56px !important; height: 56px !important; }
+
+  .archive-window,
+  .archive-workflow-window,
+  .mascot-document-window[data-mascot-surface='workspace'] {
+    max-width: calc(100vw - (var(--palis-tablet-edge) * 2)) !important;
+    max-height: calc(100dvh - 76px - env(safe-area-inset-bottom)) !important;
+    resize: none !important;
+  }
+  .archive-window .window-controls button,
+  .archive-workflow-window .window-controls button,
+  .mascot-document-window .window-controls button { width: 40px !important; height: 36px !important; }
+  .archive-window .dialog-titlebar,
+  .archive-workflow-window .title-bar,
+  .mascot-document-window .title-bar { touch-action: none !important; }
+  .archive-window .document-sheet,
+  .archive-workflow-window .window-body,
+  .mascot-document-window .window-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .archive-window input,
+  .archive-window textarea,
+  .archive-window select,
+  .archive-workflow-window input,
+  .archive-workflow-window textarea,
+  .archive-workflow-window select { font-size: 16px !important; }
+
+  .polar-layer canvas { touch-action: none !important; }
+  .map-layers .layer-button { min-height: 52px !important; }
+  .clerk-desktop__icons button { min-width: 92px !important; min-height: 104px !important; }
+  .clerk-desktop__taskbar { min-height: calc(54px + env(safe-area-inset-bottom)) !important; }
+}
+
 /* -------------------------------------------------------------------------
    Clerk workspace: phone-only app shell
 
@@ -2854,5 +3680,2757 @@
     font-size: 9px;
     line-height: 1.3;
     white-space: normal;
+  }
+}
+
+/* ==========================================================================
+   PALIS MOBILE PRODUCT SHELL / 2026 RECONSTRUCTION
+
+   This is the final phone-only composition layer. It deliberately does not
+   alter the desktop window system, persistence, permissions, entry points or
+   archive data. Phones get a quiet, static application shell instead of a
+   scaled Win95 desktop.
+   ========================================================================== */
+@media (max-width: 760px) {
+  :root {
+    --palis-mobile-bg: #07100f;
+    --palis-mobile-surface: #f2f3f0;
+    --palis-mobile-surface-2: #e3e6e2;
+    --palis-mobile-ink: #10211f;
+    --palis-mobile-muted: #5c6965;
+    --palis-mobile-rule: #68736f;
+    --palis-mobile-blue: #244da4;
+    --palis-mobile-red: #963b36;
+    --palis-mobile-green: #244f43;
+    --palis-mobile-amber: #ae771d;
+    --palis-mobile-header: calc(68px + env(safe-area-inset-top));
+    --palis-mobile-bottom: calc(58px + env(safe-area-inset-bottom));
+    --palis-mobile-pad: 12px;
+  }
+
+  /* Product UI is static on phones. State changes remain immediate. */
+  :is(
+    .archive-layer,
+    .folder-orbit,
+    .folder-item,
+    .folder-button,
+    .station-coordinate-node,
+    .station-coordinate-node *,
+    #clerk-desktop,
+    #clerk-desktop *,
+    .archive-workflow-window,
+    .archive-workflow-window *
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* -----------------------------------------------------------------------
+     03 / STATIONS: portrait polar compass
+     ----------------------------------------------------------------------- */
+  .folder-orbit.mode-station-board {
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .station-coordinate-board {
+    display: grid;
+    grid-template-rows: auto auto auto;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    border: 1px solid #727c78;
+    background: #0a1110;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, .34);
+  }
+
+  .station-coordinate-guide {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    min-height: 0;
+    padding: 10px;
+    border-bottom: 1px solid #727c78;
+    background: var(--palis-mobile-surface-2);
+  }
+
+  .station-coordinate-guide > div:first-child,
+  .station-coordinate-guide > small {
+    display: none;
+  }
+
+  .station-coordinate-readout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto auto auto !important;
+    gap: 4px 10px !important;
+    min-height: 0;
+    padding: 12px !important;
+    color: var(--palis-mobile-ink);
+    border: 1px solid #8a928f;
+    background: #f7f8f5;
+    box-shadow: inset 4px 0 0 var(--station-accent, var(--palis-mobile-blue));
+  }
+
+  .station-coordinate-readout > span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    color: var(--palis-mobile-muted);
+    font-size: 10px;
+  }
+
+  .station-coordinate-readout > b {
+    grid-column: 1;
+    grid-row: 2;
+    color: var(--palis-mobile-ink);
+    font-size: 21px;
+    line-height: 1.2;
+  }
+
+  .station-coordinate-readout > em {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    color: var(--palis-mobile-blue);
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .station-coordinate-readout > small {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    color: var(--palis-mobile-muted);
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: normal;
+  }
+
+  .station-coordinate-readout > button {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 5px;
+    color: #fff;
+    border: 1px solid #0e233e;
+    background: var(--palis-mobile-blue);
+    font: 700 14px/1.2 var(--font-ui);
+  }
+
+  .station-coordinate-plane {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 650px;
+    min-height: 650px;
+    padding: 0;
+    overflow: hidden;
+    border: 8px solid #111817;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(43, 78, 72, .28) 0 2%, transparent 2.3%),
+      repeating-linear-gradient(0deg, transparent 0 23px, rgba(136, 153, 146, .06) 23px 24px),
+      #07100f;
+    box-shadow: inset 0 0 0 1px #4e5a56;
+    transform: none;
+    aspect-ratio: auto;
+  }
+
+  .station-coordinate-plane::before {
+    position: absolute;
+    inset: 24px 46px;
+    display: block;
+    content: '';
+    border: 1px solid #75817c;
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 32px rgba(255, 255, 255, .015),
+      0 0 0 1px rgba(36, 77, 164, .22);
+    pointer-events: none;
+  }
+
+  .station-coordinate-grid {
+    position: absolute;
+    inset: 24px 46px;
+    display: block;
+    width: calc(100% - 92px);
+    height: calc(100% - 48px);
+    opacity: .78;
+  }
+
+  .station-coordinate-grid > circle:first-child {
+    stroke: #78837e;
+  }
+
+  .station-coordinate-grid > circle:nth-child(2),
+  .station-coordinate-grid > line {
+    stroke: #46534e;
+  }
+
+  .station-route-lines line {
+    stroke-width: .32;
+    opacity: .54;
+  }
+
+  .station-node-layer {
+    position: absolute;
+    inset: 24px 46px;
+    display: block;
+    width: calc(100% - 92px);
+    height: calc(100% - 48px);
+    overflow: visible;
+  }
+
+  .mode-station-board .station-coordinate-node,
+  .mode-station-board .station-coordinate-node.is-outside-arc {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .mode-station-board .folder-button,
+  .folder-orbit.mode-station-board .folder-button:hover,
+  .folder-orbit.mode-station-board .folder-button:focus-visible {
+    position: relative;
+    display: block;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    color: #fff;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none !important;
+  }
+
+  .mode-station-board .station-signal {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+  }
+
+  .mode-station-board .station-signal i {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #d9dfdc;
+    border-radius: 0;
+    background: var(--station-accent, var(--palis-mobile-blue));
+    box-shadow: 0 0 0 3px #07100f;
+    transform: rotate(45deg);
+  }
+
+  .mode-station-board .station-signal i::before,
+  .mode-station-board .station-signal i::after {
+    display: none;
+  }
+
+  .mode-station-board .station-signal b,
+  .station-coordinate-node[data-anchor='left'] .station-signal b {
+    position: absolute;
+    top: 36px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    min-width: 46px;
+    padding: 2px 3px;
+    color: #dce3df;
+    border: 1px solid #33403c;
+    background: #07100f;
+    font: 700 9px/1 var(--font-mono);
+    text-align: center;
+    transform: translateX(-50%);
+  }
+
+  .mode-station-board .folder-button.is-preview .station-signal i {
+    border-color: #fff;
+    background: #d34740;
+    box-shadow: 0 0 0 4px #07100f, 0 0 0 6px #e6b52e;
+  }
+
+  .mode-station-board .folder-button.is-preview .station-signal b {
+    color: #07100f;
+    border-color: #e6b52e;
+    background: #e6b52e;
+  }
+
+  .mode-station-board .folder-name,
+  .mode-station-board .folder-button small,
+  .mode-station-board .folder-button::after {
+    display: none;
+  }
+
+  .station-axis {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    color: #aeb9b4;
+    font: 10px/1 var(--font-mono);
+  }
+
+  .station-axis--north { top: 9px; left: 50%; transform: translateX(-50%); }
+  .station-axis--south { bottom: 9px; left: 50%; transform: translateX(-50%); }
+  .station-axis--west { top: 50%; left: 7px; writing-mode: vertical-rl; transform: translateY(-50%); }
+  .station-axis--east { top: 50%; right: 7px; writing-mode: vertical-rl; transform: translateY(-50%); }
+
+  .station-origin {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    width: 66px;
+    height: 66px;
+    place-items: center;
+    color: #95a49e;
+    border: 1px solid #5e6a65;
+    border-radius: 50%;
+    background: #07100f;
+    transform: translate(-50%, -50%);
+  }
+
+  .station-origin i { width: 8px; height: 8px; background: #d8b34a; transform: rotate(45deg); }
+  .station-origin b { font: 9px/1 var(--font-mono); }
+  .station-origin small { display: none; }
+
+  .station-coordinate-board > footer {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    color: #8e9c96;
+    border-top: 1px solid #46524e;
+    font: 9px/1.3 var(--font-mono);
+  }
+
+  /* -----------------------------------------------------------------------
+     WORKSPACES: one mobile application shell for clerk and administrator
+     ----------------------------------------------------------------------- */
+  #clerk-desktop {
+    --workspace-mobile-header: var(--palis-mobile-header);
+    --workspace-mobile-bar: var(--palis-mobile-bottom);
+    overflow: hidden;
+    color: var(--palis-mobile-ink);
+    background:
+      linear-gradient(rgba(7, 16, 15, .78), rgba(7, 16, 15, .92)),
+      var(--desktop-wallpaper, none) center / cover fixed,
+      var(--palis-mobile-bg);
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title {
+    position: absolute !important;
+    z-index: 18;
+    inset: 0 0 auto !important;
+    display: grid !important;
+    width: auto !important;
+    height: var(--palis-mobile-header) !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: end;
+    gap: 2px 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    overflow: hidden !important;
+    clip: auto !important;
+    clip-path: none !important;
+    color: #f4f6f2;
+    border-bottom: 1px solid #6c7772;
+    background: #081a2d;
+    box-shadow: none;
+  }
+
+  #clerk-desktop[data-workspace-role='administrator'] .clerk-desktop__accessible-title {
+    background: #173b33;
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title h2 {
+    grid-column: 1;
+    margin: 0;
+    font: 700 19px/1.15 var(--font-ui);
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title > span {
+    font: 9px/1.25 var(--font-mono);
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title > span:last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: end;
+    max-width: 105px;
+    color: #e6c15d;
+    text-align: right;
+  }
+
+  #clerk-desktop .clerk-desktop__watermark,
+  #clerk-desktop .clerk-desktop__arrange,
+  #clerk-desktop .clerk-desktop__years {
+    display: none !important;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail],
+  #clerk-desktop[data-workspace-role='clerk'] .clerk-desktop__icons[data-archive-category-rail] {
+    position: absolute;
+    inset: calc(var(--palis-mobile-header) + 10px) 10px calc(var(--palis-mobile-bottom) + 8px) !important;
+    display: grid;
+    width: auto;
+    height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    grid-auto-rows: 78px;
+    align-content: start;
+    gap: 8px;
+    padding: 0 0 18px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    position: relative !important;
+    inset: auto !important;
+    display: grid;
+    width: auto !important;
+    min-width: 0;
+    min-height: 78px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-items: start;
+    gap: 9px;
+    padding: 9px 10px;
+    color: var(--palis-mobile-ink);
+    border: 1px solid #75807b;
+    background: rgba(247, 248, 245, .96);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, .35);
+    text-align: left;
+    transform: none !important;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button[data-workspace-command^='archive-category'] {
+    box-shadow: inset 3px 0 0 var(--palis-mobile-blue), 0 3px 0 rgba(0, 0, 0, .35);
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button[data-admin-only] {
+    box-shadow: inset 3px 0 0 var(--palis-mobile-green), 0 3px 0 rgba(0, 0, 0, .35);
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button[data-workspace-command='mainline'] {
+    box-shadow: inset 3px 0 0 var(--palis-mobile-red), 0 3px 0 rgba(0, 0, 0, .35);
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:active,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button.is-selected {
+    color: #fff;
+    border-color: #9eaaa4;
+    background: #173a6d;
+    box-shadow: inset 0 0 0 2px #d9e0dc;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon {
+    width: 42px;
+    height: 46px;
+    margin: 0;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    align-self: center;
+    max-width: 100%;
+    margin: 0;
+    color: inherit;
+    font: 700 13px/1.3 var(--font-ui);
+    text-shadow: none;
+    white-space: normal;
+  }
+
+  #clerk-desktop .clerk-desktop__window-layer {
+    position: absolute;
+    inset: 0 0 var(--palis-mobile-bottom) !important;
+    z-index: 40;
+    overflow: hidden;
+  }
+
+  #clerk-desktop .archive-workflow-window,
+  #clerk-desktop #assistant-window-layer .mascot-document-window,
+  #clerk-desktop .clerk-desktop__welcome {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    border: 0 !important;
+    resize: none !important;
+    transform: none !important;
+  }
+
+  #clerk-desktop .archive-workflow-window__titlebar,
+  #clerk-desktop .mascot-document-window__titlebar,
+  #clerk-desktop .clerk-desktop__welcome-titlebar {
+    position: relative;
+    z-index: 4;
+    min-height: 48px;
+    padding-left: 12px;
+    color: #fff;
+    border-bottom: 1px solid #50605a;
+    background: #081a2d;
+  }
+
+  #clerk-desktop[data-workspace-role='administrator'] .archive-workflow-window__titlebar {
+    background: #173b33;
+  }
+
+  #clerk-desktop :is(.archive-workflow-window__titlebar, .mascot-document-window__titlebar, .clerk-desktop__welcome-titlebar) button {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+
+  #clerk-desktop .archive-workflow-window__body,
+  #clerk-desktop .mascot-document-window__body {
+    height: calc(100% - 48px);
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--palis-mobile-surface);
+  }
+
+  #clerk-desktop .clerk-desktop__taskbar {
+    position: absolute;
+    z-index: 60;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    min-height: var(--palis-mobile-bottom);
+    grid-template-columns: 68px minmax(0, 1fr) 50px;
+    gap: 4px;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid #777f7b;
+    background: #dfe2de;
+  }
+
+  #clerk-desktop .clerk-desktop__start {
+    min-width: 0;
+    min-height: 46px;
+    padding-inline: 7px;
+  }
+
+  #clerk-desktop .clerk-desktop__task-list {
+    min-width: 0;
+    height: 46px;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #clerk-desktop .clerk-desktop__task-list button {
+    flex: 0 0 min(58vw, 210px);
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  #clerk-desktop .clerk-desktop__tray {
+    display: grid;
+    min-width: 0;
+    min-height: 46px;
+    place-items: center;
+    padding: 0;
+  }
+
+  #clerk-desktop .clerk-desktop__tray > :not([data-workspace-tray='sync']) {
+    display: none;
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu {
+    position: absolute;
+    z-index: 70;
+    right: 6px;
+    bottom: var(--palis-mobile-bottom);
+    left: 6px;
+    display: grid;
+    width: auto;
+    max-height: 68dvh;
+    grid-template-columns: 28px minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  #clerk-desktop .clerk-desktop__start-menu button {
+    min-height: 48px;
+  }
+
+  /* -----------------------------------------------------------------------
+     EDITOR / REVIEW / ADMIN: one column, sticky actions, native touch rhythm
+     ----------------------------------------------------------------------- */
+  #clerk-desktop .archive-editor {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    color: var(--palis-mobile-ink);
+    background: var(--palis-mobile-surface);
+    font-size: 15px;
+  }
+
+  #clerk-desktop .archive-editor__toolbar {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #8a928f;
+    background: var(--palis-mobile-surface-2);
+  }
+
+  #clerk-desktop .archive-editor__toolbar label,
+  #clerk-desktop .archive-editor-field,
+  #clerk-desktop .archive-editor__section label,
+  #clerk-desktop .archive-review-form label,
+  #clerk-desktop .archive-registration label,
+  #clerk-desktop .task-control label,
+  #clerk-desktop .honor-control label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    min-width: 0;
+    color: var(--palis-mobile-ink);
+    font: 700 12px/1.35 var(--font-ui);
+  }
+
+  #clerk-desktop .archive-editor__scroll {
+    min-height: 0;
+    padding: 0 0 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-padding-block: 12px 92px;
+    overscroll-behavior: contain;
+    background: var(--palis-mobile-surface);
+  }
+
+  #clerk-desktop .archive-editor__section {
+    display: grid;
+    gap: 12px;
+    padding: 16px 12px;
+    border: 0;
+    border-bottom: 1px solid #a3aaa6;
+    background: #f7f8f5;
+  }
+
+  #clerk-desktop .archive-editor__section + .archive-editor__section {
+    border-top: 0;
+  }
+
+  #clerk-desktop .archive-editor__section--document {
+    padding: 12px;
+  }
+
+  #clerk-desktop .archive-editor__registration,
+  #clerk-desktop .archive-editor__instruction,
+  #clerk-desktop .archive-recovery,
+  #clerk-desktop .archive-editable-picker,
+  #clerk-desktop .archive-editor__attribution {
+    position: static;
+    width: auto;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid #8c9591;
+    background: #e8ebe7;
+    box-shadow: none;
+  }
+
+  #clerk-desktop .archive-editable-picker > header {
+    position: static;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 0 8px;
+  }
+
+  #clerk-desktop :is(
+    .archive-editor,
+    .archive-review-form,
+    .archive-registration,
+    .archive-admin-users,
+    .task-control,
+    .honor-control,
+    .commission-board,
+    .archive-mailbox__compose
+  ) :is(input, select, textarea) {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    box-sizing: border-box;
+    padding: 10px 11px;
+    color: var(--palis-mobile-ink);
+    border: 1px solid #67716d;
+    border-radius: 0;
+    background: #fff;
+    font: 16px/1.4 var(--font-ui);
+  }
+
+  #clerk-desktop :is(
+    .archive-editor,
+    .archive-review-form,
+    .archive-registration,
+    .archive-admin-users,
+    .task-control,
+    .honor-control,
+    .commission-board,
+    .archive-mailbox__compose
+  ) textarea {
+    min-height: 132px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+
+  #clerk-desktop .archive-rich-editor {
+    min-height: 150px;
+    padding: 12px;
+    color: var(--palis-mobile-ink);
+    border: 1px solid #67716d;
+    background: #fff;
+    font: 16px/1.75 var(--font-body);
+    text-indent: 2em;
+  }
+
+  #clerk-desktop .archive-rich-editor:empty::before {
+    color: #68736f;
+  }
+
+  #clerk-desktop .archive-editor__footer {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+    border-top: 1px solid #737c78;
+    background: #dfe2de;
+  }
+
+  #clerk-desktop .archive-editor__footer p {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--palis-mobile-muted);
+    font: 10px/1.35 var(--font-mono);
+  }
+
+  #clerk-desktop .archive-editor__footer button,
+  #clerk-desktop .archive-review-form button,
+  #clerk-desktop .archive-registration button,
+  #clerk-desktop .commission-board button,
+  #clerk-desktop .task-control button,
+  #clerk-desktop .honor-control button {
+    min-width: 0;
+    min-height: 48px;
+    padding: 9px 11px;
+    border-radius: 0;
+    font: 700 14px/1.25 var(--font-ui);
+  }
+
+  #clerk-desktop .archive-editor__footer [data-submit-draft] {
+    color: #fff;
+    border-color: #173a6d;
+    background: var(--palis-mobile-blue);
+  }
+
+  #clerk-desktop :is(
+    .archive-admin-review,
+    .archive-admin-users-layout,
+    .commission-board,
+    .task-control,
+    .honor-control,
+    .clerk-dossier,
+    .archive-mailbox,
+    .archive-mailbox--administrator,
+    .archive-mailbox__inbox
+  ) {
+    display: grid;
+    width: 100%;
+    height: auto;
+    min-height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    overflow: visible;
+    color: var(--palis-mobile-ink);
+    background: var(--palis-mobile-surface);
+  }
+
+  #clerk-desktop :is(
+    .archive-admin-review,
+    .archive-admin-users-layout,
+    .commission-board,
+    .task-control,
+    .honor-control
+  ) > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #clerk-desktop :is(
+    .archive-admin-category-tabs,
+    .clerk-dossier > nav,
+    .honor-control__category-guide
+  ) {
+    position: sticky;
+    z-index: 3;
+    top: 0;
+    display: flex;
+    min-height: 48px;
+    gap: 4px;
+    padding: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid #7d8581;
+    background: var(--palis-mobile-surface-2);
+    scroll-snap-type: x proximity;
+  }
+
+  #clerk-desktop :is(
+    .archive-admin-category-tab,
+    .clerk-dossier > nav button,
+    .honor-control__category-guide > *
+  ) {
+    flex: 0 0 auto;
+    min-width: 92px;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  #clerk-desktop :is(.archive-workflow-list, .archive-review-list, .archive-admin-users__list) {
+    display: grid;
+    gap: 0;
+    padding: 0;
+    border-top: 1px solid #858d89;
+  }
+
+  #clerk-desktop :is(.archive-workflow-list, .archive-review-list, .archive-admin-users__list) > :is(button, article) {
+    min-height: 68px;
+    padding: 12px;
+    border: 0;
+    border-bottom: 1px solid #9aa19d;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  #clerk-desktop .archive-workflow-window table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  #clerk-desktop .archive-workflow-window table :is(th, td) {
+    min-height: 44px;
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  #clerk-desktop .archive-mailbox__compose,
+  #clerk-desktop .archive-mailbox__list,
+  #clerk-desktop .archive-mailbox__reader {
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    border: 0;
+    border-bottom: 1px solid #8a928f;
+    overflow: visible;
+  }
+
+  #clerk-desktop .archive-mailbox__reader > header > h3 {
+    font-size: 22px;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  #clerk-desktop .archive-mailbox__message-body {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  /* Release announcement: a calm reading surface instead of a desktop
+     dialog squeezed into the phone. */
+  .version-notice {
+    padding: 0 !important;
+    place-items: stretch !important;
+  }
+
+  .version-notice__veil { display: none; }
+
+  .version-notice__panel {
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    grid-template-rows: calc(48px + env(safe-area-inset-top)) minmax(0, 1fr) !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: var(--palis-mobile-surface) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .version-notice__titlebar {
+    min-height: calc(48px + env(safe-area-inset-top)) !important;
+    padding: env(safe-area-inset-top) 8px 0 14px !important;
+    background: #081a2d !important;
+    font-size: 10px !important;
+  }
+
+  .version-notice__titlebar > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .version-notice__titlebar .window-controls button {
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border: 0 !important;
+    border-left: 1px solid #65716c !important;
+  }
+
+  .version-notice__content {
+    display: block !important;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    background: var(--palis-mobile-surface) !important;
+  }
+
+  .version-notice__cover {
+    display: block !important;
+    height: 186px !important;
+    border-bottom: 1px solid #747e79;
+    background: #0b1413 !important;
+  }
+
+  .version-notice__cover img {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center 32% !important;
+  }
+
+  .version-notice__copy {
+    display: block !important;
+    padding: 20px 16px calc(28px + env(safe-area-inset-bottom)) !important;
+    overflow: visible !important;
+    background: #f3f4f1 !important;
+  }
+
+  .version-notice__kicker { margin-bottom: 8px !important; }
+
+  .version-notice__copy h2 {
+    margin: 0 0 18px !important;
+    font-size: clamp(28px, 8.5vw, 36px) !important;
+    line-height: 1.05 !important;
+  }
+
+  .version-notice__report {
+    margin: 0 0 12px !important;
+    padding: 14px 12px !important;
+    border-top-width: 3px !important;
+    background: #fff !important;
+  }
+
+  .version-notice__report h3 { font-size: 12px !important; }
+
+  .version-notice__copy p,
+  .version-notice__report p,
+  .version-notice__report dd {
+    font-size: 15px !important;
+    line-height: 1.72 !important;
+    text-align: left !important;
+  }
+
+  .version-notice__report dl div {
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+    padding: 7px 0;
+    border-top: 1px solid #d5d9d5;
+  }
+
+  .version-notice__report [data-version-reference],
+  .version-notice__enter {
+    min-height: 48px !important;
+    font-size: 15px !important;
+  }
+
+  .version-notice__footer {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .version-notice__enter { width: 100%; }
+
+  /* Sticky notes become a compact horizontal tray. They remain readable and
+     editable, but no longer cover archive shortcuts. */
+  #clerk-desktop #workspace-note-region {
+    position: absolute !important;
+    z-index: 17 !important;
+    inset: calc(var(--palis-mobile-header) + 8px) 10px auto !important;
+    display: flex !important;
+    width: auto !important;
+    height: 144px !important;
+    gap: 8px;
+    padding: 0 42px 4px 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    pointer-events: auto !important;
+    scroll-snap-type: x proximity;
+  }
+
+  #clerk-desktop #workspace-note-region:empty { display: none !important; }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    position: relative !important;
+    inset: auto !important;
+    flex: 0 0 220px;
+    width: 220px !important;
+    min-width: 220px !important;
+    height: 136px !important;
+    min-height: 136px !important;
+    max-height: 136px !important;
+    padding: 10px 10px 8px !important;
+    overflow: hidden !important;
+    border: 1px solid #7d6b35 !important;
+    border-radius: 0 !important;
+    box-shadow: 3px 3px 0 rgba(0,0,0,.35) !important;
+    transform: none !important;
+    scroll-snap-align: start;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note::before,
+  #clerk-desktop #workspace-note-region .workspace-sticky-note::after {
+    display: none !important;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
+    position: absolute !important;
+    z-index: 3;
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    display: block !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    cursor: grab;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
+    margin: 0 0 5px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-body {
+    display: -webkit-box !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
+    position: absolute !important;
+    right: 8px !important;
+    bottom: 6px !important;
+    left: 8px !important;
+    display: flex !important;
+    min-height: 44px !important;
+    gap: 4px;
+    align-items: stretch;
+  }
+
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 8px !important;
+  }
+
+  #clerk-desktop .workspace-note-controls {
+    position: absolute !important;
+    z-index: 18 !important;
+    inset: calc(var(--palis-mobile-header) + 14px) 14px auto auto !important;
+    width: auto !important;
+    pointer-events: none !important;
+  }
+
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create] {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    color: transparent !important;
+    border: 1px solid #6c5a2c !important;
+    background: #e8cb61 !important;
+    pointer-events: auto !important;
+  }
+
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create]::after {
+    content: '+';
+    color: #1d251f;
+    font: 700 24px/1 var(--font-mono);
+  }
+
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] {
+    position: fixed !important;
+    inset: var(--palis-mobile-header) 0 var(--palis-mobile-bottom) !important;
+    width: auto !important;
+    padding: 16px !important;
+    overflow-y: auto;
+    border: 0 !important;
+    background: var(--palis-mobile-surface) !important;
+    pointer-events: auto !important;
+  }
+
+  #clerk-desktop:has(#workspace-note-region .workspace-sticky-note)
+    .clerk-desktop__icons[data-archive-category-rail] {
+    top: calc(var(--palis-mobile-header) + 160px) !important;
+  }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] {
+    padding-bottom: 88px !important;
+  }
+
+  #clerk-desktop .mascot-assistant {
+    right: 6px !important;
+    bottom: calc(var(--palis-mobile-bottom) + 6px) !important;
+    left: auto !important;
+    max-width: 58px !important;
+    transform: none !important;
+  }
+
+  #clerk-desktop .mascot-assistant img,
+  #clerk-desktop .mascot-assistant canvas {
+    max-width: 58px !important;
+    max-height: 68px !important;
+  }
+
+  #clerk-desktop .archive-category-actions,
+  #clerk-desktop .archive-registration-picker,
+  #clerk-desktop .archive-editable-picker {
+    height: calc(100% - 48px) !important;
+    min-height: 0 !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    color: var(--palis-mobile-ink) !important;
+    background: var(--palis-mobile-surface) !important;
+  }
+
+  #clerk-desktop .archive-category-actions > button,
+  #clerk-desktop .archive-registration-picker button,
+  #clerk-desktop .archive-editable-picker button {
+    min-height: 72px !important;
+    margin: 0 0 8px !important;
+    padding: 14px !important;
+    border: 1px solid #8a928f !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: inset 3px 0 0 var(--palis-mobile-blue) !important;
+    text-align: left !important;
+  }
+
+  #clerk-desktop .archive-category-actions > button b,
+  #clerk-desktop .archive-registration-picker button b,
+  #clerk-desktop .archive-editable-picker button b {
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+  }
+
+  #clerk-desktop .archive-category-actions > button span,
+  #clerk-desktop .archive-registration-picker button span,
+  #clerk-desktop .archive-editable-picker button span {
+    display: block;
+    margin-top: 5px;
+    color: var(--palis-mobile-muted) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  #clerk-desktop .archive-editor__toolbar button,
+  #clerk-desktop .archive-rich-toolbar button,
+  #clerk-desktop [data-rich-editor-toolbar] button {
+    min-width: 44px !important;
+    width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+  }
+
+  .archive-layer.has-directory .archive-heading {
+    position: absolute !important;
+    z-index: 30 !important;
+    inset: 10px 12px auto !important;
+    width: auto !important;
+    min-height: 76px;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    color: #14221f !important;
+    border: 1px solid #7b8580;
+    background: rgba(244, 245, 242, .96) !important;
+    box-shadow: inset 4px 0 0 var(--palis-mobile-blue), 0 3px 0 rgba(0,0,0,.28);
+    text-align: left !important;
+    transform: none !important;
+  }
+
+  .archive-layer.has-directory .archive-heading > p:first-child {
+    margin: 0 0 3px !important;
+    color: var(--palis-mobile-blue) !important;
+    font-size: 9px !important;
+  }
+
+  .archive-layer.has-directory .archive-heading h2 {
+    margin: 0 !important;
+    color: #14221f !important;
+    font-size: 25px !important;
+    line-height: 1.05 !important;
+  }
+
+  .archive-layer.has-directory .archive-heading > p:last-child {
+    margin: 4px 0 0 !important;
+    overflow: hidden;
+    color: #5d6965 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Station register, mobile edition. The desktop polar plot is intentionally
+     re-composed as a two-bank vertical meridian so labels remain readable and
+     every station has a full-sized touch target. */
+  .folder-orbit.mode-station-board {
+    padding: 0 12px 24px !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-board {
+    border: 1px solid #69746f !important;
+    background: #0b1312 !important;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, .38) !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-guide {
+    padding: 8px !important;
+    border-bottom: 1px solid #56625d !important;
+    background: #dfe3df !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    min-height: 116px !important;
+    padding: 12px 12px 10px 16px !important;
+    border-color: #6f7a75 !important;
+    background: #f7f8f5 !important;
+    box-shadow: inset 5px 0 0 var(--station-accent, #68746f) !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout > span {
+    color: #6d7772 !important;
+    font: 700 9px/1.2 var(--font-mono) !important;
+    letter-spacing: .08em;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout > b {
+    font-size: 23px !important;
+    line-height: 1.08 !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout > em,
+  .folder-orbit.mode-station-board .station-coordinate-readout > small {
+    margin: 0 !important;
+    font-size: 11px !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout > button {
+    min-height: 46px !important;
+    margin-top: 6px !important;
+    border-radius: 0 !important;
+    background: #183b75 !important;
+    touch-action: manipulation;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-readout > button:disabled {
+    color: #65706b !important;
+    border-color: #a6ada9 !important;
+    background: #d5d9d5 !important;
+    opacity: 1 !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-plane {
+    height: auto !important;
+    min-height: 748px !important;
+    padding: 42px 8px 48px !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    background:
+      linear-gradient(90deg, transparent calc(50% - 1px), #708079 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+      repeating-linear-gradient(0deg, transparent 0 67px, rgba(135, 151, 144, .09) 67px 68px),
+      #08110f !important;
+    box-shadow: inset 0 0 0 1px #34413c !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-plane::before {
+    inset: 21px 50% 20px auto !important;
+    width: 52px !important;
+    height: auto !important;
+    border: 0 !important;
+    border-left: 1px solid rgba(206, 218, 211, .25) !important;
+    border-right: 1px solid rgba(206, 218, 211, .25) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: translateX(50%);
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-grid {
+    display: none !important;
+  }
+
+  .folder-orbit.mode-station-board .station-node-layer {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 3;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-auto-flow: row;
+    grid-auto-rows: 62px;
+    width: 100% !important;
+    height: auto !important;
+    gap: 7px 30px;
+    overflow: visible !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-node,
+  .folder-orbit.mode-station-board .station-coordinate-node.is-outside-arc {
+    position: relative !important;
+    inset: auto !important;
+    width: auto !important;
+    height: 62px !important;
+    transform: none !important;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(odd) {
+    grid-column: 1;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(even) {
+    grid-column: 2;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(odd)::after,
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(even)::before {
+    position: absolute;
+    z-index: -1;
+    top: 50%;
+    width: 15px;
+    height: 1px;
+    content: '';
+    background: #708079;
+  }
+
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(odd)::after { right: -15px; }
+  .folder-orbit.mode-station-board .station-coordinate-node:nth-child(even)::before { left: -15px; }
+
+  .folder-orbit.mode-station-board .folder-button,
+  .folder-orbit.mode-station-board .folder-button:hover,
+  .folder-orbit.mode-station-board .folder-button:focus-visible {
+    display: grid !important;
+    grid-template-columns: 12px minmax(0, 1fr) !important;
+    grid-template-rows: auto 1fr !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    gap: 2px 7px !important;
+    padding: 8px 7px !important;
+    color: #e7ece9 !important;
+    border: 1px solid #53605b !important;
+    border-radius: 0 !important;
+    background: #111c19 !important;
+    box-shadow: inset 2px 0 0 var(--station-accent, #294f92) !important;
+    text-align: left !important;
+    touch-action: manipulation;
+  }
+
+  .folder-orbit.mode-station-board .station-signal {
+    position: static !important;
+    display: contents !important;
+  }
+
+  .folder-orbit.mode-station-board .station-signal i {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    width: 10px !important;
+    height: 10px !important;
+    border: 1px solid #dce4df !important;
+    background: var(--station-accent, #294f92) !important;
+    box-shadow: 0 0 0 2px #111c19 !important;
+    transform: rotate(45deg) !important;
+  }
+
+  .folder-orbit.mode-station-board .station-signal b,
+  .folder-orbit.mode-station-board .station-coordinate-node[data-anchor='left'] .station-signal b {
+    position: static !important;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0 !important;
+    padding: 0 !important;
+    color: var(--station-accent, #86a8e5) !important;
+    border: 0 !important;
+    background: transparent !important;
+    font: 700 9px/1.05 var(--font-mono) !important;
+    text-align: left !important;
+    transform: none !important;
+  }
+
+  .folder-orbit.mode-station-board .folder-name {
+    display: block !important;
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0 !important;
+    overflow: hidden;
+    color: #f1f4f2 !important;
+    font: 700 13px/1.1 var(--font-ui) !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .folder-orbit.mode-station-board .folder-button small {
+    display: none !important;
+  }
+
+  .folder-orbit.mode-station-board .folder-button.is-preview {
+    color: #111815 !important;
+    border-color: #e7c34b !important;
+    background: #edf0e9 !important;
+    box-shadow: inset 4px 0 0 #b93632, 0 0 0 2px rgba(231, 195, 75, .62) !important;
+  }
+
+  .folder-orbit.mode-station-board .folder-button.is-preview .station-signal i {
+    border-color: #fff !important;
+    background: #b93632 !important;
+    box-shadow: 0 0 0 2px #edf0e9 !important;
+  }
+
+  .folder-orbit.mode-station-board .folder-button.is-preview .station-signal b {
+    color: #a62e2b !important;
+    background: transparent !important;
+  }
+
+  .folder-orbit.mode-station-board .folder-button.is-preview .folder-name {
+    color: #111815 !important;
+  }
+
+  .folder-orbit.mode-station-board .station-axis {
+    z-index: 4 !important;
+    color: #aebcb6 !important;
+    font-size: 9px !important;
+  }
+
+  .folder-orbit.mode-station-board .station-axis--north { top: 15px !important; }
+  .folder-orbit.mode-station-board .station-axis--south { bottom: 15px !important; }
+  .folder-orbit.mode-station-board .station-axis--west { top: 16px !important; left: 13px !important; writing-mode: horizontal-tb !important; transform: none !important; }
+  .folder-orbit.mode-station-board .station-axis--east { top: 16px !important; right: 13px !important; writing-mode: horizontal-tb !important; transform: none !important; }
+
+  .folder-orbit.mode-station-board .station-origin {
+    z-index: 2 !important;
+    top: auto !important;
+    bottom: 10px !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-color: #65736d !important;
+    background: #08110f !important;
+  }
+
+  .folder-orbit.mode-station-board .station-origin b { font-size: 8px !important; }
+
+  .folder-orbit.mode-station-board .station-coordinate-board > footer {
+    min-height: 44px !important;
+    padding: 9px 10px !important;
+    background: #111a18 !important;
+  }
+
+  .sync-console .sync-enter {
+    min-height: 44px !important;
+    touch-action: manipulation;
+  }
+}
+
+/* Final precedence pass: older phone experiments above are intentionally
+   superseded by the dedicated application shell. */
+@media (max-width: 760px) {
+  .archive-layer,
+  .polar-layer {
+    inset: 0 0 var(--palis-phone-nav) !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .archive-layer {
+    overflow: hidden auto !important;
+    background: linear-gradient(to bottom, rgba(247,248,246,.98) 0 var(--palis-phone-header), rgba(247,248,246,.06) var(--palis-phone-header) 282px, #f7f8f6 283px) !important;
+  }
+
+  .archive-heading {
+    position: sticky !important;
+    top: 0 !important;
+    width: 100% !important;
+    min-height: var(--palis-phone-header) !important;
+    padding: calc(11px + env(safe-area-inset-top)) 66px 11px 16px !important;
+    border: 0 !important;
+    border-bottom: 2px solid #10191e !important;
+    background: rgba(247,248,246,.98) !important;
+    transform: none !important;
+  }
+  .archive-layer.has-directory .archive-heading { padding-left: 66px !important; }
+  .archive-heading h2 {
+    color: #082d4e !important;
+    font: 800 23px/1.08 var(--font-display) !important;
+    letter-spacing: 0 !important;
+    text-shadow: none !important;
+  }
+  .archive-heading p { margin-top: 5px !important; color: #67747a !important; font: 700 9px/1 var(--font-mono) !important; }
+  .archive-heading::before,
+  .archive-heading::after,
+  .archive-category-visual,
+  .archive-feature,
+  .orbit-ring,
+  .archive-hint,
+  .archive-browser-controls { display: none !important; content: none !important; }
+
+  .archive-back:not([hidden]) {
+    position: fixed !important;
+    z-index: 170 !important;
+    top: calc(11px + env(safe-area-inset-top)) !important;
+    left: 10px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    color: #082d4e !important;
+    border: 2px solid #10191e !important;
+    background: #fff !important;
+    box-shadow: 2px 2px 0 #10191e !important;
+    transform: none !important;
+  }
+
+  #folder-orbit,
+  #folder-orbit.mode-orbit {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 210px 0 0 !important;
+    padding: 0 16px 28px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  #folder-orbit.mode-orbit .folder-item {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+  }
+  #folder-orbit.mode-orbit .folder-button,
+  #folder-orbit.mode-orbit .folder-button:hover,
+  #folder-orbit.mode-orbit .folder-button:focus-visible {
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 116px !important;
+    align-content: end !important;
+    justify-items: start !important;
+    padding: 13px !important;
+    color: #101a22 !important;
+    border: 1px solid #879196 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: inset 0 5px 0 #082d4e !important;
+    text-align: left !important;
+    transform: none !important;
+  }
+  #folder-orbit.mode-orbit .folder-button::before,
+  #folder-orbit.mode-orbit .folder-button::after { display: none !important; content: none !important; }
+  #folder-orbit.mode-orbit .folder-name { color: #082d4e !important; font: 800 16px/1.15 var(--font-ui) !important; }
+  #folder-orbit.mode-orbit .folder-button small { display: block !important; margin-top: 6px !important; color: #69757a !important; font: 700 9px/1.2 var(--font-mono) !important; }
+
+  #folder-orbit:has(> .mobile-archive-register) {
+    display: block !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    background: #f7f8f6 !important;
+  }
+  #folder-orbit:has(> .mobile-archive-register) > :not(.mobile-archive-register) { display: none !important; }
+  .mobile-archive-register { display: block !important; width: 100% !important; min-height: calc(100dvh - var(--palis-phone-header) - var(--palis-phone-nav)) !important; background: #f7f8f6 !important; }
+  .mobile-archive-register__head { display: grid !important; grid-template-columns: minmax(0,1fr) auto !important; min-height: 84px !important; padding: 17px 16px 13px !important; color: #fff !important; background: #082d4e !important; box-shadow: inset 5px 0 0 #ba352f !important; }
+  .mobile-archive-register__head h3 { margin: 7px 0 0 !important; color: #fff !important; font: 800 20px/1.1 var(--font-ui) !important; }
+  .mobile-archive-register__hint { margin: 0 !important; padding: 11px 16px !important; border-bottom: 1px solid #aab3b5 !important; background: #e7eae7 !important; font: 700 10px/1.4 var(--font-ui) !important; }
+  .mobile-archive-register__list { display: grid !important; padding: 0 16px !important; gap: 0 !important; }
+  .mobile-archive-register__item,
+  .mobile-archive-register__item:hover,
+  .mobile-archive-register__item:focus-visible {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0,1fr) auto 12px !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-height: 76px !important;
+    gap: 9px !important;
+    padding: 10px 4px !important;
+    color: #101a22 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #abb3b5 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    transform: none !important;
+  }
+  .mobile-archive-register__copy { display: grid !important; min-width: 0 !important; gap: 5px !important; }
+  .mobile-archive-register__copy b { overflow: hidden !important; font: 800 15px/1.2 var(--font-ui) !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  .mobile-archive-register__copy small { overflow: hidden !important; color: #677278 !important; font: 600 10px/1.2 var(--font-ui) !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  .mobile-archive-register__item.is-selected { color: #fff !important; background: #082d4e !important; box-shadow: inset 4px 0 0 #e0ad38 !important; }
+  .mobile-archive-register__item.is-selected small,
+  .mobile-archive-register__item.is-selected .mobile-archive-register__code { color: #d4dee3 !important; }
+
+  .polar-layer { background: transparent !important; }
+  .polar-brand {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: var(--palis-phone-header) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid #10191e !important;
+    background: rgba(247,248,246,.97) !important;
+    transform: none !important;
+  }
+  .polar-brand > .title-bar { display: none !important; }
+  .polar-brand .brand-body { height: 100% !important; padding: calc(10px + env(safe-area-inset-top)) 64px 10px 16px !important; background: transparent !important; }
+  .polar-layer .map-layers,
+  .polar-layer .local-window-dock,
+  .polar-layer .map-instructions { display: none !important; }
+  .map-detail {
+    position: absolute !important;
+    z-index: 48 !important;
+    top: auto !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    display: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: min(42dvh,310px) !important;
+    margin: 0 !important;
+    border: 2px solid #10191e !important;
+    background: #f7f8f6 !important;
+    box-shadow: 5px 5px 0 rgba(0,0,0,.55) !important;
+    transform: none !important;
+  }
+  .map-detail.has-selection { display: block !important; }
+  .map-detail > .title-bar { display: none !important; }
+
+  .chapter-nav {
+    position: fixed !important;
+    z-index: 2600 !important;
+    inset: auto 0 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4,minmax(0,1fr)) !important;
+    width: 100% !important;
+    height: var(--palis-phone-nav) !important;
+    padding: 0 6px env(safe-area-inset-bottom) !important;
+    gap: 0 !important;
+    border: 0 !important;
+    border-top: 2px solid #10191e !important;
+    background: #eef0ed !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .chapter-nav a,
+  .chapter-nav a:hover,
+  .chapter-nav a:focus-visible {
+    position: static !important;
+    display: grid !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 58px !important;
+    place-content: center !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    padding: 7px 2px 5px !important;
+    color: #5e686d !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .chapter-nav a::after { position: static !important; display: block !important; content: attr(data-mobile-label) !important; font: 700 12px/1 var(--font-ui) !important; opacity: 1 !important; transform: none !important; }
+  .chapter-nav a.active,
+  .chapter-nav a[aria-current='step'] { color: #fff !important; background: #082d4e !important; box-shadow: inset 0 4px 0 #ba352f !important; }
+
+  body[data-chapter='2'] .mascot-assistant,
+  body[data-chapter='2'] .commission-assistant,
+  body[data-chapter='3'] .mascot-assistant,
+  body[data-chapter='3'] .commission-assistant { visibility: hidden !important; pointer-events: none !important; }
+
+  .version-notice__panel { inset: 0 !important; width: 100% !important; height: 100dvh !important; max-height: none !important; border: 0 !important; transform: none !important; }
+  .version-notice__content { display: block !important; overflow: auto !important; }
+  .version-notice__cover { height: 30dvh !important; min-height: 190px !important; }
+  .version-notice__copy { padding: 22px 16px calc(42px + env(safe-area-inset-bottom)) !important; background: #f7f8f6 !important; }
+
+  .clerk-desktop__icons { position: static !important; display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important; width: 100% !important; height: auto !important; padding: 0 0 28px !important; gap: 18px 8px !important; overflow: visible !important; }
+  .clerk-desktop__icons button { position: static !important; min-width: 0 !important; min-height: 94px !important; transform: none !important; }
+  .archive-workflow-window,
+  .mascot-document-window[data-mascot-surface='workspace'] { max-width: 100vw !important; max-height: calc(100dvh - 58px - env(safe-area-inset-bottom)) !important; resize: none !important; }
+
+  #folder-orbit::before,
+  #folder-orbit::after { display: none !important; content: none !important; }
+
+  #archive-layer.has-directory .archive-heading { display: none !important; }
+  #archive-layer.has-directory .mobile-archive-register__head {
+    position: sticky !important;
+    z-index: 34 !important;
+    top: 0 !important;
+    padding-left: 66px !important;
+    padding-right: 66px !important;
+  }
+  #archive-layer.has-directory .archive-back:not([hidden]) {
+    min-width: 44px !important;
+    max-width: 44px !important;
+    font-size: 0 !important;
+  }
+  .map-detail .window-body {
+    max-height: min(42dvh, 306px) !important;
+    overflow: auto !important;
+    padding-bottom: 10px !important;
+  }
+  .map-open-selected {
+    position: sticky !important;
+    z-index: 3 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Phone polar boot: the self-test is a compact bottom diagnostic drawer, not
+   the primary page. This preserves the globe/map as the dominant surface. */
+@media (max-width: 760px) {
+  .polar-diagnostic {
+    position: fixed !important;
+    z-index: 210 !important;
+    top: auto !important;
+    right: 10px !important;
+    bottom: calc(var(--palis-phone-nav) + 6px) !important;
+    left: 10px !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: 300px !important;
+    overflow: hidden !important;
+    border: 2px solid #929b97 !important;
+    border-radius: 0 !important;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, .58) !important;
+    transform: none !important;
+  }
+  .polar-diagnostic .title-bar {
+    position: static !important;
+    min-height: 32px !important;
+    padding: 0 8px !important;
+    font-size: 10px !important;
+  }
+  .polar-diagnostic .title-bar b { font-size: 7px !important; }
+  .polar-diagnostic .window-body {
+    max-height: 268px !important;
+    padding: 6px 8px !important;
+    overflow: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+  .polar-diagnostic .window-body > header {
+    min-height: 34px !important;
+    gap: 5px !important;
+    padding: 2px 2px 6px !important;
+  }
+  .polar-diagnostic .window-body > header p { font-size: 6px !important; }
+  .polar-diagnostic .window-body > header strong {
+    max-width: 58% !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+  .polar-diagnostic li {
+    grid-template-columns: 16px minmax(0, 1fr) auto !important;
+    min-height: 30px !important;
+    gap: 5px !important;
+    padding: 3px 4px !important;
+  }
+  .polar-diagnostic li > i { width: 9px !important; height: 9px !important; }
+  .polar-diagnostic li span { gap: 0 !important; }
+  .polar-diagnostic li b { font-size: 9px !important; }
+  .polar-diagnostic li small { display: none !important; }
+  .polar-diagnostic li output { min-width: 46px !important; font-size: 7px !important; }
+  .polar-diagnostic .diagnostic-progress {
+    height: 9px !important;
+    margin-top: 7px !important;
+  }
+  .polar-diagnostic footer { min-height: 22px !important; gap: 8px !important; }
+  .polar-diagnostic footer span { font-size: 6px !important; }
+  .polar-diagnostic footer b { font-size: 8px !important; }
+}
+
+/* ===========================================================================
+   PALIS PHONE WORKSPACE V2
+   A purpose-built touch home screen and app shell. Desktop and tablet rules
+   are intentionally untouched by keeping the whole layer below 761px.
+   ========================================================================== */
+@media (max-width: 760px) {
+  #clerk-desktop {
+    --phone-app-bar: 56px;
+    --phone-home-head: 88px;
+    --phone-dock-height: 82px;
+    background:
+      linear-gradient(rgba(3, 16, 25, .12), rgba(3, 16, 25, .24)),
+      url('/assets/workspace/palis-workspace-sky.png') center / cover no-repeat,
+      #2f73c9 !important;
+  }
+
+  #clerk-desktop .clerk-desktop__accessible-title {
+    height: var(--phone-home-head) !important;
+    align-content: center !important;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 12px !important;
+    border: 0 !important;
+    background: linear-gradient(180deg, rgba(8, 26, 45, .98), rgba(8, 26, 45, .86)) !important;
+    box-shadow: 0 1px 0 rgba(213, 222, 216, .32) !important;
+  }
+  #clerk-desktop .mobile-workspace-return {
+    position: absolute !important;
+    top: calc(23px + env(safe-area-inset-top)) !important;
+    left: 10px !important;
+    display: grid !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    place-items: center !important;
+    padding: 0 !important;
+    color: #f3f5ef !important;
+    border: 1px solid rgba(204, 216, 209, .66) !important;
+    border-radius: 0 !important;
+    background: rgba(3, 16, 25, .62) !important;
+    box-shadow: inset 1px 1px rgba(255,255,255,.24), inset -1px -1px rgba(0,0,0,.55) !important;
+    font: 800 23px/1 var(--font-ui) !important;
+    touch-action: manipulation !important;
+  }
+  #clerk-desktop .clerk-desktop__accessible-title h2,
+  #clerk-desktop .clerk-desktop__accessible-title > span:first-of-type {
+    margin-left: 48px !important;
+  }
+  #clerk-desktop[data-workspace-role='administrator'] .clerk-desktop__accessible-title {
+    background: linear-gradient(180deg, rgba(18, 58, 50, .98), rgba(12, 40, 36, .88)) !important;
+  }
+  #clerk-desktop .clerk-desktop__accessible-title h2 { font-size: 20px !important; letter-spacing: .02em !important; }
+  #clerk-desktop .clerk-desktop__accessible-title > span:not(:last-child) { color: #b9c9c5 !important; letter-spacing: .12em !important; }
+  #clerk-desktop .clerk-desktop__accessible-title > span:last-child { max-width: 128px !important; color: #f0c657 !important; font-size: 9px !important; }
+
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail],
+  #clerk-desktop[data-workspace-role='clerk'] .clerk-desktop__icons[data-archive-category-rail] {
+    position: absolute !important;
+    inset: calc(var(--phone-home-head) + 12px) 8px calc(var(--phone-dock-height) + 22px) !important;
+    display: grid !important;
+    width: auto !important;
+    height: auto !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-rows: 96px !important;
+    align-content: start !important;
+    gap: 12px 4px !important;
+    padding: 8px 2px 28px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: none !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail]::-webkit-scrollbar { display: none !important; }
+  #clerk-desktop .clerk-desktop__icons [data-mobile-dock-source='true'] { display: none !important; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:hover,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:focus-visible {
+    position: static !important;
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 96px !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 58px auto !important;
+    place-items: center !important;
+    align-content: start !important;
+    gap: 5px !important;
+    padding: 3px 2px 5px !important;
+    color: #f4f6f2 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center !important;
+    transform: none !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button:active {
+    background: rgba(223, 232, 228, .13) !important;
+    transform: translateY(2px) !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button.is-selected {
+    color: #f4f6f2 !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button::before,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button::after {
+    display: none !important;
+    content: none !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon {
+    width: 48px !important;
+    height: 58px !important;
+    margin: 0 !important;
+    filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .45)) !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    display: -webkit-box !important;
+    max-width: 86px !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: #f4f6f2 !important;
+    font: 700 11px/1.25 var(--font-ui) !important;
+    text-align: center !important;
+    text-shadow: 0 2px 0 #000 !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button[data-mobile-dock-source='true'] {
+    display: none !important;
+  }
+
+  #clerk-desktop .clerk-mobile-dock {
+    position: absolute !important;
+    z-index: 32 !important;
+    right: 10px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    left: 10px !important;
+    display: grid !important;
+    height: var(--phone-dock-height) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    padding: 7px 6px !important;
+    border: 2px outset #f0f0eb !important;
+    border-radius: 0 !important;
+    background: #c8cbc7 !important;
+    box-shadow: 4px 5px 0 rgba(0, 0, 0, .48) !important;
+    backdrop-filter: none !important;
+  }
+  #clerk-desktop .clerk-mobile-dock[hidden] { display: none !important; }
+  #clerk-desktop .clerk-mobile-dock:has(button:nth-child(5)) { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  #clerk-desktop .clerk-mobile-dock button {
+    display: grid !important;
+    min-width: 0 !important;
+    min-height: 66px !important;
+    grid-template-rows: 40px auto !important;
+    place-items: center !important;
+    gap: 3px !important;
+    padding: 2px !important;
+    color: #102027 !important;
+    border: 1px solid transparent !important;
+    border-radius: 0 !important;
+    background: #c8cbc7 !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .clerk-mobile-dock button + button { border-left-color: #989e99 !important; }
+  #clerk-desktop .clerk-mobile-dock button:active {
+    border: 2px inset #efefea !important;
+    background: #b9bdb8 !important;
+    transform: translate(1px, 1px) !important;
+  }
+  #clerk-desktop .clerk-mobile-dock .clerk-desktop__icon,
+  #clerk-desktop .clerk-mobile-dock .workspace-mailbox-icon {
+    display: grid !important;
+    width: 39px !important;
+    height: 40px !important;
+    margin: 0 !important;
+    place-items: center !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .clerk-mobile-dock .clerk-desktop__icon-glyph,
+  #clerk-desktop .clerk-mobile-dock .workspace-mailbox-icon {
+    display: block !important;
+    width: 34px !important;
+    height: 34px !important;
+    margin: 0 !important;
+    background-color: #0d6871 !important;
+    -webkit-mask: var(--pixel-icon) center / contain no-repeat !important;
+    mask: var(--pixel-icon) center / contain no-repeat !important;
+  }
+  #clerk-desktop .clerk-mobile-dock button > span:last-child { overflow: hidden !important; font: 700 9px/1.1 var(--font-ui) !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+
+  #clerk-desktop .workspace-mailbox-ornament { display: none !important; }
+  #clerk-desktop .clerk-desktop__taskbar { display: none !important; }
+  #clerk-desktop .clerk-desktop__window-layer { inset: 0 !important; z-index: 40 !important; }
+
+  /* Every opened tool becomes a full-screen app. The desktop window controls,
+     resize handles and taskbar are removed only on phones. */
+  #clerk-desktop .archive-workflow-window,
+  #clerk-desktop #assistant-window-layer .mascot-document-window,
+  #clerk-desktop .clerk-desktop__welcome {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    border: 0 !important;
+    background: #f2f4f1 !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .archive-workflow-resize-handle,
+  #clerk-desktop [data-workflow-minimize],
+  #clerk-desktop [data-workflow-maximize] { display: none !important; }
+  #clerk-desktop .archive-workflow-titlebar,
+  #clerk-desktop .mascot-document-window__titlebar,
+  #clerk-desktop .clerk-desktop__welcome-titlebar {
+    display: grid !important;
+    width: 100% !important;
+    height: var(--phone-app-bar) !important;
+    min-height: var(--phone-app-bar) !important;
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 14px 0 4px !important;
+    overflow: hidden !important;
+    color: #f7f8f5 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #89928e !important;
+    background: #082d4e !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop[data-workspace-role='administrator'] .archive-workflow-titlebar { background: #173b33 !important; }
+  #clerk-desktop .archive-workflow-titlebar > span {
+    order: 2 !important;
+    flex: 1 1 auto !important;
+    display: block !important;
+    align-self: center !important;
+    min-width: 0 !important;
+    padding: 2px 0 0 !important;
+    overflow: hidden !important;
+    color: #fff !important;
+    font: 800 14px/1.45 var(--font-ui) !important;
+    letter-spacing: .015em !important;
+    text-overflow: ellipsis !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+  }
+  #clerk-desktop .archive-workflow-titlebar .window-controls {
+    order: 1 !important;
+    display: grid !important;
+    width: 48px !important;
+    height: 48px !important;
+    place-items: center !important;
+    margin: 0 !important;
+  }
+  #clerk-desktop .archive-workflow-titlebar [data-workflow-close] {
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    color: #fff !important;
+    border: 0 !important;
+    background: transparent !important;
+    font-size: 0 !important;
+  }
+  #clerk-desktop .archive-workflow-titlebar [data-workflow-close]::before { content: '←' !important; font: 800 22px/1 var(--font-ui) !important; }
+  /* Every workflow body starts below the phone app bar. Desktop window skins
+     use several different body class names and some carry negative offsets;
+     anchoring the first content sibling fixes the title overlap for all apps. */
+  #clerk-desktop .archive-workflow-window > .archive-workflow-titlebar + :not(.archive-workflow-resize-handle) {
+    position: fixed !important;
+    inset: var(--phone-app-bar) 0 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+  #clerk-desktop .archive-workflow-window > .archive-workflow-titlebar + section > header {
+    position: sticky !important;
+    z-index: 5 !important;
+    top: 0 !important;
+    display: flex !important;
+    min-height: 52px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 9px 12px !important;
+    color: #172521 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #7d8782 !important;
+    background: #dfe3df !important;
+    box-shadow: none !important;
+  }
+  #clerk-desktop .archive-workflow-window > .archive-workflow-titlebar + section > header > b {
+    min-width: 0 !important;
+    color: #172521 !important;
+    font: 800 16px/1.2 var(--font-ui) !important;
+  }
+  #clerk-desktop .archive-workflow-window > .archive-workflow-titlebar + section > header > span {
+    flex: 0 1 auto !important;
+    overflow: hidden !important;
+    color: #4c5a56 !important;
+    font: 700 9px/1.2 var(--font-mono) !important;
+    letter-spacing: .04em !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  #clerk-desktop .archive-workflow-window__body,
+  #clerk-desktop .archive-utility-window__body,
+  #clerk-desktop .mascot-document-window__body { height: calc(100% - var(--phone-app-bar)) !important; overflow: auto !important; }
+
+  #clerk-desktop .archive-workflow-titlebar,
+  #clerk-desktop .archive-workflow-titlebar [data-workflow-close],
+  #clerk-desktop .archive-workflow-window :is(button, a, input, select, textarea) {
+    touch-action: manipulation !important;
+  }
+
+  /* Archive action chooser: short app landing page, not a miniature PC dialog. */
+  #clerk-desktop .archive-utility-window__body {
+    padding: 16px !important;
+    color: #152129 !important;
+    background: #f2f4f1 !important;
+  }
+  #clerk-desktop .archive-utility-window__body > p { margin: 0 0 14px !important; color: #617077 !important; font: 700 11px/1.3 var(--font-mono) !important; }
+  #clerk-desktop .archive-utility-actions { display: grid !important; gap: 10px !important; }
+  #clerk-desktop .archive-utility-actions button {
+    min-height: 86px !important;
+    padding: 15px !important;
+    border: 1px solid #8b9697 !important;
+    border-left: 5px solid #245b9e !important;
+    background: #fff !important;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .12) !important;
+    text-align: left !important;
+  }
+
+  /* The editor is rebuilt as a mobile document app: compact record summary,
+     a light reading surface, one-column fields and persistent actions. */
+  #clerk-desktop .archive-editor {
+    height: calc(100% - var(--phone-app-bar)) !important;
+    position: relative !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    background: #eef1ee !important;
+  }
+  #clerk-desktop .archive-editor__toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    padding: 0 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #aab2ae !important;
+    background: #fff !important;
+  }
+  #clerk-desktop .archive-editor__toolbar label {
+    min-height: 58px !important;
+    align-content: center !important;
+    gap: 3px !important;
+    padding: 9px 8px 9px 0 !important;
+    color: #68747a !important;
+    border-bottom: 1px solid #d4d9d6 !important;
+    font: 700 10px/1.2 var(--font-ui) !important;
+  }
+  #clerk-desktop .archive-editor__toolbar label:nth-of-type(even) { padding-left: 10px !important; border-left: 1px solid #d4d9d6 !important; }
+  #clerk-desktop .archive-editor__toolbar output { color: #12212a !important; font: 800 13px/1.25 var(--font-ui) !important; }
+  #clerk-desktop .archive-editor__toolbar .archive-autosave-status {
+    grid-column: 1 / -1 !important;
+    min-height: 32px !important;
+    margin: 8px 0 10px !important;
+    padding: 8px 10px !important;
+    color: #315a43 !important;
+    border: 1px solid #9cb0a1 !important;
+    background: #edf4ed !important;
+    font: 700 10px/1.2 var(--font-ui) !important;
+  }
+  #clerk-desktop .archive-inline-format-toolbar {
+    position: absolute !important;
+    z-index: 9 !important;
+    right: 0 !important;
+    bottom: calc(66px + env(safe-area-inset-bottom)) !important;
+    left: 0 !important;
+    display: flex !important;
+    min-height: 48px !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 6px 12px !important;
+    overflow-x: auto !important;
+    border: 0 !important;
+    border-top: 1px solid #aab2ae !important;
+    border-bottom: 0 !important;
+    background: #e3e7e4 !important;
+  }
+  #clerk-desktop .archive-inline-format-toolbar button { min-width: 42px !important; min-height: 38px !important; }
+  #clerk-desktop .archive-inline-format-toolbar output { min-width: 150px !important; font-size: 10px !important; }
+  #clerk-desktop .archive-recovery[hidden] { display: none !important; }
+  #clerk-desktop .archive-recovery:not([hidden]) {
+    grid-row: 2 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin: 8px 10px 0 !important;
+    padding: 10px !important;
+    border: 1px solid #9b8757 !important;
+    background: #f4efdf !important;
+  }
+  #clerk-desktop .archive-recovery:not([hidden]) > div { grid-column: 1 / -1 !important; }
+  #clerk-desktop .archive-recovery:not([hidden]) button { min-width: 0 !important; min-height: 42px !important; padding: 6px !important; font-size: 11px !important; }
+  #clerk-desktop .archive-editor__scroll { grid-row: 3 !important; padding: 10px 0 136px !important; background: #eef1ee !important; }
+  #clerk-desktop .archive-native-section,
+  #clerk-desktop .archive-editor__section {
+    display: grid !important;
+    gap: 14px !important;
+    margin: 0 10px 10px !important;
+    padding: 0 14px 16px !important;
+    color: #14212a !important;
+    border: 1px solid #a5aeaa !important;
+    background: #fff !important;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .08) !important;
+  }
+  #clerk-desktop .archive-native-section > header,
+  #clerk-desktop .archive-editor__section > header {
+    display: flex !important;
+    min-height: 48px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    margin: 0 -14px !important;
+    padding: 9px 14px !important;
+    color: #082d4e !important;
+    border: 0 !important;
+    border-bottom: 2px solid #082d4e !important;
+    background: #f5f7f5 !important;
+  }
+  #clerk-desktop .archive-native-section > header b { font: 800 16px/1.2 var(--font-ui) !important; }
+  #clerk-desktop .archive-native-section > header span { color: #738087 !important; font: 8px/1.2 var(--font-mono) !important; }
+  #clerk-desktop .archive-native-section > label,
+  #clerk-desktop .archive-native-section fieldset { margin: 0 !important; }
+  #clerk-desktop .archive-native-section label > span,
+  #clerk-desktop .archive-editor__section label > span { color: #4f5d64 !important; font: 700 12px/1.3 var(--font-ui) !important; }
+  #clerk-desktop .archive-native-section input,
+  #clerk-desktop .archive-native-section select,
+  #clerk-desktop .archive-native-section textarea,
+  #clerk-desktop .archive-native-section .archive-rich-editor {
+    min-height: 50px !important;
+    color: #152129 !important;
+    border: 1px solid #788480 !important;
+    background: #fff !important;
+    font-size: 16px !important;
+  }
+  #clerk-desktop .archive-native-section .archive-rich-editor { min-height: 168px !important; padding: 13px !important; line-height: 1.75 !important; }
+  #clerk-desktop .archive-native-section fieldset[data-native-custom-entry] {
+    display: grid !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border: 1px solid #aab2ae !important;
+    background: #f4f6f4 !important;
+  }
+  #clerk-desktop .archive-editable-picker,
+  #clerk-desktop .archive-media-editor,
+  #clerk-desktop .archive-editor__attribution { margin: 0 !important; border-color: #a5aeaa !important; background: #fff !important; }
+  #clerk-desktop .archive-editor__footer {
+    position: absolute !important;
+    z-index: 8 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) !important;
+    gap: 8px !important;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+    border-top: 1px solid #87918d !important;
+    background: rgba(242, 244, 241, .97) !important;
+    box-shadow: 0 -7px 18px rgba(16, 30, 35, .12) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  #clerk-desktop .archive-editor__footer p { display: none !important; }
+  #clerk-desktop .archive-editor__footer button { min-height: 50px !important; }
+  #clerk-desktop .archive-editor__footer [data-submit-draft] { color: #fff !important; background: #173a6d !important; }
+
+  /* Admin/review tools use app-like list/detail pages. Side-by-side desktop
+     panes collapse to a single reading column without changing their data. */
+  #clerk-desktop :is(.archive-admin-review, .archive-admin-users-layout, .task-control, .honor-control, .commission-board) {
+    display: block !important;
+    min-height: 100% !important;
+    color: #14212a !important;
+    background: #eef1ee !important;
+  }
+  #clerk-desktop :is(.archive-admin-review__queue, .archive-admin-review__detail, .archive-admin-users, .archive-admin-users__detail, .task-control > *, .honor-control > *, .commission-board > *) {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #a7afab !important;
+    background: #f8f9f7 !important;
+  }
+  #clerk-desktop :is(.archive-review-list, .archive-admin-users__list, .archive-workflow-list) > :is(button, article) {
+    min-height: 72px !important;
+    padding: 13px 14px !important;
+    border-left: 4px solid #245b9e !important;
+    background: #fff !important;
+  }
+  #clerk-desktop .archive-workflow-window table { display: table !important; min-width: 100% !important; table-layout: fixed !important; white-space: normal !important; }
+  #clerk-desktop .archive-workflow-window table :is(th, td) { overflow-wrap: anywhere !important; }
+}
+
+/* Phone notes live in the free lower part of the home screen. The composer
+   trigger is a movable floating action button; note data and permissions stay
+   with the existing shared-note controller. */
+@media (max-width: 760px) {
+  #clerk-desktop .workspace-note-controls {
+    position: absolute !important;
+    z-index: 36 !important;
+    top: calc(var(--phone-home-head) + 8px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: 56px !important;
+    pointer-events: none !important;
+  }
+  #clerk-desktop .workspace-note-controls[data-mobile-fab-positioned='true'] {
+    top: var(--mobile-note-fab-top) !important;
+    right: auto !important;
+    left: var(--mobile-note-fab-left) !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create] {
+    display: grid !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    place-items: center !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    border: 1px solid #f3db86 !important;
+    border-radius: 50% !important;
+    background: #e6bd45 !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255,255,255,.68) !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    cursor: grab !important;
+    touch-action: none !important;
+    pointer-events: auto !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create]:active { cursor: grabbing !important; transform: scale(.96) !important; }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create]::after {
+    content: '+' !important;
+    color: #13231f !important;
+    font: 800 24px/1 var(--font-ui) !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] {
+    position: fixed !important;
+    z-index: 80 !important;
+    top: 50% !important;
+    right: 12px !important;
+    bottom: auto !important;
+    left: 50% !important;
+    display: grid !important;
+    width: min(386px, calc(100vw - 24px)) !important;
+    max-height: min(70dvh, 520px) !important;
+    align-content: start !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px 8px !important;
+    padding: 0 14px 14px !important;
+    overflow-y: auto !important;
+    border: 2px outset #f2f2ed !important;
+    border-radius: 0 !important;
+    background: #d2d4d0 !important;
+    box-shadow: 7px 8px 0 rgba(0,0,0,.52) !important;
+    transform: translate(-50%, -50%) !important;
+    pointer-events: auto !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form]::before {
+    grid-column: 1 / -1 !important;
+    margin: 0 -14px 2px !important;
+    padding: 10px 12px !important;
+    color: #fff !important;
+    background: #143f36 !important;
+    content: 'NOTE.EDIT / 便签编辑' !important;
+    font: 700 12px/1 var(--font-mono) !important;
+    letter-spacing: .035em !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] > label,
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] > p {
+    grid-column: 1 / -1 !important;
+    margin: 0 !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] label {
+    display: grid !important;
+    gap: 5px !important;
+    color: #242820 !important;
+    font: 700 12px/1.2 var(--font-ui) !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] :is(input, textarea) {
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 9px 10px !important;
+    color: #262116 !important;
+    border: 1px inset #b6a05f !important;
+    border-radius: 0 !important;
+    background: #fff8d7 !important;
+    font: 14px/1.4 var(--font-ui) !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] textarea {
+    min-height: 104px !important;
+    resize: vertical !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] > button {
+    min-height: 44px !important;
+    margin: 0 !important;
+    color: #222 !important;
+    border: 1px solid #777b70 !important;
+    border-radius: 0 !important;
+    background: #dcddd7 !important;
+    box-shadow: inset 1px 1px #fff, inset -1px -1px #73776f !important;
+    font: 700 13px/1 var(--font-ui) !important;
+    touch-action: manipulation !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form] [data-workspace-note-create-submit] {
+    color: #fff !important;
+    background: #214f43 !important;
+    box-shadow: inset 1px 1px rgba(255,255,255,.38), inset -1px -1px #0e251f !important;
+  }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create-form][hidden] { display: none !important; }
+
+  #clerk-desktop #workspace-note-region {
+    position: absolute !important;
+    z-index: 22 !important;
+    top: min(58dvh, 540px) !important;
+    right: 10px !important;
+    bottom: auto !important;
+    left: 10px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: start !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: min(310px, calc(100dvh - var(--phone-dock-height) - min(58dvh, 540px) - 28px)) !important;
+    gap: 10px 8px !important;
+    padding: 4px 2px 10px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    pointer-events: auto !important;
+    scroll-padding-block: 4px !important;
+    scroll-snap-type: y proximity !important;
+    scrollbar-width: none !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+  }
+  #clerk-desktop[data-workspace-role='clerk'] #workspace-note-region { top: min(47dvh, 430px) !important; }
+  #clerk-desktop #workspace-note-region::-webkit-scrollbar { display: none !important; }
+  #clerk-desktop #workspace-note-region:empty { display: none !important; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    position: relative !important;
+    inset: auto !important;
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 164px !important;
+    max-height: none !important;
+    grid-template-rows: auto minmax(42px, 1fr) auto !important;
+    gap: 7px !important;
+    padding: 16px 10px 9px !important;
+    overflow: hidden !important;
+    color: #2b281f !important;
+    border: 1px solid #8e825f !important;
+    border-top: 6px solid #d2b34a !important;
+    border-radius: 0 !important;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 25px, rgba(93, 78, 44, .13) 25px 26px),
+      linear-gradient(100deg, #fff4b9, #f3e39c) !important;
+    box-shadow: 3px 4px 0 rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.6) !important;
+    transform: none !important;
+    scroll-snap-align: start !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note::after {
+    position: absolute !important;
+    top: 5px !important;
+    right: 8px !important;
+    color: #786a40 !important;
+    content: 'PALIS NOTE' !important;
+    font: 700 7px/1 var(--font-mono) !important;
+    letter-spacing: .08em !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-stack { display: none !important; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-title {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 54px 5px 0 !important;
+    overflow: hidden !important;
+    color: #252116 !important;
+    border-bottom: 1px solid rgba(94, 78, 39, .34) !important;
+    font: 800 15px/1.25 var(--font-ui) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-body {
+    position: static !important;
+    display: -webkit-box !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: #4a4028 !important;
+    font: 12px/1.55 var(--font-ui) !important;
+    overflow-wrap: anywhere !important;
+    white-space: pre-wrap !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions {
+    position: static !important;
+    inset: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-top: 7px !important;
+    border-top: 1px solid rgba(94, 78, 39, .34) !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions button {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    height: auto !important;
+    padding: 5px 2px !important;
+    color: #2d2a20 !important;
+    border: 1px solid #8e7840 !important;
+    border-radius: 0 !important;
+    background: #edd37a !important;
+    box-shadow: inset 1px 1px #fff0b6, inset -1px -1px #8e7840 !important;
+    font: 700 11px/1.1 var(--font-ui) !important;
+    touch-action: manipulation !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-actions button::before { content: none !important; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-delete { color: #71352f !important; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-drag-handle {
+    top: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    min-height: 32px !important;
+    touch-action: none !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note.is-editing {
+    min-height: 264px !important;
+    grid-column: 1 / -1 !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-editor {
+    position: static !important;
+    inset: auto !important;
+    display: grid !important;
+    min-height: 176px !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 44px minmax(88px, 1fr) 44px !important;
+    gap: 7px !important;
+    margin: 0 !important;
+    padding-top: 5px !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-editor :is(input, textarea) {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 44px !important;
+    padding: 9px 10px !important;
+    color: #272116 !important;
+    border: 1px inset #b59a55 !important;
+    background: #fff8d9 !important;
+    font: 14px/1.4 var(--font-ui) !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-editor textarea { min-height: 88px !important; resize: vertical !important; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-save {
+    width: 100% !important;
+    min-height: 44px !important;
+    color: #fff !important;
+    border: 1px solid #173e35 !important;
+    background: #214f43 !important;
+    box-shadow: inset 1px 1px rgba(255,255,255,.35), inset -1px -1px #0d211c !important;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note.is-editing .workspace-sticky-note-edit { display: none !important; }
+  #clerk-desktop:has(#workspace-note-region .workspace-sticky-note)
+    .clerk-desktop__icons[data-archive-category-rail] {
+    inset: calc(var(--phone-home-head) + 12px) 8px calc(var(--phone-dock-height) + 22px) !important;
+  }
+
+  #clerk-desktop > .mascot-assistant[data-desktop-pet='true'] {
+    position: absolute !important;
+    z-index: 34 !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 0 !important;
+    display: block !important;
+    max-width: none !important;
+    visibility: visible !important;
+    transform: translate3d(var(--pet-x, 0px), var(--pet-y, 0px), 0) !important;
+    pointer-events: none !important;
+  }
+  #clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger {
+    width: 76px !important;
+    min-width: 76px !important;
+    min-height: 76px !important;
+    touch-action: none !important;
+    pointer-events: auto !important;
+  }
+  #clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-trigger img {
+    width: 76px !important;
+    max-width: 76px !important;
+    height: 86px !important;
+    max-height: 86px !important;
+    object-fit: contain !important;
+  }
+  #clerk-desktop > .mascot-assistant[data-desktop-pet='true'] .mascot-pet-dialogue {
+    width: min(250px, calc(100vw - 24px)) !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+}
+
+/* Desktop density tiers. These rules live in the final stylesheet so the
+   imported workflow skin cannot collapse 720p or leave 4K at 2K scale. */
+@media (min-width: 761px) and (max-width: 1439px),
+  (min-width: 761px) and (max-height: 799px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: 54px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    width: 82px;
+    height: 96px;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span { font-size: 10px; }
+  #clerk-desktop .clerk-desktop__taskbar { height: 34px; min-height: 34px; max-height: 34px; }
+  #clerk-desktop .clerk-desktop__window-layer { bottom: 34px; }
+  #clerk-desktop .clerk-desktop__start-menu { bottom: 34px; }
+  #clerk-desktop .archive-workflow-titlebar > span { font-size: 11px; }
+  #clerk-desktop .archive-workflow-window :is(input, select, textarea, button) { font-size: 12px; }
+}
+
+@media (min-width: 1440px) and (max-width: 2199px) and (min-height: 800px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: clamp(68px, 4.2vw, 82px); }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span { font-size: 12px; }
+}
+
+@media (min-width: 3200px) and (min-height: 1700px) {
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] { --archive-icon-size: 126px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button {
+    width: 166px;
+    height: 188px;
+    row-gap: 10px;
+    padding: 5px;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::before { inset: 12px; }
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] .clerk-desktop__icon::after {
+    right: 4px;
+    bottom: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+  }
+  #clerk-desktop .clerk-desktop__taskbar {
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
+    gap: 5px;
+    padding: 5px;
+  }
+  #clerk-desktop .clerk-desktop__window-layer { bottom: 56px; }
+  #clerk-desktop .clerk-desktop__start-menu { bottom: 56px; grid-template-columns: 42px minmax(330px, 1fr); }
+  #clerk-desktop .clerk-desktop__start,
+  #clerk-desktop .clerk-desktop__arrange { min-height: 42px; padding-inline: 14px; font-size: 15px; }
+  #clerk-desktop .clerk-desktop__tray { gap: 10px; padding-inline: 10px; font-size: 15px; }
+  #clerk-desktop .clerk-desktop__task-list .archive-task-button { flex-basis: 285px; font-size: 15px; }
+  #clerk-desktop [data-workspace-mailbox-ornament] { width: 92px; height: 92px; }
+  #clerk-desktop [data-workspace-mailbox-ornament] > span,
+  #clerk-desktop [data-workspace-mailbox-ornament] .workspace-mailbox-icon { width: 82px; height: 82px; }
+  #clerk-desktop .archive-workflow-window {
+    width: min(2460px, calc(100vw - 120px));
+    height: min(1500px, calc(100dvh - 132px));
+  }
+  #clerk-desktop .archive-workflow-list-window {
+    width: min(1560px, calc(100vw - 120px));
+    height: min(1120px, calc(100dvh - 150px));
+  }
+  #clerk-desktop .archive-workflow-titlebar { min-height: 48px; padding-left: 12px; }
+  #clerk-desktop .archive-workflow-titlebar > span { font-size: 18px; }
+  #clerk-desktop .archive-workflow-titlebar button { width: 42px; min-width: 42px; height: 38px; font-size: 17px; }
+  #clerk-desktop .archive-editor,
+  #clerk-desktop .archive-admin-review { height: calc(100% - 48px); }
+  #clerk-desktop .archive-workflow-window :is(input, select, textarea, button) { font-size: 17px; }
+  #clerk-desktop .archive-workflow-window :is(label, p, li, dt, dd) { font-size: 15px; }
+  #clerk-desktop .archive-workflow-window :is(h2, h3) { font-size: 28px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    width: 420px;
+    height: 280px;
+  }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-title { font-size: 20px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note-body { font-size: 15px; }
+  #clerk-desktop #workspace-note-region .workspace-sticky-note button { min-height: 42px; font-size: 14px; }
+  #clerk-desktop .workspace-note-controls [data-workspace-note-create] { min-width: 72px; min-height: 72px; font-size: 18px; }
+}
+
+@media (max-width: 390px) {
+  #clerk-desktop #workspace-note-region {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }

@@ -162,8 +162,21 @@ export const createLocalWorkflowEngine = ({
     if (templateId && (!template || template.active === false)) {
       throw workflowError('invalid_template', 'An active archive template is required');
     }
-    const archiveId = draft.archiveId ?? draft.archive_id ?? saved?.archive_id ?? null;
-    const kind = draft.kind ?? saved?.kind ?? 'new';
+    const content = draft.content ?? draft.draft_content ?? saved?.draft_content ?? {};
+    const workflowTaskId = String(content.workflowTaskId ?? '').trim();
+    const commissionTask = workflowTaskId
+      ? (state.workflowTasks || []).find((entry) => entry.id === workflowTaskId && entry.kind === 'commission')
+      : null;
+    const requestedArchiveId = draft.archiveId ?? draft.archive_id ?? saved?.archive_id ?? null;
+    const inheritedArchiveId = commissionTask?.archive_id ?? null;
+    const archiveId = requestedArchiveId ?? inheritedArchiveId;
+    const requestedKind = draft.kind ?? saved?.kind ?? 'new';
+    // Drafts opened before the first participant publishes begin as `new`.
+    // Once the commission has its archive, keep their text but turn their
+    // publication into the next independent record of that archive.
+    const kind = inheritedArchiveId && !requestedArchiveId && requestedKind === 'new'
+      ? 'contribution'
+      : requestedKind;
     const category = normalizeCategory(template?.category);
     return { archiveId, category, kind, templateId };
   };
@@ -591,6 +604,19 @@ export const createLocalWorkflowEngine = ({
       const contribution = nextState.contributions.find((entry) => entry.id === contributionId);
       if (!contribution) throw workflowError('not_found', 'Submission was not found');
 
+      const commissionResponse = (nextState.workflowTaskResponses || []).find((entry) =>
+        entry.contribution_id === contribution.id);
+      const commissionTask = commissionResponse
+        ? (nextState.workflowTasks || []).find((entry) =>
+          entry.id === commissionResponse.task_id && entry.kind === 'commission')
+        : null;
+      const commissionArchiveId = commissionTask?.archive_id ?? null;
+      const isCommissionFollowUp = Boolean(commissionArchiveId);
+      if (commissionArchiveId && !contribution.archive_id) {
+        contribution.archive_id = commissionArchiveId;
+        if (contribution.kind === 'new') contribution.kind = 'contribution';
+      }
+
       const template = nextState.templates.find((entry) => entry.id === contribution.template_id);
       const category = normalizeCategory(registration.category ?? template?.category);
       let categoryRegistration;
@@ -619,9 +645,9 @@ export const createLocalWorkflowEngine = ({
           'An approved submission cannot be redirected to another archive',
         );
       }
-      const archiveIdInput = bindsExistingArchive
+      const archiveIdInput = commissionArchiveId ?? (bindsExistingArchive
         ? contribution.archive_id
-        : commandArchiveId;
+        : commandArchiveId);
       let archive = archiveIdInput
         ? nextState.archives.find((entry) => entry.id === archiveIdInput)
         : null;
@@ -719,6 +745,10 @@ export const createLocalWorkflowEngine = ({
         };
         nextState.archives.push(archive);
       }
+      if (commissionTask && !commissionTask.archive_id) {
+        commissionTask.archive_id = archive.id;
+        commissionTask.updated_at = publishedAt;
+      }
 
       const owner = nextState.profiles.find((profile) => profile.id === contribution.owner_id);
       const formalNumber = formatArchiveFormalNumber(category, archive.sequence_number);
@@ -810,12 +840,17 @@ export const createLocalWorkflowEngine = ({
           ?? archive.index_payload
           ?? {},
       );
-      archive.title = String(indexPayload.title ?? projection.title ?? archive.title);
-      archive.summary = projection.summary;
-      archive.index_payload = indexPayload;
-      archive.visibility = visibility;
-      archive.current_version_id = version.id;
-      archive.published_at = publishedAt;
+      // The first approved response establishes the dossier. Follow-up
+      // commission responses are records in that dossier, not replacements
+      // for its title, index card, or current record.
+      if (!isCommissionFollowUp) {
+        archive.title = String(indexPayload.title ?? projection.title ?? archive.title);
+        archive.summary = projection.summary;
+        archive.index_payload = indexPayload;
+        archive.visibility = visibility;
+        archive.current_version_id = version.id;
+        archive.published_at = publishedAt;
+      }
       archive.updated_at = publishedAt;
       contribution.archive_id = archive.id;
       contribution.status = 'published';
@@ -823,8 +858,10 @@ export const createLocalWorkflowEngine = ({
       contribution.updated_at = publishedAt;
       failAt?.('archive');
 
-      nextState.indexEntries = nextState.indexEntries.filter((entry) => entry.archive_id !== archive.id);
-      nextState.indexEntries.push(projection);
+      if (!isCommissionFollowUp) {
+        nextState.indexEntries = nextState.indexEntries.filter((entry) => entry.archive_id !== archive.id);
+        nextState.indexEntries.push(projection);
+      }
       failAt?.('index');
 
       const referenceIds = Array.isArray(referenceInputs)
@@ -2080,6 +2117,7 @@ export const createLocalWorkflowEngine = ({
       }
       const saved = {
         ...(previous || { created_at: timestamp }), ...normalized,
+        archive_id: normalized.archive_id ?? previous?.archive_id ?? null,
         created_by: previous?.created_by || principal.id, updated_at: timestamp,
         opened_at: normalized.status === 'open' ? (previous?.opened_at || timestamp) : (previous?.opened_at || normalized.opened_at),
       };

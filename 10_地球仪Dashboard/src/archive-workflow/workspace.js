@@ -4056,6 +4056,11 @@ export function initializeArchiveWorkspace({
             status: existing.status ?? 'draft',
             content: existing.draft_content ?? { workflowTaskId: task.id },
             revision: existing.revision ?? 1,
+          } : task.archive_id ? {
+            // The first accepted response creates the commission dossier;
+            // every later clerk starts directly in its next-record editor.
+            archiveId: task.archive_id,
+            kind: 'contribution',
           } : {}),
           title: task.title,
           workflowTaskId: task.id,

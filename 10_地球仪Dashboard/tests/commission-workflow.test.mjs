@@ -51,6 +51,50 @@ test('a commission fixes its archive template and links the accepted clerk draft
   assert.equal(response.status, 'drafting');
 });
 
+test('several participants in one commission publish independent records into one dossier', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const task = await harness.repository.saveWorkflowTask({
+    kind: 'commission', code: 'T-SHARED-01', title: 'Shared field report',
+    objective: 'Collect separate observations in one dossier', templateId: '07', status: 'open',
+  });
+
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  await harness.repository.registerWorkflowTaskResponse(task.id);
+  const first = await harness.repository.saveDraft({
+    ownerId: 'clerk-1', templateId: '07', title: 'First observation', kind: 'new',
+    content: { schemaVersion: 2, templateCode: '07', values: {}, workflowTaskId: task.id },
+  });
+  await harness.repository.submitDraft(first.id, 'clerk-1');
+
+  // The second clerk can start before the first record is formally published.
+  // Publication must still attach this draft to the one commission dossier.
+  await harness.setPrincipal(LOCAL_PROFILES[2]);
+  await harness.repository.registerWorkflowTaskResponse(task.id);
+  const second = await harness.repository.saveDraft({
+    ownerId: 'clerk-2', templateId: '07', title: 'Second observation', kind: 'new',
+    content: { schemaVersion: 2, templateCode: '07', values: {}, workflowTaskId: task.id },
+  });
+  await harness.repository.submitDraft(second.id, 'clerk-2');
+
+  await harness.setPrincipal(LOCAL_PROFILES[0]);
+  await harness.repository.reviewSubmission(first.id, { decision: 'approved', message: 'Approved' });
+  const firstResult = await harness.repository.publishContribution(first.id, { category: 'event' });
+  await harness.repository.reviewSubmission(second.id, { decision: 'approved', message: 'Approved' });
+  const secondResult = await harness.repository.publishContribution(second.id, { category: 'event' });
+
+  const state = await harness.inspectState();
+  const sharedTask = state.workflowTasks.find((entry) => entry.id === task.id);
+  assert.equal(state.archives.length, 1, 'one commission must not create duplicate archive cards');
+  assert.equal(sharedTask.archive_id, firstResult.archiveId);
+  assert.equal(secondResult.archiveId, firstResult.archiveId);
+  assert.equal(state.contributions.find((entry) => entry.id === first.id).archive_id, firstResult.archiveId);
+  assert.equal(state.contributions.find((entry) => entry.id === second.id).archive_id, firstResult.archiveId);
+  assert.equal(state.contributions.find((entry) => entry.id === second.id).kind, 'contribution');
+  assert.equal(state.versions.filter((entry) => entry.archive_id === firstResult.archiveId).length, 2);
+  assert.equal(state.archives[0].title, 'First observation', 'a later record must not replace the dossier identity');
+});
+
 test('a clerk can leave a commission after drafting, keep the draft, and accept again', async () => {
   const harness = await createLocalWorkflowHarness();
   await harness.seedDefaults();

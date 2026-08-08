@@ -44,7 +44,11 @@ const normalizeSession = (input = {}) => {
       ?? profile.id
       ?? '',
   ).trim();
-  const role = String(session.role ?? profile.role ?? '').trim().toLowerCase();
+  const rawRole = String(session.role ?? profile.role ?? '').trim().toLowerCase();
+  // The workspace shell historically exposes the administrator role as both
+  // "admin" and "administrator". Treat them as one permission identity so
+  // mobile and desktop note controls never disagree.
+  const role = rawRole === 'administrator' ? 'admin' : rawRole;
 
   return {
     desktopOpen: Boolean(session.desktopOpen ?? session.isDesktopOpen ?? session.open ?? false),
@@ -111,7 +115,10 @@ const sortSet = (set) => [...set].sort();
  * Shared-note content is mutable only by administrators. Layout movement remains
  * available to every workspace role and is intentionally not governed by this helper.
  */
-export const canManageWorkspaceNotes = (role) => role === 'admin';
+export const canManageWorkspaceNotes = (role) => {
+  const normalizedRole = String(role ?? '').trim().toLowerCase();
+  return normalizedRole === 'admin' || normalizedRole === 'administrator';
+};
 
 /**
  * Keeps a note entirely inside the window's usable area. Coordinates are relative
@@ -636,6 +643,13 @@ export const initializeWorkspaceNotes = ({
     return getState();
   };
 
+  const setNoteSize = (nextNoteSize) => {
+    layoutOptions.noteSize = normalizeNoteSize(nextNoteSize);
+    rebuildVisualPositions();
+    render();
+    return getState();
+  };
+
   const beginDrag = (noteId, {
     card = cards.get(noteId),
     clientX = 0,
@@ -875,7 +889,12 @@ export const initializeWorkspaceNotes = ({
     }
     tearingNotes.set(id, action);
     render();
-    return reducedMotion ? completeTear(id) : true;
+    // Phone workspace deliberately disables decorative animation so the UI
+    // stays responsive. Do not wait for an animationend event that can never
+    // fire there; complete the close/delete action immediately instead.
+    const view = root.ownerDocument?.defaultView;
+    const isStaticPhoneSurface = Boolean(view?.matchMedia?.('(max-width: 760px)')?.matches);
+    return reducedMotion || isStaticPhoneSurface ? completeTear(id) : true;
   };
 
   const closeNote = (noteId) => {
@@ -911,6 +930,7 @@ export const initializeWorkspaceNotes = ({
     reload: load,
     retryLayout,
     setBounds,
+    setNoteSize,
     setDraft,
     setSession,
     startEditing,

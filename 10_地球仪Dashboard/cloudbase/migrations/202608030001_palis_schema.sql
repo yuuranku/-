@@ -4550,3 +4550,242 @@ language sql security definer set search_path = public, pg_temp stable as $$
 $$;
 
 grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated
+
+-- Source migration: 202608080001_honor_notifications.sql
+alter table public.archive_notifications
+  drop constraint if exists archive_notifications_kind_check;
+
+alter table public.archive_notifications
+  add constraint archive_notifications_kind_check
+  check (kind in ('submitted', 'approved', 'changes_requested', 'published', 'invite', 'announcement', 'honor'));
+
+create or replace function public.send_honor_notification(
+  p_recipient_id uuid,
+  p_subject text,
+  p_message text
+)
+returns public.archive_notifications
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_profile public.profiles;
+  sent_notification public.archive_notifications;
+  normalized_subject text := trim(coalesce(p_subject, ''));
+  normalized_message text := trim(coalesce(p_message, ''));
+begin
+  if not public.is_admin() then
+    raise exception 'Only administrators can send honor notifications'
+      using errcode = '42501';
+  end if;
+
+  if length(normalized_subject) = 0 or length(normalized_subject) > 160
+    or length(normalized_message) = 0 or length(normalized_message) > 4000 then
+    raise exception 'Honor notification subject or message is invalid'
+      using errcode = '22023';
+  end if;
+
+  select * into target_profile
+  from public.profiles
+  where id = p_recipient_id
+    and role = 'clerk'
+    and enabled = true;
+
+  if not found then
+    raise exception 'Honor notifications can only be sent to enabled clerks'
+      using errcode = '22023';
+  end if;
+
+  insert into public.archive_notifications (
+    recipient_id,
+    contribution_id,
+    kind,
+    sender_label,
+    subject,
+    message
+  ) values (
+    target_profile.id,
+    null,
+    'honor',
+    '南极公约监管办公室 / 宣传部授信管理处',
+    normalized_subject,
+    normalized_message
+  ) returning * into sent_notification;
+
+  return sent_notification;
+end;
+$$;
+
+revoke all on function public.send_honor_notification(uuid, text, text) from public;
+
+grant execute on function public.send_honor_notification(uuid, text, text) to authenticated;
+
+create or replace function public.issue_clerk_honor(
+  p_clerk_id uuid,
+  p_ribbon_id uuid,
+  p_title text,
+  p_category text,
+  p_description text
+)
+returns public.clerk_honors
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_profile public.profiles;
+  saved_award public.clerk_honors;
+  normalized_title text := trim(coalesce(p_title, ''));
+  normalized_category text := trim(coalesce(p_category, ''));
+  normalized_description text := trim(coalesce(p_description, ''));
+  category_prefix text;
+  issuance_number integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Only administrators can issue honors'
+      using errcode = '42501';
+  end if;
+
+  if length(normalized_title) = 0 or length(normalized_title) > 100
+    or length(normalized_category) = 0 or length(normalized_category) > 60
+    or length(normalized_description) = 0 or length(normalized_description) > 500 then
+    raise exception 'Honor title, category, or description is invalid'
+      using errcode = '22023';
+  end if;
+
+  select * into target_profile
+  from public.profiles
+  where id = p_clerk_id
+    and role = 'clerk'
+    and enabled = true;
+
+  if not found then
+    raise exception 'Honors can only be issued to enabled clerks'
+      using errcode = '22023';
+  end if;
+
+  if not exists (select 1 from public.honor_ribbons where id = p_ribbon_id) then
+    raise exception 'Honor ribbon was not found'
+      using errcode = '22023';
+  end if;
+
+  category_prefix := case normalized_category
+    when 'mainline' then 'ML'
+    when 'event' then 'EV'
+    when 'commission' then 'CM'
+    when 'service' then 'LS'
+    when 'investigation' then 'SI'
+    else 'HR'
+  end;
+
+  -- Serialise one category at a time: revoked honors still count, so a number
+  -- is never reused and simultaneous issuances cannot receive the same code.
+  perform pg_advisory_xact_lock(hashtext('palis-honor:' || normalized_category));
+  select count(*) + 1 into issuance_number
+  from public.clerk_honors
+  where category = normalized_category;
+
+  insert into public.clerk_honors (
+    clerk_id, ribbon_id, issued_by, code, title, category, description,
+    issue_note, visibility, status
+  ) values (
+    target_profile.id, p_ribbon_id, auth.uid()::uuid,
+    category_prefix || '-' || lpad(issuance_number::text, 3, '0'),
+    normalized_title, normalized_category, normalized_description,
+    '', 'public', 'active'
+  ) returning * into saved_award;
+
+  return saved_award;
+end;
+$$;
+
+revoke all on function public.issue_clerk_honor(uuid, uuid, text, text, text) from public;
+
+grant execute on function public.issue_clerk_honor(uuid, uuid, text, text, text) to authenticated
+
+-- Source migration: 202608090001_commission_shared_dossier.sql
+-- A commission is a single dossier that may collect several independently
+-- authored records.  The first formally registered response fixes the dossier
+-- id on the task; later responses must reuse that id.
+alter table public.workflow_tasks
+  add column if not exists archive_id uuid references public.archives(id) on delete set null;
+
+create index if not exists workflow_tasks_commission_archive_idx
+  on public.workflow_tasks(archive_id)
+  where kind = 'commission' and archive_id is not null;
+
+create or replace function public.link_commission_archive_record(
+  p_contribution_id uuid,
+  p_archive_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  linked_task public.workflow_tasks%rowtype;
+  canonical_archive_id uuid;
+begin
+  if not exists (
+    select 1 from public.profiles
+    where id = auth.uid()::uuid and role = 'admin' and enabled
+  ) then
+    raise exception 'Only administrators can register commission dossiers' using errcode = '42501';
+  end if;
+
+  select task.* into linked_task
+  from public.workflow_task_responses response
+  join public.workflow_tasks task on task.id = response.task_id
+  where response.contribution_id = p_contribution_id
+  for update of task;
+
+  if not found then
+    return null;
+  end if;
+  if linked_task.kind <> 'commission' then
+    return null;
+  end if;
+
+  canonical_archive_id := linked_task.archive_id;
+  if canonical_archive_id is null then
+    update public.workflow_tasks
+    set archive_id = p_archive_id
+    where id = linked_task.id
+    returning archive_id into canonical_archive_id;
+  end if;
+  return canonical_archive_id;
+end;
+$$;
+
+grant execute on function public.link_commission_archive_record(uuid, uuid) to authenticated;
+
+-- Surface the fixed dossier id to the existing task board.  This lets a later
+-- participant enter the same archive directly instead of beginning another
+-- root archive draft.
+drop function if exists public.list_public_workflow_tasks(boolean);
+
+create function public.list_public_workflow_tasks(include_finished boolean default false)
+returns table (
+  id uuid, code text, kind text, title text, objective text, format text, template_id text, archive_id uuid, status text,
+  version_code text, part smallint, stage smallint, slot_id uuid, slot_label text,
+  response_count bigint, submission_count bigint,
+  opened_at timestamptz, closed_at timestamptz, settled_at timestamptz,
+  created_at timestamptz, updated_at timestamptz
+)
+language sql security definer set search_path = public, pg_temp stable as $$
+  select task.id, task.code, task.kind, task.title, task.objective, task.format, task.template_id,
+    task.archive_id, task.status, task.version_code, task.part, task.stage, task.slot_id, task.slot_label,
+    count(response.id) filter (where response.status <> 'withdrawn') as response_count,
+    count(response.id) filter (where response.status in ('submitted', 'archived', 'settled')) as submission_count,
+    task.opened_at, task.closed_at, task.settled_at, task.created_at, task.updated_at
+  from public.workflow_tasks task
+  left join public.workflow_task_responses response on response.task_id = task.id
+  where task.status in ('open', 'paused', 'closed')
+    or (include_finished and task.status in ('settling', 'settled', 'sealed'))
+  group by task.id
+  order by coalesce(task.opened_at, task.updated_at) desc, task.code
+$$;
+
+grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated

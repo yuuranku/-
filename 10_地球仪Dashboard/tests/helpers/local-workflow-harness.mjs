@@ -18,6 +18,13 @@ export const LOCAL_PROFILES = Object.freeze([
     role: 'clerk',
     enabled: true,
   }),
+  Object.freeze({
+    id: 'clerk-2',
+    email: 'clerk-2@example.com',
+    display_name: 'Second Archive Clerk',
+    role: 'clerk',
+    enabled: true,
+  }),
 ]);
 
 export const LOCAL_TEMPLATES = Object.freeze([
