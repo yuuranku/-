@@ -10175,7 +10175,7 @@ body.clerk-desktop-open { overflow: hidden; }
   background-color: var(--desktop-teal);
   background-image:
     linear-gradient(rgba(0, 0, 128, .08), rgba(0, 0, 128, .08)),
-    url('/assets/workspace/palis-workspace-sky.png');
+    url('/assets/workspace/palis-workspace-sky.jpg');
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -11715,5 +11715,50 @@ body.clerk-desktop-open { overflow: hidden; }
   #clerk-desktop #workspace-note-region .workspace-sticky-note-page {
     right: 5px;
     bottom: 5px;
+  }
+}
+
+/* iPad keeps a desktop-sized CSS viewport, but its tactile stage is too
+   compact for the desktop overlay layout.  Keep the globe ahead of the
+   archive and polar controls instead of allowing the controls to cover it. */
+@media (min-width: 761px) and (max-width: 1180px) and (pointer: coarse) {
+  .archive-layer { overflow-y: auto; padding: 150px 24px 92px; }
+  .archive-heading { top: 32px; left: 24px; }
+  .archive-back { top: 104px; left: 24px; }
+  .orbit-ring { display: none; }
+  .folder-orbit {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    width: 100%;
+    height: auto;
+  }
+  .folder-item { position: static; }
+  .folder-button,
+  .folder-orbit.is-dense .folder-button { width: 100%; min-height: 138px; transform: none; }
+  .folder-orbit.mode-network { grid-template-columns: 1fr; overflow: visible; }
+
+  .polar-layer { overflow-y: auto; padding: 18px 24px 100px; }
+  .polar-brand,
+  .map-layers,
+  .map-detail {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    width: min(100%, 720px);
+    margin-right: auto;
+    margin-bottom: 14px;
+    margin-left: auto;
+  }
+  .map-layers { margin-top: min(48dvh, 520px); }
+  .map-instructions { position: static; margin: 8px auto; transform: none; text-align: center; }
+  .polar-diagnostic {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(100%, 720px);
+    margin: 14px auto 0;
   }
 }

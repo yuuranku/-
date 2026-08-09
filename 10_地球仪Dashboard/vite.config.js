@@ -12,6 +12,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/node_modules/three/') || id.includes('/node_modules/three-globe/')) {
+            return 'globe-renderer';
+          }
           return isArchiveWorkflowSharedModule(id) ? 'archive-workflow-shared' : undefined;
         },
       },

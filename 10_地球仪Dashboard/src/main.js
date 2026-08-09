@@ -2160,6 +2160,14 @@ const experience = document.querySelector('#experience');
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x030504, 0.0015);
 
+const isCompactVisualViewport = () => {
+  const viewportWidth = window.visualViewport?.width || innerWidth;
+  const viewportHeight = window.visualViewport?.height || innerHeight;
+  return window.matchMedia('(pointer: coarse)').matches
+    && viewportWidth <= 1180
+    && viewportHeight >= viewportWidth * 0.75;
+};
+
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 1800);
 camera.position.set(0, 0, 340);
 camera.lookAt(0, 0, 0);
@@ -2169,7 +2177,10 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   powerPreference: 'high-performance',
 });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35));
+// A full desktop backing resolution makes the ordered-dither globe expensive
+// to compile on iPad. One physical pixel per CSS pixel keeps its first render
+// prompt while preserving the intentionally pixel-based visual language.
+renderer.setPixelRatio(Math.min(devicePixelRatio, isCompactVisualViewport() ? 1 : 1.35));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -7364,6 +7375,10 @@ function isPhoneViewport() {
   return (window.visualViewport?.width || innerWidth) < 761;
 }
 
+function isCompactGlobeViewport() {
+  return (window.visualViewport?.width || innerWidth) < 761 || isCompactVisualViewport();
+}
+
 function chapterFromHash(hash = location.hash) {
   const index = chapterLinks.findIndex((link) => link.hash === hash);
   return index >= 0 ? index : 0;
@@ -7771,7 +7786,10 @@ function getGlobeLayout(progress) {
   const stageCenterY = taskbarHeight * 0.5 * worldPerPixel;
   const introCornerX = viewportWidth * 0.5 * worldPerPixel;
   const introCornerY = stageCenterY - stageHeight * 0.5 * worldPerPixel;
-  const mobile = viewportWidth < 761;
+  // iPad Safari has a desktop-sized CSS width even when the available stage is
+  // portrait or compact landscape. Keep its globe in the compact composition
+  // so the archive and polar panels cannot cover it.
+  const mobile = isCompactGlobeViewport();
   const desktopAspect = viewportWidth / Math.max(viewportHeight, 1);
   const archiveScale = desktopAspect < 1.7 ? 0.47 : 0.5;
   const polarScale = desktopAspect < 1.7 ? 0.86 : 0.94;
