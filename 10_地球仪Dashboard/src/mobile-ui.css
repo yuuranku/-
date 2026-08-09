@@ -6810,7 +6810,7 @@
 
   .polar-diagnostic {
     right: 6px !important;
-    bottom: calc(var(--palis-phone-nav) + 6px) !important;
+    bottom: 6px !important;
     left: 6px !important;
     max-height: 236px !important;
   }
@@ -7101,7 +7101,7 @@
   /* Selection is a compact acknowledgement card, not a second screen. */
   .polar-layer .map-detail.has-selection {
     right: 7px !important;
-    bottom: calc(var(--palis-phone-nav) + 7px) !important;
+    bottom: 7px !important;
     left: 7px !important;
   }
 
@@ -7132,16 +7132,22 @@
   /* Workspace notes may inform the user, but must never cover the desktop.
      The note itself becomes a short tray card and its actions remain usable. */
   #clerk-desktop #workspace-note-region {
+    position: absolute !important;
+    top: auto !important;
     right: 8px !important;
-    bottom: calc(var(--palis-phone-nav) + 6px) !important;
+    bottom: calc(var(--phone-dock-height) + 6px) !important;
     left: 8px !important;
     height: 88px !important;
+    min-height: 88px !important;
     max-height: 88px !important;
+    overflow: hidden !important;
   }
 
   #clerk-desktop #workspace-note-region .workspace-sticky-note {
+    position: absolute !important;
+    inset: 0 !important;
     height: 88px !important;
-    min-height: 88px !important;
+    min-height: 0 !important;
     max-height: 88px !important;
     padding: 6px 8px !important;
   }
@@ -7162,7 +7168,7 @@
 
   #clerk-desktop:has(#workspace-note-region .workspace-sticky-note)
     .clerk-desktop__icons[data-archive-category-rail] {
-    inset: calc(var(--phone-home-head) + 8px) 8px calc(var(--palis-phone-nav) + 98px) !important;
+    inset: calc(var(--phone-home-head) + 8px) 8px calc(var(--phone-dock-height) + 98px) !important;
   }
 
   /* Category chooser: a full-screen, single-column list.  Drafts are compact
