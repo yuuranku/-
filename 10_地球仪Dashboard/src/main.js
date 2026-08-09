@@ -7375,13 +7375,17 @@ function syncMobileChapterFromHash(forcedChapter = null) {
     ? THREE.MathUtils.clamp(forcedChapter, 0, chapterTargets.length - 1)
     : chapterFromHash();
   const progress = chapterTargets[chapter] ?? 0;
+  const isInitialPosition = currentChapter < 0;
+  const isChangingChapter = !isInitialPosition
+    && currentChapter !== chapter
+    && Math.abs(scrollProgress - progress) > 0.001;
   if (chapterScrollFrame) {
     cancelAnimationFrame(chapterScrollFrame);
     chapterScrollFrame = 0;
   }
   targetProgress = progress;
-  scrollProgress = progress;
-  document.documentElement.classList.remove('is-chapter-transitioning');
+  if (isInitialPosition || reducedMotion) scrollProgress = progress;
+  if (isChangingChapter && !reducedMotion) emitLoadingCue('globe-shift', 420);
   setChapter(chapter);
   return true;
 }
