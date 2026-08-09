@@ -1959,6 +1959,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     { documentId: 'clerk-gabriel', name: 'Gabriel', code: 'SC-12 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-march', name: '3月', aliases: ['三月'], code: 'SC-35 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-asia-animal', name: '亚细亚动物', code: 'PROFILE / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-lin', name: '霖', code: 'SC-?? / ONLINE / 2 PAGES' },
   ];
   let clerkDirectoryProfiles = [];
   const clerkProfileFor = (record) => clerkDirectoryProfiles.find((candidate) =>
