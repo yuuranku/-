@@ -2087,12 +2087,17 @@ export const createLocalWorkflowEngine = ({
 
   const listWorkflowTasks = ({ includeFinished = false } = {}) => readSnapshot((state) => {
     const statuses = includeFinished ? [...ACTIVE_TASK_STATUSES, 'settling', 'settled', 'sealed'] : ACTIVE_TASK_STATUSES;
+    const submittedContributionIds = new Set(
+      (state.contributions || [])
+        .filter((contribution) => Boolean(contribution.submitted_at))
+        .map((contribution) => contribution.id),
+    );
     return (state.workflowTasks || []).filter((task) => statuses.includes(task.status)).map((task) => {
       const responses = (state.workflowTaskResponses || []).filter((response) => response.task_id === task.id && response.status !== 'withdrawn');
       return {
         ...task,
         response_count: responses.length,
-        submission_count: responses.filter((response) => ['submitted', 'archived', 'settled'].includes(response.status)).length,
+        submission_count: responses.filter((response) => submittedContributionIds.has(response.contribution_id)).length,
       };
     }).sort((left, right) => String(right.opened_at || right.updated_at || '').localeCompare(String(left.opened_at || left.updated_at || '')));
   });

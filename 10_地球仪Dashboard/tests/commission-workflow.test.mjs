@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 
 import {
   activeWorkflowTasks,
@@ -49,6 +49,49 @@ test('a commission fixes its archive template and links the accepted clerk draft
   const [response] = await harness.repository.listWorkflowTaskResponses(task.id);
   assert.equal(response.contribution_id, draft.id);
   assert.equal(response.status, 'drafting');
+});
+
+test('a submitted commission remains counted after administrator review', async () => {
+  const harness = await createLocalWorkflowHarness();
+  await harness.seedDefaults();
+  const task = await harness.repository.saveWorkflowTask({
+    kind: 'commission', code: 'T-SUBMISSION-HISTORY', title: 'Submission history',
+    objective: 'Keep the submitted total after review', templateId: '07', status: 'open',
+  });
+
+  await harness.setPrincipal(LOCAL_PROFILES[1]);
+  await harness.repository.registerWorkflowTaskResponse(task.id);
+  const draft = await harness.repository.saveDraft({
+    ownerId: 'clerk-1', templateId: '07', title: 'Historical submission', kind: 'new',
+    content: { schemaVersion: 2, templateCode: '07', values: {}, workflowTaskId: task.id },
+  });
+  await harness.repository.submitDraft(draft.id, 'clerk-1');
+
+  const state = await harness.inspectState();
+  state.workflowTaskResponses.find((entry) => entry.contribution_id === draft.id).status = 'drafting';
+  await harness.seed(state);
+  await harness.setPrincipal(LOCAL_PROFILES[0]);
+  await harness.repository.reviewSubmission(draft.id, { decision: 'approved', message: 'Approved' });
+
+  const reviewedTask = (await harness.repository.listWorkflowTasks())
+    .find((entry) => entry.id === task.id);
+  assert.equal(reviewedTask.submission_count, 1);
+});
+
+test('the public commission register counts immutable submission timestamps', async () => {
+  const migrationsUrl = new URL('../supabase/migrations/', import.meta.url);
+  const migrationNames = await readdir(migrationsUrl);
+  const migrationSources = await Promise.all(
+    migrationNames
+      .filter((name) => name.endsWith('.sql'))
+      .map((name) => readFile(new URL(name, migrationsUrl), 'utf8')),
+  );
+  const currentTaskRegister = migrationSources.find((source) =>
+    /(?:public\.)?archive_contributions\s+contribution/i.test(source)
+    && /contribution\.submitted_at\s+is\s+not\s+null/i.test(source)
+    && /create\s+function\s+public\.list_public_workflow_tasks/i.test(source));
+
+  assert.ok(currentTaskRegister, 'submission_count must use archive_contributions.submitted_at');
 });
 
 test('several participants in one commission publish independent records into one dossier', async () => {
