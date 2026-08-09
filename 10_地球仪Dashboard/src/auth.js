@@ -25,6 +25,13 @@ const BOOT_STEPS = [
     delay: 360,
   },
   {
+    state: 'CALIBRATING SYSTEM BUS',
+    frames: ['CHECKING DMA CHANNEL 00', 'CHECKING DMA CHANNEL 01', 'MEASURING BUS LATENCY'],
+    text: 'SYSTEM BUS CONTROLLER / DMA CHANNELS 00-01',
+    result: 'PASS',
+    delay: 470,
+  },
+  {
     state: 'TESTING DISPLAY ADAPTER',
     frames: ['PROBING VIDEO MEMORY', 'LOADING MONOCHROME FONT TABLE'],
     text: 'PALIS MONOCHROME DISPLAY ADAPTER / VIDEO RAM 256K',
@@ -60,6 +67,20 @@ const BOOT_STEPS = [
     delay: 540,
   },
   {
+    state: 'LOADING ARCHIVE CATALOG',
+    frames: ['READING DOSSIER MAP', 'CHECKING VERSION LEDGER', 'INDEXING UNRESOLVED RECORDS'],
+    text: 'PALIS ARCHIVE CATALOG / DOSSIER INDEX 09A',
+    result: 'READY',
+    delay: 520,
+  },
+  {
+    state: 'INITIALIZING PERSONNEL LEDGER',
+    frames: ['MOUNTING CLERK DIRECTORY', 'VERIFYING REGISTRY SEALS', 'CHECKING ACTIVE POSTINGS'],
+    text: 'PERSONNEL LEDGER / CLERK REGISTRY',
+    result: 'READY',
+    delay: 510,
+  },
+  {
     state: 'OPENING SECURITY COPROCESSOR',
     frames: ['READING DEVICE CERTIFICATE', 'VERIFYING KEY STORE', 'LOCKING PRIVATE REGISTER'],
     text: 'SECURITY COPROCESSOR / HARDWARE KEY STORE',
@@ -86,6 +107,20 @@ const BOOT_STEPS = [
     text: 'CHANNEL 09A / WHITE ABYSS ARCHIVE',
     result: 'ONLINE',
     delay: 720,
+  },
+  {
+    state: 'SYNCHRONIZING REMOTE LEDGER',
+    frames: ['READING PUBLIC NOTICES', 'CHECKING COMMISSION REGISTER', 'MERGING REVISION QUEUE'],
+    text: 'REMOTE LEDGER / ARCHIVE SYNCHRONIZATION',
+    result: 'SYNC',
+    delay: 570,
+  },
+  {
+    state: 'PREPARING WORKSPACE SHELL',
+    frames: ['LOADING DESKTOP ICONS', 'RESTORING CLERK DESK', 'CHECKING MESSAGE QUEUE'],
+    text: 'PALIS WORKSPACE / OPERATOR SHELL',
+    result: 'READY',
+    delay: 480,
   },
   {
     state: 'LOADING AUTH SERVICES',
@@ -259,6 +294,8 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   const boot = document.querySelector('#access-boot');
   const bootLog = document.querySelector('#access-boot-log');
   const bootState = document.querySelector('#access-boot-state');
+  const bootFooterState = document.querySelector('#access-boot-footer-state');
+  const stepCount = document.querySelector('#access-step-count');
   const login = document.querySelector('#access-login');
   const granted = document.querySelector('#access-granted');
   const blinkingSquares = initializeAccessBlinkingSquares(
@@ -566,16 +603,21 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
       const frames = step.frames?.length ? step.frames : [step.state];
       for (const frame of frames) {
         bootState.textContent = frame;
-        footerStatus.textContent = `POST ${String(index + 1).padStart(2, '0')} / ${step.state}`;
+        const postStatus = `POST ${String(index + 1).padStart(2, '0')} / ${step.state}`;
+        footerStatus.textContent = postStatus;
+        if (bootFooterState) bootFooterState.textContent = postStatus;
         await waitForBoot(step.delay / frames.length);
       }
       const row = document.createElement('li');
       row.innerHTML = `<b>${step.text}</b><span>[ ${step.result} ]</span>`;
       bootLog.appendChild(row);
+      bootLog.scrollTop = bootLog.scrollHeight;
+      if (stepCount) stepCount.textContent = `${String(index + 1).padStart(2, '0')} / ${BOOT_STEPS.length}`;
     }
 
     bootState.textContent = 'SYSTEM SELF-TEST COMPLETE / STARTING SECURITY.EXE';
     footerStatus.textContent = 'POST COMPLETE / STARTING ACCESS CONTROL';
+    if (bootFooterState) bootFooterState.textContent = 'POST COMPLETE / STARTING ACCESS CONTROL';
     bootFinished = true;
     gate.removeEventListener('pointerdown', accelerateBoot);
     window.removeEventListener('keydown', accelerateBoot);

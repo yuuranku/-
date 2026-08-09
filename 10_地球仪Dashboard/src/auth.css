@@ -160,36 +160,108 @@ body.access-locked #archive-desktop {
 .access-boot {
   position: relative;
   display: grid;
-  width: min(860px, calc(100% - 48px));
+  width: min(1200px, calc(100% - 48px));
+  grid-template-columns: minmax(280px, .82fr) minmax(460px, 1.18fr);
+  height: min(576px, calc(100dvh - 158px));
+  min-height: 504px;
   align-self: center;
   justify-self: center;
-  padding: 42px 0 70px;
+  overflow: hidden;
+  border: 1px solid #236645;
+  background: rgba(2, 8, 5, .76);
+  box-shadow: inset 0 0 0 1px rgba(6, 17, 13, .8), 0 0 24px rgba(52, 177, 101, .12);
 }
 
 .access-boot[hidden],
 .access-login[hidden],
 .access-granted[hidden] { display: none !important; }
 
+.access-boot-mark {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  perspective: 820px;
+  border-right: 1px solid #236645;
+  background:
+    linear-gradient(rgba(99, 201, 139, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 201, 139, .07) 1px, transparent 1px),
+    radial-gradient(circle, rgba(63, 160, 105, .18), transparent 56%),
+    #07150f;
+  background-size: 18px 18px, 18px 18px, auto, auto;
+}
+
+.access-boot-mark::before {
+  position: absolute;
+  top: -30%;
+  left: -25%;
+  width: 150%;
+  height: 26%;
+  background: linear-gradient(transparent, rgba(139, 255, 180, .13), transparent);
+  content: '';
+  animation: access-mark-scan 3.6s linear infinite;
+}
+
+.access-mark-label,
+.access-mark-code {
+  position: absolute;
+  z-index: 1;
+  color: #4f9c70;
+  font-size: 10px;
+  letter-spacing: .12em;
+  line-height: 1.65;
+}
+
+.access-mark-label { top: 28px; left: 28px; }
+.access-mark-code { right: 28px; bottom: 26px; max-width: 210px; text-align: right; }
+
+.access-boot-mark__canvas {
+  position: relative;
+  z-index: 1;
+  width: min(78%, 304px);
+  max-height: 314px;
+  aspect-ratio: 1;
+  filter: contrast(1.13) saturate(.66) drop-shadow(0 0 9px rgba(99, 226, 147, .28));
+}
+
+.access-boot-mark__canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
 .access-boot-terminal {
-  display: flex;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
-  min-height: 390px;
-  flex-direction: column;
-  padding: clamp(20px, 3vw, 34px);
+  min-height: 0;
+  padding: 21px 28px 17px;
   color: #91af99;
-  border: 1px solid #27372d;
-  background: rgba(0, 3, 1, .72);
-  box-shadow: 8px 9px 0 rgba(0, 0, 0, .35);
+  background: linear-gradient(90deg, rgba(7, 21, 15, .76), rgba(7, 21, 15, .96));
 }
 
 .access-command-heading {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
   color: #6f8976;
+  border-bottom: 1px solid rgba(120, 217, 160, .3);
   font-size: 11px;
-  line-height: 1.55;
+  line-height: 1.45;
 }
 
 .access-command-heading p { margin: 0; }
+.access-step-meter {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 8px !important;
+  padding-bottom: 11px;
+  color: #74d89c;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.access-step-meter span:last-child { color: #4f9c70; }
 
 .access-command-line,
 .access-command-active {
@@ -198,7 +270,7 @@ body.access-locked #archive-desktop {
   gap: 9px;
   align-items: center;
   margin: 0;
-  font-size: clamp(10px, 1.2vw, 12px);
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -209,21 +281,22 @@ body.access-locked #archive-desktop {
 
 #access-boot-log {
   display: grid;
-  min-height: 228px;
+  min-height: 0;
   align-content: start;
-  gap: 6px;
-  margin: 18px 0;
-  padding: 0 0 0 18px;
+  gap: 5px;
+  margin: 12px 0;
+  padding: 0;
+  overflow: hidden;
   color: #759080;
-  font-size: clamp(10px, 1vw, 12px);
-  line-height: 1.4;
+  font-size: clamp(10px, 1.1vw, 12px);
+  line-height: 1.2;
   list-style: none;
 }
 
 #access-boot-log li {
   display: flex;
   min-width: 0;
-  gap: 14px;
+  gap: 8px;
   animation: access-line-in 80ms steps(2, end) both;
 }
 
@@ -244,8 +317,9 @@ body.access-locked #archive-desktop {
 
 .access-skip-hint {
   position: absolute;
-  right: 0;
-  bottom: 30px;
+  z-index: 2;
+  right: 28px;
+  bottom: 14px;
   margin: 0;
   color: #3f5547;
   font-size: 9px;
@@ -694,6 +768,10 @@ body.access-locked #archive-desktop {
   50% { opacity: .22; }
 }
 
+@keyframes access-mark-scan {
+  to { transform: translateY(460%); }
+}
+
 @keyframes access-login-arrive {
   from { opacity: 0; transform: translateY(18px) scale(.992); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -728,14 +806,26 @@ body.access-locked #archive-desktop {
   .access-footer { min-height: 30px; padding: 0 14px; }
   .access-boot {
     width: calc(100% - 28px);
-    padding: 18px 0 46px;
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    max-height: calc(100dvh - 80px);
+    overflow: auto;
   }
+  .access-boot-mark {
+    min-height: 210px;
+    border-right: 0;
+    border-bottom: 1px solid #236645;
+  }
+  .access-boot-mark__canvas { width: 42%; max-height: 155px; }
+  .access-mark-label { top: 18px; left: 18px; font-size: 8px; }
+  .access-mark-code { right: 18px; bottom: 17px; font-size: 8px; }
   .access-boot-terminal { min-height: 360px; padding: 16px; }
   .access-command-heading { margin-bottom: 18px; font-size: 9px; }
   .access-command-line,
   .access-command-active { align-items: flex-start; flex-wrap: wrap; font-size: 9px; }
-  #access-boot-log { min-height: 190px; gap: 5px; padding-left: 8px; font-size: 9px; }
-  .access-skip-hint { right: 4px; bottom: 16px; font-size: 7px; }
+  #access-boot-log { min-height: 190px; gap: 5px; padding-left: 8px; overflow: hidden; font-size: 9px; }
+  .access-skip-hint { right: 16px; bottom: 16px; font-size: 7px; }
 
   .access-login {
     width: calc(100% - 28px);
@@ -750,6 +840,12 @@ body.access-locked #archive-desktop {
 }
 
 @media (max-height: 700px) and (min-width: 761px) {
+  .access-boot {
+    height: min(504px, calc(100dvh - 112px));
+    min-height: 0;
+  }
+  .access-boot-terminal { padding: 16px 22px 14px; }
+  .access-boot-mark__canvas { width: min(70%, 245px); max-height: 250px; }
   .access-login { padding: 24px 0 42px; }
   #access-form { padding: 18px 26px; }
   .access-window-banner { margin-bottom: 14px; }

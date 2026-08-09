@@ -73,14 +73,20 @@
         </header>
 
         <section class="access-boot" id="access-boot" aria-live="polite">
+          <aside class="access-boot-mark" aria-label="ATOO oversight office mark">
+            <span class="access-mark-label">[OK] OVERSIGHT MARK / VERIFIED</span>
+            <div class="access-boot-mark__canvas" id="access-boot-mark" role="img" aria-label="ATOO oversight office mark"></div>
+            <span class="access-mark-code">ANTARCTIC TREATY<br />OVERSIGHT OFFICE<br />1961 / FILE AUTHORITY</span>
+          </aside>
           <div class="access-boot-terminal">
             <div class="access-command-heading">
               <p>PALIS Command Processor [Version 6.4.09A]</p>
               <p>(C) Polar Records Liaison Office. Authorized use only.</p>
+              <p class="access-step-meter"><span id="access-boot-state">INITIALIZING SYSTEM BUS</span><span id="access-step-count">00 / 19</span></p>
             </div>
             <p class="access-command-line"><span>C:\PALIS\SYSTEM&gt;</span><b>BOOT /CHANNEL:09A /SECURITY</b></p>
             <ol id="access-boot-log" aria-label="系统启动记录"></ol>
-            <p class="access-command-active"><span>C:\PALIS\SYSTEM&gt;</span><b id="access-boot-state">INITIALIZING SYSTEM BUS</b><i aria-hidden="true"></i></p>
+            <p class="access-command-active"><span>C:\PALIS\SYSTEM&gt;</span><b id="access-boot-footer-state">POST 00 / AWAIT SYSTEM CLOCK</b><i aria-hidden="true"></i></p>
           </div>
           <p class="access-skip-hint">按任意键加速启动 / PRESS ANY KEY TO ADVANCE</p>
         </section>
@@ -860,6 +866,7 @@
       </section>
     </template>
 
+    <script src="/assets/palis-boot-crest.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
