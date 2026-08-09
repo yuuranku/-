@@ -7036,8 +7036,10 @@
   /* The polar self-test has six rows.  Reserve room for the progress bar and
      percentage first, then fit every row into the remaining card. */
   .polar-diagnostic {
+    position: absolute !important;
+    top: auto !important;
     right: 6px !important;
-    bottom: calc(var(--palis-phone-nav) + 6px) !important;
+    bottom: 6px !important;
     left: 6px !important;
     max-height: 252px !important;
   }
@@ -7343,5 +7345,35 @@
   #clerk-desktop .archive-editor-window .archive-native-section :is(.archive-native-fields, .archive-native-grid, .archive-form-grid),
   #clerk-desktop .archive-editor-window .archive-editor__section :is(.archive-native-fields, .archive-native-grid, .archive-form-grid) {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Keep both session actions reachable on a phone: workspace and sign-out. */
+  .taskbar {
+    width: 102px !important;
+  }
+
+  .taskbar .auth-session:not([hidden]) {
+    display: grid !important;
+    grid-template-columns: repeat(2, 46px) !important;
+    gap: 6px !important;
+    width: 98px !important;
+    height: 46px !important;
+  }
+
+  .taskbar .auth-session > #auth-sign-out {
+    display: grid !important;
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    place-items: center !important;
+    padding: 0 !important;
+    color: #0c151b !important;
+    border: 2px solid #0c151b !important;
+    border-radius: 0 !important;
+    background: #e9ece8 !important;
+    box-shadow: 3px 3px 0 #0c151b !important;
+    font: 700 9px/1.1 var(--font-ui) !important;
+    text-align: center !important;
   }
 }
