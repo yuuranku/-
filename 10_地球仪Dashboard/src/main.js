@@ -1708,7 +1708,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
         <h2>在案书记官</h2>
       </div>
       <section>
-        <p class="assistant-clerk-index__lead">当前工作台可调阅六份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
+        <p class="assistant-clerk-index__lead">当前工作台可调阅七份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
         <ol class="assistant-clerk-index__list">
           ${clerkDirectoryRows()}
         </ol>
@@ -1958,12 +1958,22 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     { documentId: 'clerk-jing-quan-c', name: '赭犬C', code: 'SC-04 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-gabriel', name: 'Gabriel', code: 'SC-12 / ONLINE / 2 PAGES' },
     { documentId: 'clerk-march', name: '3月', code: 'SC-35 / ONLINE / 2 PAGES' },
+    { documentId: 'clerk-asia-animal', name: '亚细亚动物', code: 'PROFILE / ONLINE / 2 PAGES' },
   ];
   let clerkDirectoryProfiles = [];
+  const clerkProfileFor = (record) => clerkDirectoryProfiles.find((candidate) => candidate.display_name === record.name);
   const clerkRecordForDisplay = (record) => {
-    const profile = clerkDirectoryProfiles.find((candidate) => candidate.display_name === record.name);
+    const profile = clerkProfileFor(record);
     const title = `${clerkRegistrationLabel(profile?.clerk_rank)}：${record.name}`;
     return { ...record, entry: title, title };
+  };
+  const syncClerkDossierProfiles = () => {
+    document.querySelectorAll('[data-clerk-profile]').forEach((dossier) => {
+      const profile = clerkDirectoryProfiles.find((candidate) => candidate.display_name === dossier.dataset.clerkProfile);
+      const registration = clerkRegistrationLabel(profile?.clerk_rank);
+      dossier.querySelectorAll('[data-clerk-profile-registration]').forEach((target) => { target.textContent = registration; });
+      dossier.querySelectorAll('[data-clerk-profile-title]').forEach((target) => { target.textContent = `${registration}：${dossier.dataset.clerkProfile}`; });
+    });
   };
   const clerkDirectoryRows = () => Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');
@@ -1983,6 +1993,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     try {
       clerkDirectoryProfiles = await workspaceNoteClient.listClerkDirectory();
       renderClerkDirectory();
+      syncClerkDossierProfiles();
     } catch {
       // The static directory stays readable when the roster service is unavailable.
     }

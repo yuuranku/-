@@ -8646,6 +8646,32 @@ body.access-locked .mascot-assistant { display: none; }
 .mascot-document-window.is-clerk-dossier .clerk-dossier-pagination { inset: auto 16px 14px; transform: none; }
 .mascot-document-window.is-clerk-dossier .clerk-dossier-pagination button { width: 46px; height: 38px; border-color: rgba(229, 181, 54, .82); background: rgba(19, 45, 41, .88); }
 
+.clerk-dossier-page--profile { display: block; overflow: auto; padding: clamp(18px, 4vw, 52px); background: #0c1518 !important; }
+.clerk-profile-sheet { width: min(840px, 100%); min-height: 100%; margin: 0 auto; padding: clamp(22px, 4vw, 48px); color: #102925; border: 2px solid #1e4740; background: #dfdac7; box-shadow: 8px 8px 0 rgba(0, 0, 0, .35), inset 0 0 0 6px rgba(250, 247, 231, .52); font-family: var(--font-mono); }
+.clerk-profile-sheet__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #31554c; color: #31554c; font-size: 11px; letter-spacing: .07em; }
+.clerk-profile-sheet__header p { margin: 0; }
+.clerk-profile-sheet__header span { padding: 4px 7px; color: #f4f0df; background: #143f38; font-size: 10px; }
+.clerk-profile-sheet__title { padding: clamp(28px, 7vw, 68px) 0 30px; border-bottom: 2px solid #1f4840; }
+.clerk-profile-sheet__title p { margin: 0 0 8px; color: #a0302b; font-size: 12px; letter-spacing: .08em; }
+.clerk-profile-sheet__title h3 { margin: 0; color: #123b35; font: 700 clamp(34px, 7vw, 68px)/.95 var(--font-display); letter-spacing: .02em; }
+.clerk-profile-sheet__ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 30px 0; border-top: 1px solid #527067; border-left: 1px solid #527067; }
+.clerk-profile-sheet__ledger div { min-height: 102px; padding: 15px; border-right: 1px solid #527067; border-bottom: 1px solid #527067; }
+.clerk-profile-sheet__ledger dt { margin-bottom: 16px; color: #45645c; font-size: 11px; letter-spacing: .08em; }
+.clerk-profile-sheet__ledger dd { margin: 0; color: #142d29; font: 700 18px/1.25 var(--font-display); }
+.clerk-profile-sheet__note { padding-top: 16px; border-top: 1px dashed #527067; color: #2e5149; font-size: 12px; line-height: 1.7; }
+.clerk-profile-sheet--notes { display: flex; flex-direction: column; }
+.clerk-profile-sheet__copy { max-width: 620px; padding: clamp(38px, 9vw, 96px) 0; }
+.clerk-profile-sheet__copy p { margin: 0 0 24px; color: #183a34; font: 20px/1.9 var(--font-serif); }
+.clerk-profile-sheet--notes .clerk-profile-sheet__note { margin-top: auto; }
+
+@media (max-width: 560px) {
+  .clerk-dossier-page--profile { padding: 12px; }
+  .clerk-profile-sheet { padding: 20px; }
+  .clerk-profile-sheet__ledger { grid-template-columns: 1fr; }
+  .clerk-profile-sheet__ledger div { min-height: auto; }
+  .clerk-profile-sheet__copy p { font-size: 17px; }
+}
+
 .mascot-document-content--timeline {
   --timeline-blue: var(--cold-blue);
   --timeline-red: var(--cold-red);

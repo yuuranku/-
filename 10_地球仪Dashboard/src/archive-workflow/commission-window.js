@@ -252,7 +252,7 @@ export const openClerkDossierWindow = async ({ createWindow, client, profile, on
   try {
     const [entries, honors] = await Promise.all([
       client.listClerkDossierEntries(profile.id),
-      client.listClerkHonors?.(profile.id, { includeRevoked: true }) || [],
+      client.listClerkHonors?.(profile.id) || [],
     ]);
     let filter = 'all';
     const render = () => {

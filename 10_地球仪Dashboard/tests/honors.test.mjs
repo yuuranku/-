@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { HONOR_CATEGORIES, honorCategory } from '../src/archive-workflow/honors.js';
 import { renderFormalArchiveDocument } from '../src/archive-workflow/public-renderer.js';
+import { openClerkDossierWindow } from '../src/archive-workflow/commission-window.js';
 import { createLocalWorkflowHarness, LOCAL_PROFILES } from './helpers/local-workflow-harness.mjs';
 
 test('honor categories are selectable colour guidance, while unknown historical labels remain readable', () => {
@@ -33,6 +34,34 @@ test('administrator can issue and revoke a ribbon without erasing the clerk ledg
   assert.equal(ledger[0].imageUrl, 'data:image/png;base64,AA==');
   const visibleHonors = await harness.repository.listClerkHonors(LOCAL_PROFILES[1].id);
   assert.equal(visibleHonors.length, 0);
+});
+
+test('a clerk dossier requests only active honors, while the administrator ledger may retain revoked history', async () => {
+  let requestedOptions = null;
+  const ledger = { innerHTML: '', addEventListener() {} };
+  const navigation = { addEventListener() {} };
+  const windowElement = {
+    querySelector(selector) {
+      if (selector === '[data-clerk-ledger]') return ledger;
+      if (selector === '.clerk-dossier > nav') return navigation;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  };
+
+  await openClerkDossierWindow({
+    createWindow: () => ({ windowElement }),
+    client: {
+      listClerkDossierEntries: async () => [],
+      listClerkHonors: async (_clerkId, options) => {
+        requestedOptions = options;
+        return [];
+      },
+    },
+    profile: { id: 'clerk-march', display_name: 'March', clerk_rank: 'assistant' },
+  });
+
+  assert.equal(requestedOptions, undefined);
 });
 
 test('honor codes are assigned from each category issuance count and never reuse a revoked number', async () => {
