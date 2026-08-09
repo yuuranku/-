@@ -2,7 +2,7 @@ import {
   isLoopbackHostname,
   shouldEnableLocalAdmin,
 } from './palis-runtime-policy.js';
-import { initializeAccessGate, replayAccessTransition } from '../auth.js';
+import { initializeAccessGate } from '../auth.js';
 import { createArchiveWorkflowClient } from '../archive-workflow/client.js';
 
 export async function initializePalisRuntime({
@@ -23,11 +23,20 @@ export async function initializePalisRuntime({
       .has('replay-transition');
 
     if (replayTransition) {
-      // Deliberately limited to Vite's local administrator path above: this is
-      // a visual preview, not a route that can grant or alter access online.
-      window.requestAnimationFrame(() => {
-        void replayAccessTransition({ reducedMotion });
+      // Deliberately limited to the loopback-only local administrator runtime:
+      // this plays the full boot and mark hand-off without creating a session.
+      initializeAccessGate({
+        reducedMotion,
+        autoPreview: true,
+        // main.js normally activates the local runtime immediately.  For this
+        // explicit test route, hold it back until the access hand-off has
+        // fully finished, otherwise it hides the gate before boot can render.
+        onTransitionComplete: () => localRuntime.activate(),
       });
+      return {
+        ...localRuntime,
+        activate() {},
+      };
     }
 
     return localRuntime;

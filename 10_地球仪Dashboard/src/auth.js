@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { gsap } from 'gsap';
 import { initializeAccessVoid } from './access-void.js';
 import { emitUiSound } from './ui-sounds.js';
 
@@ -139,155 +140,122 @@ const BOOT_STEPS = [
 ];
 
 const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
-// This sequence is deliberately slow enough to read as a hand-off rather than
-// a flash: the authenticated desktop is already live beneath the mask before
-// the centre begins to open.
-const ACCESS_TRANSITION_MS = 2600;
+const nextFrame = () => new Promise((resolve) => window.requestAnimationFrame(resolve));
 
-function initializeAccessBlinkingSquares(canvas, { reducedMotion = false } = {}) {
-  const context = canvas?.getContext?.('2d');
-  if (!canvas || !context) return { play() {}, stop() {} };
-
-  // Match the supplied component's dense pixel-field presentation rather than
-  // its generic preview defaults: small cells, rich cold tones, top-to-bottom
-  // decay, and independently blinking cells.
-  const gridSize = 160;
-  const fillPercent = 70;
-  const twinkleSpeed = 30;
-  const opacity = 1;
-  const fadePercent = 100;
-  const fadeIntensity = 25;
-  const squareColors = [
-    [214, 221, 219], // phosphor-white highlight
-    [151, 164, 162], // cold office grey
-    [89, 102, 103],  // shadow grey
-    [41, 49, 51],    // near-black terminal grey
-  ];
-  let animationFrame = 0;
-  let active = false;
-  let startedAt = 0;
-  let width = 0;
-  let height = 0;
-  let cells = [];
-
-  const layout = () => {
-    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
-    width = canvas.clientWidth || window.innerWidth;
-    height = canvas.clientHeight || window.innerHeight;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const cellSize = Math.max(width, height) / Math.max(2, Math.floor(gridSize));
-    const cols = Math.max(1, Math.ceil(width / cellSize));
-    const rows = Math.max(1, Math.ceil(height / cellSize));
-    cells = Array.from({ length: cols * rows }, (_, index) => {
-      const random = (seed) => {
-        const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-        return value - Math.floor(value);
-      };
-      return {
-        phase: random(index) * Math.PI * 2,
-        rate: 0.6 + random(index * 7.137 + 33.71) * 0.8,
-        tint: random(index * 3.51 + 5.91),
-        x: index % cols,
-        y: Math.floor(index / cols),
-        cellSize,
-        cols,
-        rows,
-      };
-    });
-  };
-
-  const draw = (time) => {
-    context.clearRect(0, 0, width, height);
-    const elapsed = (time - startedAt) / 1000;
-    const fadeStart = 1 - Math.max(0, Math.min(1, fadePercent / 100));
-    const falloff = 0.2 + Math.max(0, Math.min(100, fadeIntensity)) / 100 * 5.8;
-    const inset = (1 - Math.max(0.1, Math.min(1, fillPercent / 100))) * 0.5;
-    const speed = Math.max(0, twinkleSpeed) * 0.05;
-
-    cells.forEach((cell) => {
-      const u = cell.y / Math.max(1, cell.rows - 1);
-      const envelope = u <= fadeStart ? 1 : Math.pow(1 - u, falloff);
-      const twinkle = 0.5 + 0.5 * Math.sin(elapsed * speed * cell.rate * Math.PI * 2 + cell.phase);
-      // Posterise the brightness into hard steps so the field reads as a
-      // restrained 8-bit display rather than a soft particle effect.
-      const alpha = Math.round(envelope * twinkle * opacity * 5) / 5;
-      if (alpha <= 0.002) return;
-      const size = cell.cellSize * (1 - inset * 2);
-      const color = squareColors[Math.min(squareColors.length - 1, Math.floor(cell.tint * squareColors.length))];
-      context.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha.toFixed(3)})`;
-      context.fillRect(
-        cell.x * cell.cellSize + cell.cellSize * inset,
-        cell.y * cell.cellSize + cell.cellSize * inset,
-        size,
-        size,
-      );
-    });
-  };
-
-  const frame = (time) => {
-    if (!active) return;
-    draw(time);
-    animationFrame = window.requestAnimationFrame(frame);
-  };
-
-  const stop = () => {
-    active = false;
-    window.cancelAnimationFrame(animationFrame);
-    animationFrame = 0;
-    context.clearRect(0, 0, width, height);
-  };
-
-  return {
-    play() {
-      stop();
-      layout();
-      startedAt = performance.now();
-      if (reducedMotion) {
-        draw(startedAt);
-        return;
-      }
-      active = true;
-      animationFrame = window.requestAnimationFrame(frame);
-    },
-    stop,
-  };
+function playTimeline(timeline) {
+  return new Promise((resolve) => {
+    timeline.eventCallback('onComplete', resolve);
+    timeline.play(0);
+  });
 }
 
-// Development-only visual replay for the local administrator runtime.  It uses
-// the same canvas/phase as a real access hand-off, but never changes session or
-// access state.
-export async function replayAccessTransition({ reducedMotion = false } = {}) {
-  const gate = document.querySelector('#access-gate');
-  const canvas = document.querySelector('#access-transition-squares');
-  if (!gate || !canvas) return;
+async function playAccessMarkTransition({ gate, boot, login, granted, reducedMotion, reveal }) {
+  const mark = document.querySelector('#access-boot-mark');
+  const panel = mark?.closest('.access-boot-mark');
+  if (!gate || !boot || !mark || !panel) {
+    reveal();
+    return;
+  }
 
-  const squares = initializeAccessBlinkingSquares(canvas, { reducedMotion });
-  const wasHidden = gate.hidden;
-  const previousPhase = gate.dataset.phase;
-  const wasOpening = gate.classList.contains('is-tv-opening');
-  const wasLeaving = gate.classList.contains('is-leaving');
+  boot.hidden = false;
+  login.hidden = true;
+  granted.hidden = true;
+  gate.dataset.phase = 'mark-transition';
+  const crest = mark.__palisCrestController || window.PALIS_BOOT_CREST;
 
-  gate.hidden = false;
-  gate.classList.remove('is-leaving');
-  gate.classList.add('is-tv-opening');
-  gate.dataset.phase = 'login';
-  // Force the CSS animation to restart whenever the preview URL is refreshed.
-  void canvas.offsetWidth;
-  gate.dataset.phase = 'tv-open';
-  squares.play();
-  await wait(reducedMotion ? 20 : ACCESS_TRANSITION_MS);
-  squares.stop();
+  if (reducedMotion) {
+    await crest?.faceFront?.({ duration: 0 });
+    reveal();
+    await playTimeline(gsap.timeline({ paused: true }).to(gate, {
+      opacity: 0,
+      duration: 0.18,
+      ease: 'power1.out',
+    }));
+    return;
+  }
 
-  gate.hidden = wasHidden;
-  gate.classList.toggle('is-tv-opening', wasOpening);
-  gate.classList.toggle('is-leaving', wasLeaving);
-  if (previousPhase) gate.dataset.phase = previousPhase;
-  else delete gate.dataset.phase;
+  await nextFrame();
+
+  const rect = mark.getBoundingClientRect();
+
+  boot.classList.add('is-access-handoff-frame');
+  panel.classList.add('is-access-handoff-panel');
+  mark.classList.add('is-access-handoff');
+  Object.assign(mark.style, {
+    position: 'fixed',
+    left: '0',
+    top: '0',
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    transform: 'translate3d(0, 0, 0) scale(1)',
+  });
+
+  const centreX = (window.innerWidth - rect.width) / 2;
+  const centreY = (window.innerHeight - rect.height) / 2;
+  const compactViewport = window.matchMedia('(max-width: 760px)').matches;
+  const centreDuration = compactViewport ? 1.2 : 1.38;
+  const exitDuration = compactViewport ? 1.42 : 1.56;
+  const exitScale = Math.max(
+    (window.innerWidth * 1.72) / rect.width,
+    (window.innerHeight * 1.72) / rect.height,
+  );
+  const handoffRenderScale = Math.min(
+    8,
+    Math.max(1, (Math.max(window.innerWidth, window.innerHeight) * 1.4) / Math.max(rect.width, rect.height)),
+  );
+  crest?.setRenderScale?.(handoffRenderScale);
+
+  gsap.set(mark, {
+    x: rect.left,
+    y: rect.top,
+    scale: 1,
+    transformOrigin: '50% 50%',
+  });
+
+  const facingPromise = crest?.faceFront?.({ duration: centreDuration * 1000 }) || Promise.resolve();
+
+  let revealed = false;
+  const revealExperience = () => {
+    if (revealed) return;
+    revealed = true;
+    reveal();
+  };
+  const timeline = gsap.timeline({ paused: true });
+  timeline
+    .to(mark, {
+      x: centreX,
+      y: centreY,
+      duration: centreDuration,
+      ease: 'power2.inOut',
+    }, 0)
+    .to(mark, {
+      scale: exitScale,
+      duration: exitDuration,
+      ease: 'power1.in',
+    }, centreDuration)
+    .call(revealExperience, [], centreDuration + exitDuration - 0.34)
+    .to(gate, {
+      opacity: 0,
+      duration: 0.58,
+      ease: 'power2.out',
+    }, centreDuration + exitDuration - 0.34);
+
+  await Promise.all([facingPromise, playTimeline(timeline)]);
+  revealExperience();
+
+  timeline.kill();
+  crest?.setRenderScale?.(1);
+  mark.removeAttribute('style');
+  mark.classList.remove('is-access-handoff');
+  panel.classList.remove('is-access-handoff-panel');
+  boot.classList.remove('is-access-handoff-frame');
 }
 
-export function initializeAccessGate({ reducedMotion = false } = {}) {
+export function initializeAccessGate({
+  reducedMotion = false,
+  autoPreview = false,
+  onTransitionComplete = null,
+} = {}) {
   const gate = document.querySelector('#access-gate');
   const experience = document.querySelector('#experience');
   const archiveDesktop = document.querySelector('#archive-desktop');
@@ -298,10 +266,6 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   const stepCount = document.querySelector('#access-step-count');
   const login = document.querySelector('#access-login');
   const granted = document.querySelector('#access-granted');
-  const blinkingSquares = initializeAccessBlinkingSquares(
-    document.querySelector('#access-transition-squares'),
-    { reducedMotion },
-  );
   const grantedUser = document.querySelector('#access-granted-user');
   const footerStatus = document.querySelector('#access-footer-status');
   const form = document.querySelector('#access-form');
@@ -399,7 +363,6 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     window.dispatchEvent(new CustomEvent('palis:access-mode-change', { detail: { mode: 'locked' } }));
     emitSessionChange(null, null, false);
     gate.hidden = false;
-    gate.classList.remove('is-leaving', 'is-tv-opening');
     gate.dataset.phase = 'login';
     boot.hidden = true;
     granted.hidden = true;
@@ -430,22 +393,17 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
   }
 
   async function openLikeTelevision() {
-    login.hidden = true;
-    boot.hidden = true;
-    granted.hidden = true;
-    gate.classList.remove('is-leaving');
-    gate.classList.add('is-tv-opening');
-    // Make the real desktop available before the transition begins. The
-    // square field is a temporary foreground mask, so its opening reveals the
-    // already-rendered interface instead of cutting from black to the page.
-    setExperienceLocked(false);
-    await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    gate.dataset.phase = 'tv-open';
-    blinkingSquares.play();
-    await wait(reducedMotion ? 20 : ACCESS_TRANSITION_MS);
-    blinkingSquares.stop();
+    await playAccessMarkTransition({
+      gate,
+      boot,
+      login,
+      granted,
+      reducedMotion,
+      reveal: () => setExperienceLocked(false),
+    });
     gate.hidden = true;
-    gate.classList.remove('is-tv-opening');
+    gsap.set(gate, { clearProps: 'opacity' });
+    onTransitionComplete?.();
     experience.focus?.({ preventScroll: true });
   }
 
@@ -621,9 +579,10 @@ export function initializeAccessGate({ reducedMotion = false } = {}) {
     bootFinished = true;
     gate.removeEventListener('pointerdown', accelerateBoot);
     window.removeEventListener('keydown', accelerateBoot);
-    await wait(fastBoot ? 20 : 420);
+    await wait(fastBoot ? 20 : 60);
 
     if (pendingSession) await grantAccess(pendingSession);
+    else if (autoPreview) await enterPreview();
     else showLogin();
   }
 

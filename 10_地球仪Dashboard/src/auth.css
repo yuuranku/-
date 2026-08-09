@@ -1,9 +1,3 @@
-@property --access-reveal-radius {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 0%;
-}
-
 body.access-locked {
   height: 100dvh;
   overflow: hidden;
@@ -34,6 +28,16 @@ body.access-locked #archive-desktop {
 }
 
 .access-gate[hidden] { display: none !important; }
+
+.access-gate[data-phase='mark-transition'] .access-shell::after {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: rgba(0, 4, 2, .76);
+  content: '';
+  animation: access-handoff-dim .46s ease-out both;
+}
 
 .access-void {
   position: absolute;
@@ -75,56 +79,12 @@ body.access-locked #archive-desktop {
     inset 0 0 12px rgba(209, 255, 222, .12);
 }
 
-.access-tv-power {
-  display: none;
-}
-
-.access-gate[data-phase='tv-open'] {
-  /* Keep the gate itself transparent: only the square field remains opaque,
-     which means the expanding centre reveals the live PALIS desktop below. */
-  background: transparent;
-}
-
-.access-gate[data-phase='tv-open'] .access-shell,
-.access-gate[data-phase='tv-open'] .access-crt,
-.access-gate[data-phase='tv-open'] .access-void {
-  opacity: 0;
-}
-
-.access-gate[data-phase='tv-open'] .access-tv-power {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  display: block;
-  overflow: hidden;
-  background: #000;
-  --access-reveal-radius: 0%;
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--access-reveal-radius), #000 calc(var(--access-reveal-radius) + 1px));
-  mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--access-reveal-radius), #000 calc(var(--access-reveal-radius) + 1px));
-  animation: access-squares-reveal 2600ms cubic-bezier(.28, .02, .2, 1) both;
-}
-
-.access-tv-power canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  opacity: 1;
-  image-rendering: pixelated;
-  filter: grayscale(1) contrast(1.16);
-}
-
-.access-tv-power::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-  pointer-events: none;
-  opacity: .32;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(225, 231, 229, .065) 0 1px,
-    transparent 1px 4px
-  );
-  mix-blend-mode: screen;
+.access-boot-mark__canvas.is-access-handoff {
+  position: fixed !important;
+  z-index: 6;
+  max-height: none;
+  transform-origin: center;
+  will-change: transform;
 }
 
 .access-shell {
@@ -175,6 +135,19 @@ body.access-locked #archive-desktop {
 .access-boot[hidden],
 .access-login[hidden],
 .access-granted[hidden] { display: none !important; }
+
+.access-boot.is-access-handoff-frame,
+.access-boot-mark.is-access-handoff-panel {
+  overflow: visible;
+}
+
+.access-boot-mark.is-access-handoff-panel {
+  perspective: none;
+}
+
+.access-boot-mark.is-access-handoff-panel::before {
+  display: none;
+}
 
 .access-boot-mark {
   position: relative;
@@ -229,7 +202,7 @@ body.access-locked #archive-desktop {
   display: block;
   width: 100% !important;
   height: 100% !important;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .access-boot-terminal {
@@ -616,10 +589,6 @@ body.access-locked #archive-desktop {
 .access-granted > i span { display: block; width: 0; height: 100%; background: var(--terminal-green); animation: access-granted-load 780ms steps(12, end) forwards; }
 .access-granted > small { margin-top: 12px; color: #526b5a; font-size: 9px; }
 
-.access-gate.is-leaving {
-  animation: access-gate-leave 560ms cubic-bezier(.55, 0, 1, .45) forwards;
-}
-
 .auth-session {
   display: flex;
   min-width: 0;
@@ -772,6 +741,11 @@ body.access-locked #archive-desktop {
   to { transform: translateY(460%); }
 }
 
+@keyframes access-handoff-dim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @keyframes access-login-arrive {
   from { opacity: 0; transform: translateY(18px) scale(.992); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -784,19 +758,6 @@ body.access-locked #archive-desktop {
 
 @keyframes access-granted-load {
   to { width: 100%; }
-}
-
-@keyframes access-gate-leave {
-  0% { opacity: 1; filter: brightness(1); }
-  24% { opacity: 1; filter: brightness(2.5); transform: scaleY(.985); }
-  100% { opacity: 0; filter: brightness(.2); transform: scaleY(.02); }
-}
-
-/* The source squares stay untouched inside this layer. The PALIS wrapper turns
-   them into a temporary blackout mask that opens from the centre at the end. */
-@keyframes access-squares-reveal {
-  0%, 68% { --access-reveal-radius: 0%; }
-  100% { --access-reveal-radius: 150%; }
 }
 
 @media (max-width: 760px) {
@@ -859,8 +820,7 @@ body.access-locked #archive-desktop {
   .access-login,
   .access-granted,
   .access-granted > i span,
-  .access-gate.is-leaving,
-  .access-tv-power canvas {
+  .access-boot-mark__canvas.is-access-handoff {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
   }

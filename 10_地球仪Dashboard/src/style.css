@@ -379,6 +379,7 @@ body[data-chapter='1'] .space-noise {
   will-change: transform;
 }
 
+.capsule-frame::before,
 .capsule-frame::after {
   position: absolute;
   top: 48%;
@@ -387,13 +388,26 @@ body[data-chapter='1'] .space-noise {
   height: 70%;
   border-radius: 50%;
   content: '';
+  transform: translate(-50%, -50%) translate3d(var(--porthole-glass-x, 0px), var(--porthole-glass-y, 0px), 0);
+  will-change: transform;
+}
+
+.capsule-frame::before {
+  z-index: 1;
+  opacity: .34;
+  background:
+    radial-gradient(circle, rgba(221, 231, 225, .62) 0 .55px, transparent .78px) 0 0 / 3px 3px,
+    radial-gradient(circle at 48% 42%, rgba(111, 147, 125, .16), rgba(0, 0, 0, .08) 68%);
+  box-shadow: inset 0 0 46px 14px rgba(0, 0, 0, .32);
+  mix-blend-mode: soft-light;
+}
+
+.capsule-frame::after {
   opacity: .18;
   background:
     linear-gradient(122deg, rgba(255, 255, 255, .13), transparent 24% 72%, rgba(49, 91, 207, .07)),
     radial-gradient(ellipse at 38% 32%, rgba(255, 255, 255, .08), transparent 34%);
   mix-blend-mode: screen;
-  transform: translate(-50%, -50%) translate3d(var(--porthole-glass-x, 0px), var(--porthole-glass-y, 0px), 0);
-  will-change: transform;
 }
 
 .capsule-photo,
@@ -435,6 +449,23 @@ body[data-chapter='1'] .space-noise {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
+}
+
+.palis-authority-mark {
+  display: inline-block;
+  flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask: url('/assets/icons/palis-authority.svg') center / contain no-repeat;
+  mask: url('/assets/icons/palis-authority.svg') center / contain no-repeat;
+}
+
+.palis-authority-mark--boot {
+  width: 1.75em;
+  height: 1.75em;
+  margin-right: .55em;
+  vertical-align: -.31em;
+  color: #91b2ff;
+  filter: drop-shadow(0 0 3px rgba(86, 132, 255, .72));
 }
 
 .intro-layer .system-kicker { color: var(--cold-red); }
@@ -8983,6 +9014,7 @@ body.access-locked .mascot-assistant { display: none; }
 @media (max-width: 760px) {
   /* Phone composition: reserve the middle lane for the four chapter markers
      and keep the assistant as a small, non-obstructive dock icon at left. */
+  .capsule-frame::before,
   .capsule-frame::after {
     top: 48%;
     width: min(52vw, 250px);
@@ -10731,6 +10763,13 @@ body.clerk-desktop-open { overflow: hidden; }
   -webkit-mask: var(--pixel-icon) center / contain no-repeat;
   mask: var(--pixel-icon) center / contain no-repeat;
   pointer-events: none;
+}
+
+.clerk-desktop__watermark .palis-authority-mark--watermark {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 3px;
+  color: rgba(202, 220, 255, .42);
 }
 #clerk-desktop [data-workspace-mailbox-ornament]:is(:hover, :focus-visible) {
   outline: 1px dotted #f4f1e8;

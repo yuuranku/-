@@ -30613,7 +30613,7 @@ void main() {
 
   // C:/Users/Administrator/Downloads/ATOO-PALIS-boot-assets/palis-3d-logo.source.js
   var viewport = document.querySelector("#access-boot-mark") || document.querySelector("#mark-3d");
-  var renderer = new WebGLRenderer({ alpha: true, antialias: false, powerPreference: "high-performance" });
+  var renderer = new WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(1);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -30648,9 +30648,9 @@ void main() {
     model.traverse((node) => {
       if (!node.isMesh) return;
       node.material = new MeshStandardMaterial({
-        color: 3159602,
-        roughness: 0.36,
-        metalness: 0.32,
+        color: 0x3f7259,
+        roughness: 0.44,
+        metalness: 0.18,
         side: DoubleSide,
         dithering: true
       });
@@ -30660,19 +30660,88 @@ void main() {
     console.error("PALIS 3D crest failed to load", error);
     viewport.dataset.modelStatus = "unavailable";
   });
+  var renderScale = 1;
   function resize() {
-    const width = Math.max(72, Math.floor(viewport.clientWidth / 3));
-    const height = Math.max(72, Math.floor(viewport.clientHeight / 3));
+    const width = Math.max(128, Math.min(2560, Math.floor(viewport.clientWidth * renderScale)));
+    const height = Math.max(128, Math.min(2560, Math.floor(viewport.clientHeight * renderScale)));
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(viewport);
   resize();
+  var visibleAngle = 0;
+  var previousFrame = performance.now();
+  var rotationMode = "spin";
+  var settleMotion = null;
+  var fullTurn = Math.PI * 2;
+  var spinRate = fullTurn / 10.5;
+
+  function forwardFrontDelta(angle) {
+    var normalized = (angle % fullTurn + fullTurn) % fullTurn;
+    var remaining = fullTurn - normalized;
+    return remaining < 0.025 || remaining > fullTurn - 0.025 ? 0 : remaining;
+  }
+
+  function faceFront(options = {}) {
+    var duration = Math.max(0, Number(options.duration ?? 1150));
+    if (settleMotion?.resolve) settleMotion.resolve();
+    if (duration === 0) {
+      visibleAngle = 0;
+      rotationMode = "front";
+      settleMotion = null;
+      return Promise.resolve();
+    }
+    rotationMode = "settling";
+    return new Promise((resolve) => {
+      settleMotion = {
+        from: visibleAngle,
+        delta: forwardFrontDelta(visibleAngle),
+        startedAt: performance.now(),
+        duration,
+        resolve
+      };
+    });
+  }
+
+  var crestController = {
+    faceFront,
+    setRenderScale(value = 1) {
+      renderScale = Math.max(1, Math.min(8, Number(value) || 1));
+      resize();
+    },
+    resumeSpin() {
+      settleMotion = null;
+      rotationMode = "spin";
+      previousFrame = performance.now();
+    },
+    getState() {
+      return { angle: visibleAngle, mode: rotationMode };
+    }
+  };
+  viewport.__palisCrestController = crestController;
+  viewport.dataset.crestController = "ready";
+  window.PALIS_BOOT_CREST = crestController;
+
   function draw(now) {
+    var deltaSeconds = Math.min(0.05, Math.max(0, (now - previousFrame) / 1e3));
+    previousFrame = now;
+    if (rotationMode === "spin") {
+      visibleAngle = (visibleAngle + deltaSeconds * spinRate) % fullTurn;
+    } else if (rotationMode === "settling" && settleMotion) {
+      var progress = Math.min(1, (now - settleMotion.startedAt) / settleMotion.duration);
+      var eased = progress * progress * (3 - 2 * progress);
+      visibleAngle = settleMotion.from + settleMotion.delta * eased;
+      if (progress >= 1) {
+        var resolveSettle = settleMotion.resolve;
+        visibleAngle = 0;
+        rotationMode = "front";
+        settleMotion = null;
+        resolveSettle();
+      }
+    }
     if (crest) {
-      const seconds = now * 1e-3;
-      crest.rotation.y = seconds * 0.18 - 0.16;
+      crest.rotation.y = visibleAngle;
       crest.rotation.x = 0;
       crest.rotation.z = 0;
     }

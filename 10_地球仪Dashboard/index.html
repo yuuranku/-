@@ -65,7 +65,6 @@
     <section class="access-gate" id="access-gate" data-phase="boot" aria-label="PALIS 档案终端身份验证">
       <div class="access-void" aria-hidden="true"><canvas id="access-void-canvas"></canvas></div>
       <div class="access-crt" aria-hidden="true"></div>
-      <div class="access-tv-power" aria-hidden="true"><canvas id="access-transition-squares"></canvas></div>
       <div class="access-shell">
         <header class="access-system-bar">
           <span>PALIS BASIC I/O SYSTEM · REV 6.4.09A</span>
@@ -152,7 +151,7 @@
         </div>
         <div class="capsule-copy">
           <p class="boot-authority">ANTARCTIC CONVENTION OVERSIGHT AUTHORITY · JOINT ARCHIVE CONTROL<br />POLAR RECORDS LIAISON OFFICE · WASHINGTON, D.C.</p>
-          <p class="system-kicker">PALIS / POLAR ARCHIVE LIAISON &amp; INDEX SYSTEM</p>
+          <p class="system-kicker"><i class="palis-authority-mark palis-authority-mark--boot" aria-hidden="true"></i>PALIS / POLAR ARCHIVE LIAISON &amp; INDEX SYSTEM</p>
           <h1 id="capsule-title" aria-live="polite">正在接入<br />PALIS 管理系统</h1>
           <div class="boot-line" aria-live="polite">
             <span id="boot-channel">CHANNEL 09A / ARCHIVE HANDSHAKE</span>
@@ -327,7 +326,7 @@
 
     <section class="clerk-desktop" id="clerk-desktop" role="dialog" aria-modal="true" aria-labelledby="clerk-desktop-title" hidden tabindex="-1">
       <header class="clerk-desktop__accessible-title"><button class="mobile-workspace-return" type="button" aria-label="返回档案系统">←</button><h2 id="clerk-desktop-title" data-workspace-name>书记官工作台</h2><span data-workspace-name-en>CLERK WORKSPACE</span><span data-workspace-greeting>欢迎进入 PALIS 工作台</span></header>
-      <div class="clerk-desktop__watermark" aria-hidden="true"><b>PALIS LOCAL 09A</b><span data-workspace-watermark-role>CLERK</span><span data-workspace-watermark-connection data-workflow-mode-badge>跨账号</span></div>
+      <div class="clerk-desktop__watermark" aria-hidden="true"><i class="palis-authority-mark palis-authority-mark--watermark"></i><b>PALIS LOCAL 09A</b><span data-workspace-watermark-role>CLERK</span><span data-workspace-watermark-connection data-workflow-mode-badge>跨账号</span></div>
       <nav class="clerk-desktop__icons" data-archive-category-rail aria-label="档案类别快捷方式">
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:01"><i class="clerk-desktop__icon clerk-desktop__icon--country" data-category-code="01" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-country.svg')"></span></i><span>国家档案</span></button>
         <button type="button" data-clerk-desktop-entry data-workspace-shortcut data-workspace-command="archive-category:02"><i class="clerk-desktop__icon clerk-desktop__icon--organization" data-category-code="02" aria-hidden="true"><span class="clerk-desktop__icon-glyph" style="--pixel-icon: url('/assets/icons/archive-organization.svg')"></span></i><span>组织档案</span></button>
@@ -882,7 +881,7 @@
       </section>
     </template>
 
-    <script src="/assets/palis-boot-crest.js"></script>
+    <script src="/assets/palis-boot-crest.js?v=20260809-7"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
