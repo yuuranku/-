@@ -789,7 +789,7 @@
   gap: 5px;
   margin-top: 10px;
   color: var(--editor-mustard);
-  font: 600 11px/1.35 "IBM Plex Mono", monospace;
+  font: 400 11px/1.35 var(--font-mono);
 }
 
 .archive-rich-editor {
@@ -891,7 +891,7 @@
 .archive-editor-field > span,
 .archive-editable-picker label > span {
   color: var(--editor-mustard);
-  font: 600 11px/1.35 "IBM Plex Mono", monospace;
+  font: 400 11px/1.35 var(--font-mono);
   letter-spacing: .04em;
 }
 

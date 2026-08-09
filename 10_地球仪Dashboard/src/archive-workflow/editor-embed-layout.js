@@ -41,7 +41,7 @@ export const createEditorEmbedLayout = ({
         pointer-events: none;
         transform: translateY(-115%);
         color: #d9a73b;
-        font: 600 10px/1.4 "IBM Plex Mono", monospace;
+        font: 400 10px/1.4 var(--font-mono);
       }
     `;
     root.head.append(style);

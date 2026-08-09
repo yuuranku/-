@@ -18,9 +18,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fontsource-variable/noto-sans-sc": "^5.2.10",
     "@fontsource-variable/noto-serif-sc": "^5.2.10",
-    "@fontsource/ibm-plex-mono": "^5.2.7",
     "@supabase/supabase-js": "^2.110.8",
     "gsap": "^3.13.0",
     "three": "^0.178.0",

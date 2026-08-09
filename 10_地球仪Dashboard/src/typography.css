@@ -1,0 +1,444 @@
+/* PALIS typography system
+ *
+ * The interface deliberately separates the computer shell from the documents
+ * it opens. Fusion Pixel supplies the Simplified Chinese OS/terminal glyphs;
+ * formal prose keeps a readable Song-style face with real bold support.
+ */
+
+@font-face {
+  font-family: 'Fusion Pixel 10 Proportional SC';
+  src: url('/assets/fonts/fusion-pixel/fusion-pixel-10px-proportional-zh-hans.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fusion Pixel 10 Monospaced SC';
+  src: url('/assets/fonts/fusion-pixel/fusion-pixel-10px-monospaced-zh-hans.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fusion Pixel 12 Proportional SC';
+  src: url('/assets/fonts/fusion-pixel/fusion-pixel-12px-proportional-zh-hans.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fusion Pixel 12 Monospaced SC';
+  src: url('/assets/fonts/fusion-pixel/fusion-pixel-12px-monospaced-zh-hans.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-pixel-micro: 'Fusion Pixel 10 Proportional SC', 'Microsoft YaHei', sans-serif;
+  --font-pixel-micro-mono: 'Fusion Pixel 10 Monospaced SC', 'SimSun', monospace;
+  --font-pixel-ui: 'Fusion Pixel 12 Proportional SC', 'Microsoft YaHei', sans-serif;
+  --font-pixel-mono: 'Fusion Pixel 12 Monospaced SC', 'SimSun', monospace;
+  --font-reading: 'Noto Serif SC Variable', 'Noto Serif SC', 'Songti SC', STSong, serif;
+
+  /* Existing components consume these aliases. Keeping the roles here makes
+     the whole product coherent without coupling typography to window markup. */
+  --font-display: var(--font-pixel-ui);
+  --font-body: var(--font-pixel-ui);
+  --font-serif: var(--font-reading);
+  --font-ui: var(--font-pixel-ui);
+  --font-sans: var(--font-pixel-ui);
+  --font-mono: var(--font-pixel-mono);
+
+  --type-micro: .625rem;   /* 10px: decorative metadata only */
+  --type-caption: .75rem;  /* 12px: status, timestamps, compact labels */
+  --type-ui: .875rem;      /* 14px: desktop controls and menus */
+  --type-reading: 1rem;    /* 16px: editable and explanatory copy */
+  --type-subhead: 1.25rem; /* 20px */
+  --type-window: 1.5rem;   /* 24px */
+  --type-page: 2.25rem;    /* 36px */
+  --type-hero: 3rem;       /* 48px */
+
+  --leading-pixel-tight: 1.25;
+  --leading-pixel: 1.45;
+  --leading-reading: 1.78;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--type-ui);
+  line-height: var(--leading-pixel);
+}
+
+button,
+input,
+select,
+option {
+  font-family: var(--font-ui);
+  font-weight: 400;
+}
+
+textarea,
+[contenteditable='true'] {
+  font-family: var(--font-reading);
+  font-weight: 400;
+}
+
+code,
+kbd,
+samp,
+time,
+output,
+pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── OS chrome: authentic 12px system rhythm ───────────────────────────── */
+
+:is(
+  .title-bar,
+  .dialog-titlebar,
+  .local-window-titlebar,
+  .archive-workflow-titlebar,
+  .mascot-titlebar,
+  .mascot-document-titlebar,
+  .clerk-desktop__welcome-titlebar
+) {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-pixel-tight);
+  letter-spacing: 0;
+}
+
+:is(.dialog-menu, .dialog-file-menu, .taskbar, .chapter-nav) {
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  line-height: var(--leading-pixel);
+}
+
+:is(.access-gate, .archive-desktop, #clerk-desktop, .mascot-window, .polar-diagnostic)
+  :is(button, input, select) {
+  font-size: max(var(--type-caption), 1em);
+  line-height: var(--leading-pixel);
+}
+
+.dialog-file-menu button,
+.archive-story-actions button,
+.archive-attachment-page__item,
+.archive-task-button {
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  line-height: var(--leading-pixel);
+  letter-spacing: 0;
+}
+
+.taskbar > p,
+.taskbar time,
+.start-button {
+  font-size: var(--type-caption);
+  line-height: var(--leading-pixel-tight);
+}
+
+.clerk-desktop__icons button > span,
+#clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.clerk-desktop__icons button > small {
+  font-family: var(--font-pixel-micro-mono);
+  font-size: var(--type-micro);
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+/* ── Boot and diagnostics: monospaced Chinese really aligns with Latin ─── */
+
+.access-gate {
+  font-family: var(--font-mono);
+}
+
+.access-system-bar,
+.access-footer,
+.access-mark-label,
+.access-mark-code {
+  font-family: var(--font-pixel-micro-mono);
+  font-size: var(--type-micro);
+  line-height: 1.4;
+  letter-spacing: .06em;
+}
+
+.access-command-heading,
+.access-step-meter,
+.access-command-line,
+.access-command-active,
+#access-boot-log {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+}
+
+.access-command-heading,
+.access-command-line,
+.access-command-active { line-height: 1.4; }
+
+#access-boot-log {
+  gap: 4px;
+  line-height: 1.25;
+}
+
+.access-skip-hint {
+  font-family: var(--font-pixel-micro-mono);
+  font-size: var(--type-micro);
+  letter-spacing: .04em;
+}
+
+.polar-diagnostic :is(.window-body, .diagnostic-log, .diagnostic-status) {
+  font-family: var(--font-mono);
+}
+
+/* ── Screen reading: explanations need room, not decorative dot density ─── */
+
+:is(
+  .version-notice__copy,
+  .archive-mailbox__message-body,
+  .archive-review-legacy dd,
+  .archive-editor__document,
+  .archive-editor__document-body,
+  .archive-editor__prose,
+  .archive-story-paper,
+  .mascot-document-body,
+  .workspace-sticky-note__body,
+  .workspace-sticky-note-editor textarea
+) {
+  font-family: var(--font-reading);
+  letter-spacing: 0;
+}
+
+.version-notice__copy p,
+.archive-mailbox__message-body,
+.mascot-document-body {
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+  text-align: left;
+  text-wrap: pretty;
+}
+
+.version-notice__copy h2 {
+  font-size: clamp(2rem, 2.4vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: .02em;
+  text-wrap: balance;
+}
+
+.archive-mailbox__reader > header > h3 {
+  font-family: var(--font-reading);
+  font-size: var(--type-window);
+  line-height: 1.25;
+}
+
+.archive-mailbox__reader > header > p,
+.archive-mailbox__reader > p {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: 1.45;
+}
+
+/* Editing features live in a real text face: indentation remains character-
+   based, strong/bold keeps a true weight, and redactions keep their geometry. */
+.archive-story-paper textarea,
+.archive-editor textarea,
+.archive-review-form textarea,
+.workspace-sticky-note-editor textarea {
+  font-family: var(--font-reading);
+  font-size: var(--type-reading);
+  font-weight: 400;
+}
+
+.archive-story-paper textarea {
+  line-height: 32px;
+}
+
+:is(.document-sheet, .record-copy, .record-longform, .archive-story-paper, .mascot-document-body)
+  :is(strong, b) {
+  font-weight: 700;
+}
+
+.record-longform p,
+.record-copy p {
+  text-indent: 2em;
+}
+
+.record-longform :is(li, blockquote, figcaption, td, th) {
+  text-indent: 0;
+}
+
+.archive-redacted {
+  font-family: inherit;
+}
+
+/* ── Formal archive: the old computer opens a typeset document ─────────── */
+
+.document-sheet,
+.record-copy,
+.record-longform,
+.record-table-wrap,
+.record-quote,
+.record-inline-figure figcaption,
+.archive-formal-section {
+  font-family: var(--font-reading);
+}
+
+.document-sheet > header h2 {
+  font-family: var(--font-reading);
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  line-height: 1.16;
+}
+
+.record-copy {
+  font-size: var(--type-reading);
+  line-height: 1.8;
+}
+
+.record-longform {
+  max-width: 58rem;
+  font-size: 1.0625rem;
+  line-height: 1.88;
+}
+
+.record-chapter > header h3 {
+  font-family: var(--font-reading);
+  font-size: var(--type-subhead);
+  line-height: 1.4;
+}
+
+.record-reading-meta,
+.record-chapter > header span,
+.record-table-wrap thead th,
+.record-inline-figure figcaption span,
+.record-inline-figure figcaption small {
+  font-family: var(--font-mono);
+}
+
+/* Remove the modern-font islands left by the nine archive visual systems. */
+.ecology-specimen-cabinet,
+.ecology-depth-section,
+.entrance-register,
+.event-plane,
+.country-register {
+  font-family: var(--font-ui);
+}
+
+.ecology-tray-copy h3 { font-family: var(--font-reading); }
+.ecology-tray-copy > span { font-family: var(--font-ui); }
+
+/* Inputs remain large enough for real use; multiline input uses the reading
+   face so saved text formatting is not visually confused with system chrome. */
+.archive-workflow-window :is(input, select, button),
+.archive-story-window :is(input, button),
+.access-window :is(input, select, button) {
+  font-family: var(--font-ui);
+  font-size: var(--type-ui);
+}
+
+.archive-workflow-window textarea,
+.archive-story-window textarea {
+  font-family: var(--font-reading);
+  font-size: var(--type-reading);
+  line-height: 1.7;
+}
+
+/* ── Mobile: stacked windows keep touch sizes and readable text ─────────── */
+
+@media (max-width: 760px) {
+  :root {
+    --type-caption: .75rem;
+    --type-ui: .875rem;
+    --type-reading: 1rem;
+    --type-subhead: 1.25rem;
+    --type-window: 1.5rem;
+  }
+
+  body { font-size: var(--type-ui); }
+
+  :is(button, input, select) {
+    font-size: var(--type-ui);
+  }
+
+  textarea,
+  [contenteditable='true'] {
+    font-size: var(--type-reading) !important;
+  }
+
+  .access-system-bar,
+  .access-footer { font-size: var(--type-micro); }
+
+  .access-command-heading,
+  .access-step-meter,
+  .access-command-line,
+  .access-command-active,
+  #access-boot-log {
+    font-size: var(--type-micro);
+    line-height: 1.3;
+  }
+
+  #access-boot-log { gap: 3px; }
+
+  .access-boot-terminal {
+    padding-bottom: 40px;
+  }
+
+  .access-skip-hint {
+    right: 16px;
+    bottom: 12px;
+  }
+
+  .clerk-desktop__icons button > span,
+  #clerk-desktop .clerk-desktop__icons[data-archive-category-rail] button > span {
+    font-size: var(--type-caption) !important;
+    line-height: 1.3 !important;
+  }
+
+  .archive-workflow-titlebar > span,
+  .mascot-document-titlebar > span,
+  .dialog-titlebar > span {
+    font-size: var(--type-ui) !important;
+    line-height: 1.25 !important;
+  }
+
+  .archive-workflow-window :is(input, select, button),
+  .archive-story-window :is(input, button),
+  .access-window :is(input, select, button) {
+    font-size: var(--type-ui) !important;
+  }
+
+  .archive-workflow-window textarea,
+  .archive-story-window textarea {
+    font-size: var(--type-reading) !important;
+    line-height: 1.7 !important;
+  }
+
+  .document-sheet > header h2 {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  .record-longform,
+  .record-copy,
+  .archive-mailbox__message-body,
+  .mascot-document-body {
+    font-size: var(--type-reading) !important;
+    line-height: 1.78 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Font swapping must never add another source of visual movement. */
+  html { font-synthesis: none; }
+}

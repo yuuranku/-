@@ -1,15 +1,11 @@
-import '@fontsource-variable/noto-sans-sc/wght.css';
 import '@fontsource-variable/noto-serif-sc/wght.css';
-import '@fontsource/ibm-plex-mono/latin-400.css';
-import '@fontsource/ibm-plex-mono/latin-500.css';
-import '@fontsource/ibm-plex-mono/latin-600.css';
-import '@fontsource/ibm-plex-mono/latin-700.css';
 import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
 import './archive-workflow/mainline.css';
 import './archive-workflow/commission.css';
 import './mobile-ui.css';
+import './typography.css';
 import {
   emitUiSound,
   initializeUiSounds,
