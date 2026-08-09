@@ -1708,9 +1708,31 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
         <h2>在案书记官</h2>
       </div>
       <section>
-        <p class="assistant-clerk-index__lead">当前工作台可调阅七份书记官档案；其余席位保留编号，但尚未接入个人记录。</p>
+        <p class="assistant-clerk-index__lead" data-clerk-directory-summary>正在读取书记官登记名册。</p>
         <ol class="assistant-clerk-index__list">
           ${clerkDirectoryRows()}
+        </ol>
+      </section>
+    `;
+    return content;
+  }
+
+  function buildRegisteredClerkProfile(documentId) {
+    const profileId = String(documentId).replace('clerk-profile:', '');
+    const profile = clerkDirectoryProfiles.find((candidate) => candidate.id === profileId);
+    if (!profile) return null;
+    const registration = clerkRegistrationLabel(profile.clerk_rank);
+    const content = document.createElement('div');
+    content.className = 'mascot-document-content mascot-document-content--clerk assistant-clerk-index';
+    content.innerHTML = `
+      <div class="mascot-document-mast">
+        <p>PALIS / PUBLIC CLERK DIRECTORY / ${escapeRecordText(profile.id)}</p>
+        <h2>${escapeRecordText(registration)}：${escapeRecordText(profile.display_name)}</h2>
+      </div>
+      <section>
+        <p class="assistant-clerk-index__lead">该书记官已登记至 PALIS 公开名册。完整个人档案尚待本人后续录入与公开。</p>
+        <ol class="assistant-clerk-index__list">
+          <li><button type="button" disabled><span>01</span><b>登记席位</b><small>${escapeRecordText(registration)} / PUBLIC DIRECTORY</small><i>在线</i></button></li>
         </ol>
       </section>
     `;
@@ -1728,7 +1750,9 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     }
     const content = documentId === 'clerks'
       ? buildClerkIndexContent()
-      : documentContents.find((item) => item.dataset.mascotDocumentContent === documentId);
+      : documentId.startsWith('clerk-profile:')
+        ? buildRegisteredClerkProfile(documentId)
+        : documentContents.find((item) => item.dataset.mascotDocumentContent === documentId);
     if (!content) return;
 
     const isDesktopEntry = entry.hasAttribute('data-clerk-desktop-entry');
@@ -1742,7 +1766,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     const headingId = `${windowId}-heading`;
     const windowElement = document.createElement('section');
     windowElement.className = 'mascot-document-window retro-window';
-    const isClerkDossier = documentId.startsWith('clerk-');
+    const isClerkDossier = documentId.startsWith('clerk-') && !documentId.startsWith('clerk-profile:');
     if (isClerkDossier) windowElement.classList.add('is-clerk-dossier');
     if (documentId === 'clerks') windowElement.classList.add('is-clerk-index');
     windowElement.id = windowId;
@@ -1962,10 +1986,26 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   ];
   let clerkDirectoryProfiles = [];
   const clerkProfileFor = (record) => clerkDirectoryProfiles.find((candidate) => candidate.display_name === record.name);
+  const clerkRosterRecords = () => {
+    const documentedNames = new Set(clerkRecords.map((record) => record.name));
+    const registeredOnly = clerkDirectoryProfiles
+      .filter((profile) => profile?.id && profile?.display_name && !documentedNames.has(profile.display_name))
+      .map((profile) => ({
+        documentId: `clerk-profile:${profile.id}`,
+        name: profile.display_name,
+        code: 'PUBLIC PROFILE / ONLINE',
+        profile,
+      }));
+    return [...clerkRecords, ...registeredOnly];
+  };
   const clerkRecordForDisplay = (record) => {
-    const profile = clerkProfileFor(record);
+    const profile = record.profile || clerkProfileFor(record);
     const title = `${clerkRegistrationLabel(profile?.clerk_rank)}：${record.name}`;
     return { ...record, entry: title, title };
+  };
+  const clerkDirectorySummary = () => {
+    const count = clerkRosterRecords().length;
+    return `当前工作台可调阅 ${count} 份书记官登记；未分配席位保留编号，待后续接入个人记录。`;
   };
   const syncClerkDossierProfiles = () => {
     document.querySelectorAll('[data-clerk-profile]').forEach((dossier) => {
@@ -1975,14 +2015,19 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       dossier.querySelectorAll('[data-clerk-profile-title]').forEach((target) => { target.textContent = `${registration}：${dossier.dataset.clerkProfile}`; });
     });
   };
-  const clerkDirectoryRows = () => Array.from({ length: 10 }, (_, index) => {
+  const clerkDirectoryRows = () => {
+    const records = clerkRosterRecords().map(clerkRecordForDisplay);
+    return Array.from({ length: Math.max(10, records.length) }, (_, index) => {
     const number = String(index + 1).padStart(2, '0');
-    const source = clerkRecords[index];
-    const record = source ? clerkRecordForDisplay(source) : null;
-    return `<li><button type="button" ${record ? `data-mascot-document="${record.documentId}" data-mascot-entry="${record.entry}"` : 'data-clerk-reserved="true"'}><span>${number}</span><b>${record ? record.title : '书记官席位 · 未录入'}</b><small>${record ? record.code : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
-  }).join('');
+    const record = records[index] || null;
+    return `<li><button type="button" ${record ? `data-mascot-document="${escapeRecordText(record.documentId)}" data-mascot-entry="${escapeRecordText(record.entry)}"` : 'data-clerk-reserved="true"'}><span>${number}</span><b>${record ? escapeRecordText(record.title) : '书记官席位 · 未录入'}</b><small>${record ? escapeRecordText(record.code) : 'RECORD RESERVED / OFFLINE'}</small><i>${record ? '在线' : '离线'}</i></button></li>`;
+    }).join('');
+  };
   const renderClerkDirectory = () => {
     clerkList.innerHTML = clerkDirectoryRows();
+    document.querySelectorAll('[data-clerk-directory-summary]').forEach((summary) => {
+      summary.textContent = clerkDirectorySummary();
+    });
     openDocuments.forEach((state) => {
       const list = state.windowElement.querySelector('.assistant-clerk-index__list');
       if (list) list.innerHTML = clerkDirectoryRows();
