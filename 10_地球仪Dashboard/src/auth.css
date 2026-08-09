@@ -761,27 +761,36 @@ body.access-locked #archive-desktop {
 }
 
 @media (max-width: 760px) {
+  .access-gate,
+  .access-shell {
+    height: var(--app-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .access-system-bar span:last-child,
   .access-footer b { display: none; }
   .access-system-bar,
   .access-footer { min-height: 30px; padding: 0 14px; }
   .access-boot {
     width: calc(100% - 28px);
+    grid-template-rows: clamp(150px, 32%, 220px) minmax(0, 1fr);
     grid-template-columns: 1fr;
-    height: auto;
+    height: calc(var(--app-height, 100dvh) - 80px);
     min-height: 0;
-    max-height: calc(100dvh - 80px);
-    overflow: auto;
+    max-height: calc(var(--app-height, 100dvh) - 80px);
+    overflow: hidden;
+    overscroll-behavior: none;
   }
   .access-boot-mark {
-    min-height: 210px;
+    min-height: 0;
     border-right: 0;
     border-bottom: 1px solid #236645;
   }
   .access-boot-mark__canvas { width: 42%; max-height: 155px; }
   .access-mark-label { top: 18px; left: 18px; font-size: 8px; }
   .access-mark-code { right: 18px; bottom: 17px; font-size: 8px; }
-  .access-boot-terminal { min-height: 360px; padding: 16px; }
+  .access-boot-terminal { min-height: 0; overflow: hidden; padding: 16px; }
   .access-command-heading { margin-bottom: 18px; font-size: 9px; }
   .access-command-line,
   .access-command-active { align-items: flex-start; flex-wrap: wrap; font-size: 9px; }
