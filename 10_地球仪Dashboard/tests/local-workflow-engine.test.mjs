@@ -402,6 +402,8 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     'mainlineStaffSlots',
     'workflowTasks',
     'workflowTaskResponses',
+    'honorRibbons',
+    'clerkHonors',
   ]);
   assert.deepEqual(state, {
     profiles: [],
@@ -424,6 +426,8 @@ test('empty local state exposes the workspace note stores alongside workflow dat
     mainlineStaffSlots: [],
     workflowTasks: [],
     workflowTaskResponses: [],
+    honorRibbons: [],
+    clerkHonors: [],
   });
 });
 
@@ -935,6 +939,39 @@ test('review replies create owner notifications that only the recipient can mark
   assert.equal(notifications[0].contribution.title, '事件草稿');
   assert.equal(notifications[0].read_at, null);
   assert.equal(marked.read_at, '2026-07-28T12:00:00.000Z');
+});
+
+test('submitDraft uses the current editor snapshot even when its saved draft revision is stale', async () => {
+  const harness = await createLocalWorkflowHarness({ principal: LOCAL_PROFILES[1] });
+  await harness.seedDefaults();
+  const saved = await harness.repository.saveDraft({
+    ownerId: 'clerk-1',
+    templateId: '07',
+    title: '云端旧稿',
+    content: {
+      schemaVersion: 2,
+      templateCode: '07',
+      values: { 'custom:item:note:title': '旧条目', 'custom:item:note:content': '旧内容' },
+    },
+  });
+
+  const submitted = await harness.repository.submitDraft(saved.id, 'clerk-1', {
+    title: '当前本机稿',
+    archiveCode: 'EV-07',
+    content: {
+      schemaVersion: 2,
+      templateCode: '07',
+      values: {
+        'custom:item:note:title': '当前条目',
+        'custom:item:note:content': '当前自定义内容记录',
+      },
+    },
+  });
+
+  assert.equal(submitted.status, 'submitted');
+  assert.equal(submitted.title, '当前本机稿');
+  assert.equal(submitted.draft_content.archiveCode, 'EV-07');
+  assert.equal(submitted.draft_content.values['custom:item:note:content'], '当前自定义内容记录');
 });
 
 test('deleteDraft removes only the signed-in owner\'s unsubmitted draft', async () => {
@@ -2019,10 +2056,12 @@ test('an amendment public version keeps the target author as submitter and curre
   assert.deepEqual(amendment.versions[0].submitter, {
     id: 'original-author',
     display_name: 'Original Author',
+    honors: [],
   });
   assert.deepEqual(amendment.versions[0].modifier, {
     id: 'clerk-1',
     display_name: 'Archive Clerk',
+    honors: [],
   });
 });
 

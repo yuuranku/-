@@ -28,6 +28,15 @@ test('loading sound palette provides each state cue used by the timed loading vi
   assert.ok(SOUND_PROFILES.verified);
 });
 
+test('workspace entry has a dedicated late-90s style login cue', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+  const profile = SOUND_PROFILES['workspace-enter'];
+  assert.ok(profile);
+  assert.equal(profile.layers.filter((layer) => layer.kind === 'osc').length >= 4, true);
+  assert.equal(profile.layers.every((layer) => (layer.start || 0) + layer.attack + layer.decay + layer.release <= profile.cap), true);
+  assert.match(source, /emitUiSound\('workspace-enter'/);
+});
+
 test('archive terminal palette includes typing and stamp cues', () => {
   assert.ok(SOUND_PROFILES.key);
   assert.ok(SOUND_PROFILES['key-enter']);

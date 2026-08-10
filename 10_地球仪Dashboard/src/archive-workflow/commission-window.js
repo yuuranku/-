@@ -10,6 +10,7 @@ import { clerkRegistrationLabel } from './clerk-registration.js';
 import { honorCategory } from './honors.js';
 
 const TASK_ICON = '/assets/icons/archive-event.svg';
+const ADMIN_ICON = '/assets/icons/palis-authority.svg';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
@@ -93,6 +94,12 @@ export const openActiveTaskBoardWindow = async ({
       <p class="commission-board__status" data-task-board-status>正在读取收发登记……</p>
     </section>`,
   });
+  // Reopening restores and refreshes the existing register instead of
+  // attaching a second controller to the same window.
+  if (state.activeTaskBoardReady) {
+    await state.reloadTasks?.();
+    return state;
+  }
   const root = state.windowElement.querySelector('[data-active-task-board]');
   const list = root.querySelector('[data-task-board-list]');
   const detail = root.querySelector('[data-task-board-detail]');
@@ -336,7 +343,7 @@ export const openTaskResponseRegisterWindow = async ({ createWindow, client, tas
 export const openTaskAdministrationWindow = async ({ createWindow, client, templates = [] } = {}) => {
   const state = createWindow({
     key: 'workflow-task-control', title: '开放委托发布台 / ADMIN', code: 'TASK.CTL',
-    className: 'task-control-window', icon: TASK_ICON,
+    className: 'task-control-window', icon: ADMIN_ICON,
     body: `<section class="task-control" data-task-control>
       <header><b>开放委托发布台</b><span>ISSUE / HALT / SETTLE / SEAL</span></header>
       <div class="task-control__body"><nav data-task-control-list></nav><main data-task-control-detail></main></div>

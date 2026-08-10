@@ -43,6 +43,7 @@ const classifyRemoteError = (error) => {
 export const createAutosaveController = ({
   storage,
   remote = null,
+  remoteAuto = true,
   localDelay = DEFAULT_LOCAL_DELAY,
   remoteDelay = DEFAULT_REMOTE_DELAY,
   now = () => Date.now(),
@@ -118,7 +119,9 @@ export const createAutosaveController = ({
     clearTimer('local');
     clearTimer('remote');
     localTimer = schedule(() => flushLocal(), localDelay);
-    remoteTimer = schedule(() => flushRemote(), remoteDelay);
+    if (remoteAuto && remote?.saveDraft) {
+      remoteTimer = schedule(() => flushRemote(), remoteDelay);
+    }
     return clone(pendingDraft);
   };
 

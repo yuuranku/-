@@ -87,6 +87,28 @@ test('additional typing resets remote debounce but preserves fast local saves', 
   assert.equal(remoteWrites[0].content, 'AB');
 });
 
+test('manual-cloud mode only autosaves locally until cloud save is explicitly requested', async () => {
+  const storage = createMemoryStorage();
+  const scheduler = createScheduler();
+  const remoteWrites = [];
+  const controller = createAutosaveController({
+    storage,
+    remote: { saveDraft: async (draft) => remoteWrites.push(draft) },
+    remoteAuto: false,
+    schedule: scheduler.schedule,
+    cancelSchedule: scheduler.cancel,
+    now: scheduler.now,
+  });
+
+  controller.queue({ key: 'draft:manual-cloud', revision: 1, content: 'local only' });
+  await scheduler.advance(6000);
+  assert.equal(JSON.parse(storage.getItem('palis:draft:manual-cloud')).content, 'local only');
+  assert.equal(remoteWrites.length, 0);
+
+  await controller.flushRemote();
+  assert.equal(remoteWrites.length, 1);
+});
+
 test('recovery returns local and cloud choices and detects divergent revisions', () => {
   const storage = createMemoryStorage();
   const scheduler = createScheduler();

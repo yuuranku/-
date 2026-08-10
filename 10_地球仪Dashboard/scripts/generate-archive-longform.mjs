@@ -358,7 +358,7 @@ Object.values(archive.events).forEach((event) => {
 
 const expected = {
   countries: 18,
-  organizations: 22,
+  organizations: 21,
   stations: 20,
   entrances: 18,
   ecology: 7,

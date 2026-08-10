@@ -32,11 +32,31 @@ body.access-locked #archive-desktop {
 .access-gate[data-phase='mark-transition'] .access-shell::after {
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 4;
   pointer-events: none;
   background: rgba(0, 4, 2, .76);
   content: '';
   animation: access-handoff-dim .46s ease-out both;
+}
+
+.access-mark-trail-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity;
+}
+
+.access-mark-trail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform-origin: 50% 50%;
+  filter: saturate(.76) contrast(1.08) brightness(1.1);
+  image-rendering: auto;
+  will-change: transform, opacity;
 }
 
 .access-void {
@@ -790,11 +810,47 @@ body.access-locked #archive-desktop {
   .access-boot-mark__canvas { width: 42%; max-height: 155px; }
   .access-mark-label { top: 18px; left: 18px; font-size: 8px; }
   .access-mark-code { right: 18px; bottom: 17px; font-size: 8px; }
-  .access-boot-terminal { min-height: 0; overflow: hidden; padding: 16px; }
-  .access-command-heading { margin-bottom: 18px; font-size: 9px; }
+  .access-boot-terminal {
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr) 22px;
+    overflow: hidden;
+    padding: 16px;
+  }
+  .access-command-heading { margin-bottom: 12px; font-size: 9px; }
+  .access-step-meter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+  }
+  .access-step-meter span:first-child { min-width: 0; }
+  .access-step-meter span:last-child { white-space: nowrap; }
   .access-command-line,
-  .access-command-active { align-items: flex-start; flex-wrap: wrap; font-size: 9px; }
-  #access-boot-log { min-height: 190px; gap: 5px; padding-left: 8px; overflow: hidden; font-size: 9px; }
+  .access-command-active {
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    font-size: 9px;
+  }
+  .access-command-line b,
+  .access-command-active b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #access-boot-log {
+    min-height: 0;
+    gap: 5px;
+    margin: 10px 0 8px;
+    padding-left: 8px;
+    overflow: hidden;
+    font-size: 9px;
+  }
+  .access-command-active {
+    min-height: 22px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(120, 217, 160, .16);
+  }
   .access-skip-hint { right: 16px; bottom: 16px; font-size: 7px; }
 
   .access-login {

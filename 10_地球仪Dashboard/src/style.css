@@ -3203,20 +3203,6 @@ body[data-chapter='3'] .taskbar > p > i { background: var(--cold-red); }
 .archive-window .dialog-titlebar { cursor: grab; touch-action: none; user-select: none; }
 .archive-window:not(.is-active) .dialog-titlebar { background: #676767; }
 .archive-window.is-dragging .dialog-titlebar { cursor: grabbing; }
-.archive-window.is-opening {
-  will-change: transform, opacity;
-  animation: window-unfold 480ms cubic-bezier(.16, 1, .3, 1) both;
-}
-.archive-window.is-opening .dialog-menu,
-.archive-window.is-opening .document-sheet {
-  animation: dialog-content-arrive 270ms cubic-bezier(.16, 1, .3, 1) 250ms both;
-}
-.archive-window.no-open-animation.is-opening,
-.archive-window.no-open-animation.is-opening .dialog-menu,
-.archive-window.no-open-animation.is-opening .document-sheet {
-  animation: none;
-}
-
 input.is-ui-typing,
 textarea.is-ui-typing,
 [contenteditable].is-ui-typing {
@@ -4804,19 +4790,6 @@ a:focus-visible,
   49%, 100% { opacity: 0; }
 }
 
-@keyframes window-unfold {
-  0% { opacity: 0; transform: translate(var(--dialog-from-x, 0), var(--dialog-from-y, 0)) scale(0.06, 0.025); }
-  38% { opacity: 1; transform: translate(calc(var(--dialog-from-x, 0) * 0.34), calc(var(--dialog-from-y, 0) * 0.34)) scale(0.38, 0.045); }
-  68% { transform: translate(0, 0) scale(1, 0.075); }
-  100% { opacity: 1; transform: translate(0, 0) scale(1); }
-}
-
-@keyframes window-fold {
-  0% { opacity: 1; transform: translate(0, 0) scale(1); }
-  55% { opacity: .92; transform: translate(0, 0) scale(1, .06); }
-  100% { opacity: 0; transform: translate(var(--dialog-from-x, 0), var(--dialog-from-y, 0)) scale(.08, .025); }
-}
-
 @keyframes window-minimize {
   0% { opacity: 1; transform: translate(0, 0) scale(1); }
   58% { opacity: .9; transform: translate(0, 0) scale(1, .06); }
@@ -4833,11 +4806,6 @@ a:focus-visible,
   0% { opacity: 1; transform: translate(0, 0) scale(1); }
   52% { opacity: .9; transform: translate(0, 0) scale(1, .055); }
   100% { opacity: 0; transform: translate(var(--task-x, 0), var(--task-y, 0)) scale(.08, .025); }
-}
-
-@keyframes dialog-content-arrive {
-  from { opacity: 0; transform: translateY(7px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes dialog-backdrop-in {
@@ -8930,14 +8898,6 @@ body.access-locked .mascot-assistant { display: none; }
 .mascot-document-window.is-dragging .mascot-document-titlebar,
 .mascot-document-window.is-dragging .window-drag-edge {
   cursor: var(--cursor-retro-grabbing) !important;
-}
-.mascot-document-window.is-opening {
-  will-change: transform, opacity;
-  animation: window-unfold 480ms cubic-bezier(.16, 1, .3, 1) both;
-}
-.mascot-document-window.is-opening .mascot-document-toolbar,
-.mascot-document-window.is-opening .mascot-document-scroll {
-  animation: dialog-content-arrive 270ms cubic-bezier(.16, 1, .3, 1) 250ms both;
 }
 .mascot-document-window.is-minimizing {
   pointer-events: none;

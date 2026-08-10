@@ -61,6 +61,16 @@ export const SOUND_PROFILES = Object.freeze({
       { kind: 'osc', wave: 'sine', frequency: 990, start: .14, attack: .008, decay: .2, release: .04, gain: .042 },
     ]),
   }),
+  'workspace-enter': Object.freeze({
+    cap: 1.5,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 329.63, start: 0, attack: .024, decay: .42, release: .12, gain: .032 },
+      { kind: 'osc', wave: 'sine', frequency: 415.3, start: .18, attack: .022, decay: .46, release: .14, gain: .034 },
+      { kind: 'osc', wave: 'sine', frequency: 493.88, start: .38, attack: .022, decay: .5, release: .16, gain: .034 },
+      { kind: 'osc', wave: 'triangle', frequency: 659.25, start: .64, attack: .028, decay: .48, release: .18, gain: .03 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 1850, start: .62, attack: .018, decay: .2, release: .18, gain: .008 },
+    ]),
+  }),
   error: Object.freeze({
     cap: .4,
     layers: Object.freeze([
@@ -385,6 +395,7 @@ const closeSelector = [
 const quietNavigationSelector = [
   '.chapter-nav a',
   '[data-mainline-enter]',
+  '#clerk-workspace-entry',
 ].join(',');
 
 const editableTextSelector = 'input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]';

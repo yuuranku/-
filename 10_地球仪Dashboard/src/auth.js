@@ -149,6 +149,94 @@ function playTimeline(timeline) {
   });
 }
 
+function createAccessMarkTrail({ mark, rect, compactViewport }) {
+  const source = mark.querySelector('canvas');
+  const shell = mark.closest('.access-shell');
+  if (!source || !shell) return null;
+
+  const layer = document.createElement('div');
+  layer.className = 'access-mark-trail-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  const count = compactViewport ? 4 : 5;
+  const maxBufferEdge = compactViewport ? 420 : 640;
+  const sourceWidth = Math.max(1, source.width || Math.round(rect.width));
+  const sourceHeight = Math.max(1, source.height || Math.round(rect.height));
+  const bufferScale = Math.min(1, maxBufferEdge / Math.max(sourceWidth, sourceHeight));
+  const bufferWidth = Math.max(1, Math.round(sourceWidth * bufferScale));
+  const bufferHeight = Math.max(1, Math.round(sourceHeight * bufferScale));
+  const canvases = Array.from({ length: count }, (_, index) => {
+    const canvas = document.createElement('canvas');
+    canvas.className = 'access-mark-trail';
+    canvas.dataset.trailIndex = String(index);
+    canvas.width = bufferWidth;
+    canvas.height = bufferHeight;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    layer.append(canvas);
+    return canvas;
+  });
+  const contexts = canvases.map((canvas) => canvas.getContext('2d', { alpha: true }));
+  const states = Array.from({ length: count }, () => null);
+  let lastCapture = -Infinity;
+  let active = true;
+
+  shell.append(layer);
+
+  const paint = (canvas, state, index) => {
+    if (!state) {
+      canvas.style.opacity = '0';
+      return;
+    }
+    const lateralJitter = index % 2 === 0 ? -index * .4 : index * .4;
+    canvas.style.opacity = String(Math.max(.025, .18 - index * .038));
+    canvas.style.transform = `translate3d(${state.x + lateralJitter}px, ${state.y}px, 0) scale(${state.scale})`;
+  };
+
+  const capture = () => {
+    if (!active) return;
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    if (now - lastCapture < (compactViewport ? 68 : 56)) return;
+    lastCapture = now;
+    const state = {
+      x: Number(gsap.getProperty(mark, 'x')) || 0,
+      y: Number(gsap.getProperty(mark, 'y')) || 0,
+      scale: Number(gsap.getProperty(mark, 'scale')) || 1,
+    };
+
+    for (let index = canvases.length - 1; index > 0; index -= 1) {
+      const context = contexts[index];
+      context?.clearRect(0, 0, bufferWidth, bufferHeight);
+      if (contexts[index - 1]) context?.drawImage(canvases[index - 1], 0, 0, bufferWidth, bufferHeight);
+      states[index] = states[index - 1] ? { ...states[index - 1] } : null;
+      paint(canvases[index], states[index], index);
+    }
+
+    const context = contexts[0];
+    try {
+      context?.clearRect(0, 0, bufferWidth, bufferHeight);
+      context?.drawImage(source, 0, 0, bufferWidth, bufferHeight);
+      states[0] = state;
+      paint(canvases[0], state, 0);
+    } catch {
+      active = false;
+      layer.remove();
+    }
+  };
+
+  return {
+    capture,
+    element: layer,
+    destroy() {
+      active = false;
+      canvases.forEach((canvas) => {
+        canvas.width = 1;
+        canvas.height = 1;
+      });
+      layer.remove();
+    },
+  };
+}
+
 async function playAccessMarkTransition({ gate, boot, login, granted, reducedMotion, reveal }) {
   const mark = document.querySelector('#access-boot-mark');
   const panel = mark?.closest('.access-boot-mark');
@@ -212,6 +300,9 @@ async function playAccessMarkTransition({ gate, boot, login, granted, reducedMot
     transformOrigin: '50% 50%',
   });
 
+  const trail = createAccessMarkTrail({ mark, rect, compactViewport });
+  trail?.capture();
+
   const facingPromise = crest?.faceFront?.({ duration: centreDuration * 1000 }) || Promise.resolve();
 
   let revealed = false;
@@ -221,6 +312,7 @@ async function playAccessMarkTransition({ gate, boot, login, granted, reducedMot
     reveal();
   };
   const timeline = gsap.timeline({ paused: true });
+  timeline.eventCallback('onUpdate', () => trail?.capture());
   timeline
     .to(mark, {
       x: centreX,
@@ -232,7 +324,12 @@ async function playAccessMarkTransition({ gate, boot, login, granted, reducedMot
       scale: exitScale,
       duration: exitDuration,
       ease: 'power1.in',
-    }, centreDuration)
+    }, centreDuration - .045)
+    .to(trail?.element || {}, {
+      opacity: 0,
+      duration: .42,
+      ease: 'power1.in',
+    }, centreDuration + exitDuration - .46)
     .call(revealExperience, [], centreDuration + exitDuration - 0.34)
     .to(gate, {
       opacity: 0,
@@ -240,15 +337,18 @@ async function playAccessMarkTransition({ gate, boot, login, granted, reducedMot
       ease: 'power2.out',
     }, centreDuration + exitDuration - 0.34);
 
-  await Promise.all([facingPromise, playTimeline(timeline)]);
-  revealExperience();
-
-  timeline.kill();
-  crest?.setRenderScale?.(1);
-  mark.removeAttribute('style');
-  mark.classList.remove('is-access-handoff');
-  panel.classList.remove('is-access-handoff-panel');
-  boot.classList.remove('is-access-handoff-frame');
+  try {
+    await Promise.all([facingPromise, playTimeline(timeline)]);
+    revealExperience();
+  } finally {
+    timeline.kill();
+    trail?.destroy();
+    crest?.setRenderScale?.(1);
+    mark.removeAttribute('style');
+    mark.classList.remove('is-access-handoff');
+    panel.classList.remove('is-access-handoff-panel');
+    boot.classList.remove('is-access-handoff-frame');
+  }
 }
 
 export function initializeAccessGate({
@@ -569,7 +669,9 @@ export function initializeAccessGate({
       const row = document.createElement('li');
       row.innerHTML = `<b>${step.text}</b><span>[ ${step.result} ]</span>`;
       bootLog.appendChild(row);
-      bootLog.scrollTop = bootLog.scrollHeight;
+      while (bootLog.scrollHeight > bootLog.clientHeight + 1 && bootLog.children.length > 1) {
+        bootLog.firstElementChild.remove();
+      }
       if (stepCount) stepCount.textContent = `${String(index + 1).padStart(2, '0')} / ${BOOT_STEPS.length}`;
     }
 

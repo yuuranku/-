@@ -6,11 +6,17 @@ import './archive-workflow/mainline.css';
 import './archive-workflow/commission.css';
 import './mobile-ui.css';
 import './typography.css';
+import './window-foundation.css';
 import {
   emitUiSound,
   initializeUiSounds,
   stopAllUiSounds,
 } from './ui-sounds.js';
+import {
+  initializeWindowFoundation,
+  playPalisWindowClose,
+  playPalisWindowOpen,
+} from './window-foundation.js';
 import { initializePalisMusicPlayer } from './palis-music.js';
 import { initializeArchiveWorkspace } from './archive-workflow/workspace.js';
 import { initializeWorkspaceNotes } from './archive-workflow/workspace-notes.js';
@@ -59,6 +65,7 @@ import {
 } from './data.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+initializeWindowFoundation({ prefersReducedMotion: reducedMotion });
 const DEFAULT_PERSON_PORTRAIT = '/assets/archive/person-default.png';
 const DESKTOP_SHORTCUT_LAYOUT_STORAGE_PREFIX = 'palis.workspace.shortcut-layout';
 const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
@@ -1131,6 +1138,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   }
 
   function setDesktopOpen(open) {
+    const wasOpen = document.body.classList.contains('clerk-desktop-open');
     if (open && !['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
       window.dispatchEvent(new CustomEvent('palis:workspace-denied', {
         detail: {
@@ -1157,6 +1165,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       updateDesktopClock();
       setWorkspaceNotesDesktopOpen(true);
       dispatchDesktopLifecycle(true);
+      if (!wasOpen) void emitUiSound('workspace-enter', { minInterval: 1200 });
       requestAnimationFrame(() => {
         syncWorkspaceNoteBounds();
         desktop.classList.add('is-open');
@@ -1607,7 +1616,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     focusDocumentWindow(windowElement, true);
   }
 
-  function closeDocumentWindow(windowElement) {
+  async function closeDocumentWindow(windowElement) {
     const documentId = windowElement.dataset.mascotDocumentWindow;
     const state = openDocuments.get(documentId);
     if (!state || state.closing) return;
@@ -1629,12 +1638,8 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       removeWindow();
       return;
     }
-    const vector = documentTaskVector(windowElement, state.taskButton);
-    windowElement.style.setProperty('--task-x', `${vector.x}px`);
-    windowElement.style.setProperty('--task-y', `${vector.y}px`);
-    windowElement.classList.remove('is-opening', 'is-restoring');
-    windowElement.classList.add('is-closing');
-    window.setTimeout(removeWindow, 240);
+    await playPalisWindowClose(windowElement);
+    removeWindow();
   }
 
   function installDocumentWindowDrag(windowElement) {
@@ -1853,10 +1858,6 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
       else focusDocumentWindow(windowElement, true);
     });
     syncDocumentWindows();
-    if (!reducedMotion) {
-      windowElement.classList.add('is-opening');
-      window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
-    }
     setMenuOpen(false);
   }
 
@@ -1934,10 +1935,6 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     });
     focusDocumentWindow(windowElement);
     syncDocumentWindows();
-    if (!reducedMotion) {
-      windowElement.classList.add('is-opening');
-      window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
-    }
     setMenuOpen(false);
   }
 
@@ -2559,6 +2556,7 @@ function showVersionNotice() {
   versionNotice.hidden = false;
   document.body.classList.add('version-notice-open');
   window.requestAnimationFrame(() => versionNotice.classList.add('is-open'));
+  void playPalisWindowOpen(versionNotice.querySelector('.version-notice__panel'));
   window.setTimeout(() => versionNotice.querySelector('[data-version-notice-action="minimize"]')?.focus(), 180);
   syncVersionNoticeTask();
 }
@@ -2571,9 +2569,12 @@ function minimizeVersionNotice() {
   versionNoticeTimer = window.setTimeout(() => { versionNotice.hidden = true; syncVersionNoticeTask(); }, 180);
 }
 
-function closeVersionNotice() {
+async function closeVersionNotice() {
   versionNoticeClosed = true;
-  minimizeVersionNotice();
+  document.body.classList.remove('version-notice-open');
+  await playPalisWindowClose(versionNotice.querySelector('.version-notice__panel'));
+  versionNotice.classList.remove('is-open');
+  versionNotice.hidden = true;
   versionNoticeTaskButton?.remove();
   versionNoticeTaskButton = null;
   versionNoticeTask.hidden = versionNoticeTask.children.length === 0;
@@ -3562,17 +3563,18 @@ function finishLocalWindowDrag(state, event) {
   state.windowElement.classList.remove('is-local-dragging');
 }
 
-function hideLocalWindow(state, mode) {
+async function hideLocalWindow(state, mode) {
   if (!state || state.mode !== 'open') return;
   state.mode = mode;
   state.windowElement.classList.remove('is-local-restoring');
-  state.windowElement.classList.add(mode === 'closed' ? 'is-local-closing' : 'is-local-minimizing');
+  if (mode === 'closed') await playPalisWindowClose(state.windowElement);
+  else state.windowElement.classList.add('is-local-minimizing');
   updateLocalWindowDock(state);
   const finish = () => {
     state.windowElement.classList.remove('is-local-closing', 'is-local-minimizing');
     state.windowElement.classList.add('is-local-hidden');
   };
-  if (reducedMotion) finish();
+  if (mode === 'closed' || reducedMotion) finish();
   else window.setTimeout(finish, 190);
 }
 
@@ -3741,7 +3743,7 @@ function restoreArchiveWindow(windowElement) {
   bringArchiveWindowToFront(windowElement, true);
 }
 
-function closeArchiveWindow(windowElement) {
+async function closeArchiveWindow(windowElement) {
   const state = archiveWindows.get(windowElement.dataset.archiveId);
   if (!state || state.closing) return;
   state.closing = true;
@@ -3766,12 +3768,8 @@ function closeArchiveWindow(windowElement) {
     removeWindow();
     return;
   }
-  const vector = archiveTaskVector(windowElement, state.taskButton);
-  windowElement.style.setProperty('--task-x', `${vector.x}px`);
-  windowElement.style.setProperty('--task-y', `${vector.y}px`);
-  windowElement.classList.remove('is-opening', 'is-restoring');
-  windowElement.classList.add('is-closing');
-  window.setTimeout(removeWindow, 240);
+  await playPalisWindowClose(windowElement);
+  removeWindow();
 }
 
 function installArchiveWindowDrag(windowElement) {
@@ -3885,10 +3883,6 @@ function createArchiveUtilityWindow({ key, title, code, className = '', icon = '
   installArchiveWindowDrag(windowElement);
   bringArchiveWindowToFront(windowElement);
   syncArchiveTaskbar();
-  if (!reducedMotion) {
-    windowElement.classList.add('is-opening');
-    window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
-  }
   requestAnimationFrame(() => windowElement.querySelector('.window-minimize').focus({ preventScroll: true }));
   return state;
 }
@@ -6870,7 +6864,7 @@ function openArchiveAttachmentWindow(parentState, attachment) {
   const windowId = `archive-attachment-window-${++archiveWindowSequence}`;
   const fileName = attachment.fileName || '附件';
   const isImage = isArchiveImageAttachment(attachment);
-  windowElement.className = 'archive-window archive-attachment-window retro-window is-opening';
+  windowElement.className = 'archive-window archive-attachment-window retro-window';
   windowElement.id = windowId;
   windowElement.dataset.archiveId = key;
   windowElement.setAttribute('role', 'dialog');
@@ -7358,10 +7352,6 @@ function openArchive(archive, trigger) {
   bringArchiveWindowToFront(windowElement);
   syncArchiveTaskbar();
 
-  if (!reducedMotion) {
-    windowElement.classList.add('is-opening');
-    window.setTimeout(() => windowElement.classList.remove('is-opening'), 480);
-  }
   requestAnimationFrame(() => windowElement.querySelector('.window-minimize').focus({ preventScroll: true }));
 }
 

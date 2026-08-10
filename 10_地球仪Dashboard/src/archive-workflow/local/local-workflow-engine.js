@@ -488,7 +488,7 @@ export const createLocalWorkflowEngine = ({
     });
   };
 
-  const submitDraft = async (draftId, ownerId) => {
+  const submitDraft = async (draftId, ownerId, submissionDraft = null) => {
     const principal = requirePrincipal(getPrincipal);
     return transactState((currentState) => {
       const nextState = clone(currentState);
@@ -505,6 +505,17 @@ export const createLocalWorkflowEngine = ({
       }
       if (!['draft', 'changes_requested'].includes(contribution.status)) {
         throw workflowError('invalid_status', 'Only a draft or change request can be submitted');
+      }
+      const submissionContent = submissionDraft?.content ?? submissionDraft?.draft_content ?? null;
+      if (submissionContent) {
+        if (submissionContent.schemaVersion !== 2) {
+          throw workflowError('invalid_document', 'Archive documents must use schema version 2');
+        }
+        contribution.title = String(submissionDraft.title ?? '').trim() || '未命名档案';
+        contribution.draft_content = clone({
+          ...submissionContent,
+          archiveCode: String(submissionDraft.archiveCode ?? submissionDraft.archive_code ?? '').trim(),
+        });
       }
       validateDocumentTarget(nextState, contribution);
       const submittedAt = now();

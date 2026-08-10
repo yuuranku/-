@@ -368,6 +368,31 @@ test('submission stops before media or submit when either cloud save fails', asy
   assert.equal(submitCalls, 0);
 });
 
+test('submission continues from a cloud draft conflict when a cloud draft id is available', async () => {
+  const submitted = [];
+  const result = await submitDraftWithArchiveMedia({
+    syncDraft: async () => ({
+      status: 'conflict',
+      conflict: true,
+      cloud: { id: 'cloud-draft-1' },
+    }),
+    getDraftId: () => null,
+    uploadMedia: async (draftId) => {
+      assert.equal(draftId, 'cloud-draft-1');
+      return [];
+    },
+    persistMedia: () => {},
+    submitDraft: async (draftId) => {
+      submitted.push(draftId);
+      return { id: draftId, status: 'submitted' };
+    },
+    allowConflict: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(submitted, ['cloud-draft-1']);
+});
+
 test('review media loader hydrates the latest selection and ignores late stale requests', async () => {
   const pending = new Map();
   const loader = createReviewMediaLoader({

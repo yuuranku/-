@@ -284,9 +284,26 @@ export const createSupabaseArchiveWorkflowRepository = (supabase) => {
     return linkTaskResponse(data);
   };
 
-  const submitDraft = async (draftId, ownerId) => {
+  const submitDraft = async (draftId, ownerId, submissionDraft = null) => {
+    const submissionContent = submissionDraft?.content ?? submissionDraft?.draft_content ?? null;
+    if (submissionContent && submissionContent.schemaVersion !== 2) {
+      throw new ArchiveWorkflowError('Archive documents must use schema version 2', { code: 'invalid_document' });
+    }
+    const submissionPatch = submissionContent
+      ? {
+          title: String(submissionDraft.title ?? '').trim() || '未命名档案',
+          draft_content: {
+            ...submissionContent,
+            archiveCode: String(submissionDraft.archiveCode ?? submissionDraft.archive_code ?? '').trim(),
+          },
+        }
+      : {};
     const contribution = await unwrap(
-      supabase.from('archive_contributions').update({ status: 'submitted', submitted_at: new Date().toISOString() })
+      supabase.from('archive_contributions').update({
+        ...submissionPatch,
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+      })
       .eq('id', requireId(draftId, 'draftId')).eq('owner_id', requireId(ownerId, 'ownerId'))
       .in('status', ['draft', 'changes_requested']).select('*').single(),
       'Unable to submit draft',

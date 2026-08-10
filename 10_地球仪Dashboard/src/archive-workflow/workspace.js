@@ -40,6 +40,7 @@ import { applyTextareaTabIndent } from './text-indent.js';
 import { PARAGRAPH_INDENT } from './text-indent.js';
 import { applyInlineMark, extractInlineText, renderInlineText } from './inline-text-format.js';
 import { CLERK_REGISTRATIONS, clerkRegistrationLabel, normalizeClerkRegistration } from './clerk-registration.js';
+import { playPalisWindowClose } from '../window-foundation.js';
 
 const AUTOSAVE_LABELS = Object.freeze({
   'local-saving': '正在写入本地暂存…',
@@ -297,10 +298,13 @@ export const createArchiveMediaUploadSession = ({
   return { upload };
 };
 
-const failedSync = (result) =>
+const failedSync = (result, { allowConflict = false } = {}) =>
   !result
-  || Boolean(result.conflict)
-  || MEDIA_SYNC_FAILURES.has(String(result.status ?? '').trim());
+  || (!allowConflict && Boolean(result.conflict))
+  || (
+    String(result.status ?? '').trim() !== 'conflict'
+    && MEDIA_SYNC_FAILURES.has(String(result.status ?? '').trim())
+  );
 
 export async function submitDraftWithArchiveMedia({
   syncDraft,
@@ -309,12 +313,13 @@ export async function submitDraftWithArchiveMedia({
   persistMedia,
   uploadAttachments = async () => {},
   submitDraft,
+  allowConflict = false,
 } = {}) {
   const initialSync = await syncDraft();
-  if (failedSync(initialSync)) {
+  if (failedSync(initialSync, { allowConflict })) {
     return { ok: false, stage: 'initial-sync', syncResult: initialSync };
   }
-  const draftId = mediaText(getDraftId?.(), 160);
+  const draftId = mediaText(getDraftId?.() || initialSync?.cloud?.id, 160);
   if (!draftId) {
     return { ok: false, stage: 'draft-id', syncResult: initialSync };
   }
@@ -322,7 +327,7 @@ export async function submitDraftWithArchiveMedia({
   persistMedia(media);
   await uploadAttachments(draftId);
   const mediaSync = await syncDraft();
-  if (failedSync(mediaSync)) {
+  if (failedSync(mediaSync, { allowConflict })) {
     return { ok: false, stage: 'media-sync', syncResult: mediaSync };
   }
   const submission = await submitDraft(draftId);
@@ -1071,14 +1076,7 @@ export function initializeArchiveWorkspace({
       if (state.closing) return;
       state.closing = true;
       clearWindowMotion();
-      if (!state.minimized && !reducedMotion) {
-        setTaskVector();
-        windowElement.classList.add('is-closing');
-        await new Promise((resolve) => {
-          state.motionTimer = window.setTimeout(resolve, 240);
-        });
-        state.motionTimer = 0;
-      }
+      if (!state.minimized) await playPalisWindowClose(windowElement);
       windows.delete(key);
       taskButton.remove();
       windowElement.remove();
@@ -1094,13 +1092,6 @@ export function initializeArchiveWorkspace({
       window.dispatchEvent(new CustomEvent('palis:workspace-leave-request', { cancelable: true, detail: { keys: [state.dirtyKey], proceed: () => { void closeWindow(); }, cancel: () => {} } }));
     });
     windowElement.addEventListener('pointerdown', () => focusWindow(windowElement));
-    if (!reducedMotion) {
-      windowElement.classList.add('is-opening');
-      state.motionTimer = window.setTimeout(() => {
-        state.motionTimer = 0;
-        windowElement.classList.remove('is-opening');
-      }, 480);
-    }
     return state;
   };
 
@@ -1247,8 +1238,9 @@ export function initializeArchiveWorkspace({
           </div>
 
           <footer class="archive-editor__footer">
-            <p data-editor-message>内容会先保存到本机；停止输入 5 秒后再同步云端。</p>
-            <button type="button" data-save-now>立即暂存</button>
+            <p data-editor-message>内容会自动保存到本机；需要跨设备继续时，请手动保存到云端。</p>
+            <button type="button" data-save-now>保存到本机</button>
+            <button type="button" data-save-cloud>保存到云端</button>
             <button type="submit" data-submit-draft data-submit-review>提交审核</button>
           </footer>
         </form>
@@ -1270,6 +1262,7 @@ export function initializeArchiveWorkspace({
     const modifierRow = form.querySelector('[data-modifier-row]');
     const documentErrors = form.querySelector('[data-document-errors]');
     const saveButton = form.querySelector('[data-save-now]');
+    const cloudSaveButton = form.querySelector('[data-save-cloud]');
     const submitButton = form.querySelector('[data-submit-draft]');
     const editableArchivePicker = form.querySelector('[data-editable-archive-picker]');
     const editableArchiveSelect = form.elements.archiveId;
@@ -1559,6 +1552,7 @@ export function initializeArchiveWorkspace({
       const locked = state !== 'editing';
       submitButton.disabled = locked;
       saveButton.disabled = locked;
+      cloudSaveButton.disabled = locked;
     };
     const uploadedAttachmentKeys = new Set();
     let editorDraft = {
@@ -1685,6 +1679,7 @@ export function initializeArchiveWorkspace({
     const autosave = createAutosaveController({
       storage: window.localStorage,
       remote,
+      remoteAuto: false,
       onState: setAutosaveState,
     });
 
@@ -2271,20 +2266,33 @@ export function initializeArchiveWorkspace({
       saveButton.disabled = true;
       queueDraftAutosave();
       try {
+        await autosave.flushLocal();
+        message.textContent = '当前内容已保存到本机。';
+      } finally {
+        if (!submitted) saveButton.disabled = false;
+      }
+    });
+    cloudSaveButton.addEventListener('click', async () => {
+      cloudSaveButton.disabled = true;
+      queueDraftAutosave();
+      try {
+        await autosave.flushLocal();
         if (!client) {
-          await autosave.flushLocal();
-          message.textContent = '已保存到本地；档案服务未连接，可稍后继续同步。';
+          message.textContent = '已保存到本机；当前未连接档案服务。';
           return;
         }
         const result = await autosave.flushRemote();
-        if (['conflict', 'network-error', 'session-expired', 'permission-denied', 'cloud-error']
-          .includes(result?.status)) {
-          message.textContent = '已保存到本地；云端同步失败，可稍后重试。';
+        if (result?.conflict || result?.status === 'conflict') {
+          message.textContent = '云端已有不同草稿；本机内容未丢失，提交审核仍会使用当前内容。';
           return;
         }
-        message.textContent = '当前内容已保存到本地并同步云端。';
+        if (['network-error', 'session-expired', 'permission-denied', 'cloud-error'].includes(result?.status)) {
+          message.textContent = '已保存到本机；云端保存失败，可稍后重试。';
+          return;
+        }
+        message.textContent = '当前内容已保存到云端草稿。';
       } finally {
-        if (!submitted) saveButton.disabled = false;
+        if (!submitted) cloudSaveButton.disabled = false;
       }
     });
 
@@ -2328,9 +2336,12 @@ export function initializeArchiveWorkspace({
         return;
       }
       setSubmissionState('saving');
+      let submissionDraftId = editorDraft.id || null;
       const syncDraft = async () => {
         queueDraftAutosave();
-        return autosave.flushRemote();
+        const result = await autosave.flushRemote();
+        submissionDraftId = submissionDraftId || result?.cloud?.id || editorDraft.id || null;
+        return result;
       };
       const uploadGenericAttachments = async (draftId) => {
         for (const file of selectedFiles) {
@@ -2349,10 +2360,6 @@ export function initializeArchiveWorkspace({
           message.textContent = '云端暂存尚未建立，请检查网络后重试。';
           return;
         }
-        if (result.syncResult?.conflict || result.syncResult?.status === 'conflict') {
-          message.textContent = '云端版本已变化，请先处理版本冲突再提交。';
-          return;
-        }
         message.textContent = CLOUD_SYNC_FAILURE_MESSAGES[result.syncResult?.status]
           || '云端暂存失败，文字内容仍保存在本机。';
       };
@@ -2362,7 +2369,7 @@ export function initializeArchiveWorkspace({
           const selections = Object.fromEntries(pendingMediaSelections);
           submissionResult = await submitDraftWithArchiveMedia({
             syncDraft,
-            getDraftId: () => editorDraft.id,
+            getDraftId: () => submissionDraftId || editorDraft.id,
             uploadMedia: (draftId) => mediaUploadSession.upload({
               draftId,
               ownerId: context.profile.id,
@@ -2382,25 +2389,27 @@ export function initializeArchiveWorkspace({
             persistMedia: (media) => persistEditorMedia(media, { clearPending: true }),
             uploadAttachments: uploadGenericAttachments,
             submitDraft: (draftId) =>
-              client.submitDraft(draftId, context.profile.id),
+              client.submitDraft(draftId, context.profile.id, collectDraft()),
+            allowConflict: true,
           });
         } else {
           const initialSync = await syncDraft();
-          if (failedSync(initialSync)) {
+          if (failedSync(initialSync, { allowConflict: true })) {
             submissionResult = {
               ok: false,
               stage: 'initial-sync',
               syncResult: initialSync,
             };
-          } else if (!editorDraft.id) {
+          } else if (!(submissionDraftId || editorDraft.id || initialSync?.cloud?.id)) {
             submissionResult = {
               ok: false,
               stage: 'draft-id',
               syncResult: initialSync,
             };
           } else {
-            await uploadGenericAttachments(editorDraft.id);
-            const submission = await client.submitDraft(editorDraft.id, context.profile.id);
+            const draftId = submissionDraftId || editorDraft.id || initialSync?.cloud?.id;
+            await uploadGenericAttachments(draftId);
+            const submission = await client.submitDraft(draftId, context.profile.id, collectDraft());
             submissionResult = { ok: true, submission };
           }
         }
@@ -3694,6 +3703,7 @@ export function initializeArchiveWorkspace({
       title: '审核与正式录入',
       code: 'ADMIN.REVIEW',
       className: 'archive-admin-window',
+      icon: '/assets/icons/palis-authority.svg',
       body: `
         <div class="archive-admin-review">
           <aside class="archive-admin-review__queue">
@@ -3807,7 +3817,7 @@ export function initializeArchiveWorkspace({
           <span>母本或归档档案更新后，所有引用它的后续档案都会被标记为需要复核。</span>
         </aside>
         <p data-registration-message>确认编号、类别与可见性后再执行正式录入。</p>
-        <button type="submit" data-admin-accession>盖章并录入档案系统</button>
+        <button type="submit" data-admin-accession><span class="palis-action-mark palis-action-mark--accession" aria-hidden="true"><i></i>INDEXED</span>盖章并录入档案系统</button>
       </form>
     `;
 
@@ -3841,8 +3851,8 @@ export function initializeArchiveWorkspace({
           <textarea data-review-message required rows="5" placeholder="说明通过依据，或逐项写明需要修改的内容"></textarea>
         </label>
         <footer>
-          <button type="button" data-review-decision="changes_requested" data-admin-return>退回修改</button>
-          <button type="button" data-review-decision="approved" data-admin-approval>审核通过，进入正式录入</button>
+          <button type="button" data-review-decision="changes_requested" data-admin-return><span class="palis-action-mark palis-action-mark--return" aria-hidden="true"><i></i>RETURN</span>退回修改</button>
+          <button type="button" data-review-decision="approved" data-admin-approval><span class="palis-action-mark palis-action-mark--approve" aria-hidden="true"><i></i>APPROVED</span>审核通过，进入正式录入</button>
         </footer>
         <p data-review-message-output></p>
       </form>
