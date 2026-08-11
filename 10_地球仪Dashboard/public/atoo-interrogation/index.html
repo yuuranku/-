@@ -2049,13 +2049,13 @@
       choices: ['牧羊人', '领航员', '守夜人', '记录员']
     },
     {
-      shortPrompt: '你归于何处',
+      shortPrompt: '你从何而来',
       prompt: '在供词中它仍沿用革命后的旧名；旧时代结束后，涅瓦河畔的城市取回了彼得大帝赋予的名字。',
       answer: '圣彼得堡',
       choices: ['列宁格勒', '莫斯科', '圣彼得堡', '摩尔曼斯克']
     },
     {
-      shortPrompt: '你在哪里',
+      shortPrompt: '你归于何处',
       prompt: '它驻守在南极冰盖深处，继承一艘南方探险帆船之名；脚下封存着一片从未见过天空的湖。',
       answer: '东方站',
       choices: ['和平站', '东方站', '青年站', '新拉扎列夫站']
@@ -4225,27 +4225,6 @@ void main() {
       renderBrushAnswer(button, choice.label);
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.disabled = true;
-      button.addEventListener('pointerdown', (event) => {
-        if (!isAnswerGlyphTarget(event.target)) return;
-        if (currentIndex !== draft.length - 1 || event.isPrimary === false) return;
-        triggerFinalImpact(button);
-        button.dataset.finalImpactPointer = 'true';
-      });
-      button.addEventListener('pointercancel', () => {
-        delete button.dataset.finalImpactPointer;
-      });
-      button.addEventListener('click', (event) => {
-        if (event.detail !== 0 && !isAnswerGlyphTarget(event.target)) return;
-        if (currentIndex === draft.length - 1) {
-          if (button.dataset.finalImpactPointer === 'true') {
-            delete button.dataset.finalImpactPointer;
-            return;
-          }
-          triggerFinalImpact(button);
-          return;
-        }
-        goToNextQuestion();
-      });
       answers.append(button);
       brushCleanups.push(setupBrushReveal(button));
     });
@@ -4267,6 +4246,54 @@ void main() {
     if (!(target instanceof Element)) return null;
     const answer = target.closest('.answer-brush');
     return answer && (!glyphOnly || isAnswerGlyphTarget(target)) ? answer : null;
+  }
+
+  function getAnswerFromPointerEvent(event) {
+    const directAnswer = getAnswerFromTarget(event.target, true);
+    if (directAnswer) return directAnswer;
+    const answer = getAnswerFromTarget(event.target);
+    if (!answer) return null;
+    const tolerance = 5;
+    const hitGlyph = Array.from(answer.querySelectorAll('.brush-glyph')).some((glyph) => {
+      const rect = glyph.getBoundingClientRect();
+      return event.clientX >= rect.left - tolerance
+        && event.clientX <= rect.right + tolerance
+        && event.clientY >= rect.top - tolerance
+        && event.clientY <= rect.bottom + tolerance;
+    });
+    return hitGlyph ? answer : null;
+  }
+
+  function runAnswerAction(answer) {
+    if (currentIndex === draft.length - 1) {
+      triggerFinalImpact(answer);
+      return;
+    }
+    goToNextQuestion();
+  }
+
+  function activateAnswerFromPointer(event) {
+    if (event.pointerType === 'mouse') return;
+    const answer = getAnswerFromPointerEvent(event);
+    if (!answer || answer.disabled) return;
+    event.preventDefault();
+    runAnswerAction(answer);
+  }
+
+  function activateDesktopAnswerFromPointerDown(event) {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    const answer = getAnswerFromPointerEvent(event);
+    if (!answer || answer.disabled) return;
+    event.preventDefault();
+    runAnswerAction(answer);
+  }
+
+  function activateAnswerFromKeyboard(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const answer = getAnswerFromTarget(event.target);
+    if (!answer || answer.disabled) return;
+    event.preventDefault();
+    runAnswerAction(answer);
   }
 
   function isFinalAnswer(answer) {
@@ -4340,10 +4367,13 @@ void main() {
   answerSurface.addEventListener('pointerover', beginAnswerHover);
   answerSurface.addEventListener('pointerout', endAnswerHover);
   answerSurface.addEventListener('pointerdown', beginAnswerPress);
+  answerSurface.addEventListener('pointerdown', activateDesktopAnswerFromPointerDown);
   answerSurface.addEventListener('pointerup', endAnswerPress);
+  answerSurface.addEventListener('pointerup', activateAnswerFromPointer);
   answerSurface.addEventListener('pointercancel', endAnswerPress);
   answerSurface.addEventListener('focusin', beginAnswerFocus);
   answerSurface.addEventListener('focusout', endAnswerFocus);
+  answerSurface.addEventListener('keydown', activateAnswerFromKeyboard);
 
   let coverContinuing = false;
   async function continueFromCover(event) {

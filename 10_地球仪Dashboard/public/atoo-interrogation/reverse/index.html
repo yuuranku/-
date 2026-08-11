@@ -2324,13 +2324,13 @@
       choices: ['牧羊人', '领航员', '守夜人', '记录员']
     },
     {
-      shortPrompt: '你归于何处',
+      shortPrompt: '你从何而来',
       prompt: '在供词中它仍沿用革命后的旧名；旧时代结束后，涅瓦河畔的城市取回了彼得大帝赋予的名字。',
       answer: '圣彼得堡',
       choices: ['列宁格勒', '莫斯科', '圣彼得堡', '摩尔曼斯克']
     },
     {
-      shortPrompt: '你在哪里',
+      shortPrompt: '你归于何处',
       prompt: '它驻守在南极冰盖深处，继承一艘南方探险帆船之名；脚下封存着一片从未见过天空的湖。',
       answer: '东方站',
       choices: ['和平站', '东方站', '青年站', '新拉扎列夫站']
@@ -3522,7 +3522,7 @@ void main() {
       if (!sessionStarted) return;
       answerHoverRing.currentTime = 0;
       answerHoverRing.play()
-        .then(() => fadeAudio(answerHoverRing, .045, 260))
+        .then(() => fadeAudio(answerHoverRing, .025, 180))
         .catch(() => {});
     };
 
@@ -5059,6 +5059,21 @@ void main() {
   // The question remains a stable, breathing prompt; the cursor distortion belongs to answers.
   meshTextEffect = null;
   let activeAnswer = null;
+  let answerPressFeedbackTimer = null;
+
+  function clearAnswerPressFeedbackTimer() {
+    if (answerPressFeedbackTimer === null) return;
+    window.clearTimeout(answerPressFeedbackTimer);
+    answerPressFeedbackTimer = null;
+  }
+
+  function stopAnswerFeedback(immediately = true) {
+    clearAnswerPressFeedbackTimer();
+    activeAnswer = null;
+    if (immediately) soundscape.stopHeartbeatImmediately();
+    else soundscape.stopHeartbeat();
+    soundscape.restoreAmbienceAfterAnswer();
+  }
 
   function isAnswerGlyphTarget(target) {
     return target instanceof Element && target.closest('.brush-glyph') !== null;
@@ -5095,44 +5110,52 @@ void main() {
   }
 
   function beginAnswerHover(event) {
-    if (event.pointerType === 'touch') return;
+    if (event.pointerType !== 'mouse') return;
     const answer = getAnswerFromTarget(event.target, true);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
+    clearAnswerPressFeedbackTimer();
     activeAnswer = answer;
     soundscape.lowerAmbienceForAnswer();
     soundscape.startHeartbeat();
   }
 
   function endAnswerHover(event) {
-    if (event.pointerType === 'touch') return;
-    const answer = getAnswerFromTarget(event.target, true);
-    if (!answer) return;
+    if (event.pointerType !== 'mouse') return;
     const nextAnswer = getAnswerFromTarget(event.relatedTarget, true);
-    if (nextAnswer && !isFinalAnswer(answer) && !isFinalAnswer(nextAnswer)) {
+    if (nextAnswer && !isFinalAnswer(nextAnswer)) {
       activeAnswer = nextAnswer;
       return;
     }
-    activeAnswer = null;
-    soundscape.stopHeartbeat();
-    soundscape.restoreAmbienceAfterAnswer();
+    stopAnswerFeedback();
   }
 
   function beginAnswerPress(event) {
     soundscape.beginSession();
-    const answer = getAnswerFromTarget(event.target, true);
-    if (!answer || activeAnswer === answer) return;
+    if (event.pointerType === 'mouse') return;
+    const answer = getAnswerFromPointerEvent(event);
+    if (!answer) return;
     if (isFinalAnswer(answer)) return;
+    clearAnswerPressFeedbackTimer();
     activeAnswer = answer;
-    soundscape.lowerAmbienceForAnswer();
-    soundscape.startHeartbeat();
+    answerPressFeedbackTimer = window.setTimeout(() => {
+      answerPressFeedbackTimer = null;
+      if (activeAnswer !== answer) return;
+      soundscape.lowerAmbienceForAnswer();
+      soundscape.startHeartbeat();
+    }, 260);
+  }
+
+  function trackAnswerPress(event) {
+    if (event.pointerType === 'mouse' || activeAnswer === null) return;
+    const answer = getAnswerFromPointerEvent(event);
+    if (answer === activeAnswer) return;
+    stopAnswerFeedback();
   }
 
   function endAnswerPress(event) {
     if (event.pointerType === 'mouse') return;
-    activeAnswer = null;
-    soundscape.stopHeartbeat();
-    soundscape.restoreAmbienceAfterAnswer();
+    stopAnswerFeedback();
   }
 
   function beginAnswerFocus(event) {
@@ -5148,9 +5171,7 @@ void main() {
     const answer = getAnswerFromTarget(event.target);
     const nextAnswer = getAnswerFromTarget(event.relatedTarget);
     if (nextAnswer && !isFinalAnswer(answer) && !isFinalAnswer(nextAnswer)) return;
-    activeAnswer = null;
-    soundscape.stopHeartbeat();
-    soundscape.restoreAmbienceAfterAnswer();
+    stopAnswerFeedback(false);
   }
 
   function activateAnswerFromPointer(event) {
@@ -5181,12 +5202,22 @@ void main() {
   answerSurface.addEventListener('pointerout', endAnswerHover);
   answerSurface.addEventListener('pointerdown', beginAnswerPress);
   answerSurface.addEventListener('pointerdown', activateDesktopAnswerFromPointerDown);
+  answerSurface.addEventListener('pointermove', trackAnswerPress);
   answerSurface.addEventListener('pointerup', endAnswerPress);
   answerSurface.addEventListener('pointerup', activateAnswerFromPointer);
   answerSurface.addEventListener('pointercancel', endAnswerPress);
+  answerSurface.addEventListener('pointerleave', (event) => {
+    if (event.pointerType === 'mouse') stopAnswerFeedback();
+  });
   answerSurface.addEventListener('focusin', beginAnswerFocus);
   answerSurface.addEventListener('focusout', endAnswerFocus);
   answerSurface.addEventListener('keydown', activateAnswerFromKeyboard);
+  window.addEventListener('pointerup', endAnswerPress);
+  window.addEventListener('pointercancel', endAnswerPress);
+  window.addEventListener('blur', () => stopAnswerFeedback());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopAnswerFeedback();
+  });
 
   function setupRelayPuzzle() {
     const questionCard = $('relayQuestionCard');
