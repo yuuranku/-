@@ -1,0 +1,8 @@
+sewer-drain-cc0.mp3
+
+Source: sewer drain.wav by thedapperdan
+Page: https://freesound.org/people/thedapperdan/sounds/26910/
+License: Creative Commons CC0 1.0
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Used as the looping condensation/drain ambience after the final plate is removed.
