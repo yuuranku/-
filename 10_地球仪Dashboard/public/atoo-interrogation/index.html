@@ -844,6 +844,24 @@
       opacity: 0;
     }
 
+    .reverse-stage {
+      grid-area: 1 / 1;
+      width: min(100vw, 46.2085dvh);
+      height: min(100dvh, 216.4103vw);
+      aspect-ratio: 390 / 844;
+      z-index: 80;
+      border: 0;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 360ms ease;
+    }
+
+    .reverse-stage.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .intercept-terminal {
       height: 100%;
       border: 2px solid #66897a;
@@ -1981,6 +1999,7 @@
       </div>
     </div>
   </section>
+  <iframe class="reverse-stage" id="reverseStage" title="第二次接触：倒序记录" hidden></iframe>
   <script>
 (() => {
   'use strict';
@@ -1999,8 +2018,26 @@
     });
   }
 
+  function openReverseInterrogation() {
+    const stage = document.getElementById('reverseStage');
+    if (!stage) return;
+    stage.hidden = false;
+    const reveal = () => requestAnimationFrame(() => stage.classList.add('is-active'));
+    if (stage.getAttribute('src') === REVERSE_INTERROGATION_URL) {
+      reveal();
+      return;
+    }
+    stage.addEventListener('load', reveal, { once: true });
+    stage.setAttribute('src', REVERSE_INTERROGATION_URL);
+  }
+
   document.getElementById('basClassifiedOpen')?.addEventListener('click', () => {
-    window.location.assign(REVERSE_INTERROGATION_URL);
+    const notice = document.getElementById('basClassifiedNotice');
+    notice?.classList.remove('is-visible');
+    window.setTimeout(() => {
+      if (notice) notice.hidden = true;
+      openReverseInterrogation();
+    }, 180);
   });
   const DEFAULT_DRAFT = [{"id":"Q-01","body":"姓名？","choices":[{"id":"01","label":"德米特里·阿列克谢耶维奇·沃尔科夫。"}]},{"id":"Q-02","body":"你隶属于哪个机构？","choices":[{"id":"01","label":"俄罗斯科学院。"}]},{"id":"Q-03","body":"你知道自己为什么会在这里吗？","choices":[{"id":"01","label":"我不知道。"}]},{"id":"Q-04","body":"是谁让你来的？","choices":[{"id":"01","label":"我不知道。"}]},{"id":"Q-05","body":"你在下面做了什么？","choices":[{"id":"01","label":"我不知道。我一直在走。"}]},{"id":"Q-06","body":"你在下面看到了什么？","choices":[{"id":"01","label":"低矮的灌木和苔原。除此之外，我什么也没看到。"}]},{"id":"Q-07","body":"你认识他们吗？他们是你的队员吗？","choices":[{"id":"01","label":"我不认识他们。"}]},{"id":"Q-08","body":"你是怎么上来的？","choices":[{"id":"01","label":"我不知道……我一直在走，然后就上来了。"}]},{"id":"Q-09","body":"你醒来之前，你在做什么？","choices":[{"id":"01","label":"我照常去研究院上班。然后我.....我好像睡着了，我梦到了火，但我不在其中。我醒来时，我已经穿着厚重的衣服，身处那片冰天雪地里了。"}]},{"id":"Q-10","body":"我再问一遍：你在下面做了什么？","choices":[{"id":"01","label":"我不知道……我甚至不知道自己为什么会在这里。"}]},{"id":"Q-11","body":"你知道今天是什么日子吗？","choices":[{"id":"01","label":"10月30日。"}]},{"id":"Q-12","body":"先生，本次问询先到这里吧，我们之后再继续。","choices":[{"id":"01","label":"好。"}]}];
   const RELAY_PUZZLES = [
