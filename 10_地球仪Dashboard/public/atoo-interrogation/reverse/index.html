@@ -2849,8 +2849,7 @@ void main() {
     const breathingLoop = new Audio('breathing-awake-cc0.mp3');
     const answerHoverRing = new Audio('answer-hover-flashbang-tinnitus.mp3');
     const portraitJumpscare = new Audio('portrait-jumpscare.ogg');
-    const portraitFatigueSigh = new Audio('tired-breathing-cc0.wav');
-    const wearyManySelvesVoice = new Audio('audio/weary-many-selves.mp3');
+    const portraitFatigueSigh = new Audio('male-tired-sigh-cc0.mp3');
     const subterraneanAmbience = new Audio('audio/sewer-drain-cc0.mp3');
     const whisperShotWhispers = new Audio('whispers-cc0.mp3');
     const whisperShotGunshot = new Audio('single-gunshot-cc0.mp3');
@@ -2888,10 +2887,7 @@ void main() {
     portraitJumpscare.volume = .34;
     portraitFatigueSigh.loop = false;
     portraitFatigueSigh.preload = 'auto';
-    portraitFatigueSigh.volume = .22;
-    wearyManySelvesVoice.loop = false;
-    wearyManySelvesVoice.preload = 'auto';
-    wearyManySelvesVoice.volume = .78;
+    portraitFatigueSigh.volume = .36;
     whisperShotWhispers.loop = false;
     whisperShotWhispers.preload = 'auto';
     whisperShotWhispers.volume = .2;
@@ -3387,18 +3383,12 @@ void main() {
     function playPortraitFlashSound() {
       portraitFatigueSigh.pause();
       portraitFatigueSigh.currentTime = 0;
-      portraitFatigueSigh.volume = .1;
+      portraitFatigueSigh.volume = .36;
       portraitFatigueSigh.play().catch(() => {});
-      wearyManySelvesVoice.pause();
-      wearyManySelvesVoice.currentTime = 0;
-      wearyManySelvesVoice.volume = .78;
-      wearyManySelvesVoice.play().catch(() => {});
       window.setTimeout(() => {
         portraitFatigueSigh.pause();
         portraitFatigueSigh.currentTime = 0;
-        wearyManySelvesVoice.pause();
-        wearyManySelvesVoice.currentTime = 0;
-      }, 4200);
+      }, 1600);
     }
 
     function playShepherdHorrorSting() {
