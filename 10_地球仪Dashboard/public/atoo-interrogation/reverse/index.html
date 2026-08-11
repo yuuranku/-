@@ -4534,36 +4534,43 @@ void main() {
   function triggerShepherdEnding() {
     if (isTransitioning) return;
     isTransitioning = true;
-    lockAnswersForTransition();
-    $('questionStage')?.classList.add('question-stage--transitioning');
-
-    const ending = $('shepherdEnding');
-    if (!ending) return;
-    const wall = $('shepherdWall');
-    if (wall && wall.childElementCount === 0) {
-      const fragment = document.createDocumentFragment();
-      for (let index = 0; index < 720; index += 1) {
-        const word = document.createElement('span');
-        word.textContent = '牧者';
-        fragment.append(word);
-      }
-      wall.append(fragment);
-    }
-    ending.hidden = false;
-    ending.classList.remove('is-active', 'is-recording');
-    soundscape.stopMemorialAnnouncer();
-    soundscape.stopMemorialMusic();
-    void ending.offsetWidth;
-    soundscape.playShepherdHorrorSting();
-    ending.classList.add('is-active');
+    $('answers').querySelectorAll('button').forEach((button) => {
+      button.disabled = true;
+    });
 
     shepherdEndingTimer = window.setTimeout(() => {
-      ending.classList.remove('is-active');
-      ending.classList.add('is-recording');
-      soundscape.playMemorialAnnouncer();
-      soundscape.playMemorialMusic();
       shepherdEndingTimer = null;
-    }, 560);
+      lockAnswersForTransition();
+      $('questionStage')?.classList.add('question-stage--transitioning');
+
+      const ending = $('shepherdEnding');
+      if (!ending) return;
+      const wall = $('shepherdWall');
+      if (wall && wall.childElementCount === 0) {
+        const fragment = document.createDocumentFragment();
+        for (let index = 0; index < 720; index += 1) {
+          const word = document.createElement('span');
+          word.textContent = '牧者';
+          fragment.append(word);
+        }
+        wall.append(fragment);
+      }
+      ending.hidden = false;
+      ending.classList.remove('is-active', 'is-recording');
+      soundscape.stopMemorialAnnouncer();
+      soundscape.stopMemorialMusic();
+      void ending.offsetWidth;
+      soundscape.playShepherdHorrorSting();
+      ending.classList.add('is-active');
+
+      shepherdEndingTimer = window.setTimeout(() => {
+        ending.classList.remove('is-active');
+        ending.classList.add('is-recording');
+        soundscape.playMemorialAnnouncer();
+        soundscape.playMemorialMusic();
+        shepherdEndingTimer = null;
+      }, 560);
+    }, 3000);
   }
 
   function triggerChoiceConfession(phrase = '我不愿回想') {
