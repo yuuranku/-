@@ -1179,6 +1179,26 @@
       }
     }
 
+    @keyframes photo-particle-drift-mobile {
+      0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+      }
+      22% { opacity: .96; }
+      100% {
+        opacity: 0;
+        transform: translate3d(var(--drift-x), var(--drift-y), 0) rotate(var(--turn)) scale(.42);
+      }
+    }
+
+    @media (pointer: coarse), (max-width: 720px) {
+      .photo-dissolve__particle {
+        filter: none;
+        animation-name: photo-particle-drift-mobile;
+        will-change: transform, opacity;
+      }
+    }
+
     .question-stage:has(.question-evidence:not([hidden])) {
       min-height: 292px;
     }
@@ -3512,7 +3532,7 @@ void main() {
       if (!sessionStarted) return;
       answerHoverRing.currentTime = 0;
       answerHoverRing.play()
-        .then(() => fadeAudio(answerHoverRing, .025, 180))
+        .then(() => fadeAudio(answerHoverRing, .04, 220))
         .catch(() => {});
     };
 
@@ -4646,8 +4666,9 @@ void main() {
       : 0.72;
     const renderedHeight = Math.max(rect.height, rect.width * imageRatio);
     const cropY = Math.max(0, renderedHeight - rect.height) * 0.5;
-    const columns = 28;
-    const rows = 18;
+    const useCompactParticles = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 720;
+    const columns = useCompactParticles ? 14 : 28;
+    const rows = useCompactParticles ? 9 : 18;
     const cellWidth = rect.width / columns;
     const cellHeight = rect.height / rows;
     const particles = document.createDocumentFragment();
@@ -4732,7 +4753,7 @@ void main() {
   function handleAnswerSelection(button) {
     const node = draft[currentIndex];
     if (!node || isTransitioning) return;
-    soundscape.stopHeartbeatImmediately();
+    soundscape.stopHeartbeat();
 
     if (node.id === 'Q-05') {
       triggerBelowDescent();
@@ -5064,7 +5085,7 @@ void main() {
     answerPressFeedbackTimer = null;
   }
 
-  function stopAnswerFeedback(immediately = true) {
+  function stopAnswerFeedback(immediately = false) {
     clearAnswerPressFeedbackTimer();
     activeAnswer = null;
     if (immediately) soundscape.stopHeartbeatImmediately();
@@ -5072,34 +5093,33 @@ void main() {
     soundscape.restoreAmbienceAfterAnswer();
   }
 
-  function isAnswerGlyphTarget(target) {
-    return target instanceof Element && target.closest('.brush-glyph') !== null;
+  function getAnswerFromTarget(target) {
+    if (!(target instanceof Element)) return null;
+    return target.closest('.answer-brush');
   }
 
-  function getAnswerFromTarget(target, glyphOnly = false) {
-    if (!(target instanceof Element)) return null;
-    const answer = target.closest('.answer-brush');
-    return answer && (!glyphOnly || isAnswerGlyphTarget(target)) ? answer : null;
+  function isPointInsideAnswerGlyph(answer, clientX, clientY) {
+    if (!answer || answer.disabled) return false;
+    const tolerance = 5;
+    return Array.from(answer.querySelectorAll('.brush-glyph')).some((glyph) => {
+      const rect = glyph.getBoundingClientRect();
+      return (
+        clientX >= rect.left - tolerance &&
+        clientX <= rect.right + tolerance &&
+        clientY >= rect.top - tolerance &&
+        clientY <= rect.bottom + tolerance
+      );
+    });
+  }
+
+  function findAnswerAtPoint(clientX, clientY) {
+    return Array.from(answerSurface.querySelectorAll('.answer-brush')).find((answer) => (
+      isPointInsideAnswerGlyph(answer, clientX, clientY)
+    )) ?? null;
   }
 
   function getAnswerFromPointerEvent(event) {
-    const directAnswer = getAnswerFromTarget(event.target, true);
-    if (directAnswer) return directAnswer;
-
-    const answer = getAnswerFromTarget(event.target);
-    if (!answer) return null;
-
-    const tolerance = 5;
-    const hitGlyph = Array.from(answer.querySelectorAll('.brush-glyph')).some((glyph) => {
-      const rect = glyph.getBoundingClientRect();
-      return (
-        event.clientX >= rect.left - tolerance &&
-        event.clientX <= rect.right + tolerance &&
-        event.clientY >= rect.top - tolerance &&
-        event.clientY <= rect.bottom + tolerance
-      );
-    });
-    return hitGlyph ? answer : null;
+    return findAnswerAtPoint(event.clientX, event.clientY);
   }
 
   function isFinalAnswer() {
@@ -5107,10 +5127,11 @@ void main() {
   }
 
   function beginAnswerHover(event) {
-    if (event.pointerType !== 'mouse') return;
-    const answer = getAnswerFromTarget(event.target, true);
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    const answer = getAnswerFromPointerEvent(event);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
+    if (activeAnswer) stopAnswerFeedback();
     clearAnswerPressFeedbackTimer();
     activeAnswer = answer;
     soundscape.lowerAmbienceForAnswer();
@@ -5118,9 +5139,10 @@ void main() {
   }
 
   function endAnswerHover(event) {
-    if (event.pointerType !== 'mouse') return;
-    const nextAnswer = getAnswerFromTarget(event.relatedTarget, true);
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    const nextAnswer = findAnswerAtPoint(event.clientX, event.clientY);
     if (nextAnswer && !isFinalAnswer(nextAnswer)) {
+      if (activeAnswer !== nextAnswer) beginAnswerHover(event);
       activeAnswer = nextAnswer;
       return;
     }
@@ -5144,7 +5166,13 @@ void main() {
   }
 
   function trackAnswerPress(event) {
-    if (event.pointerType === 'mouse' || activeAnswer === null) return;
+    if (!event.pointerType || event.pointerType === 'mouse') {
+      const answer = getAnswerFromPointerEvent(event);
+      if (answer) beginAnswerHover(event);
+      else if (activeAnswer) stopAnswerFeedback();
+      return;
+    }
+    if (activeAnswer === null) return;
     const answer = getAnswerFromPointerEvent(event);
     if (answer === activeAnswer) return;
     stopAnswerFeedback();
@@ -5153,22 +5181,6 @@ void main() {
   function endAnswerPress(event) {
     if (event.pointerType === 'mouse') return;
     stopAnswerFeedback();
-  }
-
-  function beginAnswerFocus(event) {
-    const answer = getAnswerFromTarget(event.target);
-    if (!answer || activeAnswer === answer) return;
-    if (isFinalAnswer(answer)) return;
-    activeAnswer = answer;
-    soundscape.lowerAmbienceForAnswer();
-    soundscape.startHeartbeat();
-  }
-
-  function endAnswerFocus(event) {
-    const answer = getAnswerFromTarget(event.target);
-    const nextAnswer = getAnswerFromTarget(event.relatedTarget);
-    if (nextAnswer && !isFinalAnswer(answer) && !isFinalAnswer(nextAnswer)) return;
-    stopAnswerFeedback(false);
   }
 
   function activateAnswerFromPointer(event) {
@@ -5204,10 +5216,8 @@ void main() {
   answerSurface.addEventListener('pointerup', activateAnswerFromPointer);
   answerSurface.addEventListener('pointercancel', endAnswerPress);
   answerSurface.addEventListener('pointerleave', (event) => {
-    if (event.pointerType === 'mouse') stopAnswerFeedback();
+    if (!event.pointerType || event.pointerType === 'mouse') stopAnswerFeedback();
   });
-  answerSurface.addEventListener('focusin', beginAnswerFocus);
-  answerSurface.addEventListener('focusout', endAnswerFocus);
   answerSurface.addEventListener('keydown', activateAnswerFromKeyboard);
   window.addEventListener('pointerup', endAnswerPress);
   window.addEventListener('pointercancel', endAnswerPress);
