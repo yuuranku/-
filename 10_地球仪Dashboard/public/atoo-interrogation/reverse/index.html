@@ -5051,9 +5051,6 @@ void main() {
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.dataset.choiceIndex = String(index);
       button.disabled = true;
-      button.addEventListener('click', () => {
-        handleAnswerSelection(button);
-      });
       answers.append(button);
       if (node.id !== 'Q-01') {
         brushCleanups.push(setupAnswerMesh(button, choice.label));
@@ -5142,13 +5139,31 @@ void main() {
     soundscape.restoreAmbienceAfterAnswer();
   }
 
+  function activateAnswerFromPointer(event) {
+    if (event.button !== 0) return;
+    const answer = getAnswerFromTarget(event.target, true);
+    if (!answer || answer.disabled) return;
+    event.preventDefault();
+    handleAnswerSelection(answer);
+  }
+
+  function activateAnswerFromKeyboard(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const answer = getAnswerFromTarget(event.target);
+    if (!answer || answer.disabled) return;
+    event.preventDefault();
+    handleAnswerSelection(answer);
+  }
+
   answerSurface.addEventListener('pointerover', beginAnswerHover);
   answerSurface.addEventListener('pointerout', endAnswerHover);
   answerSurface.addEventListener('pointerdown', beginAnswerPress);
   answerSurface.addEventListener('pointerup', endAnswerPress);
+  answerSurface.addEventListener('pointerup', activateAnswerFromPointer);
   answerSurface.addEventListener('pointercancel', endAnswerPress);
   answerSurface.addEventListener('focusin', beginAnswerFocus);
   answerSurface.addEventListener('focusout', endAnswerFocus);
+  answerSurface.addEventListener('keydown', activateAnswerFromKeyboard);
 
   function setupRelayPuzzle() {
     const questionCard = $('relayQuestionCard');
