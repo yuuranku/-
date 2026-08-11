@@ -1538,6 +1538,20 @@
     }
 
     @media (max-width: 600px) {
+      .relay-puzzle {
+        grid-template-rows: 43% minmax(0, 1fr) auto;
+      }
+
+      .relay-question-card {
+        gap: 2%;
+        padding-block: 2.8%;
+      }
+
+      .relay-question-copy {
+        font-size: 1.16em;
+        line-height: 1.24;
+      }
+
       .shepherd-ending__flash {
         grid-template-columns: repeat(12, minmax(0, 1fr));
         grid-template-rows: repeat(60, minmax(0, 1fr));
@@ -2632,7 +2646,7 @@ void main() {
     };
     const onPointerDown = (event) => {
       cursor.pointerId = event.pointerId;
-      canvas.setPointerCapture?.(event.pointerId);
+      wrapper.setPointerCapture?.(event.pointerId);
       updatePointer(event);
     };
     const onPointerMove = (event) => {
@@ -2641,7 +2655,7 @@ void main() {
     };
     const onPointerUp = (event) => {
       if (cursor.pointerId !== null && event.pointerId !== cursor.pointerId) return;
-      canvas.releasePointerCapture?.(event.pointerId);
+      wrapper.releasePointerCapture?.(event.pointerId);
       cursor.pointerId = null;
       leavePointer();
     };
@@ -2658,9 +2672,11 @@ void main() {
       if (now - lastTextureUpload >= 32) uploadTexture(now);
       cursor.vx = cursor.x - cursor.px;
       cursor.vy = cursor.y - cursor.py;
-      if (Math.hypot(cursor.vx, cursor.vy) > 0.3) {
-        cursor.vx = 0;
-        cursor.vy = 0;
+      const velocityMagnitude = Math.hypot(cursor.vx, cursor.vy);
+      if (velocityMagnitude > 0.24) {
+        const scale = 0.24 / velocityMagnitude;
+        cursor.vx *= scale;
+        cursor.vy *= scale;
       }
       cursor.px = cursor.x;
       cursor.py = cursor.y;
@@ -4998,7 +5014,8 @@ void main() {
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.dataset.choiceIndex = String(index);
       button.disabled = true;
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (event) => {
+        if (event.detail !== 0 && !isAnswerGlyphTarget(event.target)) return;
         handleAnswerSelection(button);
       });
       answers.append(button);
@@ -5016,8 +5033,14 @@ void main() {
   meshTextEffect = null;
   let activeAnswer = null;
 
-  function getAnswerFromTarget(target) {
-    return target instanceof Element ? target.closest('.answer-brush') : null;
+  function isAnswerGlyphTarget(target) {
+    return target instanceof Element && target.closest('.brush-glyph') !== null;
+  }
+
+  function getAnswerFromTarget(target, glyphOnly = false) {
+    if (!(target instanceof Element)) return null;
+    const answer = target.closest('.answer-brush');
+    return answer && (!glyphOnly || isAnswerGlyphTarget(target)) ? answer : null;
   }
 
   function isFinalAnswer() {
@@ -5026,7 +5049,7 @@ void main() {
 
   function beginAnswerHover(event) {
     if (event.pointerType === 'touch') return;
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
     activeAnswer = answer;
@@ -5036,9 +5059,9 @@ void main() {
 
   function endAnswerHover(event) {
     if (event.pointerType === 'touch') return;
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer) return;
-    const nextAnswer = getAnswerFromTarget(event.relatedTarget);
+    const nextAnswer = getAnswerFromTarget(event.relatedTarget, true);
     if (nextAnswer && !isFinalAnswer(answer) && !isFinalAnswer(nextAnswer)) {
       activeAnswer = nextAnswer;
       return;
@@ -5050,7 +5073,7 @@ void main() {
 
   function beginAnswerPress(event) {
     soundscape.beginSession();
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
     activeAnswer = answer;

@@ -768,6 +768,7 @@
       height: min(100dvh, 216.4103vw);
       aspect-ratio: 390 / 844;
       z-index: 40;
+      position: relative;
       display: grid;
       place-content: center;
       gap: 16px;
@@ -782,7 +783,8 @@
     .archive-cover__title,
     .archive-cover__classification,
     .archive-cover__notice,
-    .archive-cover__continue {
+    .archive-cover__continue,
+    .archive-cover__hint {
       margin: 0;
     }
 
@@ -824,6 +826,17 @@
       border-color: #fff;
       color: #000;
       background: #fff;
+    }
+
+    .archive-cover__hint {
+      position: absolute;
+      right: 22px;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      left: 22px;
+      color: rgba(255, 255, 255, .42);
+      font-size: 10px;
+      line-height: 1.6;
+      letter-spacing: .04em;
     }
 
     .archive-cover--leaving {
@@ -1821,6 +1834,20 @@
       .bas-classified-notice__level {
         margin-left: 0;
       }
+
+      .relay-puzzle {
+        grid-template-rows: 43% minmax(0, 1fr) auto;
+      }
+
+      .relay-question-card {
+        gap: 2%;
+        padding-block: 2.8%;
+      }
+
+      .relay-question-copy {
+        font-size: 1.16em;
+        line-height: 1.24;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1933,6 +1960,7 @@
     <p class="archive-cover__classification">内陆特别作业局 · 特级封存</p>
     <p class="archive-cover__notice">以下记录可能存在时间错序、空间错位、当事人认知偏差及内容模糊等现象，均属档案正常表现。请知悉。</p>
     <button class="archive-cover__continue" id="archiveCoverContinue" type="button">我已知悉</button>
+    <p class="archive-cover__hint">部分效果：手机版手指长按触发，电脑版鼠标悬浮触发</p>
   </section>
   <section class="bas-classified-notice" id="basClassifiedNotice" role="dialog" aria-modal="true" aria-labelledby="basClassifiedTitle" hidden>
     <div class="bas-classified-notice__panel">
@@ -4148,6 +4176,7 @@ void main() {
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.disabled = true;
       button.addEventListener('pointerdown', (event) => {
+        if (!isAnswerGlyphTarget(event.target)) return;
         if (currentIndex !== draft.length - 1 || event.isPrimary === false) return;
         triggerFinalImpact(button);
         button.dataset.finalImpactPointer = 'true';
@@ -4155,7 +4184,8 @@ void main() {
       button.addEventListener('pointercancel', () => {
         delete button.dataset.finalImpactPointer;
       });
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (event) => {
+        if (event.detail !== 0 && !isAnswerGlyphTarget(event.target)) return;
         if (currentIndex === draft.length - 1) {
           if (button.dataset.finalImpactPointer === 'true') {
             delete button.dataset.finalImpactPointer;
@@ -4179,8 +4209,14 @@ void main() {
   if (meshTextEffect) questionStage.classList.add('mesh-ready');
   let activeAnswer = null;
 
-  function getAnswerFromTarget(target) {
-    return target instanceof Element ? target.closest('.answer-brush') : null;
+  function isAnswerGlyphTarget(target) {
+    return target instanceof Element && target.closest('.brush-glyph') !== null;
+  }
+
+  function getAnswerFromTarget(target, glyphOnly = false) {
+    if (!(target instanceof Element)) return null;
+    const answer = target.closest('.answer-brush');
+    return answer && (!glyphOnly || isAnswerGlyphTarget(target)) ? answer : null;
   }
 
   function isFinalAnswer(answer) {
@@ -4189,7 +4225,7 @@ void main() {
 
   function beginAnswerHover(event) {
     if (event.pointerType === 'touch') return;
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
     activeAnswer = answer;
@@ -4200,9 +4236,9 @@ void main() {
 
   function endAnswerHover(event) {
     if (event.pointerType === 'touch') return;
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer) return;
-    const nextAnswer = getAnswerFromTarget(event.relatedTarget);
+    const nextAnswer = getAnswerFromTarget(event.relatedTarget, true);
     if (nextAnswer && !isFinalAnswer(answer) && !isFinalAnswer(nextAnswer)) {
       activeAnswer = nextAnswer;
       return;
@@ -4214,7 +4250,7 @@ void main() {
   }
 
   function beginAnswerPress(event) {
-    const answer = getAnswerFromTarget(event.target);
+    const answer = getAnswerFromTarget(event.target, true);
     if (!answer || activeAnswer === answer) return;
     if (isFinalAnswer(answer)) return;
     activeAnswer = answer;
