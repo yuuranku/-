@@ -1630,12 +1630,6 @@
 
     .answers button { text-align: center; }
 
-    .answers .answer-brush {
-      width: fit-content;
-      max-width: 100%;
-      justify-self: center;
-    }
-
     .answer-brush {
       position: relative;
       touch-action: none;
@@ -2469,7 +2463,7 @@ void main() {
 
     const characters = Array.from(text || '');
     const letterSpacing = Math.round(2 * (window.devicePixelRatio || 1));
-    const maxLineWidth = width * 0.94;
+    const maxLineWidth = width * 0.985;
     const lines = [];
     let line = { items: [], width: 0 };
     characters.forEach((character, index) => {
