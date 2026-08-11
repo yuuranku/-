@@ -1670,6 +1670,13 @@
       text-wrap: balance;
     }
 
+    .answer-brush--compact {
+      font-size: .84em;
+      line-height: 1.65;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
     .question-char.question-char--knocked {
       position: relative;
       z-index: 4;
@@ -2843,6 +2850,7 @@ void main() {
     const answerHoverRing = new Audio('answer-hover-flashbang-tinnitus.mp3');
     const portraitJumpscare = new Audio('portrait-jumpscare.ogg');
     const portraitFatigueSigh = new Audio('tired-breathing-cc0.wav');
+    const wearyManySelvesVoice = new Audio('audio/weary-many-selves.mp3');
     const subterraneanAmbience = new Audio('audio/sewer-drain-cc0.mp3');
     const whisperShotWhispers = new Audio('whispers-cc0.mp3');
     const whisperShotGunshot = new Audio('single-gunshot-cc0.mp3');
@@ -2881,6 +2889,9 @@ void main() {
     portraitFatigueSigh.loop = false;
     portraitFatigueSigh.preload = 'auto';
     portraitFatigueSigh.volume = .22;
+    wearyManySelvesVoice.loop = false;
+    wearyManySelvesVoice.preload = 'auto';
+    wearyManySelvesVoice.volume = .78;
     whisperShotWhispers.loop = false;
     whisperShotWhispers.preload = 'auto';
     whisperShotWhispers.volume = .2;
@@ -2889,10 +2900,10 @@ void main() {
     whisperShotGunshot.volume = .3;
     memorialAnnouncer.loop = true;
     memorialAnnouncer.preload = 'auto';
-    memorialAnnouncer.volume = .065;
+    memorialAnnouncer.volume = .018;
     memorialMusic.loop = false;
     memorialMusic.preload = 'auto';
-    memorialMusic.volume = .14;
+    memorialMusic.volume = .24;
     let whisperShotTimer = null;
     let shepherdStingTimer = null;
 
@@ -3069,7 +3080,9 @@ void main() {
     function getInteractiveAudioContext() {
       if (!sessionStarted) return null;
       const context = ensureFallbackContext();
-      return !context || context.state === 'suspended' ? null : context;
+      if (!context) return null;
+      if (context.state === 'suspended') context.resume().catch(() => {});
+      return context;
     }
 
     function emitRetroTone(context, at, startFrequency, endFrequency, level, duration) {
@@ -3352,6 +3365,16 @@ void main() {
       emitImpactTone(context, now + .008, 132, 72, .034, .11, 'triangle');
     }
 
+    function playBelowGrowSound(step) {
+      const context = getInteractiveAudioContext();
+      if (!context) return;
+      const now = context.currentTime + .006;
+      const isSecondGrowth = step === 2;
+      emitImpactNoise(context, now, isSecondGrowth ? .13 : .1, isSecondGrowth ? .075 : .06, isSecondGrowth ? 720 : 560, 'lowpass');
+      emitImpactTone(context, now + .012, isSecondGrowth ? 168 : 124, isSecondGrowth ? 460 : 308, isSecondGrowth ? .13 : .105, isSecondGrowth ? .48 : .4, 'triangle');
+      emitRetroTone(context, now + .075, isSecondGrowth ? 410 : 286, isSecondGrowth ? 820 : 580, isSecondGrowth ? .09 : .07, isSecondGrowth ? .34 : .28);
+    }
+
     function playTimeInterruptionSound() {
       const context = getInteractiveAudioContext();
       if (!context) return;
@@ -3364,12 +3387,18 @@ void main() {
     function playPortraitFlashSound() {
       portraitFatigueSigh.pause();
       portraitFatigueSigh.currentTime = 0;
-      portraitFatigueSigh.volume = .22;
+      portraitFatigueSigh.volume = .1;
       portraitFatigueSigh.play().catch(() => {});
+      wearyManySelvesVoice.pause();
+      wearyManySelvesVoice.currentTime = 0;
+      wearyManySelvesVoice.volume = .78;
+      wearyManySelvesVoice.play().catch(() => {});
       window.setTimeout(() => {
         portraitFatigueSigh.pause();
         portraitFatigueSigh.currentTime = 0;
-      }, 1500);
+        wearyManySelvesVoice.pause();
+        wearyManySelvesVoice.currentTime = 0;
+      }, 4200);
     }
 
     function playShepherdHorrorSting() {
@@ -3409,7 +3438,7 @@ void main() {
       memorialAnnouncer.pause();
       memorialAnnouncer.currentTime = 0;
       memorialAnnouncer.loop = true;
-      memorialAnnouncer.volume = .04;
+      memorialAnnouncer.volume = .018;
       memorialAnnouncer.play().catch(() => {});
       memorialAnnouncerFadeTimer = window.setTimeout(() => {
         memorialAnnouncerFadeTimer = null;
@@ -3429,7 +3458,7 @@ void main() {
       memorialMusic.pause();
       memorialMusic.currentTime = 0;
       memorialMusic.loop = false;
-      memorialMusic.volume = .14;
+      memorialMusic.volume = .24;
       memorialMusic.play().catch(() => {});
     }
 
@@ -3546,6 +3575,7 @@ void main() {
       playMorseRejectSound,
       playMorseAcceptedSound,
       playAnswerKnockSound,
+      playBelowGrowSound,
       playTimeInterruptionSound,
       playPortraitFlashSound,
       playMemoryConfessionSound,
@@ -4719,7 +4749,7 @@ void main() {
         void character.offsetWidth;
         character.classList.add('question-char--knocked');
       });
-      soundscape.playAnswerKnockSound();
+      soundscape.playBelowGrowSound(1);
       shakeFinalPage();
       return;
     }
@@ -4864,7 +4894,7 @@ void main() {
         void character.offsetWidth;
         character.classList.add('question-char--below-grown');
       });
-      soundscape.playAnswerKnockSound();
+      soundscape.playBelowGrowSound(2);
       shakeFinalPage();
       return;
     }
@@ -5010,6 +5040,7 @@ void main() {
       button.type = 'button';
       button.className = 'answer-brush';
       if (node.id === 'Q-01') button.classList.add('answer-brush--identity');
+      if (node.id === 'Q-06' && index === 0) button.classList.add('answer-brush--compact');
       renderBrushAnswer(button, choice.label);
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.dataset.choiceIndex = String(index);

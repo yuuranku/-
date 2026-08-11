@@ -1999,7 +1999,7 @@
       </div>
     </div>
   </section>
-  <iframe class="reverse-stage" id="reverseStage" title="第二次接触：倒序记录" hidden></iframe>
+  <iframe class="reverse-stage" id="reverseStage" title="第二次接触：倒序记录" allow="autoplay" hidden></iframe>
   <script>
 (() => {
   'use strict';
@@ -2021,6 +2021,7 @@
   function openReverseInterrogation() {
     const stage = document.getElementById('reverseStage');
     if (!stage) return;
+    soundscape.stopSubterraneanAmbience();
     stage.hidden = false;
     const reveal = () => requestAnimationFrame(() => stage.classList.add('is-active'));
     if (stage.getAttribute('src') === REVERSE_INTERROGATION_URL) {
@@ -3132,6 +3133,17 @@ void main() {
       });
     };
 
+    const stopSubterraneanAmbience = () => {
+      const activeFade = fades.get(subterraneanAmbience);
+      if (activeFade !== undefined) {
+        window.cancelAnimationFrame(activeFade);
+        fades.delete(subterraneanAmbience);
+      }
+      subterraneanAmbience.pause();
+      subterraneanAmbience.currentTime = 0;
+      subterraneanAmbience.volume = 0;
+    };
+
     const enterSubterraneanAmbience = () => {
       const context = ensureFallbackContext();
       context?.resume().catch(() => {});
@@ -3156,6 +3168,7 @@ void main() {
       restoreAmbienceAfterAnswer,
       startHeartbeat,
       stopHeartbeat,
+      stopSubterraneanAmbience,
       enterSubterraneanAmbience,
       playQuestionGlyphBlip,
       playArchiveStartSound,
