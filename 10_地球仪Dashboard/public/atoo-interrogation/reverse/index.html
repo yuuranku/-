@@ -1630,6 +1630,12 @@
 
     .answers button { text-align: center; }
 
+    .answers .answer-brush {
+      width: fit-content;
+      max-width: 100%;
+      justify-self: center;
+    }
+
     .answer-brush {
       position: relative;
       touch-action: none;
@@ -5045,8 +5051,7 @@ void main() {
       button.dataset.hasAnswer = choice.label.trim() ? 'true' : 'false';
       button.dataset.choiceIndex = String(index);
       button.disabled = true;
-      button.addEventListener('click', (event) => {
-        if (event.detail !== 0 && !isAnswerGlyphTarget(event.target)) return;
+      button.addEventListener('click', () => {
         handleAnswerSelection(button);
       });
       answers.append(button);
