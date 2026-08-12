@@ -469,12 +469,12 @@
       height: 100%;
       box-sizing: border-box;
       display: grid;
-      grid-template-rows: 40% minmax(0, 1fr) auto;
+      grid-template-rows: 44% minmax(0, 1fr) auto;
       gap: 2.5%;
       padding: 4.5% 5.2% 3.8%;
       color: #8ebaa3;
       font-family: "Courier New", "Microsoft YaHei", monospace;
-      font-size: clamp(7px, 3.05cqw, 11px);
+      font-size: clamp(5.75px, 3.05cqw, 11px);
       letter-spacing: .055em;
       text-shadow: 0 0 .7em rgba(94, 204, 145, .34);
     }
@@ -512,9 +512,10 @@
       box-sizing: border-box;
       display: grid;
       grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
       align-items: start;
-      gap: 3%;
-      padding: 3.2% 4%;
+      gap: 2%;
+      padding: 2.8% 4%;
       transform-origin: 50% 50%;
       backface-visibility: hidden;
     }
@@ -539,10 +540,21 @@
       margin: 0;
       overflow: hidden;
       color: #29291f;
-      font-size: 1.25em;
-      line-height: 1.35;
+      font-size: 1.15em;
+      line-height: 1.22;
       text-wrap: pretty;
       text-shadow: 0 1px rgba(240, 226, 181, .2);
+    }
+
+    .relay-question-copy.is-compact {
+      font-size: 1em;
+      line-height: 1.16;
+    }
+
+    .relay-question-copy.is-tight {
+      font-size: .9em;
+      line-height: 1.1;
+      letter-spacing: .02em;
     }
 
     .relay-puzzle-body {
@@ -1593,7 +1605,7 @@
 
     @media (max-width: 600px) {
       .relay-puzzle {
-        grid-template-rows: 43% minmax(0, 1fr) auto;
+        grid-template-rows: 44% minmax(0, 1fr) auto;
       }
 
       .relay-question-card {
@@ -1602,8 +1614,8 @@
       }
 
       .relay-question-copy {
-        font-size: 1.16em;
-        line-height: 1.24;
+        font-size: 1.15em;
+        line-height: 1.22;
       }
 
       .shepherd-ending__flash {
@@ -5295,6 +5307,15 @@ void main() {
     const slotOutDelays = [0, 56, 22, 82];
     const slotInDelays = [34, 0, 68, 18];
 
+    const fitQuestionCopy = () => {
+      questionCopy.classList.remove('is-compact', 'is-tight');
+      if (questionCopy.scrollHeight > questionCopy.clientHeight) questionCopy.classList.add('is-compact');
+      if (questionCopy.scrollHeight > questionCopy.clientHeight) questionCopy.classList.add('is-tight');
+    };
+
+    const questionResizeObserver = new ResizeObserver(fitQuestionCopy);
+    questionResizeObserver.observe(questionCard);
+
     const wirePoint = (clientX, clientY) => {
       const bounds = wireLayer.getBoundingClientRect();
       wireLayer.setAttribute('viewBox', `0 0 ${Math.max(1, bounds.width)} ${Math.max(1, bounds.height)}`);
@@ -5354,6 +5375,7 @@ void main() {
       const puzzle = RELAY_PUZZLES[current];
       questionIndex.textContent = `RECOVERED QUERY ${String(current + 1).padStart(2, '0')} / 04`;
       questionCopy.textContent = puzzle.prompt;
+      fitQuestionCopy();
       status.textContent = 'DRAG LINE TO ANSWER';
       counter.textContent = `${String(solved.filter(Boolean).length).padStart(2, '0')} / 04`;
       renderProgress();
@@ -5432,6 +5454,7 @@ void main() {
       window.setTimeout(() => {
         questionIndex.textContent = 'INTERROGATION RELAY / ACCESS GRANTED';
         questionCopy.textContent = '四条问询线路均已校准。下层监听端口解除封锁。';
+        fitQuestionCopy();
         questionCard.classList.remove('is-turning-out');
         questionCard.classList.add('is-turning-in');
         status.textContent = 'LINK ESTABLISHED';

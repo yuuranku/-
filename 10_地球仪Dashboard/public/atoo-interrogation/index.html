@@ -242,9 +242,16 @@
     .morse-signal-row {
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) auto;
       align-items: stretch;
       gap: 3%;
+    }
+
+    .morse-group-plays {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 2.2%;
     }
 
     .morse-wave-panel {
@@ -308,6 +315,21 @@
       white-space: nowrap;
     }
 
+    .morse-group-plays .morse-play {
+      width: 100%;
+      min-width: 0;
+      padding: .48em .2em;
+    }
+
+    .morse-play.is-playing {
+      border-color: #d4c27d;
+      color: #fff2b1;
+      background: linear-gradient(#3b4024, #17170a);
+      box-shadow: inset 0 1px rgba(255, 243, 177, .25), 0 0 .65em rgba(214, 193, 119, .46);
+    }
+
+    .morse-play.is-playing:disabled { opacity: 1; }
+
     .morse-play:active,
     .morse-verify:active,
     .code-wheel__control:active {
@@ -349,6 +371,18 @@
       border: 1px solid rgba(90, 133, 111, .58);
       background: #020705;
       box-shadow: inset 0 0 .7em #000;
+      transition: border-color 90ms linear, box-shadow 90ms linear, filter 90ms linear;
+    }
+
+    .code-wheel.is-signal-active {
+      border-color: #d4c27d;
+      box-shadow: inset 0 0 .85em rgba(129, 161, 111, .2), 0 0 .8em rgba(214, 193, 119, .46);
+      filter: brightness(1.28);
+    }
+
+    .code-wheel.is-signal-active .code-wheel__digit {
+      color: #fff2b1;
+      text-shadow: 0 0 .65em rgba(255, 226, 124, .75);
     }
 
     .code-wheel__control {
@@ -405,12 +439,12 @@
       height: 100%;
       box-sizing: border-box;
       display: grid;
-      grid-template-rows: 40% minmax(0, 1fr) auto;
+      grid-template-rows: 44% minmax(0, 1fr) auto;
       gap: 2.5%;
       padding: 4.5% 5.2% 3.8%;
       color: #8ebaa3;
       font-family: "Courier New", "Microsoft YaHei", monospace;
-      font-size: clamp(7px, 3.05cqw, 11px);
+      font-size: clamp(5.75px, 3.05cqw, 11px);
       letter-spacing: .055em;
       text-shadow: 0 0 .7em rgba(94, 204, 145, .34);
     }
@@ -448,9 +482,10 @@
       box-sizing: border-box;
       display: grid;
       grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
       align-items: start;
-      gap: 3%;
-      padding: 3.2% 4%;
+      gap: 2%;
+      padding: 2.8% 4%;
       transform-origin: 50% 50%;
       backface-visibility: hidden;
     }
@@ -475,10 +510,21 @@
       margin: 0;
       overflow: hidden;
       color: #29291f;
-      font-size: 1.25em;
-      line-height: 1.35;
+      font-size: 1.15em;
+      line-height: 1.22;
       text-wrap: pretty;
       text-shadow: 0 1px rgba(240, 226, 181, .2);
+    }
+
+    .relay-question-copy.is-compact {
+      font-size: 1em;
+      line-height: 1.16;
+    }
+
+    .relay-question-copy.is-tight {
+      font-size: .9em;
+      line-height: 1.1;
+      letter-spacing: .02em;
     }
 
     .relay-puzzle-body {
@@ -1854,7 +1900,7 @@
       }
 
       .relay-puzzle {
-        grid-template-rows: 43% minmax(0, 1fr) auto;
+        grid-template-rows: 44% minmax(0, 1fr) auto;
       }
 
       .relay-question-card {
@@ -1863,8 +1909,8 @@
       }
 
       .relay-question-copy {
-        font-size: 1.16em;
-        line-height: 1.24;
+        font-size: 1.15em;
+        line-height: 1.22;
       }
     }
 
@@ -1958,7 +2004,12 @@
               <div class="morse-waveform" id="morseWaveform" aria-hidden="true"></div>
               <output class="morse-raw" id="morseRaw" hidden></output>
             </div>
-            <button class="morse-play" id="morsePlay" type="button" disabled>▶ 播放录音</button>
+            <div class="morse-group-plays" id="morseGroupButtons" aria-label="分位播放莫斯电码">
+              <button class="morse-play" type="button" data-morse-group="0" disabled>▶ 第1位</button>
+              <button class="morse-play" type="button" data-morse-group="1" disabled>▶ 第2位</button>
+              <button class="morse-play" type="button" data-morse-group="2" disabled>▶ 第3位</button>
+              <button class="morse-play" type="button" data-morse-group="3" disabled>▶ 第4位</button>
+            </div>
           </div>
           <div class="morse-code-row">
             <span class="morse-code-label">4-DIGIT<br>DECODE</span>
@@ -2006,6 +2057,19 @@
 
   const STORAGE_KEY = 'palis-dialogue-terminal:questionnaire:v2';
   const REVERSE_INTERROGATION_URL = './reverse/';
+  let reverseInterrogationReady = false;
+  let reverseInterrogationLoadStarted = false;
+
+  function preloadReverseInterrogation() {
+    const stage = document.getElementById('reverseStage');
+    if (!stage || reverseInterrogationLoadStarted) return;
+    reverseInterrogationLoadStarted = true;
+    stage.addEventListener('load', () => {
+      reverseInterrogationReady = true;
+      stage.dataset.ready = 'true';
+    }, { once: true });
+    stage.setAttribute('src', REVERSE_INTERROGATION_URL);
+  }
 
   function showBasClassifiedNotice() {
     const notice = document.getElementById('basClassifiedNotice');
@@ -2024,13 +2088,15 @@
     soundscape.stopSubterraneanAmbience();
     stage.hidden = false;
     const reveal = () => requestAnimationFrame(() => stage.classList.add('is-active'));
-    if (stage.getAttribute('src') === REVERSE_INTERROGATION_URL) {
+    if (reverseInterrogationReady) {
       reveal();
       return;
     }
     stage.addEventListener('load', reveal, { once: true });
-    stage.setAttribute('src', REVERSE_INTERROGATION_URL);
+    preloadReverseInterrogation();
   }
+
+  preloadReverseInterrogation();
 
   document.getElementById('basClassifiedOpen')?.addEventListener('click', () => {
     const notice = document.getElementById('basClassifiedNotice');
@@ -2068,7 +2134,10 @@
     }
   ];
   const MORSE_1952 = ['.----', '----.', '.....', '..---'];
-    const MORSE_UNIT_MS = 105;
+  const MORSE_DOT_MS = 150;
+  const MORSE_DASH_MS = 700;
+  const MORSE_SYMBOL_GAP_MS = 145;
+  const MORSE_LEAD_IN_MS = 220;
   const memoryStore = new Map();
   const $ = (id) => document.getElementById(id);
 
@@ -3019,21 +3088,20 @@ void main() {
       emitImpactNoise(context, now + .16, .14, .022, 760, 'bandpass');
     }
 
-    function playMorseTransmissionSound() {
+    function playMorseTransmissionSound(groupIndex) {
       const context = getInteractiveAudioContext();
       if (!context) return 0;
-      const unit = MORSE_UNIT_MS / 1000;
-      const start = context.currentTime + .035;
+      const group = MORSE_1952[groupIndex];
+      if (!group) return 0;
+      const start = context.currentTime + MORSE_LEAD_IN_MS / 1000;
       let cursor = start;
-      MORSE_1952.forEach((group, groupIndex) => {
-        Array.from(group).forEach((symbol) => {
-          const duration = symbol === '.' ? unit : unit * 3;
-          emitMorseCarrier(context, cursor, duration);
-          cursor += duration + unit;
-        });
-        if (groupIndex < MORSE_1952.length - 1) cursor += unit * 2;
+      Array.from(group).forEach((symbol, symbolIndex) => {
+        const duration = (symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS) / 1000;
+        emitMorseCarrier(context, cursor, duration);
+        cursor += duration;
+        if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS / 1000;
       });
-      return Math.ceil((cursor - start + .08) * 1000);
+      return Math.ceil((cursor - context.currentTime + .18) * 1000);
     }
 
     function playMorseWheelSound(direction = 1) {
@@ -4415,6 +4483,15 @@ void main() {
     const slotOutDelays = [0, 56, 22, 82];
     const slotInDelays = [34, 0, 68, 18];
 
+    const fitQuestionCopy = () => {
+      questionCopy.classList.remove('is-compact', 'is-tight');
+      if (questionCopy.scrollHeight > questionCopy.clientHeight) questionCopy.classList.add('is-compact');
+      if (questionCopy.scrollHeight > questionCopy.clientHeight) questionCopy.classList.add('is-tight');
+    };
+
+    const questionResizeObserver = new ResizeObserver(fitQuestionCopy);
+    questionResizeObserver.observe(questionCard);
+
     const wirePoint = (clientX, clientY) => {
       const bounds = wireLayer.getBoundingClientRect();
       wireLayer.setAttribute('viewBox', `0 0 ${Math.max(1, bounds.width)} ${Math.max(1, bounds.height)}`);
@@ -4474,6 +4551,7 @@ void main() {
       const puzzle = RELAY_PUZZLES[current];
       questionIndex.textContent = `RECOVERED QUERY ${String(current + 1).padStart(2, '0')} / 04`;
       questionCopy.textContent = puzzle.prompt;
+      fitQuestionCopy();
       status.textContent = 'DRAG LINE TO ANSWER';
       counter.textContent = `${String(solved.filter(Boolean).length).padStart(2, '0')} / 04`;
       renderProgress();
@@ -4552,6 +4630,7 @@ void main() {
       window.setTimeout(() => {
         questionIndex.textContent = 'INTERROGATION RELAY / ACCESS GRANTED';
         questionCopy.textContent = '四条问询线路均已校准。下层监听端口解除封锁。';
+        fitQuestionCopy();
         questionCard.classList.remove('is-turning-out');
         questionCard.classList.add('is-turning-in');
         status.textContent = 'LINK ESTABLISHED';
@@ -4648,12 +4727,12 @@ void main() {
     const waveform = $('morseWaveform');
     const state = $('morseState');
     const raw = $('morseRaw');
-    const play = $('morsePlay');
+    const groupButtons = $('morseGroupButtons');
     const wheels = $('morseCodeWheels');
     const verify = $('morseVerify');
     const message = $('morseMessage');
     const repeatCount = $('morseRepeatCount');
-    if (!decoder || !waveform || !state || !raw || !play || !wheels || !verify || !message || !repeatCount) return null;
+    if (!decoder || !waveform || !state || !raw || !groupButtons || !wheels || !verify || !message || !repeatCount) return null;
 
     const digits = [0, 0, 0, 0];
     let unlocked = false;
@@ -4665,6 +4744,8 @@ void main() {
     const clearPlaybackTimers = () => {
       playbackTimers.forEach((timer) => window.clearTimeout(timer));
       playbackTimers = [];
+      groupButtons.querySelectorAll('.morse-play').forEach((button) => button.classList.remove('is-playing'));
+      wheels.querySelectorAll('.code-wheel').forEach((wheel) => wheel.classList.remove('is-signal-active'));
     };
 
     const renderDigits = () => {
@@ -4710,26 +4791,25 @@ void main() {
     wheels.replaceChildren(...digits.map((_, index) => makeWheel(index)));
 
     const setControlsDisabled = (disabled) => {
-      play.disabled = disabled || !unlocked;
+      groupButtons.querySelectorAll('.morse-play').forEach((button) => { button.disabled = disabled || !unlocked; });
       verify.disabled = disabled || !unlocked || accepted;
       wheels.querySelectorAll('button').forEach((button) => { button.disabled = disabled || !unlocked || accepted; });
     };
 
-    const buildVisualSchedule = () => {
+    const buildVisualSchedule = (groupIndex) => {
       const events = [];
-      let cursor = 0;
-      MORSE_1952.forEach((group, groupIndex) => {
-        Array.from(group).forEach((symbol) => {
-          const duration = symbol === '.' ? MORSE_UNIT_MS : MORSE_UNIT_MS * 3;
-          events.push({ at: cursor, duration, groupIndex });
-          cursor += duration + MORSE_UNIT_MS;
-        });
-        if (groupIndex < MORSE_1952.length - 1) cursor += MORSE_UNIT_MS * 2;
+      let cursor = MORSE_LEAD_IN_MS;
+      const group = MORSE_1952[groupIndex];
+      Array.from(group).forEach((symbol, symbolIndex) => {
+        const duration = symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS;
+        events.push({ at: cursor, duration, groupIndex, symbol });
+        cursor += duration;
+        if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS;
       });
-      return { events, duration: cursor + 120 };
+      return { events, duration: cursor + 180 };
     };
 
-    const playTransmission = () => {
+    const playTransmission = (groupIndex, trigger) => {
       if (!unlocked || playing) return;
       clearPlaybackTimers();
       playing = true;
@@ -4740,9 +4820,14 @@ void main() {
       raw.textContent = '';
       decoder.classList.remove('is-error');
       decoder.classList.add('is-playing');
+      trigger.classList.add('is-playing');
+      message.textContent = `SIGNAL GROUP ${String(groupIndex + 1).padStart(2, '0')} / 04`;
+      wheels.querySelectorAll('.code-wheel').forEach((wheel, index) => {
+        wheel.classList.toggle('is-signal-active', index === groupIndex);
+      });
       setControlsDisabled(true);
-      const audioDuration = soundscape.playMorseTransmissionSound();
-      const schedule = buildVisualSchedule();
+      const audioDuration = soundscape.playMorseTransmissionSound(groupIndex);
+      const schedule = buildVisualSchedule(groupIndex);
       schedule.events.forEach((event) => {
         playbackTimers.push(window.setTimeout(() => {
           raw.textContent = '';
@@ -4752,10 +4837,11 @@ void main() {
       playbackTimers.push(window.setTimeout(() => {
         playing = false;
         decoder.classList.remove('is-playing');
+        trigger.classList.remove('is-playing');
+        wheels.querySelectorAll('.code-wheel').forEach((wheel) => wheel.classList.remove('is-signal-active'));
         state.textContent = accepted ? 'DECODED' : 'STANDBY';
         raw.textContent = '';
         message.textContent = accepted ? 'ACCESS CODE ACCEPTED' : '';
-        play.textContent = '↻ 重播录音';
         setControlsDisabled(false);
       }, totalDuration));
     };
@@ -4773,7 +4859,11 @@ void main() {
       soundscape.playMorseWheelSound(direction);
     });
 
-    play.addEventListener('click', playTransmission);
+    groupButtons.addEventListener('click', (event) => {
+      const button = event.target.closest('.morse-play');
+      if (!button || button.disabled) return;
+      playTransmission(Number(button.dataset.morseGroup), button);
+    });
 
     verify.addEventListener('click', () => {
       if (!unlocked || playing || accepted) return;
