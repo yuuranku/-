@@ -272,9 +272,16 @@
     .morse-signal-row {
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) auto;
       align-items: stretch;
       gap: 3%;
+    }
+
+    .morse-group-plays {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 2.2%;
     }
 
     .morse-wave-panel {
@@ -337,6 +344,21 @@
       text-align: center;
       white-space: nowrap;
     }
+
+    .morse-group-plays .morse-play {
+      width: 100%;
+      min-width: 0;
+      padding: .48em .2em;
+    }
+
+    .morse-play.is-playing {
+      border-color: #d4c27d;
+      color: #fff2b1;
+      background: linear-gradient(#3b4024, #17170a);
+      box-shadow: inset 0 1px rgba(255, 243, 177, .25), 0 0 .65em rgba(214, 193, 119, .46);
+    }
+
+    .morse-play.is-playing:disabled { opacity: 1; }
 
     .morse-play:active,
     .morse-verify:active,
@@ -2302,7 +2324,12 @@
               <div class="morse-waveform" id="morseWaveform" aria-hidden="true"></div>
               <output class="morse-raw" id="morseRaw" hidden></output>
             </div>
-            <button class="morse-play" id="morsePlay" type="button" disabled>▶ 播放录音</button>
+            <div class="morse-group-plays" id="morseGroupButtons" aria-label="分位播放莫斯电码">
+              <button class="morse-play" type="button" data-morse-group="0" disabled>▶ 第1位</button>
+              <button class="morse-play" type="button" data-morse-group="1" disabled>▶ 第2位</button>
+              <button class="morse-play" type="button" data-morse-group="2" disabled>▶ 第3位</button>
+              <button class="morse-play" type="button" data-morse-group="3" disabled>▶ 第4位</button>
+            </div>
           </div>
           <div class="morse-code-row">
             <span class="morse-code-label">4-DIGIT<br>DECODE</span>
@@ -2378,7 +2405,6 @@
   const MORSE_DOT_MS = 150;
   const MORSE_DASH_MS = 700;
   const MORSE_SYMBOL_GAP_MS = 145;
-  const MORSE_DIGIT_GAP_MS = 1500;
   const MORSE_LEAD_IN_MS = 220;
   const memoryStore = new Map();
   const $ = (id) => document.getElementById(id);
@@ -3293,29 +3319,28 @@ void main() {
       emitImpactNoise(context, now + .16, .14, .022, 760, 'bandpass');
     }
 
-    function playMorseTransmissionSound() {
+    function playMorseTransmissionSound(groupIndex) {
       const context = getInteractiveAudioContext();
       if (!context) return 0;
+      const group = MORSE_1952[groupIndex];
+      if (!group) return 0;
       const start = context.currentTime + MORSE_LEAD_IN_MS / 1000;
       let cursor = start;
-      MORSE_1952.forEach((group, groupIndex) => {
-        Array.from(group).forEach((symbol, symbolIndex) => {
-          const duration = (symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS) / 1000;
-          const oscillator = context.createOscillator();
-          const gain = context.createGain();
-          oscillator.type = 'sine';
-          oscillator.frequency.setValueAtTime(720, cursor);
-          gain.gain.setValueAtTime(0.0001, cursor);
-          gain.gain.linearRampToValueAtTime(.065, cursor + .008);
-          gain.gain.setValueAtTime(.065, cursor + Math.max(.012, duration - .026));
-          gain.gain.exponentialRampToValueAtTime(0.0001, cursor + duration);
-          oscillator.connect(gain).connect(context.destination);
-          oscillator.start(cursor);
-          oscillator.stop(cursor + duration + .015);
-          cursor += duration;
-          if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS / 1000;
-        });
-        if (groupIndex < MORSE_1952.length - 1) cursor += MORSE_DIGIT_GAP_MS / 1000;
+      Array.from(group).forEach((symbol, symbolIndex) => {
+        const duration = (symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS) / 1000;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(720, cursor);
+        gain.gain.setValueAtTime(0.0001, cursor);
+        gain.gain.linearRampToValueAtTime(.065, cursor + .008);
+        gain.gain.setValueAtTime(.065, cursor + Math.max(.012, duration - .026));
+        gain.gain.exponentialRampToValueAtTime(0.0001, cursor + duration);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start(cursor);
+        oscillator.stop(cursor + duration + .015);
+        cursor += duration;
+        if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS / 1000;
       });
       return Math.ceil((cursor - context.currentTime + .18) * 1000);
     }
@@ -5503,12 +5528,12 @@ void main() {
     const waveform = $('morseWaveform');
     const state = $('morseState');
     const raw = $('morseRaw');
-    const play = $('morsePlay');
+    const groupButtons = $('morseGroupButtons');
     const wheels = $('morseCodeWheels');
     const verify = $('morseVerify');
     const message = $('morseMessage');
     const repeatCount = $('morseRepeatCount');
-    if (!decoder || !waveform || !state || !raw || !play || !wheels || !verify || !message || !repeatCount) return null;
+    if (!decoder || !waveform || !state || !raw || !groupButtons || !wheels || !verify || !message || !repeatCount) return null;
 
     const digits = [0, 0, 0, 0];
     let unlocked = false;
@@ -5520,6 +5545,7 @@ void main() {
     const clearPlaybackTimers = () => {
       playbackTimers.forEach((timer) => window.clearTimeout(timer));
       playbackTimers = [];
+      groupButtons.querySelectorAll('.morse-play').forEach((button) => button.classList.remove('is-playing'));
       wheels.querySelectorAll('.code-wheel').forEach((wheel) => wheel.classList.remove('is-signal-active'));
     };
 
@@ -5568,29 +5594,25 @@ void main() {
     wheels.replaceChildren(...digits.map((_, index) => makeWheel(index)));
 
     const setControlsDisabled = (disabled) => {
-      play.disabled = disabled || !unlocked;
+      groupButtons.querySelectorAll('.morse-play').forEach((button) => { button.disabled = disabled || !unlocked; });
       verify.disabled = disabled || !unlocked || accepted;
       wheels.querySelectorAll('button').forEach((button) => { button.disabled = disabled || !unlocked || accepted; });
     };
 
-    const buildVisualSchedule = () => {
+    const buildVisualSchedule = (groupIndex) => {
       const events = [];
-      const groups = [];
       let cursor = MORSE_LEAD_IN_MS;
-      MORSE_1952.forEach((group, groupIndex) => {
-        groups.push({ at: cursor, groupIndex });
-        Array.from(group).forEach((symbol, symbolIndex) => {
-          const duration = symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS;
-          events.push({ at: cursor, duration, groupIndex, symbol });
-          cursor += duration;
-          if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS;
-        });
-        if (groupIndex < MORSE_1952.length - 1) cursor += MORSE_DIGIT_GAP_MS;
+      const group = MORSE_1952[groupIndex];
+      Array.from(group).forEach((symbol, symbolIndex) => {
+        const duration = symbol === '.' ? MORSE_DOT_MS : MORSE_DASH_MS;
+        events.push({ at: cursor, duration, groupIndex, symbol });
+        cursor += duration;
+        if (symbolIndex < group.length - 1) cursor += MORSE_SYMBOL_GAP_MS;
       });
-      return { events, groups, duration: cursor + 180 };
+      return { events, duration: cursor + 180 };
     };
 
-    const playTransmission = () => {
+    const playTransmission = (groupIndex, trigger) => {
       if (!unlocked || playing) return;
       clearPlaybackTimers();
       playing = true;
@@ -5601,17 +5623,14 @@ void main() {
       raw.textContent = '';
       decoder.classList.remove('is-error');
       decoder.classList.add('is-playing');
-      setControlsDisabled(true);
-      const audioDuration = soundscape.playMorseTransmissionSound();
-      const schedule = buildVisualSchedule();
-      schedule.groups.forEach((group) => {
-        playbackTimers.push(window.setTimeout(() => {
-          message.textContent = `SIGNAL GROUP ${String(group.groupIndex + 1).padStart(2, '0')} / 04`;
-          wheels.querySelectorAll('.code-wheel').forEach((wheel, index) => {
-            wheel.classList.toggle('is-signal-active', index === group.groupIndex);
-          });
-        }, group.at));
+      trigger.classList.add('is-playing');
+      message.textContent = `SIGNAL GROUP ${String(groupIndex + 1).padStart(2, '0')} / 04`;
+      wheels.querySelectorAll('.code-wheel').forEach((wheel, index) => {
+        wheel.classList.toggle('is-signal-active', index === groupIndex);
       });
+      setControlsDisabled(true);
+      const audioDuration = soundscape.playMorseTransmissionSound(groupIndex);
+      const schedule = buildVisualSchedule(groupIndex);
       schedule.events.forEach((event) => {
         playbackTimers.push(window.setTimeout(() => {
           raw.textContent = '';
@@ -5621,11 +5640,11 @@ void main() {
       playbackTimers.push(window.setTimeout(() => {
         playing = false;
         decoder.classList.remove('is-playing');
+        trigger.classList.remove('is-playing');
         wheels.querySelectorAll('.code-wheel').forEach((wheel) => wheel.classList.remove('is-signal-active'));
         state.textContent = accepted ? 'DECODED' : 'STANDBY';
         raw.textContent = '';
         message.textContent = accepted ? 'ACCESS CODE ACCEPTED' : '';
-        play.textContent = '↻ 重播录音';
         setControlsDisabled(false);
       }, totalDuration));
     };
@@ -5643,7 +5662,11 @@ void main() {
       soundscape.playMorseWheelSound(direction);
     });
 
-    play.addEventListener('click', playTransmission);
+    groupButtons.addEventListener('click', (event) => {
+      const button = event.target.closest('.morse-play');
+      if (!button || button.disabled) return;
+      playTransmission(Number(button.dataset.morseGroup), button);
+    });
 
     verify.addEventListener('click', () => {
       if (!unlocked || playing || accepted) return;
