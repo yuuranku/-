@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { gsap } from 'gsap';
 import figmaMicrographic039Source from '../../Figma微图形SVG/039.svg?raw';
 import { initializeAccessVoid } from './access-void.js';
-import { emitUiSound, isUiAudioReady } from './ui-sounds.js';
+import { emitUiSound } from './ui-sounds.js';
 
 function mountFigmaMicrographic039() {
   const host = document.querySelector('#access-figma-039');
@@ -867,21 +867,12 @@ export function initializeAccessGate({
   }
 
   function startBootWithAudio() {
-    if (isUiAudioReady()) {
-      void runBoot();
-      return;
-    }
-
-    gate.dataset.phase = 'await-audio';
-    bootState.textContent = 'AWAITING OPERATOR INPUT';
-    footerStatus.textContent = 'AUDIO CHANNEL LOCKED / PRESS ANY KEY';
-    if (bootFooterState) bootFooterState.textContent = 'POST 00 / AWAIT INPUT';
-    if (skipHint) skipHint.textContent = '点击或按任意键启动 / CLICK OR PRESS ANY KEY TO START';
-    window.addEventListener('palis:ui-audio-ready', () => {
-      gate.dataset.phase = 'boot';
-      if (skipHint) skipHint.textContent = '按任意键加速启动 / PRESS ANY KEY TO ADVANCE';
-      void runBoot();
-    }, { once: true });
+    // Audio contexts can remain locked on an initial browser visit. The visual
+    // boot must never wait for that browser permission; the shared sound layer
+    // unlocks itself on the first genuine interaction.
+    gate.dataset.phase = 'boot';
+    if (skipHint) skipHint.textContent = '按任意键加速启动 / PRESS ANY KEY TO ADVANCE';
+    void runBoot();
   }
 
   form.addEventListener('submit', handleSubmit);
