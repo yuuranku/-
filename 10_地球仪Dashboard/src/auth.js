@@ -1,7 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import { gsap } from 'gsap';
+import figmaMicrographic039Source from '../../Figma微图形SVG/039.svg?raw';
 import { initializeAccessVoid } from './access-void.js';
-import { emitUiSound } from './ui-sounds.js';
+import { emitUiSound, isUiAudioReady } from './ui-sounds.js';
+
+function mountFigmaMicrographic039() {
+  const host = document.querySelector('#access-figma-039');
+  if (!host || host.childElementCount) return;
+
+  const parsed = new DOMParser().parseFromString(figmaMicrographic039Source, 'image/svg+xml');
+  const sourceSvg = parsed.documentElement;
+  if (sourceSvg.nodeName.toLowerCase() !== 'svg') return;
+
+  const background = sourceSvg.firstElementChild;
+  if (background?.nodeName.toLowerCase() === 'rect') background.remove();
+
+  sourceSvg.removeAttribute('width');
+  sourceSvg.removeAttribute('height');
+  sourceSvg.setAttribute('viewBox', '396 432 284 208');
+  sourceSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  sourceSvg.setAttribute('aria-hidden', 'true');
+  sourceSvg.classList.add('access-global-stamp__figure-svg');
+  host.replaceChildren(document.importNode(sourceSvg, true));
+}
 
 const BOOT_STEPS = [
   {
@@ -363,6 +384,7 @@ export function initializeAccessGate({
   const bootLog = document.querySelector('#access-boot-log');
   const bootState = document.querySelector('#access-boot-state');
   const bootFooterState = document.querySelector('#access-boot-footer-state');
+  const skipHint = boot?.querySelector('.access-skip-hint');
   const stepCount = document.querySelector('#access-step-count');
   const login = document.querySelector('#access-login');
   const granted = document.querySelector('#access-granted');
@@ -374,9 +396,11 @@ export function initializeAccessGate({
   const passwordToggle = document.querySelector('#access-password-toggle');
   const submit = document.querySelector('#access-submit');
   const previewButton = document.querySelector('#access-preview');
+  const loginToggle = document.querySelector('#access-login-toggle');
   const formStatus = document.querySelector('#access-form-status');
   const configWarning = document.querySelector('#access-config-warning');
   const sessionPanel = document.querySelector('#auth-session');
+  mountFigmaMicrographic039();
   initializeAccessVoid({ reducedMotion });
   const sessionUser = document.querySelector('#auth-session-user');
   const signOutButton = document.querySelector('#auth-sign-out');
@@ -402,11 +426,130 @@ export function initializeAccessGate({
 
   let fastBoot = reducedMotion;
   let bootFinished = false;
+  let bootStarted = false;
   let pendingSession = null;
   let grantPromise = null;
   let signingOut = false;
   let previewMode = false;
   let activeProfile = null;
+  let bootIntroTimeline = null;
+
+  function playBootLayoutIntro() {
+    if (reducedMotion) return Promise.resolve();
+
+    const systemBar = gate.querySelector('.access-system-bar');
+    const gateFooter = gate.querySelector('.access-footer');
+    const markPanel = boot?.querySelector('.access-boot-mark');
+    const markCanvas = boot?.querySelector('.access-boot-mark__canvas');
+    const terminal = boot?.querySelector('.access-boot-terminal');
+    const microAnnotations = Array.from(gate.querySelectorAll('.micro-annotation'));
+    const markDetails = Array.from(boot?.querySelectorAll('.access-mark-label, .access-mark-code') || []);
+    const terminalDetails = Array.from(boot?.querySelectorAll('.access-command-heading, .access-command-line, .access-command-active, .access-skip-hint') || []);
+    const cleanupTargets = [
+      boot,
+      systemBar,
+      gateFooter,
+      markPanel,
+      markCanvas,
+      terminal,
+      ...microAnnotations,
+      ...markDetails,
+      ...terminalDetails,
+    ].filter(Boolean);
+
+    return new Promise((resolve) => {
+      bootIntroTimeline = gsap.timeline({
+        defaults: { ease: 'power2.out', overwrite: 'auto' },
+        onComplete: () => {
+          gsap.set(cleanupTargets, { clearProps: 'opacity,visibility,transform,clip-path' });
+          bootIntroTimeline = null;
+          resolve();
+        },
+      });
+
+      bootIntroTimeline
+        .addLabel('frame')
+        .fromTo(boot, {
+          autoAlpha: 0,
+          scaleX: 0.975,
+          scaleY: 0.985,
+        }, {
+          autoAlpha: 1,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 0.5,
+          onStart: () => { void emitUiSound('motif-draw-1'); },
+        }, 'frame')
+        .fromTo([systemBar, gateFooter].filter(Boolean), {
+          autoAlpha: 0,
+          y: -5,
+        }, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.34,
+          stagger: 0.12,
+        }, 'frame+=0.06')
+        .fromTo(microAnnotations, {
+          autoAlpha: 0,
+          scaleX: 0.18,
+          transformOrigin: 'left center',
+        }, {
+          autoAlpha: 1,
+          scaleX: 1,
+          duration: 0.62,
+          stagger: 0.14,
+          ease: 'power3.inOut',
+        }, 'frame+=0.18')
+        .fromTo(markPanel, {
+          clipPath: 'inset(0 100% 0 0)',
+        }, {
+          clipPath: 'inset(0 0% 0 0)',
+          duration: 0.68,
+          ease: 'power2.inOut',
+          onStart: () => { void emitUiSound('motif-draw-2'); },
+        }, 'frame+=0.22')
+        .fromTo(terminal, {
+          clipPath: 'inset(0 100% 0 0)',
+        }, {
+          clipPath: 'inset(0 0% 0 0)',
+          duration: 0.72,
+          ease: 'power2.inOut',
+          onStart: () => { void emitUiSound('motif-draw-3'); },
+        }, 'frame+=0.38')
+        .fromTo(markCanvas, {
+          autoAlpha: 0,
+          scale: 0.9,
+          rotation: -1.5,
+        }, {
+          autoAlpha: 1,
+          scale: 1,
+          rotation: 0,
+          duration: 0.64,
+          ease: 'power2.out',
+          onStart: () => { void emitUiSound('motif-pulse-1'); },
+        }, 'frame+=0.56')
+        .fromTo(markDetails, {
+          autoAlpha: 0,
+          y: 7,
+        }, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.34,
+          stagger: 0.08,
+        }, 'frame+=0.7')
+        .fromTo(terminalDetails, {
+          autoAlpha: 0,
+          x: -9,
+        }, {
+          autoAlpha: 1,
+          x: 0,
+          duration: 0.34,
+          stagger: 0.07,
+        }, 'frame+=0.76');
+
+      if (fastBoot) bootIntroTimeline.timeScale(4);
+    });
+  }
 
   function emitSessionChange(session = null, profile = null, preview = false) {
     const role = preview ? 'observer' : (profile?.role || null);
@@ -455,6 +598,14 @@ export function initializeAccessGate({
     submit.querySelector('small').textContent = busy ? 'VERIFYING…' : 'AUTHENTICATE';
   }
 
+  function setLoginFormExpanded(expanded, { focus = false } = {}) {
+    form.hidden = !expanded;
+    loginToggle?.setAttribute('aria-expanded', String(expanded));
+    if (focus && expanded) {
+      window.requestAnimationFrame(() => emailInput.focus({ preventScroll: true }));
+    }
+  }
+
   function showLogin(message = '等待操作员输入凭据。') {
     grantPromise = null;
     previewMode = false;
@@ -479,8 +630,9 @@ export function initializeAccessGate({
       configured ? message : '身份服务器尚未配置，暂时无法验证账户。',
       configured ? '' : 'error',
     );
+    setLoginFormExpanded(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
-    window.requestAnimationFrame(() => emailInput.focus({ preventScroll: true }));
+    window.requestAnimationFrame(() => previewButton?.focus({ preventScroll: true }));
   }
 
   function updateSessionDisplay(session) {
@@ -637,6 +789,7 @@ export function initializeAccessGate({
   function accelerateBoot(event) {
     if (event.type === 'keydown' && ['Tab', 'Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) return;
     fastBoot = true;
+    bootIntroTimeline?.timeScale(4);
   }
 
   async function waitForBoot(duration) {
@@ -654,8 +807,11 @@ export function initializeAccessGate({
   }
 
   async function runBoot() {
+    if (bootStarted) return;
+    bootStarted = true;
     gate.addEventListener('pointerdown', accelerateBoot, { passive: true });
     window.addEventListener('keydown', accelerateBoot);
+    await playBootLayoutIntro();
     for (let index = 0; index < BOOT_STEPS.length; index += 1) {
       const step = BOOT_STEPS[index];
       const frames = step.frames?.length ? step.frames : [step.state];
@@ -669,6 +825,27 @@ export function initializeAccessGate({
       const row = document.createElement('li');
       row.innerHTML = `<b>${step.text}</b><span>[ ${step.result} ]</span>`;
       bootLog.appendChild(row);
+      if (!reducedMotion) {
+        gsap.fromTo(row, {
+          autoAlpha: 0,
+          x: -12,
+        }, {
+          autoAlpha: 1,
+          x: 0,
+          duration: fastBoot ? 0.04 : 0.18,
+          ease: 'steps(3)',
+          overwrite: 'auto',
+        });
+        gsap.fromTo(row.lastElementChild, {
+          autoAlpha: 0,
+        }, {
+          autoAlpha: 1,
+          duration: fastBoot ? 0.03 : 0.14,
+          delay: fastBoot ? 0 : 0.08,
+          ease: 'none',
+          overwrite: 'auto',
+        });
+      }
       while (bootLog.scrollHeight > bootLog.clientHeight + 1 && bootLog.children.length > 1) {
         bootLog.firstElementChild.remove();
       }
@@ -678,6 +855,7 @@ export function initializeAccessGate({
     bootState.textContent = 'SYSTEM SELF-TEST COMPLETE / STARTING SECURITY.EXE';
     footerStatus.textContent = 'POST COMPLETE / STARTING ACCESS CONTROL';
     if (bootFooterState) bootFooterState.textContent = 'POST COMPLETE / STARTING ACCESS CONTROL';
+    void emitUiSound('motif-resolve', { minInterval: 500 });
     bootFinished = true;
     gate.removeEventListener('pointerdown', accelerateBoot);
     window.removeEventListener('keydown', accelerateBoot);
@@ -688,8 +866,30 @@ export function initializeAccessGate({
     else showLogin();
   }
 
+  function startBootWithAudio() {
+    if (isUiAudioReady()) {
+      void runBoot();
+      return;
+    }
+
+    gate.dataset.phase = 'await-audio';
+    bootState.textContent = 'AWAITING OPERATOR INPUT';
+    footerStatus.textContent = 'AUDIO CHANNEL LOCKED / PRESS ANY KEY';
+    if (bootFooterState) bootFooterState.textContent = 'POST 00 / AWAIT INPUT';
+    if (skipHint) skipHint.textContent = '点击或按任意键启动 / CLICK OR PRESS ANY KEY TO START';
+    window.addEventListener('palis:ui-audio-ready', () => {
+      gate.dataset.phase = 'boot';
+      if (skipHint) skipHint.textContent = '按任意键加速启动 / PRESS ANY KEY TO ADVANCE';
+      void runBoot();
+    }, { once: true });
+  }
+
   form.addEventListener('submit', handleSubmit);
   previewButton?.addEventListener('click', enterPreview);
+  loginToggle?.addEventListener('click', () => {
+    const expanded = loginToggle.getAttribute('aria-expanded') === 'true';
+    setLoginFormExpanded(!expanded, { focus: !expanded });
+  });
   passwordToggle.addEventListener('click', togglePasswordVisibility);
   signOutButton?.addEventListener('click', handleSignOut);
 
@@ -724,6 +924,6 @@ export function initializeAccessGate({
   }
 
   setExperienceLocked(true);
-  runBoot();
+  startBootWithAudio();
   return { supabase, configured };
 }

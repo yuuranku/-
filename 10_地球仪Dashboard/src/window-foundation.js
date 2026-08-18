@@ -205,6 +205,12 @@ const freezeElementBounds = (element) => {
 };
 
 const installResize = (element) => {
+  if (element.hasAttribute('data-palis-fixed-size')) {
+    element.querySelectorAll('[data-palis-resize]').forEach((handle) => handle.remove());
+    element.style.removeProperty('width');
+    element.style.removeProperty('height');
+    return;
+  }
   if (element.querySelector('[data-workflow-resize]')) return;
   if (!element.querySelector('[data-palis-resize]')) {
     RESIZE_DIRECTIONS.forEach((direction) => {

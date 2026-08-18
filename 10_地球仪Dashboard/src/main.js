@@ -1,4 +1,9 @@
 import '@fontsource-variable/noto-serif-sc/wght.css';
+import { gsap } from 'gsap';
+import figmaMicrographic011Source from './assets/figma/011.svg?raw';
+import figmaMicrographic013Source from './assets/figma/013.svg?raw';
+import figmaMicrographic014Source from '../../Figma微图形SVG/014.svg?raw';
+import figmaMicrographic019Source from '../../Figma微图形SVG/019.svg?raw';
 import './style.css';
 import './auth.css';
 import './archive-workflow/workspace.css';
@@ -7,6 +12,8 @@ import './archive-workflow/commission.css';
 import './mobile-ui.css';
 import './typography.css';
 import './window-foundation.css';
+import './workspace-loader.css';
+import './micrographics.css';
 import {
   emitUiSound,
   initializeUiSounds,
@@ -72,7 +79,132 @@ const isPreviewAccess = () => document.body.dataset.accessMode === 'preview';
 const emitLoadingCue = (name, minInterval) => {
   void emitUiSound(name, { minInterval });
 };
-initializeUiSounds();
+
+function mountFigmaMicrographic019(host) {
+  if (!host || host.childElementCount) return;
+
+  const parsed = new DOMParser().parseFromString(figmaMicrographic019Source, 'image/svg+xml');
+  const sourceSvg = parsed.documentElement;
+  if (sourceSvg.nodeName.toLowerCase() !== 'svg') return;
+
+  const background = sourceSvg.firstElementChild;
+  if (background?.nodeName.toLowerCase() === 'rect') background.remove();
+
+  sourceSvg.removeAttribute('width');
+  sourceSvg.removeAttribute('height');
+  sourceSvg.setAttribute('viewBox', '338 338 404 404');
+  sourceSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  sourceSvg.setAttribute('aria-hidden', 'true');
+  sourceSvg.classList.add('archive-core-seal__source-svg');
+
+  const circles = [...sourceSvg.querySelectorAll('circle')];
+  const rings = circles.slice(0, 3);
+  const nodes = circles.slice(3);
+  const centre = 539.5;
+  const ringRadii = rings.map((ring) => Number(ring.getAttribute('r')));
+  const orbitLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  orbitLayer.classList.add('archive-core-seal__figma-orbit-layer');
+  sourceSvg.insertBefore(orbitLayer, rings[0]);
+  const orbitGroups = rings.map((ring, index) => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.classList.add('archive-core-seal__figma-orbit', `archive-core-seal__figma-orbit--${index + 1}`);
+    ring.classList.add('archive-core-seal__figma-ring');
+    orbitLayer.append(group);
+    group.append(ring);
+    return group;
+  });
+  nodes.forEach((node) => {
+    node.classList.add('archive-core-seal__figma-node');
+    const dx = Number(node.getAttribute('cx')) - centre;
+    const dy = Number(node.getAttribute('cy')) - centre;
+    const radius = Math.hypot(dx, dy);
+    const orbitIndex = ringRadii.reduce(
+      (closest, ringRadius, index) => (
+        Math.abs(ringRadius - radius) < Math.abs(ringRadii[closest] - radius) ? index : closest
+      ),
+      0,
+    );
+    orbitGroups[orbitIndex].append(node);
+  });
+
+  const paths = [...sourceSvg.querySelectorAll('path')];
+  paths.at(0)?.classList.add('archive-core-seal__figma-orbit-copy');
+  paths.slice(1).forEach((path) => path.classList.add('archive-core-seal__figma-detail'));
+  sourceSvg.querySelector('rect')?.classList.add('archive-core-seal__figma-detail');
+
+  host.replaceChildren(document.importNode(sourceSvg, true));
+}
+
+function mountFigmaMicrographic011(host) {
+  if (!host || host.childElementCount) return;
+
+  const parsed = new DOMParser().parseFromString(figmaMicrographic011Source, 'image/svg+xml');
+  const sourceSvg = parsed.documentElement;
+  if (sourceSvg.nodeName.toLowerCase() !== 'svg') return;
+
+  sourceSvg.querySelector(':scope > rect')?.remove();
+  sourceSvg.removeAttribute('width');
+  sourceSvg.removeAttribute('height');
+  sourceSvg.setAttribute('viewBox', '250 410 630 220');
+  sourceSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  sourceSvg.setAttribute('aria-hidden', 'true');
+  sourceSvg.classList.add('capsule-figma-011__source-svg');
+  [...sourceSvg.children].forEach((element, index) => {
+    if (!['defs'].includes(element.nodeName.toLowerCase())) {
+      element.classList.add('capsule-figma-011__piece');
+      element.classList.add(index === 0
+        ? 'capsule-figma-011__headline'
+        : 'capsule-figma-011__detail');
+      element.style.setProperty('--figma-piece-index', index);
+    }
+  });
+  host.replaceChildren(document.importNode(sourceSvg, true));
+}
+
+function mountFigmaMicrographic013(host) {
+  if (!host || host.childElementCount) return;
+
+  const parsed = new DOMParser().parseFromString(figmaMicrographic013Source, 'image/svg+xml');
+  const sourceSvg = parsed.documentElement;
+  if (sourceSvg.nodeName.toLowerCase() !== 'svg') return;
+
+  sourceSvg.querySelector(':scope > rect')?.remove();
+  sourceSvg.removeAttribute('width');
+  sourceSvg.removeAttribute('height');
+  sourceSvg.setAttribute('viewBox', '350 440 400 190');
+  sourceSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  sourceSvg.setAttribute('aria-hidden', 'true');
+  sourceSvg.classList.add('intro-figma-013__source-svg');
+  [...sourceSvg.children].forEach((element, index) => {
+    if (element.nodeName.toLowerCase() === 'defs') return;
+    element.classList.add('intro-figma-013__piece');
+    element.classList.add(index < 9
+      ? 'intro-figma-013__loader-piece'
+      : 'intro-figma-013__completion-piece');
+    element.style.setProperty('--intro-013-piece', index);
+  });
+  host.replaceChildren(document.importNode(sourceSvg, true));
+}
+
+function mountFigmaMicrographic014(host) {
+  if (!host || host.childElementCount) return;
+
+  const parsed = new DOMParser().parseFromString(figmaMicrographic014Source, 'image/svg+xml');
+  const sourceSvg = parsed.documentElement;
+  if (sourceSvg.nodeName.toLowerCase() !== 'svg') return;
+
+  const background = sourceSvg.firstElementChild;
+  if (background?.nodeName.toLowerCase() === 'rect') background.remove();
+
+  sourceSvg.removeAttribute('width');
+  sourceSvg.removeAttribute('height');
+  sourceSvg.setAttribute('viewBox', '285 420 510 235');
+  sourceSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  sourceSvg.setAttribute('aria-hidden', 'true');
+  sourceSvg.classList.add('polar-figma-014__source-svg');
+  host.replaceChildren(document.importNode(sourceSvg, true));
+}
+const uiSoundManager = initializeUiSounds();
 initializePalisMusicPlayer();
 const palisRuntime = await initializePalisRuntime({ reducedMotion });
 const archiveWorkflowClient = palisRuntime.repository;
@@ -195,6 +327,8 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
   const desktopTaskbar = document.querySelector('#assistant-taskbar');
   const desktopTaskList = document.querySelector('#assistant-task-list');
   const desktopEntry = document.querySelector('#clerk-workspace-entry');
+  const workspaceLoader = document.querySelector('#clerk-workspace-loader');
+  const workspaceLoaderProgress = document.querySelector('#clerk-workspace-loader-progress');
   const desktopStart = document.querySelector('#clerk-desktop-start');
   const desktopShortcutArrange = document.querySelector('#desktop-shortcut-arrange');
   const desktopTime = document.querySelector('#clerk-desktop-time');
@@ -1137,6 +1271,147 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     }).format(new Date());
   }
 
+  let workspaceLoaderContext = null;
+  let workspaceLoaderTimeline = null;
+  let workspaceLoaderPromise = null;
+
+  function playWorkspaceEntryLoader({ onHandoff = null } = {}) {
+    if (!workspaceLoader) return Promise.resolve();
+    if (workspaceLoaderPromise) return workspaceLoaderPromise;
+
+    workspaceLoaderPromise = new Promise((resolve) => {
+      let finished = false;
+      let handedOff = false;
+      const handoff = () => {
+        if (handedOff) return;
+        handedOff = true;
+        onHandoff?.();
+      };
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        handoff();
+        workspaceLoaderTimeline?.kill();
+        workspaceLoaderTimeline = null;
+        workspaceLoaderContext?.revert();
+        workspaceLoaderContext = null;
+        workspaceLoader.hidden = true;
+        workspaceLoader.removeAttribute('aria-busy');
+        document.body.classList.remove('workspace-entry-loading');
+        resolve();
+      };
+
+      workspaceLoader.hidden = false;
+      workspaceLoader.setAttribute('aria-busy', 'true');
+      document.body.classList.add('workspace-entry-loading');
+      if (workspaceLoaderProgress) workspaceLoaderProgress.textContent = '000';
+
+      if (reducedMotion) {
+        workspaceLoader.classList.add('is-reduced-motion');
+        handoff();
+        window.setTimeout(finish, 140);
+        return;
+      }
+
+      workspaceLoader.classList.remove('is-reduced-motion');
+      workspaceLoaderContext = gsap.context(() => {
+        gsap.set('.clerk-workspace-loader__folio, .clerk-loader-kinetic__brand, .clerk-loader-kinetic__channel, .clerk-loader-kinetic__copy, .clerk-loader-kinetic__metrics > div, .clerk-loader-kinetic footer', { autoAlpha: 0, y: 8 });
+        gsap.set('.clerk-loader-line--horizontal, .clerk-loader-line--diagonal', { scaleX: 0, transformOrigin: 'left center' });
+        gsap.set('.clerk-loader-line--vertical', { scaleY: 0, transformOrigin: 'center top' });
+        gsap.set('.clerk-loader-node', { scale: 0, transformOrigin: 'center' });
+        gsap.set(workspaceLoader, { autoAlpha: 1 });
+
+        workspaceLoaderTimeline = gsap.timeline({
+          defaults: { duration: 0.36, ease: 'power2.out', overwrite: 'auto' },
+          onComplete: () => queueMicrotask(finish),
+        })
+          .addLabel('signal')
+          .to('.clerk-workspace-loader__folio', {
+            autoAlpha: 1,
+            y: 0,
+          }, 'signal')
+          .to('.clerk-loader-line--horizontal', {
+            scaleX: 1,
+            duration: 0.8,
+            onStart: () => emitLoadingCue('motif-draw-1', 0),
+          }, 'signal')
+          .to('.clerk-loader-line--vertical', {
+            scaleY: 1,
+            duration: 0.68,
+            onStart: () => emitLoadingCue('motif-draw-2', 0),
+          }, 'signal+=0.18')
+          .to('.clerk-loader-line--diagonal', {
+            scaleX: 1,
+            duration: 0.62,
+            onStart: () => emitLoadingCue('motif-draw-3', 0),
+          }, 'signal+=0.34');
+
+        [...workspaceLoader.querySelectorAll('.clerk-loader-node')].forEach((node, index) => {
+          workspaceLoaderTimeline.to(node, {
+            scale: 1,
+            duration: 0.24,
+          }, `signal+=${0.48 + index * 0.08}`);
+        });
+
+        workspaceLoaderTimeline
+          .addLabel('identity', 'signal+=0.9')
+          .to('.clerk-loader-kinetic__brand', {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.46,
+            onStart: () => emitLoadingCue('motif-pulse-1', 0),
+          }, 'identity')
+          .to('.clerk-loader-kinetic__channel', {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.46,
+            onStart: () => emitLoadingCue('motif-pulse-2', 0),
+          }, 'identity+=0.12')
+          .to('.clerk-loader-kinetic__copy', {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.46,
+            onStart: () => emitLoadingCue('motif-pulse-3', 0),
+          }, 'identity+=0.24');
+
+        [...workspaceLoader.querySelectorAll('.clerk-loader-kinetic__metrics > div')].forEach((metric, index) => {
+          workspaceLoaderTimeline.to(metric, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.4,
+          }, `identity+=${0.48 + index * 0.09}`);
+        });
+
+        workspaceLoaderTimeline
+          .to('.clerk-loader-kinetic footer', {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.38,
+          }, 'identity+=0.88')
+          .to(workspaceLoaderProgress, { textContent: 100, snap: { textContent: 1 }, duration: 2.2, ease: 'none' }, 'identity')
+          .addLabel('handoff', 'identity+=2.55')
+          .call(handoff, [], 'handoff')
+          .to('.clerk-loader-kinetic', {
+            scale: 1.018,
+            duration: 0.35,
+            ease: 'power1.in',
+          }, 'handoff')
+          .to(workspaceLoader, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' }, 'handoff+=0.2');
+      }, workspaceLoader);
+    }).finally(() => { workspaceLoaderPromise = null; });
+
+    return workspaceLoaderPromise;
+  }
+
+  async function requestDesktopOpen() {
+    if (document.body.classList.contains('clerk-desktop-open')) return;
+    if (!['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
+      setDesktopOpen(true);
+      return;
+    }
+    await playWorkspaceEntryLoader({ onHandoff: () => setDesktopOpen(true) });
+  }
+
   function setDesktopOpen(open) {
     const wasOpen = document.body.classList.contains('clerk-desktop-open');
     if (open && !['clerk', 'admin'].includes(document.body.dataset.operatorRole)) {
@@ -2025,7 +2300,7 @@ function initializeMascotAssistant({ client: workspaceNoteClient = null, initial
     if (registerMascotEasterEggClick()) return;
     setMenuOpen(startMenu.hidden);
   });
-  desktopEntry.addEventListener('click', () => setDesktopOpen(true));
+  desktopEntry.addEventListener('click', () => { void requestDesktopOpen(); });
   desktopStart.addEventListener('click', () => setDesktopStartMenuOpen(desktopStartMenu.hidden));
   desktopShortcutArrange.addEventListener('click', arrangeDesktopShortcuts);
   desktop.addEventListener('pointerdown', (event) => {
@@ -2410,9 +2685,14 @@ selectMapItem(MAPPED_ABYSS_POINTS[0]);
 
 const capsuleLayer = document.querySelector('#capsule-layer');
 const introLayer = document.querySelector('#intro-layer');
+mountFigmaMicrographic013(document.querySelector('#intro-figma-013'));
 const archiveLayer = document.querySelector('#archive-layer');
+const archiveCoreSeal = document.querySelector('#archive-figma-019');
+mountFigmaMicrographic019(archiveCoreSeal);
 const polarLayer = document.querySelector('#polar-layer');
+mountFigmaMicrographic014(document.querySelector('#polar-figma-014'));
 const polarDiagnostic = document.querySelector('#polar-diagnostic');
+const polarMapDetail = document.querySelector('#map-detail');
 const diagnosticTitle = document.querySelector('#diagnostic-title');
 const diagnosticChannel = document.querySelector('#diagnostic-channel');
 const diagnosticProgress = document.querySelector('#diagnostic-progress');
@@ -2445,6 +2725,7 @@ const scrollPercent = document.querySelector('#scroll-percent');
 const systemTime = document.querySelector('#system-time');
 const archiveBack = document.querySelector('#archive-back');
 const archiveCategoryVisual = document.querySelector('#archive-category-visual');
+const archiveClassificationMark = document.querySelector('#archive-classification-mark');
 const archiveFeature = document.querySelector('#archive-feature');
 const archiveBrowserControls = document.querySelector('#archive-browser-controls');
 const archivePosition = document.querySelector('#archive-position');
@@ -2454,6 +2735,8 @@ const folderOrbit = document.querySelector('#folder-orbit');
 const capsuleFrame = document.querySelector('.capsule-frame');
 const capsuleCopy = document.querySelector('.capsule-copy');
 const capsuleTitle = document.querySelector('#capsule-title');
+const capsuleFigma011 = document.querySelector('#capsule-figma-011');
+mountFigmaMicrographic011(capsuleFigma011);
 const bootChannel = document.querySelector('#boot-channel');
 const bootStatus = document.querySelector('#boot-status');
 const bootProgress = document.querySelector('.boot-line i span');
@@ -2465,6 +2748,7 @@ let scrollProgress = 0;
 let targetProgress = 0;
 let currentChapter = -1;
 let capsuleBootComplete = false;
+let capsuleBootAccessMode = document.body.dataset.accessMode || '';
 let lastFrame = performance.now();
 let pointerDown = false;
 let pointerStart = { x: 0, y: 0 };
@@ -2481,22 +2765,113 @@ let archiveWheelLocked = false;
 let pageWheelLocked = false;
 let chapterScrollFrame = 0;
 let overviewSyncRun = 0;
+let introLoaderDotTimeline = null;
+let introCompletionSoundCleanups = [];
 let capsuleBootRun = 0;
 let capsuleBootTimer = 0;
+let capsuleBootAudioReadyHandler = null;
+let capsuleCopyTimeline = null;
 let versionNoticeTaskButton = null;
 let versionNoticeClosed = false;
 let versionNoticeTimer = 0;
+let archiveCoreIntroTimeline = null;
+let archiveCoreIdleTween = null;
 const chapterTargets = [0, 1 / 3, 2 / 3, 1];
 
 buildArchiveOrbit();
 buildOverviewSync();
 void syncPublishedArchiveDirectory();
-prepareCapsuleBootSequence();
+if (capsuleBootAccessMode) armCapsuleBootSequenceWhenAudioReady();
+else prepareCapsuleBootSequence();
 updateClock();
 setInterval(updateClock, 30_000);
 onScroll();
 onResize();
 requestAnimationFrame(animate);
+
+function clearIntroCompletionSounds() {
+  introCompletionSoundCleanups.forEach((cleanup) => cleanup());
+  introCompletionSoundCleanups = [];
+}
+
+function stopIntroLoaderDotAnimation({ clear = false } = {}) {
+  const loaderPieces = [...document.querySelectorAll('.intro-figma-013__loader-piece')];
+  introLoaderDotTimeline?.kill();
+  introLoaderDotTimeline = null;
+  gsap.killTweensOf(loaderPieces);
+  if (clear) gsap.set(loaderPieces, { clearProps: 'opacity,visibility' });
+}
+
+function startIntroLoaderDotAnimation(runId) {
+  stopIntroLoaderDotAnimation();
+  const loaderPieces = [...document.querySelectorAll('.intro-figma-013__loader-piece')];
+  if (!loaderPieces.length) return;
+  if (reducedMotion) {
+    gsap.set(loaderPieces, { autoAlpha: .86 });
+    return;
+  }
+
+  gsap.set(loaderPieces, { autoAlpha: .12 });
+  introLoaderDotTimeline = gsap.timeline({ repeat: -1, repeatDelay: .22 });
+  const motifProfiles = ['motif-pulse-1', 'motif-pulse-2', 'motif-pulse-3'];
+  loaderPieces.forEach((piece, index) => {
+    const appearAt = index * .14;
+    if (index % 3 === 0) {
+      const motifStage = Math.min(3, Math.floor(index / 3) + 1);
+      const motifProfile = motifProfiles[motifStage - 1];
+      introLoaderDotTimeline.call(() => {
+        if (runId === overviewSyncRun && currentChapter === 1) {
+          emitLoadingCue(motifProfile, 0);
+        }
+      }, [], appearAt);
+    }
+    introLoaderDotTimeline
+      .to(piece, {
+        autoAlpha: 1,
+        duration: .14,
+        ease: 'power1.out',
+      }, appearAt)
+      .to(piece, {
+        autoAlpha: .12,
+        duration: .32,
+        ease: 'power1.in',
+      }, appearAt + .34);
+  });
+}
+
+function playIntroCompletionSounds(runId) {
+  clearIntroCompletionSounds();
+  if (reducedMotion) return;
+
+  const pieces = [...document.querySelectorAll('.intro-figma-013__completion-piece')];
+  if (!pieces.length) return;
+  const soundStages = new Map([
+    [0, 1],
+    [Math.floor((pieces.length - 1) / 2), 2],
+    [pieces.length - 1, 3],
+  ]);
+  const motifProfiles = ['motif-pulse-1', 'motif-pulse-2', 'motif-pulse-3'];
+
+  pieces.forEach((piece, index) => {
+    const onStart = (event) => {
+      if (event.animationName !== 'intro-figma-013-piece') return;
+      const motifStage = soundStages.get(index);
+      if (motifStage && runId === overviewSyncRun && currentChapter === 1) {
+        emitLoadingCue(motifProfiles[motifStage - 1], 0);
+      }
+    };
+    const onEnd = (event) => {
+      if (event.animationName !== 'intro-figma-013-piece' || index !== pieces.length - 1) return;
+      if (runId === overviewSyncRun && currentChapter === 1) emitLoadingCue('motif-resolve', 500);
+    };
+    piece.addEventListener('animationstart', onStart);
+    piece.addEventListener('animationend', onEnd);
+    introCompletionSoundCleanups.push(() => {
+      piece.removeEventListener('animationstart', onStart);
+      piece.removeEventListener('animationend', onEnd);
+    });
+  });
+}
 
 // Dev deep link: /?dir=entrances#archive-section jumps straight into a directory.
 {
@@ -2606,13 +2981,89 @@ function capsuleOperatorName() {
   ).trim();
 }
 
+function setCapsuleTitle(primary, secondary) {
+  const firstLine = document.createElement('span');
+  const secondLine = document.createElement('span');
+  firstLine.textContent = primary;
+  secondLine.textContent = secondary;
+  capsuleTitle.replaceChildren(firstLine, secondLine);
+}
+
+function playCapsuleCopyEntrance({ titleOnly = false, onComplete = null } = {}) {
+  capsuleCopyTimeline?.kill();
+  capsuleCopyTimeline = null;
+
+  const figmaPieces = capsuleFigma011?.querySelectorAll('.capsule-figma-011__piece') ?? [];
+  const figmaDetails = capsuleFigma011?.querySelectorAll('.capsule-figma-011__detail') ?? [];
+  const figmaHeadline = capsuleFigma011?.querySelector('.capsule-figma-011__headline');
+  const titleLines = capsuleTitle.querySelectorAll(':scope > span');
+
+  if (reducedMotion) {
+    gsap.set(titleLines, { clearProps: 'all' });
+    if (!titleOnly) gsap.set([capsuleFigma011, figmaPieces], { autoAlpha: 1, y: 0, scale: 1, clearProps: 'clipPath' });
+    queueMicrotask(() => onComplete?.());
+    return;
+  }
+
+  capsuleCopyTimeline = gsap.timeline({
+    defaults: { ease: 'power3.out', overwrite: 'auto' },
+    onComplete: () => {
+      capsuleCopyTimeline = null;
+      onComplete?.();
+    },
+  });
+
+  if (!titleOnly) {
+    gsap.set(capsuleFigma011, { autoAlpha: 1, y: 0, scale: 1 });
+    gsap.set(figmaDetails, { autoAlpha: 0, y: 5 });
+    gsap.set(figmaHeadline, { autoAlpha: 0, clipPath: 'inset(0 100% 0 0)' });
+    capsuleCopyTimeline.addLabel('identity-details', 0);
+    [...figmaDetails].forEach((detail, index, details) => {
+      const offset = details.length > 1 ? (index * 0.22) / (details.length - 1) : 0;
+      capsuleCopyTimeline.to(detail, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.3,
+      }, `identity-details+=${offset}`);
+    });
+    capsuleCopyTimeline
+      .addLabel('identity-headline', 'identity-details+=0.14')
+      .to(figmaHeadline, {
+        autoAlpha: 1,
+        clipPath: 'inset(0 0% 0 0)',
+        duration: 0.52,
+        ease: 'power2.inOut',
+        onStart: () => emitLoadingCue('motif-pulse-1', 0),
+      }, 'identity-headline');
+  }
+
+  gsap.set(titleLines, { autoAlpha: 0, y: 18, scale: 0.985, transformOrigin: '50% 50%' });
+  [...titleLines].forEach((line, index) => {
+    capsuleCopyTimeline.to(line, {
+      autoAlpha: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.58,
+      onStart: () => emitLoadingCue(`motif-pulse-${Math.min(3, index + 2)}`, 0),
+    }, titleOnly ? index * 0.11 : `identity-details+=${0.08 + index * 0.11}`);
+  });
+
+  if (!titleOnly) {
+    capsuleCopyTimeline.fromTo('.boot-line', {
+      autoAlpha: 0,
+      y: 9,
+    }, {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.46,
+      immediateRender: false,
+    }, 'identity-headline+=0.24');
+  }
+}
+
 function applyCapsuleAccessState() {
   const operatorName = capsuleOperatorName();
-  capsuleTitle.replaceChildren(
-    document.createTextNode('系统接入已完成'),
-    document.createElement('br'),
-    document.createTextNode(operatorName ? `欢迎回来，${operatorName}` : '欢迎使用'),
-  );
+  setCapsuleTitle('系统接入已完成', operatorName ? `欢迎回来，${operatorName}` : '欢迎使用');
   bootChannel.textContent = 'CHANNEL 09A / PALIS ONLINE';
   bootStatus.textContent = 'SYSTEM READY';
   scrollCueLabel.textContent = isPreviewAccess() ? '向下滚动检查索引' : '向下滚动进入系统';
@@ -2623,20 +3074,59 @@ function applyCapsuleAccessState() {
 
 window.addEventListener('palis:access-mode-change', (event) => {
   if (event.detail?.mode === 'locked') {
+    clearCapsuleBootAudioWait();
+    capsuleBootAccessMode = '';
     capsuleBootRun += 1;
     prepareCapsuleBootSequence();
     return;
   }
-  armCapsuleBootSequence();
+
+  const nextAccessMode = event.detail?.mode || document.body.dataset.accessMode || '';
+  if (capsuleBootAccessMode) {
+    capsuleBootAccessMode = nextAccessMode;
+    if (capsuleBootComplete) applyCapsuleAccessState();
+    return;
+  }
+  capsuleBootAccessMode = nextAccessMode;
+  armCapsuleBootSequenceWhenAudioReady();
 });
+
+function clearCapsuleBootAudioWait() {
+  if (!capsuleBootAudioReadyHandler) return;
+  window.removeEventListener('palis:ui-audio-ready', capsuleBootAudioReadyHandler);
+  capsuleBootAudioReadyHandler = null;
+}
+
+function armCapsuleBootSequenceWhenAudioReady() {
+  clearCapsuleBootAudioWait();
+  if (!uiSoundManager.enabled || uiSoundManager.unlocked) {
+    armCapsuleBootSequence();
+    return;
+  }
+
+  prepareCapsuleBootSequence();
+  capsuleBootAudioReadyHandler = () => {
+    if (!capsuleBootAccessMode) return;
+    clearCapsuleBootAudioWait();
+    armCapsuleBootSequence();
+  };
+  window.addEventListener('palis:ui-audio-ready', capsuleBootAudioReadyHandler);
+  void uiSoundManager.unlock().then((unlocked) => {
+    if (unlocked) capsuleBootAudioReadyHandler?.();
+  });
+}
 
 function prepareCapsuleBootSequence() {
   window.clearTimeout(capsuleBootTimer);
+  capsuleCopyTimeline?.kill();
+  capsuleCopyTimeline = null;
   capsuleBootComplete = false;
-  capsuleCopy.classList.remove('is-booting', 'is-resolving', 'is-complete');
+  capsuleCopy.classList.remove('is-booting', 'is-resolving', 'is-complete', 'is-sequence-ready');
   capsuleLayer.classList.remove('boot-ready');
+  gsap.set(capsuleFigma011, { autoAlpha: 0, y: 12, scale: 0.985 });
+  gsap.set(capsuleFigma011?.querySelectorAll('.capsule-figma-011__piece') ?? [], { autoAlpha: 0, y: 5 });
   resetVersionNotice();
-  capsuleTitle.innerHTML = '正在接入<br />PALIS 管理系统';
+  setCapsuleTitle('正在接入', 'PALIS 管理系统');
   bootChannel.textContent = 'CHANNEL 09A / ARCHIVE HANDSHAKE';
   bootStatus.textContent = 'INDEX READY';
   bootProgress.style.transition = 'none';
@@ -2644,6 +3134,7 @@ function prepareCapsuleBootSequence() {
   void bootProgress.offsetWidth;
   bootProgress.style.removeProperty('transition');
   bootProgress.style.removeProperty('transform');
+  window.requestAnimationFrame(() => capsuleCopy.classList.add('is-sequence-ready'));
 }
 
 function armCapsuleBootSequence() {
@@ -2656,8 +3147,12 @@ function armCapsuleBootSequence() {
     capsuleCopy.classList.add('is-complete');
     capsuleLayer.classList.add('boot-ready');
     capsuleBootComplete = true;
-    applyCapsuleAccessState();
-    window.setTimeout(showVersionNotice, 480);
+    playCapsuleCopyEntrance({
+      onComplete: () => {
+        emitLoadingCue('motif-resolve', 500);
+        showVersionNotice();
+      },
+    });
   };
 
   const complete = () => {
@@ -2669,7 +3164,11 @@ function armCapsuleBootSequence() {
   };
 
   window.requestAnimationFrame(() => {
-    if (runId === capsuleBootRun) capsuleCopy.classList.add('is-booting');
+    if (runId === capsuleBootRun) {
+      emitLoadingCue('motif-draw-1', 0);
+      capsuleCopy.classList.add('is-booting');
+      playCapsuleCopyEntrance({ titleOnly: true });
+    }
   });
   capsuleBootTimer = window.setTimeout(complete, 2020);
 }
@@ -2738,9 +3237,9 @@ async function syncPublishedArchiveDirectory() {
 
 async function runOverviewSync() {
   const runId = ++overviewSyncRun;
-  // Loading sound is paced by real request / scan / verification changes,
-  // rather than an unrelated timer loop.
-  emitLoadingCue('boot', 260);
+  clearIntroCompletionSounds();
+  // This view stays sonically sparse: only the floating 013 dots sound while
+  // the index is loading. Channel scans and the progress ruler remain silent.
   const rows = [...syncList.querySelectorAll('.sync-row')];
   const recordTotal = archiveRoots.reduce((total, archive) => total + onlineArchiveCount(archive), 0);
   const offlineRecordTotal = archiveRoots.reduce((total, archive) => total + offlineArchiveCount(archive), 0);
@@ -2758,15 +3257,12 @@ async function runOverviewSync() {
 
     output.textContent = '000';
     if (target === 0) return true;
-    const cueStep = Math.max(3, Math.ceil(target / 6));
     for (let count = 1; count <= target; count += 1) {
       if (runId !== overviewSyncRun || currentChapter !== 1) return false;
       output.textContent = String(count).padStart(3, '0');
       const countProgress = Math.round(((index + 0.22 + (count / target) * 0.7) / rows.length) * 100);
       syncPercent.textContent = String(countProgress).padStart(3, '0');
       syncProgress.style.width = `${countProgress}%`;
-      if (count === 1 || count === target || count % cueStep === 0) emitLoadingCue('telemetry', 72);
-
       if (pausePoints.has(count)) {
         row.classList.add('is-buffering');
         status.textContent = '缓冲';
@@ -2784,6 +3280,7 @@ async function runOverviewSync() {
   };
 
   syncConsole.classList.remove('is-sync-complete', 'is-sync-failed');
+  startIntroLoaderDotAnimation(runId);
   syncTitle.textContent = '正在校验档案索引';
   syncSubtitle.textContent = '09 INDEX CHANNELS / ACCESSION COUNT / SOURCE CHAIN';
   syncPercent.textContent = '000';
@@ -2829,7 +3326,6 @@ async function runOverviewSync() {
         const onlineCount = onlineArchiveCount(archive);
         const offlineCount = offlineArchiveCount(archive);
         row.classList.add('is-requesting');
-        emitLoadingCue('boot', 90);
         row.querySelector('i').textContent = '呼叫';
         row.querySelector('output').textContent = '000';
         syncPhase.textContent = `BUS ${String(index + 1).padStart(2, '0')} / ${String(rows.length).padStart(2, '0')}`;
@@ -2843,7 +3339,6 @@ async function runOverviewSync() {
 
         row.classList.remove('is-requesting');
         row.classList.add('is-scanning');
-        emitLoadingCue('scan', 110);
         row.querySelector('i').textContent = '检索中';
         syncState.textContent = `扫描 ${archive.code} 源文件`;
 
@@ -2856,7 +3351,6 @@ async function runOverviewSync() {
           const scanProgress = Math.round(((index + 0.22 + ((probe + 1) / probeCount) * 0.62) / rows.length) * 100);
           syncPercent.textContent = String(scanProgress).padStart(3, '0');
           syncProgress.style.width = `${scanProgress}%`;
-          emitLoadingCue('telemetry', 78);
           await wait(105 + (probe % 2) * 28);
         }
 
@@ -2913,7 +3407,6 @@ async function runOverviewSync() {
     const offlineCount = offlineArchiveCount(archive);
     const requestProgress = Math.round(((index + 0.18) / rows.length) * 100);
     row.classList.add('is-requesting');
-    emitLoadingCue('boot', 90);
     row.querySelector('i').textContent = '呼叫';
     row.querySelector('output').textContent = '000';
     syncState.textContent = `建立 ${archive.code} 通道`;
@@ -2926,7 +3419,6 @@ async function runOverviewSync() {
     const verifyProgress = Math.round(((index + 0.22) / rows.length) * 100);
     row.classList.remove('is-requesting');
     row.classList.add('is-scanning');
-    emitLoadingCue('scan', 120);
     row.querySelector('i').textContent = '核对中';
     syncState.textContent = `核对 ${archive.code} 来源链`;
     syncPercent.textContent = String(verifyProgress).padStart(3, '0');
@@ -2949,7 +3441,7 @@ async function runOverviewSync() {
 
 function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal) {
   if (runId !== overviewSyncRun) return;
-  emitLoadingCue('verified', 360);
+  stopIntroLoaderDotAnimation({ clear: true });
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
   syncPhase.textContent = `BUS ${String(channelTotal).padStart(2, '0')} / ${String(channelTotal).padStart(2, '0')}`;
@@ -2967,6 +3459,7 @@ function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal
     syncEnter.removeAttribute('aria-disabled');
     syncEnter.textContent = '打开 PALIS 09A';
     syncConsole.classList.add('is-sync-complete');
+    playIntroCompletionSounds(runId);
     return;
   }
   syncState.textContent = '全部通道就绪';
@@ -2982,10 +3475,12 @@ function commitOverviewSync(runId, recordTotal, offlineRecordTotal, channelTotal
   syncEnter.removeAttribute('aria-disabled');
   syncEnter.textContent = '打开 PALIS 09A';
   syncConsole.classList.add('is-sync-complete');
+  playIntroCompletionSounds(runId);
 }
 
 function commitRestrictedOverviewSync(runId, channelTotal) {
   if (runId !== overviewSyncRun) return;
+  stopIntroLoaderDotAnimation({ clear: true });
   emitLoadingCue('error', 360);
   syncPercent.textContent = '100';
   syncProgress.style.width = '100%';
@@ -3020,6 +3515,16 @@ const isPolarDiagnosticAudible = (runId) => isPolarDiagnosticActiveRun(runId) &&
 function emitPolarDiagnosticCue(runId, name, minInterval) {
   if (isPolarDiagnosticAudible(runId)) emitLoadingCue(name, minInterval);
 }
+
+polarMapDetail?.addEventListener('animationstart', (event) => {
+  if (event.target !== polarMapDetail || event.animationName !== 'map-detail-contact') return;
+  emitPolarDiagnosticCue(polarDiagnosticRun, 'telemetry', 70);
+});
+
+polarDiagnostic?.addEventListener('animationstart', (event) => {
+  if (event.animationName !== 'diagnostic-row-scan') return;
+  emitPolarDiagnosticCue(polarDiagnosticRun, 'scan', 120);
+});
 
 function setDiagnosticProgress(completed, total, title, channel, log) {
   const percent = Math.round((completed / total) * 100);
@@ -3145,7 +3650,6 @@ async function runPolarDiagnostic() {
   for (const phase of phases) {
     polarDiagnostic.dataset.phase = phase.key;
     setDiagnosticRow(phase.key, 'active', `00 / ${String(phase.total).padStart(2, '0')}`);
-    emitPolarDiagnosticCue(runId, 'scan', 130);
     for (let index = 0; index < phase.total; index += 1) {
       if (!isPolarDiagnosticActiveRun(runId)) return;
       polarDiagnosticState[phase.key] = index + 1;
@@ -3163,7 +3667,6 @@ async function runPolarDiagnostic() {
       }
       setDiagnosticRow(phase.key, 'active', `${String(index + 1).padStart(2, '0')} / ${String(phase.total).padStart(2, '0')}`);
       setDiagnosticProgress(completed, allChecks, phase.title, phase.channel, `${phase.log} ${String(index + 1).padStart(2, '0')} / RESPONSE NORMAL`);
-      emitPolarDiagnosticCue(runId, 'telemetry', 88);
       taskStatus.textContent = `${phase.title} / ${index + 1} OF ${phase.total}`;
       await polarDiagnosticWait(phase.delay);
       if (!isPolarDiagnosticActiveRun(runId)) return;
@@ -3176,7 +3679,6 @@ async function runPolarDiagnostic() {
   if (!isPolarDiagnosticActiveRun(runId)) return;
   polarDiagnostic.dataset.phase = 'weather';
   setDiagnosticRow('weather', 'active', '校准中');
-  emitPolarDiagnosticCue(runId, 'scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在校准天气遥测', 'CHANNEL 04', 'SYNC PRESSURE / WIND / TEMPERATURE TELEMETRY');
   taskStatus.textContent = '天气遥测 / 校准中';
   await polarDiagnosticWait(720);
@@ -3190,7 +3692,6 @@ async function runPolarDiagnostic() {
 
   polarDiagnostic.dataset.phase = 'storm';
   setDiagnosticRow('storm', 'active', '扫描中');
-  emitPolarDiagnosticCue(runId, 'scan', 160);
   setDiagnosticProgress(completed, allChecks, '正在检查风暴监控阵列', 'CHANNEL 05', 'SCAN STORM WATCH SECTORS');
   taskStatus.textContent = '风暴监控 / 扫描扇区';
   await polarDiagnosticWait(820);
@@ -3211,9 +3712,8 @@ async function finishPolarDiagnostic(allChecks, runId = polarDiagnosticRun) {
   polarDiagnostic.classList.add('is-complete');
   polarLayer.classList.remove('is-diagnostic-running');
   polarLayer.classList.add('is-network-ready');
-  const mapDetail = document.querySelector('#map-detail');
-  mapDetail?.classList.remove('is-diagnostic-reading');
-  mapDetail?.removeAttribute('aria-busy');
+  polarMapDetail?.classList.remove('is-diagnostic-reading');
+  polarMapDetail?.removeAttribute('aria-busy');
   selectMapItem(selectedMapItem || MAPPED_ABYSS_POINTS[0], { transient: true });
   setDiagnosticProgress(allChecks, allChecks, '南极网络检查完成', 'CHANNEL READY', 'ALL POLAR SYSTEMS NORMAL');
   taskStatus.textContent = '南极网络已就绪 / 38 个坐标在线';
@@ -3252,7 +3752,6 @@ async function runRestrictedPolarDiagnostic(totals, runId = polarDiagnosticRun) 
       `STATION ${String(index + 1).padStart(2, '0')}`,
       `PING ${station.code} / NO RESPONSE`,
     );
-    emitPolarDiagnosticCue(runId, 'telemetry', 88);
     taskStatus.textContent = `科研站检索 / ${index + 1} OF ${totals.stations}`;
     await polarDiagnosticWait(stationWait);
     if (!isPolarDiagnosticActiveRun(runId)) return;
@@ -3279,7 +3778,6 @@ async function runRestrictedPolarDiagnostic(totals, runId = polarDiagnosticRun) 
       `BEACON ${String(index + 1).padStart(2, '0')}`,
       `QUERY ${entrance.code} / RECORD NOT FOUND`,
     );
-    emitPolarDiagnosticCue(runId, 'telemetry', 88);
     taskStatus.textContent = `入口信标检索 / ${index + 1} OF ${totals.entrances}`;
     await polarDiagnosticWait(entranceWait);
     if (!isPolarDiagnosticActiveRun(runId)) return;
@@ -3311,7 +3809,6 @@ async function runRestrictedPolarDiagnostic(totals, runId = polarDiagnosticRun) 
         `ROUTE ${String(index + 1).padStart(2, '0')}`,
         `TRACE ${route?.nodes?.join(' > ') || route?.label || 'UNKNOWN'} / ROUTE LOST`,
       );
-      emitPolarDiagnosticCue(runId, 'telemetry', 88);
       taskStatus.textContent = `${phase.label}检索 / ${index + 1} OF ${phase.total}`;
       await polarDiagnosticWait(routeWait);
       if (!isPolarDiagnosticActiveRun(runId)) return;
@@ -6083,8 +6580,21 @@ function updateArchivePresentation(directory) {
   archiveLayer.dataset.category = directory?.id || 'root';
   archiveLayer.dataset.mode = directory ? ARCHIVE_MODES[directory.id] || 'index' : 'orbit';
   archiveCategoryVisual.innerHTML = directory ? ARCHIVE_VISUALS[directory.id] || '' : '';
+  if (archiveClassificationMark) {
+    archiveClassificationMark.hidden = !directory;
+    if (directory) {
+      const index = Math.max(0, archiveRoots.findIndex((entry) => entry.id === directory.id)) + 1;
+      const mode = ARCHIVE_MODES[directory.id] || 'index';
+      archiveClassificationMark.querySelector('[data-archive-classification-index]').textContent = String(index).padStart(2, '0');
+      archiveClassificationMark.querySelector('[data-archive-classification-type]').textContent = mode.replaceAll('-', '_').toUpperCase();
+      archiveClassificationMark.querySelector('[data-archive-classification-channel]').textContent = `09A-${String(index).padStart(2, '0')}`;
+      archiveClassificationMark.querySelector('[data-archive-classification-count]').textContent = `${String(directory.children?.length || 0).padStart(2, '0')} ACCESSIONS`;
+    }
+  }
   archiveFeature.hidden = true;
   archiveFeature.replaceChildren();
+  if (directory) stopArchiveCoreMotion();
+  else if (currentChapter === 2) requestAnimationFrame(playArchiveCoreIntro);
 }
 
 function updateArchiveControls(mode, count) {
@@ -7708,13 +8218,107 @@ function setLayer(element, opacity, shiftY = 0) {
   element.setAttribute('aria-hidden', String(!enabled));
 }
 
+function stopArchiveCoreMotion() {
+  archiveCoreIntroTimeline?.kill();
+  archiveCoreIdleTween?.kill();
+  archiveCoreIntroTimeline = null;
+  archiveCoreIdleTween = null;
+  if (archiveCoreSeal) gsap.set(archiveCoreSeal, { clearProps: 'opacity,visibility,transform' });
+}
+
+function playArchiveCoreIntro() {
+  if (!archiveCoreSeal || archiveDirectory) return;
+
+  stopArchiveCoreMotion();
+  const rings = archiveCoreSeal.querySelectorAll('.archive-core-seal__figma-ring');
+  const orbits = archiveCoreSeal.querySelectorAll('.archive-core-seal__figma-orbit');
+  const nodes = archiveCoreSeal.querySelectorAll('.archive-core-seal__figma-node');
+  const orbitCopy = archiveCoreSeal.querySelector('.archive-core-seal__figma-orbit-copy');
+  const details = archiveCoreSeal.querySelectorAll('.archive-core-seal__figma-detail');
+
+  if (reducedMotion) {
+    gsap.set(archiveCoreSeal, { autoAlpha: 1, scale: 1, rotation: 0 });
+    gsap.set(orbits, { autoAlpha: 1, scale: 1, rotation: 0 });
+    gsap.set([rings, nodes, orbitCopy, details], { autoAlpha: 1, scale: 1, clearProps: 'strokeDasharray,strokeDashoffset' });
+    return;
+  }
+
+  gsap.set(rings, { clearProps: 'strokeDasharray,strokeDashoffset' });
+  gsap.set(orbits, { autoAlpha: 0, scale: 0.9, rotation: 0, transformOrigin: '50% 50%' });
+  gsap.set(nodes, { scale: 1, transformOrigin: '50% 50%' });
+  gsap.set(orbitCopy, { autoAlpha: 0, scale: 0.94, transformOrigin: '50% 50%' });
+  gsap.set(details, { autoAlpha: 0, scale: 0.86, transformOrigin: '50% 50%' });
+
+  archiveCoreIntroTimeline = gsap.timeline({
+    defaults: { ease: 'power2.out' },
+    onComplete: () => {
+      gsap.set(archiveCoreSeal, { clearProps: 'opacity,visibility,transform' });
+      archiveCoreIdleTween = gsap.to(orbits, {
+        rotation: (index) => (index === 1 ? '-=360' : '+=360'),
+        duration: (index) => [44, 58, 74][index] || 58,
+        ease: 'none',
+        repeat: -1,
+        transformOrigin: '50% 50%',
+      });
+    },
+  });
+
+  archiveCoreIntroTimeline
+    .addLabel('frame', 0)
+    .fromTo(archiveCoreSeal, {
+      autoAlpha: 0,
+      scale: 0.72,
+      rotation: -8,
+    }, {
+      autoAlpha: 1,
+      scale: 1,
+      rotation: 0,
+      duration: 1.05,
+      ease: 'power3.out',
+    }, 'frame');
+
+  [...orbits].forEach((orbit, index) => {
+    archiveCoreIntroTimeline.to(orbit, {
+      autoAlpha: 1,
+      scale: 1,
+      duration: 0.86,
+      ease: 'power3.out',
+      onStart: () => emitLoadingCue(`motif-draw-${index + 1}`, 0),
+    }, `frame+=${0.08 + index * 0.12}`);
+  });
+
+  archiveCoreIntroTimeline
+    .to(orbitCopy, {
+      autoAlpha: 1,
+      scale: 1,
+      duration: 0.72,
+      onStart: () => emitLoadingCue('motif-pulse-1', 0),
+    }, 'frame+=0.28');
+
+  [...details].forEach((detail, index) => {
+    archiveCoreIntroTimeline.to(detail, {
+      autoAlpha: 1,
+      scale: 1,
+      duration: 0.5,
+      onStart: () => {
+        if (index === Math.floor(details.length / 2)) emitLoadingCue('motif-pulse-2', 0);
+        if (index === details.length - 1) emitLoadingCue('motif-pulse-3', 0);
+      },
+    }, `frame+=${0.5 + index * 0.045}`);
+  });
+}
+
 function setChapter(chapter) {
   const previousChapter = currentChapter;
   if (chapter !== previousChapter) stopAllUiSounds();
   currentChapter = chapter;
+  if (chapter === 2 && previousChapter !== 2 && !archiveDirectory) playArchiveCoreIntro();
+  else if (previousChapter === 2 && chapter !== 2) stopArchiveCoreMotion();
   if (chapter === 1) runOverviewSync();
   else if (previousChapter === 1) {
     overviewSyncRun += 1;
+    stopIntroLoaderDotAnimation({ clear: true });
+    clearIntroCompletionSounds();
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35));
   if (chapter !== previousChapter) {
@@ -8206,11 +8810,10 @@ function openMapArchive(item) {
 }
 
 function flashDiagnosticMapDetail() {
-  const panel = document.querySelector('#map-detail');
-  if (!panel || reducedMotion) return;
-  panel.classList.remove('is-diagnostic-reading');
-  void panel.offsetWidth;
-  panel.classList.add('is-diagnostic-reading');
+  if (!polarMapDetail || reducedMotion) return;
+  polarMapDetail.classList.remove('is-diagnostic-reading');
+  void polarMapDetail.offsetWidth;
+  polarMapDetail.classList.add('is-diagnostic-reading');
 }
 
 function findMapHit(event) {

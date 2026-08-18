@@ -1,0 +1,110 @@
+/*
+ * PALIS loading/transition palette: one restrained E-G#-B desktop-system
+ * motif derived from the clerk workspace entry cue.
+ * This is the editable ACS sound-design source; ui-sounds.js mirrors these
+ * definitions with Web Audio because the browser app has no ACS runtime.
+ */
+
+@sound palis-motif-pulse-1 {
+  body {
+    osc: triangle; pitch: 329.63hz;
+    attack: 12ms; decay: 150ms; release: 80ms;
+    gain: 0.018;
+  }
+  overtone {
+    osc: sine; pitch: 659.25hz; delay: 8ms;
+    attack: 14ms; decay: 110ms; release: 70ms;
+    gain: 0.006;
+  }
+}
+
+@sound palis-motif-pulse-2 {
+  body {
+    osc: triangle; pitch: 415.30hz;
+    attack: 12ms; decay: 150ms; release: 80ms;
+    gain: 0.018;
+  }
+  overtone {
+    osc: sine; pitch: 830.61hz; delay: 8ms;
+    attack: 14ms; decay: 110ms; release: 70ms;
+    gain: 0.006;
+  }
+}
+
+@sound palis-motif-pulse-3 {
+  body {
+    osc: triangle; pitch: 493.88hz;
+    attack: 12ms; decay: 150ms; release: 80ms;
+    gain: 0.018;
+  }
+  overtone {
+    osc: sine; pitch: 987.77hz; delay: 8ms;
+    attack: 14ms; decay: 110ms; release: 70ms;
+    gain: 0.006;
+  }
+}
+
+@sound palis-motif-draw-1 {
+  body {
+    osc: triangle; pitch: 329.63hz;
+    attack: 40ms; decay: 470ms; release: 160ms;
+    gain: 0.016;
+  }
+  overtone {
+    osc: sine; pitch: 659.25hz; delay: 25ms;
+    attack: 40ms; decay: 400ms; release: 130ms;
+    gain: 0.005;
+  }
+}
+
+@sound palis-motif-draw-2 {
+  body {
+    osc: triangle; pitch: 415.30hz;
+    attack: 40ms; decay: 470ms; release: 160ms;
+    gain: 0.016;
+  }
+  overtone {
+    osc: sine; pitch: 830.61hz; delay: 25ms;
+    attack: 40ms; decay: 400ms; release: 130ms;
+    gain: 0.005;
+  }
+}
+
+@sound palis-motif-draw-3 {
+  body {
+    osc: triangle; pitch: 493.88hz;
+    attack: 40ms; decay: 470ms; release: 160ms;
+    gain: 0.016;
+  }
+  overtone {
+    osc: sine; pitch: 987.77hz; delay: 25ms;
+    attack: 40ms; decay: 400ms; release: 130ms;
+    gain: 0.005;
+  }
+}
+
+@sound palis-motif-resolve {
+  note-1 {
+    osc: triangle; pitch: 329.63hz;
+    attack: 18ms; decay: 200ms; release: 90ms;
+    gain: 0.020;
+  }
+  note-2 {
+    osc: sine; pitch: 415.30hz; delay: 140ms;
+    attack: 16ms; decay: 220ms; release: 90ms;
+    gain: 0.021;
+  }
+  note-3 {
+    osc: sine; pitch: 493.88hz; delay: 300ms;
+    attack: 18ms; decay: 240ms; release: 100ms;
+    gain: 0.021;
+  }
+}
+
+@sound palis-polar-telemetry {
+  body {
+    osc: triangle; pitch-from: 620hz to 560hz;
+    attack: 6ms; decay: 26ms; release: 14ms;
+    gain: 0.007;
+  }
+}

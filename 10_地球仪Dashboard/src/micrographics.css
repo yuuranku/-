@@ -1,0 +1,424 @@
+/*
+ * PALIS micrographics grammar
+ * Source: Figma Micrographics / GEOMETRY (node 2002:1488)
+ *
+ * role = what the symbol means; slot = where that meaning is allowed to appear.
+ * - signal: live system state, pulse only
+ * - scale: finite progress/range, ruler only
+ * - index: record quantity, barcode only
+ * - identity: a composed mark that replaces existing ownership metadata
+ *
+ * Annotations are secondary, static and non-interactive. They never sit inside
+ * a window, card, folder, hero copy or media surface.
+ */
+
+:root {
+  --font-figma-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-figma-micro: 'Arial Narrow', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.micro-symbol-library {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.micro-annotation {
+  --micro-color: rgba(255, 250, 238, .38);
+  --micro-gap: 8px;
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  gap: var(--micro-gap);
+  align-items: center;
+  color: var(--micro-color);
+  font: 500 7px/1.45 var(--font-figma-micro);
+  letter-spacing: .1em;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+}
+
+.micro-annotation__vector {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.micro-annotation__label {
+  display: block;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Role geometry: one shape, one meaning, one repeatable scale. */
+.micro-annotation[data-micro-role='signal'] {
+  --micro-gap: 10px;
+  width: 270px;
+}
+.micro-annotation[data-micro-role='signal'] .micro-annotation__vector { width: 142px; }
+
+.micro-annotation[data-micro-role='scale'] {
+  flex-direction: column;
+  gap: 3px;
+  align-items: stretch;
+  width: clamp(280px, 29vw, 430px);
+  text-align: right;
+}
+
+.micro-annotation[data-micro-role='index'] {
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  width: 280px;
+  text-align: right;
+}
+
+/* Slots: placement and local palette only. */
+.micro-annotation[data-micro-slot='access-status'] {
+  --micro-color: rgba(235, 232, 224, .42);
+  top: 42px;
+  left: clamp(40px, 5vw, 82px);
+}
+
+.micro-annotation[data-micro-slot='access-progress'] {
+  --micro-color: rgba(194, 192, 186, .38);
+  right: clamp(40px, 6vw, 96px);
+  bottom: 32px;
+}
+
+.access-gate[data-phase='boot'] { filter: grayscale(1); }
+
+.micro-annotation[data-micro-slot='intro-index'] {
+  --micro-color: rgba(188, 202, 194, .36);
+  bottom: 52px;
+  left: 54px;
+}
+
+.intro-figma-013 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: min(clamp(430px, 30vw, 560px), 94%);
+  aspect-ratio: 400 / 190;
+  opacity: 1;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+}
+
+.intro-figma-013__source-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.intro-figma-013__source-svg [fill='#FFFAEE'] { fill: #fff; }
+.intro-figma-013__source-svg [stroke='#FFFAEE'] { stroke: #fff; }
+.intro-figma-013__source-svg [fill='#191919'] { fill: #000; }
+
+.intro-figma-013__piece { opacity: 0; }
+
+.intro-figma-013__loader-piece {
+  opacity: 1;
+  will-change: opacity;
+}
+
+.sync-title-stage {
+  position: relative;
+  height: clamp(205px, 15.5vw, 270px);
+}
+
+.sync-title-stage > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Keep the loading composition sparse: the index descriptor belongs to the
+   completed 013 lockup and must not collide with the progress summary. */
+.sync-console:not(.is-sync-complete) #sync-subtitle {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.sync-console.is-sync-complete #sync-subtitle {
+  animation: intro-subtitle-enter 520ms cubic-bezier(.16, 1, .3, 1) 620ms both;
+}
+
+.sync-console.is-sync-complete:not(.is-sync-failed) .intro-figma-013__loader-piece {
+  animation: intro-013-loader-settle 420ms steps(1, end) both;
+}
+
+.sync-console.is-sync-complete:not(.is-sync-failed) .intro-figma-013__completion-piece {
+  animation: intro-figma-013-piece 680ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(360ms + (var(--intro-013-piece) - 9) * 42ms);
+}
+
+@keyframes intro-subtitle-enter {
+  from { opacity: 0; transform: translate3d(0, -5px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes intro-013-loader-settle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes intro-figma-013-piece {
+  from { opacity: 1; clip-path: inset(0 100% 0 0); transform: translate3d(-10px, 0, 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); transform: translate3d(0, 0, 0); }
+}
+
+/* Index progress shares the Figma inspection language: ruled track + barcode scan. */
+.sync-console .sync-progress {
+  height: 12px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background:
+    linear-gradient(90deg, #fff, #fff) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 12px)
+      left bottom / 100% 5px no-repeat,
+    repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 48px)
+      left bottom / 100% 9px no-repeat;
+}
+
+.sync-console .sync-progress::after { display: none; }
+
+.sync-console .sync-progress i {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: visible;
+  background:
+    linear-gradient(90deg, #fff, #fff) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 6px)
+      left bottom / 100% 6px no-repeat,
+    repeating-linear-gradient(90deg, #fffafe 0 3px, transparent 3px 24px)
+      left bottom / 100% 11px no-repeat;
+  transition: width 620ms cubic-bezier(.16, 1, .3, 1);
+}
+
+.sync-console .sync-progress i::after {
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  bottom: auto;
+  left: auto;
+  display: block;
+  width: 1px;
+  height: 15px;
+  border: 0;
+  background: #fffafe;
+  box-shadow: 0 0 6px rgba(255, 250, 238, .3);
+  content: '';
+  animation: intro-progress-head 1.6s ease-in-out infinite;
+  transform: translateY(-50%);
+}
+
+.sync-console.is-sync-complete .sync-progress i::after { display: none; }
+
+@keyframes intro-progress-head {
+  0%, 49% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+/* Chapter 01 uses a strict black/white diagnostic palette. */
+.intro-layer .sync-console,
+.intro-layer .sync-mast .system-kicker,
+.intro-layer .sync-mast #sync-subtitle,
+.intro-layer .sync-summary > p,
+.intro-layer .sync-phase,
+.intro-layer .sync-phase b,
+.intro-layer .sync-totals dt,
+.intro-layer .sync-totals dd,
+.intro-layer .sync-counts span,
+.intro-layer .sync-counts b,
+.intro-layer .sync-console .sync-enter,
+.intro-layer .sync-console .sync-enter::before {
+  color: #fff;
+}
+
+.intro-layer .sync-totals,
+.intro-layer .sync-totals > div {
+  border-color: #fff;
+}
+
+.micro-annotation[data-micro-slot='polar-count'] {
+  --micro-color: rgba(255, 250, 238, .72);
+  bottom: 38px;
+  left: 28px;
+  width: min(350px, calc(100vw - 56px));
+}
+
+.polar-figma-014,
+.polar-figma-014__source-svg { display: block; width: 100%; }
+.polar-figma-014 { aspect-ratio: 510 / 235; }
+.polar-figma-014__source-svg { height: 100%; }
+
+/* Secondary annotations yield as soon as the layout no longer has real margin. */
+@media (max-width: 1180px) {
+  .micro-annotation[data-micro-slot='intro-index'],
+  .micro-annotation[data-micro-slot='polar-count'] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-figma-013__loader-piece {
+    opacity: .86;
+    animation: none;
+  }
+  .sync-console.is-sync-complete:not(.is-sync-failed) .intro-figma-013__piece {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+
+  .sync-console.is-sync-complete #sync-subtitle {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Loading identity: replaces the former three-line authority copy. */
+.access-mark-code.access-global-stamp {
+  right: -16px;
+  bottom: 14px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  width: 226px;
+  max-width: none;
+  column-gap: 8px;
+  row-gap: 4px;
+  color: rgba(221, 219, 212, .7);
+  font: 500 7px/1.15 var(--font-figma-micro);
+  letter-spacing: .08em;
+  text-align: left;
+}
+
+.access-global-stamp__coordinates { grid-column: 2; grid-row: 1; white-space: nowrap; }
+.access-global-stamp__body { display: contents; }
+.access-global-stamp__body strong {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  margin-top: 4px;
+  color: rgba(247, 244, 236, .9);
+  font: 700 18px/.78 var(--font-figma-display);
+  letter-spacing: -.06em;
+}
+.access-global-stamp__figure {
+  display: block;
+  grid-column: 2;
+  grid-row: 2;
+  width: 160px;
+  height: 74px;
+  overflow: hidden;
+}
+.access-global-stamp__figure-svg { display: block; width: 100%; height: 100%; }
+
+/* Archive core: the round layout is structurally tied to the globe centre. */
+.archive-core-seal {
+  position: absolute;
+  z-index: 4;
+  top: var(--archive-center-y);
+  left: 50%;
+  width: min(38vh, 410px);
+  aspect-ratio: 1;
+  display: block;
+  opacity: .78;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 8px rgba(255, 250, 238, .08));
+  transition: opacity 180ms ease-out, transform 240ms ease-out;
+  pointer-events: none;
+}
+.archive-core-seal__source-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.archive-core-seal__source-svg :is(path, circle, rect) { vector-effect: non-scaling-stroke; }
+.archive-layer.has-directory .archive-core-seal { opacity: 0; transform: translate(-50%, -50%) scale(.88); }
+
+/* Directory classifier: anchored to the active category, never shown at root. */
+.archive-classification-mark {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: clamp(18px, 4vw, 74px);
+  display: grid;
+  grid-template-columns: 28px minmax(0, 150px);
+  gap: 12px;
+  width: 190px;
+  color: rgba(237, 239, 231, .66);
+  font: 500 8px/1.25 var(--font-figma-micro);
+  letter-spacing: .03em;
+  text-align: left;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.archive-classification-mark[hidden] { display: none; }
+.archive-classification-mark__axis { display: grid; place-items: center; font-size: 31px; font-weight: 200; }
+.archive-classification-mark > div { display: grid; gap: 2px; }
+.archive-classification-mark b { color: rgba(255,255,255,.82); font-size: 10px; }
+.archive-classification-mark strong { color: rgba(255,255,255,.78); font-weight: 400; overflow-wrap: anywhere; }
+.archive-classification-mark p { margin: 8px 0 0; color: rgba(255,255,255,.5); }
+.archive-classification-mark em { margin-top: 4px; color: rgba(255,255,255,.86); font: 500 16px/1 var(--font-figma-micro); font-style: normal; }
+
+/* Desktop identity ruler: replaces the detached translucent watermark. */
+.clerk-desktop__watermark.clerk-environment-mark {
+  right: 118px;
+  bottom: 58px;
+  display: grid;
+  width: 352px;
+  justify-items: stretch;
+  gap: 4px;
+  color: rgba(255, 255, 255, .7);
+  font: 500 10px/1 var(--font-figma-micro);
+  letter-spacing: .05em;
+  text-align: left;
+}
+.clerk-environment-mark > strong { font: 700 32px/.95 var(--font-figma-display); letter-spacing: -.05em; }
+.clerk-environment-mark > strong sup { margin-left: 5px; font: 500 8px var(--font-figma-micro); vertical-align: top; }
+.clerk-environment-mark__scale { position: relative; display: grid; height: 20px; grid-template-columns: repeat(7, 1fr); border-top: 2px solid currentColor; }
+.clerk-environment-mark__scale i { width: 1px; height: 10px; background: currentColor; }
+.clerk-environment-mark__scale i:nth-child(odd) { height: 18px; }
+.clerk-environment-mark__scale i:last-child { justify-self: end; }
+.clerk-environment-mark__status { display: grid; grid-template-columns: auto auto 1fr repeat(4, auto); gap: 12px; align-items: center; }
+.clerk-environment-mark__status b { font-size: 13px; }
+.clerk-environment-mark__status span { opacity: .64; }
+.clerk-environment-mark__status em { font: 700 12px var(--font-figma-micro); font-style: normal; }
+.clerk-environment-mark__status i { font: 19px/1 var(--font-figma-micro); font-style: normal; }
+.clerk-environment-mark__footer { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.clerk-environment-mark__footer b { font-size: 22px; }
+.clerk-environment-mark__footer span { text-decoration: line-through; opacity: .72; }
+.clerk-environment-mark__footer em { padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; font-style: normal; }
+
+@media (max-width: 1180px), (max-height: 760px) {
+  .clerk-desktop__watermark.clerk-environment-mark { right: 100px; width: 286px; }
+  .clerk-environment-mark > strong { font-size: 26px; }
+  .archive-core-seal { width: min(29vh, 270px); }
+  .archive-classification-mark { left: 14px; grid-template-columns: 20px 118px; width: 150px; font-size: 7px; }
+}
+
+@media (max-width: 760px) {
+  .access-mark-code.access-global-stamp { right: 14px; bottom: 12px; width: 176px; transform: scale(.72); transform-origin: right bottom; }
+  .archive-core-seal { display: none; }
+  .archive-classification-mark { display: none; }
+}
+
+@media (max-width: 760px) {
+  .micro-annotation { display: none; }
+}

@@ -4820,3 +4820,15 @@ language sql security definer set search_path = public, pg_temp stable as $$
 $$;
 
 grant execute on function public.list_public_workflow_tasks(boolean) to anon, authenticated
+
+-- Source migration: 202608100001_hide_removed_organization_o11.sql
+-- Remove the retired O11 organisation record from every public directory
+-- without cascading into existing submitted material.
+update public.archives
+set visibility = 'offline',
+    is_archived = true,
+    new_badge_visible = false
+where code = 'O11'
+   or business_code = 'O11';
+
+notify pgrst, 'reload schema'

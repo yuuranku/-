@@ -1,4 +1,4 @@
-const PALETTE = ['#9fbda9', '#6f927b', '#d0ddcf', '#9a8359'];
+const PALETTE = ['#f4f1e9', '#aaa9a4', '#d4d2cb', '#74746f'];
 const MAX_PARTICLES = 220;
 
 function makeParticles(count, horizon, outerRadius) {

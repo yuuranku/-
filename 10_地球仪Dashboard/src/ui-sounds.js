@@ -9,8 +9,10 @@ let activeUiSoundManager = null;
 const cueTimes = new Map();
 
 // The profiles follow the ACS sound-design plan, implemented with native Web
-// Audio because this application has no ACS runtime. All interaction sounds
-// stay short, quiet, and inside the 80–4000 Hz UI body band.
+// Audio because this application has no ACS runtime. Loading cues share the
+// same E-G#-B identity motif as the clerk workspace hand-off: short pulses for
+// visual arrivals, sustained voices for drawn geometry, and a spaced cadence
+// for completion. Pure oscillators keep the family tonal instead of gamey.
 export const SOUND_PROFILES = Object.freeze({
   tap: Object.freeze({
     cap: .1,
@@ -42,23 +44,22 @@ export const SOUND_PROFILES = Object.freeze({
     ]),
   }),
   open: Object.freeze({
-    cap: .5,
+    cap: .24,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'sine', frequency: 420, endFrequency: 640, attack: .008, decay: .19, release: .035, gain: .06 },
+      { kind: 'osc', wave: 'sine', frequency: 440, endFrequency: 554.37, attack: .004, decay: .105, release: .022, gain: .034 },
     ]),
   }),
   close: Object.freeze({
-    cap: .5,
+    cap: .22,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'sine', frequency: 620, endFrequency: 390, attack: .006, decay: .14, release: .028, gain: .05 },
+      { kind: 'osc', wave: 'sine', frequency: 554.37, endFrequency: 440, attack: .003, decay: .09, release: .02, gain: .03 },
     ]),
   }),
   success: Object.freeze({
-    cap: .8,
+    cap: .3,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'sine', frequency: 660, start: 0, attack: .008, decay: .18, release: .035, gain: .042 },
-      { kind: 'osc', wave: 'sine', frequency: 825, start: .07, attack: .008, decay: .18, release: .035, gain: .042 },
-      { kind: 'osc', wave: 'sine', frequency: 990, start: .14, attack: .008, decay: .2, release: .04, gain: .042 },
+      { kind: 'osc', wave: 'sine', frequency: 523.25, attack: .004, decay: .12, release: .025, gain: .024 },
+      { kind: 'osc', wave: 'triangle', frequency: 783.99, start: .018, attack: .003, decay: .1, release: .022, gain: .014 },
     ]),
   }),
   'workspace-enter': Object.freeze({
@@ -101,36 +102,85 @@ export const SOUND_PROFILES = Object.freeze({
   boot: Object.freeze({
     cap: .17,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'square', frequency: 164, endFrequency: 186, attack: .003, decay: .052, release: .016, gain: .022 },
-      { kind: 'osc', wave: 'square', frequency: 656, endFrequency: 742, start: .055, attack: .002, decay: .042, release: .014, gain: .014 },
+      { kind: 'osc', wave: 'sine', frequency: 220, attack: .003, decay: .07, release: .018, gain: .02 },
+      { kind: 'osc', wave: 'triangle', frequency: 440, start: .028, attack: .002, decay: .055, release: .015, gain: .012 },
     ]),
   }),
   scan: Object.freeze({
     cap: .16,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'square', frequency: 372, endFrequency: 592, attack: .004, decay: .075, release: .018, gain: .024 },
-      { kind: 'osc', wave: 'triangle', frequency: 744, endFrequency: 960, start: .035, attack: .003, decay: .055, release: .016, gain: .012 },
+      { kind: 'noise', filter: 'bandpass', cutoff: 2600, q: 2.8, attack: .001, decay: .045, release: .012, gain: .008 },
+      { kind: 'osc', wave: 'sine', frequency: 659.25, start: .018, attack: .002, decay: .05, release: .014, gain: .014 },
     ]),
   }),
   window: Object.freeze({
     cap: .18,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'square', frequency: 286, endFrequency: 428, attack: .002, decay: .065, release: .014, gain: .032 },
-      { kind: 'osc', wave: 'square', frequency: 858, endFrequency: 1024, start: .048, attack: .002, decay: .05, release: .014, gain: .016 },
+      { kind: 'osc', wave: 'sine', frequency: 523.25, attack: .003, decay: .075, release: .018, gain: .022 },
+      { kind: 'osc', wave: 'triangle', frequency: 783.99, start: .012, attack: .002, decay: .06, release: .016, gain: .012 },
     ]),
   }),
   telemetry: Object.freeze({
-    cap: .16,
+    cap: .1,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'square', frequency: 188, endFrequency: 212, attack: .002, decay: .07, release: .018, gain: .02 },
-      { kind: 'osc', wave: 'square', frequency: 564, endFrequency: 636, start: .04, attack: .002, decay: .04, release: .014, gain: .014 },
+      { kind: 'osc', wave: 'triangle', frequency: 620, endFrequency: 560, attack: .006, decay: .026, release: .014, gain: .007 },
     ]),
   }),
   verified: Object.freeze({
-    cap: .5,
+    cap: .22,
     layers: Object.freeze([
-      { kind: 'osc', wave: 'square', frequency: 328, endFrequency: 328, attack: .004, decay: .09, release: .025, gain: .028 },
-      { kind: 'osc', wave: 'triangle', frequency: 656, endFrequency: 656, start: .1, attack: .004, decay: .12, release: .028, gain: .026 },
+      { kind: 'osc', wave: 'sine', frequency: 392, attack: .004, decay: .105, release: .022, gain: .021 },
+      { kind: 'osc', wave: 'triangle', frequency: 783.99, start: .014, attack: .002, decay: .075, release: .018, gain: .01 },
+    ]),
+  }),
+  'motif-pulse-1': Object.freeze({
+    cap: .3,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 329.63, attack: .012, decay: .15, release: .08, gain: .018 },
+      { kind: 'osc', wave: 'sine', frequency: 659.25, start: .008, attack: .014, decay: .11, release: .07, gain: .006 },
+    ]),
+  }),
+  'motif-pulse-2': Object.freeze({
+    cap: .3,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 415.3, attack: .012, decay: .15, release: .08, gain: .018 },
+      { kind: 'osc', wave: 'sine', frequency: 830.61, start: .008, attack: .014, decay: .11, release: .07, gain: .006 },
+    ]),
+  }),
+  'motif-pulse-3': Object.freeze({
+    cap: .3,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 493.88, attack: .012, decay: .15, release: .08, gain: .018 },
+      { kind: 'osc', wave: 'sine', frequency: 987.77, start: .008, attack: .014, decay: .11, release: .07, gain: .006 },
+    ]),
+  }),
+  'motif-draw-1': Object.freeze({
+    cap: .72,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 329.63, attack: .04, decay: .47, release: .16, gain: .016 },
+      { kind: 'osc', wave: 'sine', frequency: 659.25, start: .025, attack: .04, decay: .4, release: .13, gain: .005 },
+    ]),
+  }),
+  'motif-draw-2': Object.freeze({
+    cap: .72,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 415.3, attack: .04, decay: .47, release: .16, gain: .016 },
+      { kind: 'osc', wave: 'sine', frequency: 830.61, start: .025, attack: .04, decay: .4, release: .13, gain: .005 },
+    ]),
+  }),
+  'motif-draw-3': Object.freeze({
+    cap: .72,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 493.88, attack: .04, decay: .47, release: .16, gain: .016 },
+      { kind: 'osc', wave: 'sine', frequency: 987.77, start: .025, attack: .04, decay: .4, release: .13, gain: .005 },
+    ]),
+  }),
+  'motif-resolve': Object.freeze({
+    cap: .7,
+    layers: Object.freeze([
+      { kind: 'osc', wave: 'triangle', frequency: 329.63, start: 0, attack: .018, decay: .2, release: .09, gain: .02 },
+      { kind: 'osc', wave: 'sine', frequency: 415.3, start: .14, attack: .016, decay: .22, release: .09, gain: .021 },
+      { kind: 'osc', wave: 'sine', frequency: 493.88, start: .3, attack: .018, decay: .24, release: .1, gain: .021 },
     ]),
   }),
   stamp: Object.freeze({
@@ -163,7 +213,11 @@ export function validateSoundProfiles(profiles) {
       if (layer.kind === 'osc' && (layer.frequency < 80 || layer.frequency > 4000 || (layer.endFrequency && (layer.endFrequency < 80 || layer.endFrequency > 4000)))) {
         issues.push(`${name}: oscillator frequency is outside the UI body band`);
       }
-      if (layer.kind === 'noise' && (layer.cutoff < 1000 || layer.cutoff > 8000)) issues.push(`${name}: noise filter is outside the click band`);
+      if (layer.kind === 'noise' && (
+        layer.cutoff < 1000
+        || layer.cutoff > 8000
+        || (layer.endCutoff && (layer.endCutoff < 1000 || layer.endCutoff > 8000))
+      )) issues.push(`${name}: noise filter is outside the click band`);
     });
   });
   return issues;
@@ -252,7 +306,14 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
       source.buffer = buffer;
       filter = audioContext.createBiquadFilter();
       filter.type = layer.filter || 'highpass';
-      filter.frequency.value = layer.cutoff;
+      filter.frequency.setValueAtTime(layer.cutoff, startAt);
+      if (layer.endCutoff) {
+        filter.frequency.exponentialRampToValueAtTime(
+          layer.endCutoff,
+          startAt + layer.attack + layer.decay,
+        );
+      }
+      if (layer.q) filter.Q.value = layer.q;
       source.connect(filter).connect(envelope);
     } else {
       source = audioContext.createOscillator();
@@ -277,7 +338,7 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
     const profile = SOUND_PROFILES[name];
     if (!profile) return false;
     const audioContext = await ensureContext();
-    if (!audioContext || !masterGain) return false;
+    if (!audioContext || !masterGain || audioContext.state !== 'running') return false;
     masterGain.gain.setTargetAtTime(volume, audioContext.currentTime, .015);
     profile.layers.forEach((layer) => playLayer(audioContext, layer, audioContext.currentTime));
     return true;
@@ -337,14 +398,18 @@ export function createUiSoundManager({ storage = globalThis.localStorage } = {})
     return volume;
   };
 
+  const unlock = async () => (await ensureContext())?.state === 'running';
+
   return {
     get enabled() { return enabled; },
     get suspended() { return suspended; },
+    get unlocked() { return context?.state === 'running'; },
     get volume() { return volume; },
     play,
     startLoop,
     stopLoop,
     stopAll,
+    unlock,
     setSuspended,
     setEnabled,
     setVolume,
@@ -359,6 +424,11 @@ export function emitUiSound(name, { minInterval = 0 } = {}) {
   if (now - previous < minInterval) return Promise.resolve(false);
   cueTimes.set(name, now);
   return manager.play(name);
+}
+
+export function isUiAudioReady() {
+  const manager = activeUiSoundManager;
+  return !manager || !manager.enabled || !audioConstructor() || manager.unlocked;
 }
 
 export function startUiSoundLoop(name, options) {
@@ -424,6 +494,18 @@ export function initializeUiSounds() {
   const status = document.querySelector('#ui-sound-status');
   const manager = createUiSoundManager();
   activeUiSoundManager = manager;
+  let audioReadyAnnounced = false;
+  const announceAudioReady = () => {
+    if (audioReadyAnnounced) return;
+    audioReadyAnnounced = true;
+    window.dispatchEvent(new CustomEvent('palis:ui-audio-ready'));
+  };
+  const unlockAudio = async () => {
+    if (await manager.unlock()) announceAudioReady();
+  };
+  document.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
+  document.addEventListener('keydown', unlockAudio, { once: true, capture: true });
+  void unlockAudio();
   const syncControl = () => {
     if (!toggle || !label || !volumeInput) return;
     toggle.setAttribute('aria-pressed', String(manager.enabled));
